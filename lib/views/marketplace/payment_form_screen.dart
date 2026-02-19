@@ -36,18 +36,6 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
   }
 
   Future<void> _processPayment() async {
-    // Validate form
-    if (_cardNumberController.text.isEmpty || _cardHolderController.text.isEmpty || _expiryController.text.isEmpty || _cvvController.text.isEmpty) {
-      Get.snackbar(
-        'Error',
-        'Please fill in all payment details',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-      );
-      return;
-    }
-
     setState(() {
       _isProcessing = true;
     });
@@ -121,6 +109,10 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
         appBar: AppBar(
           title: Text('Payment', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
           centerTitle: true,
+          leading: IconButton(
+            onPressed: () => Get.back(),
+            icon: Icon(Icons.arrow_back_ios_new, color: AppColors.accent),
+          ),
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -283,11 +275,7 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                   ? Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(AppColors.onAccent)),
-                        ),
+                        SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(AppColors.onAccent))),
                         const SizedBox(width: 12),
                         Text('Processing...', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onAccent)),
                       ],

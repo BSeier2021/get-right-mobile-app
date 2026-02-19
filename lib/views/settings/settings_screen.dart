@@ -80,6 +80,15 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => Get.toNamed(AppRoutes.reports),
           ),
 
+          // Transaction History
+          ListTile(
+            leading: const Icon(Icons.receipt_long_outlined, color: AppColors.onBackground),
+            title: Text('Transaction History', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
+            subtitle: Text('View your payment history', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+            trailing: const Icon(Icons.chevron_right, color: AppColors.primaryGray),
+            onTap: () => Get.toNamed(AppRoutes.transactionHistory),
+          ),
+
           // Notifications Settings
 
           // const Divider(height: 32),

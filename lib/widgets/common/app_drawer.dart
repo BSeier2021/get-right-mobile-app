@@ -99,6 +99,7 @@ class AppDrawer extends StatelessWidget {
                     },
                   ),
                 ),
+
                 // _buildDrawerItem(
                 //   icon: Icons.people_outline,
                 //   activeIcon: Icons.people,
@@ -117,16 +118,6 @@ class AppDrawer extends StatelessWidget {
                 //     Get.toNamed(AppRoutes.programHistory);
                 //   },
                 // ),
-                _buildDrawerItem(
-                  icon: Icons.receipt_long_outlined,
-                  activeIcon: Icons.receipt_long,
-                  title: 'Transaction History',
-                  onTap: () {
-                    Get.back();
-                    Get.toNamed(AppRoutes.transactionHistory);
-                  },
-                ),
-
                 const SizedBox(height: 16),
                 const Divider(color: AppColors.primaryGray, thickness: 0.5, height: 1),
                 const SizedBox(height: 16),
