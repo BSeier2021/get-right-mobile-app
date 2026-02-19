@@ -548,6 +548,13 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 _buildMenuCard(icon: Icons.bookmark_outline, title: 'Saved Posts', subtitle: 'Access your saved posts', onTap: () => Get.toNamed(AppRoutes.savedPosts)),
                 const SizedBox(height: 12),
                 _buildMenuCard(icon: Icons.chat_bubble_outline, title: 'Chat', subtitle: 'View your conversations', onTap: () => Get.to(() => const ChatListScreen())),
+                const SizedBox(height: 12),
+                _buildMenuCard(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Transaction History',
+                  subtitle: 'View your payment history',
+                  onTap: () => Get.toNamed(AppRoutes.transactionHistory),
+                ),
                 const SizedBox(height: 24),
                 _buildLogoutCard(),
                 const SizedBox(height: 24),

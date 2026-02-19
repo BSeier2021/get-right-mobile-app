@@ -306,118 +306,187 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   void _showReportDialog() {
-    String? selectedReason;
     final descriptionController = TextEditingController();
+    String? selectedReason;
 
     Get.dialog(
       Dialog(
         backgroundColor: AppColors.surface,
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Report Trainer', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
-              const SizedBox(height: 16),
-              Text('Reason:', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-              const SizedBox(height: 8),
-              ...ReportReasons.all.map(
-                (reason) => RadioListTile<String>(
-                  title: Text(ReportReasons.getDisplayName(reason), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-                  value: reason,
-                  groupValue: selectedReason,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedReason = value;
-                    });
-                  },
-                  activeColor: AppColors.accent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Padding(
+              padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 24 + MediaQuery.of(context).viewInsets.bottom),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Report Trainer', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
+                    const SizedBox(height: 16),
+                    Text('Reason:', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                    const SizedBox(height: 8),
+                    ...ReportReasons.all.map(
+                      (reason) => RadioListTile<String>(
+                        title: Text(ReportReasons.getDisplayName(reason), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                        value: reason,
+                        groupValue: selectedReason,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            selectedReason = value;
+                          });
+                        },
+                        activeColor: AppColors.accent,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: InputDecoration(
+                        labelText: 'Additional Details (Optional)',
+                        labelStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurfaceLight),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppColors.primaryGray),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppColors.primaryGray),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppColors.accent, width: 2),
+                        ),
+                      ),
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                      maxLines: 3,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => FocusScope.of(context).unfocus(),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Get.back(),
+                          child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: selectedReason == null
+                              ? null
+                              : () async {
+                                  if (_trainerId != null && selectedReason != null && _chatController != null) {
+                                    Get.back(); // Close dialog first
+                                    await _chatController!.reportTrainer(
+                                      trainerId: _trainerId!,
+                                      reason: selectedReason!,
+                                      description: descriptionController.text.trim().isEmpty ? null : descriptionController.text.trim(),
+                                    );
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.onAccent),
+                          child: const Text('Submit'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                decoration: InputDecoration(
-                  labelText: 'Additional Details (Optional)',
-                  labelStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurfaceLight),
-                ),
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Get.back(),
-                    child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: selectedReason == null
-                        ? null
-                        : () async {
-                            if (_trainerId != null && selectedReason != null && _chatController != null) {
-                              await _chatController!.reportTrainer(
-                                trainerId: _trainerId!,
-                                reason: selectedReason!,
-                                description: descriptionController.text.trim().isEmpty ? null : descriptionController.text.trim(),
-                              );
-                              Get.back();
-                            }
-                          },
-                    child: const Text('Submit'),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
   }
 
   void _showBlockDialog() {
+    bool isBlocking = false;
+    // Capture the screen context before showing dialog
+    final screenContext = context;
+
     Get.dialog(
       Dialog(
         backgroundColor: AppColors.surface,
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Block Trainer?', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
-              const SizedBox(height: 16),
-              Text(
-                'You will no longer receive messages from this trainer. This action cannot be undone.',
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextButton(
-                    onPressed: () => Get.back(),
-                    child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                  Text('Block Trainer?', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
+                  const SizedBox(height: 16),
+                  Text(
+                    'You will no longer receive messages from this trainer. This action cannot be undone.',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                    textAlign: TextAlign.center,
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (_trainerId != null && _chatController != null) {
-                        await _chatController!.blockTrainer(_trainerId!);
-                        Get.back();
-                        Get.back(); // Close chat room
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-                    child: const Text('Block'),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: isBlocking ? null : () => Get.back(),
+                        child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: isBlocking
+                            ? null
+                            : () async {
+                                if (_trainerId != null && _chatController != null) {
+                                  setDialogState(() {
+                                    isBlocking = true;
+                                  });
+
+                                  // Close dialog first to avoid snackbar conflict
+                                  Navigator.of(dialogContext).pop();
+
+                                  // Wait for dialog to close
+                                  await Future.delayed(const Duration(milliseconds: 100));
+
+                                  try {
+                                    // Block the trainer (this will show a snackbar)
+                                    await _chatController!.blockTrainer(_trainerId!);
+
+                                    // Wait for snackbar to appear and settle
+                                    await Future.delayed(const Duration(milliseconds: 800));
+
+                                    // Navigate back from chat room using Navigator instead of Get.back()
+                                    // to avoid snackbar disposal issues
+                                    if (mounted) {
+                                      try {
+                                        if (Navigator.of(screenContext).canPop()) {
+                                          Navigator.of(screenContext).pop();
+                                        }
+                                      } catch (e) {
+                                        // Context might be invalid, try Get.back() as fallback
+                                        try {
+                                          Get.back();
+                                        } catch (_) {
+                                          // Ignore if navigation fails
+                                        }
+                                      }
+                                    }
+                                  } catch (e) {
+                                    // Error is already shown by the controller
+                                    // If we need to show error, we can do it here
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.onError),
+                        child: isBlocking
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(AppColors.onError)))
+                            : const Text('Block'),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

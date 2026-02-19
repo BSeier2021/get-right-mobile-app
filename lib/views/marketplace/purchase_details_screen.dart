@@ -36,6 +36,10 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
       appBar: AppBar(
         title: Text('Purchase Details', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
         centerTitle: true,
+        leading: IconButton(
+          onPressed: () => Get.back(),
+          icon: Icon(Icons.arrow_back_ios_new, color: AppColors.accent),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
