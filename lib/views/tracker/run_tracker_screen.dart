@@ -173,9 +173,9 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
           DraggableScrollableSheet(
             initialChildSize: 0.13,
             minChildSize: 0.12,
-            maxChildSize: 0.35,
+            maxChildSize: 0.30,
             snap: true,
-            snapSizes: const [0.13, 0.35],
+            snapSizes: const [0.12, 0.30],
             builder: (context, scrollController) => _buildDraggableBottomSheet(scrollController),
           ),
 
@@ -487,7 +487,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
   Widget _buildDraggableBottomSheet(ScrollController scrollController) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: AppColors.backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -5))],
       ),
@@ -618,7 +618,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: isSelected ? color.withOpacity(0.2) : AppColors.surface,
+              color: isSelected ? color.withOpacity(0.2) : AppColors.backgroundColor,
               shape: BoxShape.circle,
               border: Border.all(color: isSelected ? color : AppColors.primaryGray.withOpacity(0.3), width: isSelected ? 3 : 2),
               boxShadow: isSelected

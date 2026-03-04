@@ -6,7 +6,6 @@ import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/views/journal/combined_journal_screen.dart';
 import 'package:get_right/views/feed/feed_screen.dart';
 import 'package:get_right/views/marketplace/marketplace_screen.dart';
-import 'package:get_right/views/library/library_screen.dart';
 import 'package:get_right/views/nutrition/nutrition_screen.dart';
 import 'package:get_right/views/profile/profile_screen.dart';
 import 'package:get_right/widgets/common/app_drawer.dart';
@@ -73,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
       () => PopScope(
         canPop: false,
         child: Scaffold(
-          backgroundColor: const Color.fromARGB(0, 250, 255, 239),
+          backgroundColor: AppColors.backgroundColor,
           key: _scaffoldKey,
           drawer: const AppDrawer(), // Professional app drawer
           body: IndexedStack(index: _navController.currentIndex, children: _screens),
@@ -83,15 +82,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Modern 2024/2025 bottom navigation bar with liquid glass effect
   Widget _buildProfessionalBottomNav() {
     final navItems = [
       // {'icon': Icons.home_outlined, 'activeIcon': Icons.home_rounded, 'label': 'Home'},
-      {'icon': Icons.storefront_outlined, 'activeIcon': Icons.storefront_rounded, 'label': 'Market'},
-      {'icon': Icons.explore_outlined, 'activeIcon': Icons.explore_rounded, 'label': 'Feed'},
-      {'icon': Icons.book_outlined, 'activeIcon': Icons.book_rounded, 'label': 'Journal'},
-      {'icon': Icons.restaurant_menu_outlined, 'activeIcon': Icons.restaurant_menu_rounded, 'label': 'Nutrition'},
-      {'icon': Icons.person_outlined, 'activeIcon': Icons.person_rounded, 'label': 'Profile'},
+      // {'icon': 'assets/images/market.png', 'activeIcon': 'assets/images/marketfill.png', 'label': 'Market'},
+      // {'icon': 'assets/images/feed.png', 'activeIcon': 'assets/images/feedfill.png', 'label': 'Feed'},
+      // {'icon': 'assets/images/Vector (4).png', 'activeIcon': 'assets/images/Vector (4).png', 'label': 'Journal'},
+      // {'icon': 'assets/images/nutrition.png', 'activeIcon': 'assets/images/nutritionfill.png', 'label': 'Nutrition'},
+      // {'icon': 'assets/images/profile.png', 'activeIcon': 'assets/images/profilefill.png', 'label': 'Profile'},
+      {'icon': 'assets/images/market.png', 'activeIcon': 'assets/images/marketfill.png', 'label': 'Market'},
+      {'icon': 'assets/images/feed.png', 'activeIcon': 'assets/images/feedfill.png', 'label': 'Feed'},
+      {'icon': 'assets/images/Vector (4).png', 'activeIcon': 'assets/images/Vector (4).png', 'label': 'Journal'},
+      {'icon': 'assets/images/nutrition.png', 'activeIcon': 'assets/images/nutritionfill.png', 'label': 'Nutrition'},
+      {'icon': 'assets/images/profile.png', 'activeIcon': 'assets/images/profilefill.png', 'label': 'Profile'},
     ];
 
     return ClipRRect(
@@ -113,8 +116,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: List.generate(navItems.length, (index) {
                   final isCenter = index == 2;
                   return _buildNavItem(
-                    icon: navItems[index]['icon'] as IconData,
-                    activeIcon: navItems[index]['activeIcon'] as IconData,
+                    icon: navItems[index]['icon'] as String,
+                    activeIcon: navItems[index]['activeIcon'] as String,
                     label: navItems[index]['label'] as String,
                     index: index,
                     isSelected: _navController.currentIndex == index,
@@ -223,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Modern navigation item
-  Widget _buildNavItem({required IconData icon, required IconData activeIcon, required String label, required int index, required bool isSelected, bool isCenter = false}) {
+  Widget _buildNavItem({required String icon, required String activeIcon, required String label, required int index, required bool isSelected, bool isCenter = false}) {
     const greenAccent = Color(0xFF29603C);
     const blackPrimary = Color(0xFF000000);
     const textSecondary = Color(0xFF404040);
@@ -273,16 +276,29 @@ class _HomeScreenState extends State<HomeScreen> {
                         transitionBuilder: (child, animation) {
                           return ScaleTransition(scale: animation, child: child);
                         },
-                        child: Icon(
-                          isLocked ? Icons.lock : (isSelected ? activeIcon : icon),
-                          key: ValueKey('$index-$isSelected-$isLocked'),
-                          color: isCenter
-                              ? Colors.white
-                              : isSelected
-                              ? greenAccent
-                              : textSecondary,
-                          size: isCenter ? 24 : 20,
-                        ),
+                        child: isLocked
+                            ? Icon(
+                                Icons.lock,
+                                key: ValueKey('$index-$isSelected-$isLocked-lock'),
+                                color: isCenter
+                                    ? Colors.white
+                                    : isSelected
+                                    ? greenAccent
+                                    : textSecondary,
+                                size: isCenter ? 24 : 20,
+                              )
+                            : Image.asset(
+                                isSelected ? activeIcon : icon,
+                                key: ValueKey('$index-$isSelected-$isLocked'),
+                                width: isCenter ? 24 : 20,
+                                height: isCenter ? 24 : 20,
+                                color: isCenter
+                                    ? Colors.white
+                                    : isSelected
+                                    ? greenAccent
+                                    : textSecondary,
+                                colorBlendMode: BlendMode.srcIn,
+                              ),
                       ),
                     ),
                   ),

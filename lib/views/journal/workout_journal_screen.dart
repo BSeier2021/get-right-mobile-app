@@ -171,7 +171,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
+          decoration: BoxDecoration(color: AppColors.backgroundColor, borderRadius: BorderRadius.circular(20)),
           child: StatefulBuilder(
             builder: (context, setDialogState) {
               return SingleChildScrollView(
@@ -355,7 +355,8 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     if (widget.isEmbedded) {
       // When embedded in combined screen, no AppBar or Scaffold needed
       return Container(
-        color: AppColors.background,
+        color: AppColors.backgroundColor,
+
         child: Column(
           children: [
             // Actions bar
@@ -447,7 +448,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                 height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFE5E5E5).withOpacity(0.7), // Light grey frosted
+                  color: const Color.fromARGB(255, 240, 250, 219).withOpacity(0.7), // Light grey frosted
                   boxShadow: [
                     // Soft diffused shadow beneath and slightly to the right
                     BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 16, offset: const Offset(2, 6), spreadRadius: 0),
@@ -455,7 +456,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                     BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(1, 3), spreadRadius: 0),
                   ],
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.8),
+                    color: AppColors.accent,
                     width: 0.8, // Very thin border
                   ),
                 ),
@@ -622,7 +623,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: AppColors.backgroundColor, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           GestureDetector(

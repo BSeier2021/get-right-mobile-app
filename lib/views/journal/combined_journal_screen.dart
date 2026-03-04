@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/views/planner/planner_screen.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get_right/controllers/notification_controller.dart';
@@ -27,24 +28,14 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
   GoogleMapController? _headerMapController;
   Position? _currentPosition;
   bool _isMapInitialized = false;
+  bool _isDisposed = false;
 
   @override
   void initState() {
     super.initState();
     _navController = Get.find<HomeNavigationController>();
     _tabController = TabController(length: 2, vsync: this, initialIndex: _navController.journalTabIndex.value.clamp(0, 1));
-    _tabController.addListener(() {
-      // Keep controller in sync (and update UI)
-      final idx = _tabController.index.clamp(0, 1);
-      if (_navController.journalTabIndex.value != idx) {
-        _navController.journalTabIndex.value = idx;
-      }
-      // Initialize map when switching to Runner Log tab
-      if (idx == 1 && !_isMapInitialized) {
-        _initializeMap();
-      }
-      setState(() {});
-    });
+    _tabController.addListener(_handleTabChange);
 
     // Initialize map if starting on Runner Log tab
     if (_tabController.index == 1) {
@@ -53,12 +44,32 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
 
     // If something (e.g. dashboard quick actions) requests a specific tab, jump there.
     _journalTabWorker = ever<int>(_navController.journalTabIndex, (idx) {
-      if (!mounted) return;
+      if (_isDisposed || !mounted) return;
       final target = idx.clamp(0, 1);
-      if (_tabController.index != target) {
-        _tabController.animateTo(target);
+      if (_tabController.index != target && _tabController.indexIsChanging == false) {
+        try {
+          _tabController.animateTo(target);
+        } catch (e) {
+          debugPrint('Error animating tab: $e');
+        }
       }
     });
+  }
+
+  void _handleTabChange() {
+    if (_isDisposed || !mounted) return;
+    // Keep controller in sync (and update UI)
+    final idx = _tabController.index.clamp(0, 1);
+    if (_navController.journalTabIndex.value != idx) {
+      _navController.journalTabIndex.value = idx;
+    }
+    // Initialize map when switching to Runner Log tab
+    if (idx == 1 && !_isMapInitialized) {
+      _initializeMap();
+    }
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _initializeMap() async {
@@ -80,6 +91,8 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
 
   @override
   void dispose() {
+    _isDisposed = true;
+    _tabController.removeListener(_handleTabChange);
     _journalTabWorker.dispose();
     _tabController.dispose();
     _headerMapController?.dispose();
@@ -91,11 +104,9 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
     final isRunnerLogTab = _tabController.index == 1;
 
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFFD6D6D6), Color(0xFFE8E8E8), Color(0xFFC0C0C0)]),
-      ),
+      color: AppColors.backgroundColor,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.backgroundColor,
         extendBodyBehindAppBar: isRunnerLogTab,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
@@ -179,7 +190,15 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
             mainAxisSize: MainAxisSize.min,
             children: [
               GestureDetector(
-                onTap: () => _tabController.animateTo(0),
+                onTap: () {
+                  if (!_isDisposed && mounted) {
+                    try {
+                      _tabController.animateTo(0);
+                    } catch (e) {
+                      debugPrint('Error animating to tab 0: $e');
+                    }
+                  }
+                },
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -197,7 +216,15 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
               ),
               const SizedBox(width: 15),
               GestureDetector(
-                onTap: () => _tabController.animateTo(1),
+                onTap: () {
+                  if (!_isDisposed && mounted) {
+                    try {
+                      _tabController.animateTo(1);
+                    } catch (e) {
+                      debugPrint('Error animating to tab 1: $e');
+                    }
+                  }
+                },
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -215,17 +242,19 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
               ),
             ],
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.calendar_month, color: AppColors.accent),
-              onPressed: () {
-                Get.toNamed('/planner');
-              },
-            ),
-          ],
           centerTitle: true,
+          actions: [GestureDetector(onTap: () => Get.to(const PlannerScreen()), child: Image.asset('assets/images/calender.png')).paddingOnly(right: 15, bottom: 10)],
         ),
-        body: TabBarView(controller: _tabController, children: const [WorkoutJournalScreen(isEmbedded: true), RunTrackerScreen()]),
+
+        body: !_isDisposed && mounted
+            ? TabBarView(
+                controller: _tabController,
+                children: const [
+                  WorkoutJournalScreen(isEmbedded: true),
+                  RunTrackerScreen(),
+                ],
+              )
+            : const SizedBox.shrink(),
       ),
     );
   }
