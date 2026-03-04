@@ -16,10 +16,7 @@ class SearchScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Search & Filter', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text('Search & Filter', style: AppTextStyles.titleLarge.copyWith()), centerTitle: true),
       body: Column(
         children: [
           Expanded(

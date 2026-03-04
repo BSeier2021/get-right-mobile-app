@@ -239,10 +239,7 @@ class _RunSummaryDetailScreenState extends State<RunSummaryDetailScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-          ),
+          Text(value, style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -555,10 +552,7 @@ class _RunSummaryDetailScreenState extends State<RunSummaryDetailScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-          ),
+          Text(value, style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
         ],
       ),
     );

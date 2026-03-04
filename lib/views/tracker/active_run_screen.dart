@@ -578,7 +578,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Discard Run?', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Discard Run?', style: AppTextStyles.titleLarge.copyWith()),
         content: Text('Are you sure you want to exit without saving this run?', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
         actions: [
           TextButton(
@@ -604,7 +604,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Finish Run?', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Finish Run?', style: AppTextStyles.titleLarge.copyWith()),
         content: Text('Do you want to save this run?', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
         actions: [
           TextButton(

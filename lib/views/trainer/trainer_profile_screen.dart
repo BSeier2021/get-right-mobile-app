@@ -53,10 +53,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             child: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 18),
           ),
         ),
-        title: Text(
-          trainer['name'],
-          style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-        ),
+        title: Text(trainer['name'], style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
         centerTitle: true,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),

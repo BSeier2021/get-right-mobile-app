@@ -26,7 +26,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           ),
           onPressed: () => Get.back(),
         ),
-        title: Text('Privacy Policy', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Privacy Policy', style: AppTextStyles.titleLarge.copyWith(color: AppColors.black)),
         centerTitle: true,
       ),
       body: SingleChildScrollView(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -74,39 +75,53 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [AppColors.background, AppColors.primaryVariant.withOpacity(0.3)]),
-        ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              // Animated gradient circles for depth
-              _buildAnimatedCircle(alignment: Alignment.topLeft, size: 200, offset: const Offset(-50, -50)),
-              _buildAnimatedCircle(alignment: Alignment.bottomRight, size: 250, offset: const Offset(50, 100)),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            // Splash screen background image
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/Splash screen.jpg',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback to gradient if image fails to load
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [const Color.fromARGB(0, 214, 214, 214), const Color.fromARGB(0, 192, 192, 192).withOpacity(0.3)],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
 
-              // Main content
-              Center(
+            // Dark overlay for better text readability
+            // Positioned.fill(
+            //   child: Container(
+            //     decoration: BoxDecoration(
+            //       gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withOpacity(0.3), Colors.black.withOpacity(0.5)]),
+            //     ),
+            //   ),
+            // ),
+
+            // Animated gradient circles for depth
+            _buildAnimatedCircle(alignment: Alignment.topLeft, size: 200, offset: const Offset(-50, -50)),
+            _buildAnimatedCircle(alignment: Alignment.bottomRight, size: 250, offset: const Offset(50, 100)),
+
+            // Main content
+            SafeArea(
+              child: Center(
                 child: FadeTransition(
                   opacity: _fadeAnimation,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Logo with scale animation and shimmer
-                      const AppLogo(borderRadius: 20),
-                      const SizedBox(height: 48),
-
-                      // App name with premium typography
-
-                      // Tagline with fade
-                      Text(
-                        'Transform Your Fitness Journey',
-                        style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withOpacity(0.7), fontSize: 16, letterSpacing: 0.8, fontWeight: FontWeight.w400),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 80),
 
                       // Modern loading indicator
                       _buildModernLoadingIndicator(),
@@ -114,8 +129,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -142,7 +142,7 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
       AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Clear Route?', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Clear Route?', style: AppTextStyles.titleLarge.copyWith()),
         content: Text('This will remove all points from your planned route.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
         actions: [
           TextButton(

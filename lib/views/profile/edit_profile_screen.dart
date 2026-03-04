@@ -45,11 +45,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   // Onboarding questionnaire fields
   String? _selectedPreference; // Question 1: What's your preference?
-  List<String> _selectedGoals =
-      []; // Question 2: What's your main goal? (multi-select)
+  List<String> _selectedGoals = []; // Question 2: What's your main goal? (multi-select)
   String? _selectedFitnessLevel; // Question 3: What's your fitness level?
-  String?
-  _selectedExerciseFrequency; // Question 4: How often do you plan to exercise?
+  String? _selectedExerciseFrequency; // Question 4: How often do you plan to exercise?
 
   bool _isLoading = true;
 
@@ -114,22 +112,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         await _storageService.saveName(_firstNameController.text.trim());
       }
       if (_dobController.text.trim().isNotEmpty) {
-        await _storageService.saveString(
-          'user_date_of_birth',
-          _dobController.text.trim(),
-        );
+        await _storageService.saveString('user_date_of_birth', _dobController.text.trim());
       }
       if (_phoneController.text.trim().isNotEmpty) {
-        await _storageService.saveString(
-          'user_phone',
-          _phoneController.text.trim(),
-        );
+        await _storageService.saveString('user_phone', _phoneController.text.trim());
       }
       if (_bioController.text.trim().isNotEmpty) {
-        await _storageService.saveString(
-          'user_bio',
-          _bioController.text.trim(),
-        );
+        await _storageService.saveString('user_bio', _bioController.text.trim());
       }
       if (_selectedGender != null) {
         await _storageService.saveString('user_gender', _selectedGender!);
@@ -146,9 +135,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         await _storageService.saveFitnessLevel(_selectedFitnessLevel!);
       }
       if (_selectedExerciseFrequency != null) {
-        await _storageService.saveExerciseFrequency(
-          _selectedExerciseFrequency!,
-        );
+        await _storageService.saveExerciseFrequency(_selectedExerciseFrequency!);
       }
 
       // TODO: Save profile to API
@@ -176,11 +163,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             children: [
               Text(
                 'Choose Profile Picture',
-                style: AppTextStyles.headlineMedium.copyWith(
-                  color: AppColors.onBackground,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: AppTextStyles.headlineMedium.copyWith(color: AppColors.onBackground, fontSize: 20, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 24),
 
@@ -192,30 +175,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 },
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.primaryGray.withOpacity(0.3),
-                      width: 1.5,
-                    ),
+                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.photo_library_rounded,
-                          color: AppColors.accent,
-                          size: 24,
-                        ),
+                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                        child: Icon(Icons.photo_library_rounded, color: AppColors.accent, size: 24),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -224,26 +194,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           children: [
                             Text(
                               'Gallery',
-                              style: AppTextStyles.bodyLarge.copyWith(
-                                color: AppColors.onBackground,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              'Choose from your photos',
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.primaryGray,
-                                fontSize: 13,
-                              ),
-                            ),
+                            Text('Choose from your photos', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 13)),
                           ],
                         ),
                       ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.primaryGray,
-                      ),
+                      Icon(Icons.chevron_right_rounded, color: AppColors.primaryGray),
                     ],
                   ),
                 ),
@@ -258,30 +216,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 },
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.primaryGray.withOpacity(0.3),
-                      width: 1.5,
-                    ),
+                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.camera_alt_rounded,
-                          color: AppColors.accent,
-                          size: 24,
-                        ),
+                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                        child: Icon(Icons.camera_alt_rounded, color: AppColors.accent, size: 24),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -290,26 +235,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           children: [
                             Text(
                               'Camera',
-                              style: AppTextStyles.bodyLarge.copyWith(
-                                color: AppColors.onBackground,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              'Take a new photo',
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.primaryGray,
-                                fontSize: 13,
-                              ),
-                            ),
+                            Text('Take a new photo', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 13)),
                           ],
                         ),
                       ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.primaryGray,
-                      ),
+                      Icon(Icons.chevron_right_rounded, color: AppColors.primaryGray),
                     ],
                   ),
                 ),
@@ -321,10 +254,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 onPressed: () => Get.back(),
                 child: Text(
                   'Cancel',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.primaryGray,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -345,35 +275,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.surface,
-              border: Border.all(
-                color: AppColors.primaryGray.withOpacity(0.3),
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.accent.withOpacity(0.1),
-                  blurRadius: 20,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+              border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 2),
+              boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 20, spreadRadius: 0, offset: const Offset(0, 8))],
             ),
             child: _profileImagePath == null
-                ? Icon(
-                    Icons.add_a_photo_outlined,
-                    size: 40,
-                    color: AppColors.primaryGray,
-                  )
+                ? Icon(Icons.add_a_photo_outlined, size: 40, color: AppColors.primaryGray)
                 : ClipOval(
                     child: Image.file(
                       File(_profileImagePath!),
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          Icons.person_outline_rounded,
-                          size: 50,
-                          color: AppColors.primaryGray,
-                        );
+                        return Icon(Icons.person_outline_rounded, size: 50, color: AppColors.primaryGray);
                       },
                     ),
                   ),
@@ -388,11 +300,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 color: AppColors.accent,
                 border: Border.all(color: AppColors.background, width: 2),
               ),
-              child: const Icon(
-                Icons.camera_alt_rounded,
-                size: 18,
-                color: AppColors.onAccent,
-              ),
+              child: const Icon(Icons.camera_alt_rounded, size: 18, color: AppColors.onAccent),
             ),
           ),
         ],
@@ -403,12 +311,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _pickImageFromSource(ImageSource source) async {
     try {
       final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
-      );
+      final XFile? image = await picker.pickImage(source: source, maxWidth: 1024, maxHeight: 1024, imageQuality: 85);
 
       if (image != null) {
         setState(() {
@@ -446,29 +349,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.arrow_back_ios_new,
-              color: AppColors.accent,
-              size: 18,
-            ),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
         ),
         centerTitle: true,
-        title: Text(
-          'Edit Profile',
-          style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent),
-        ),
+        title: Text('Edit Profile', style: AppTextStyles.titleLarge.copyWith()),
       ),
 
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.accent),
-            )
+          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Form(
@@ -482,18 +373,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: 32),
 
                     // Personal Information Section
-                    _buildSectionHeader(
-                      'Personal Information',
-                      Icons.person_outline,
-                    ),
+                    _buildSectionHeader('Personal Information', Icons.person_outline),
                     const SizedBox(height: 16),
 
-                    CustomTextField(
-                      controller: _firstNameController,
-                      labelText: 'Full Name',
-                      hintText: 'Enter your full name',
-                      prefixIcon: const Icon(Icons.person_outline),
-                    ),
+                    CustomTextField(controller: _firstNameController, labelText: 'Full Name', hintText: 'Enter your full name', prefixIcon: const Icon(Icons.person_outline)),
                     const SizedBox(height: 16),
                     _buildSectionHeader('Date of Birth', Icons.cake_outlined),
                     const SizedBox(height: 12),
@@ -501,19 +384,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       onTap: () async {
                         DateTime? picked = await showDatePicker(
                           context: context,
-                          initialDate: _dobController.text.isNotEmpty
-                              ? DateTime.tryParse(_dobController.text) ??
-                                    DateTime(2000)
-                              : DateTime(2000),
+                          initialDate: _dobController.text.isNotEmpty ? DateTime.tryParse(_dobController.text) ?? DateTime(2000) : DateTime(2000),
                           firstDate: DateTime(1900),
                           lastDate: DateTime.now(),
                         );
                         if (picked != null) {
                           setState(() {
-                            _dobController.text = picked
-                                .toIso8601String()
-                                .split('T')
-                                .first;
+                            _dobController.text = picked.toIso8601String().split('T').first;
                           });
                         }
                       },
@@ -570,119 +447,73 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       value: _selectedGender,
                       items: AppConstants.genderOptions,
                       icon: Icons.wc_outlined,
-                      onChanged: (value) =>
-                          setState(() => _selectedGender = value),
+                      onChanged: (value) => setState(() => _selectedGender = value),
                     ),
                     const SizedBox(height: 32),
 
                     // Onboarding Questionnaire Section
-                    _buildSectionHeader(
-                      'Onboarding Preferences',
-                      Icons.quiz_outlined,
-                    ),
+                    _buildSectionHeader('Onboarding Preferences', Icons.quiz_outlined),
                     const SizedBox(height: 16),
 
                     // Question 1: What's your preference?
                     Text(
                       'What\'s your preference?',
-                      style: AppTextStyles.titleSmall.copyWith(
-                        color: AppColors.onBackground,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'Choose your primary focus to personalize your experience',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.primaryGray,
-                      ),
-                    ),
+                    Text('Choose your primary focus to personalize your experience', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
                     const SizedBox(height: 12),
                     _buildDropdownField(
                       label: 'Preference',
                       value: _selectedPreference,
                       items: const ['Strength Training', 'Running & Cardio'],
                       icon: Icons.fitness_center,
-                      onChanged: (value) =>
-                          setState(() => _selectedPreference = value),
+                      onChanged: (value) => setState(() => _selectedPreference = value),
                     ),
                     const SizedBox(height: 24),
 
                     // Question 2: What's your main goal? (Multi-select)
                     Text(
                       'What\'s your main goal?',
-                      style: AppTextStyles.titleSmall.copyWith(
-                        color: AppColors.onBackground,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'This helps us recommend the best features for you. Select all that apply',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.primaryGray,
-                      ),
-                    ),
+                    Text('This helps us recommend the best features for you. Select all that apply', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.primaryGray.withOpacity(0.3),
-                          width: 1.5,
-                        ),
+                        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
                       ),
                       child: Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children:
-                            [
-                              'Lose Weight',
-                              'Build Muscle',
-                              'Stay Healthy',
-                              'Improve Performance',
-                              'Track Progress',
-                              'Build Habits',
-                            ].map((goal) {
-                              final isSelected = _selectedGoals.contains(goal);
-                              return FilterChip(
-                                label: Text(goal),
-                                selected: isSelected,
-                                onSelected: (selected) {
-                                  setState(() {
-                                    if (selected) {
-                                      _selectedGoals.add(goal);
-                                    } else {
-                                      _selectedGoals.remove(goal);
-                                    }
-                                  });
-                                },
-                                selectedColor: AppColors.accent,
-                                labelStyle: TextStyle(
-                                  color: isSelected
-                                      ? AppColors.onAccent
-                                      : AppColors.onBackground,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                                backgroundColor: AppColors.background,
-                                checkmarkColor: AppColors.onAccent,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  side: BorderSide(
-                                    color: isSelected
-                                        ? AppColors.accent
-                                        : AppColors.primaryGray.withOpacity(
-                                            0.3,
-                                          ),
-                                    width: isSelected ? 2 : 1,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
+                        children: ['Lose Weight', 'Build Muscle', 'Stay Healthy', 'Improve Performance', 'Track Progress', 'Build Habits'].map((goal) {
+                          final isSelected = _selectedGoals.contains(goal);
+                          return FilterChip(
+                            label: Text(goal),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedGoals.add(goal);
+                                } else {
+                                  _selectedGoals.remove(goal);
+                                }
+                              });
+                            },
+                            selectedColor: AppColors.accent,
+                            labelStyle: TextStyle(color: isSelected ? AppColors.onAccent : AppColors.onBackground, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+                            backgroundColor: AppColors.background,
+                            checkmarkColor: AppColors.onAccent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray.withOpacity(0.3), width: isSelected ? 2 : 1),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -690,58 +521,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     // Question 3: What's your fitness level?
                     Text(
                       'What\'s your fitness level?',
-                      style: AppTextStyles.titleSmall.copyWith(
-                        color: AppColors.onBackground,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'We\'ll adjust recommendations based on your experience',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.primaryGray,
-                      ),
-                    ),
+                    Text('We\'ll adjust recommendations based on your experience', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
                     const SizedBox(height: 12),
                     _buildDropdownField(
                       label: 'Fitness Level',
                       value: _selectedFitnessLevel,
                       items: const ['Beginner', 'Intermediate', 'Advanced'],
                       icon: Icons.trending_up,
-                      onChanged: (value) =>
-                          setState(() => _selectedFitnessLevel = value),
+                      onChanged: (value) => setState(() => _selectedFitnessLevel = value),
                     ),
                     const SizedBox(height: 24),
 
                     // Question 4: How often do you plan to exercise?
                     Text(
                       'How often do you plan to exercise?',
-                      style: AppTextStyles.titleSmall.copyWith(
-                        color: AppColors.onBackground,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'This helps us create realistic goals for you',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.primaryGray,
-                      ),
-                    ),
+                    Text('This helps us create realistic goals for you', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
                     const SizedBox(height: 12),
                     _buildDropdownField(
                       label: 'Exercise Frequency',
                       value: _selectedExerciseFrequency,
-                      items: const [
-                        'Daily (7x/week)',
-                        '5 times per week',
-                        '3 times per week',
-                        '2 times per week',
-                        'Once per week',
-                      ],
+                      items: const ['Daily (7x/week)', '5 times per week', '3 times per week', '2 times per week', 'Once per week'],
                       icon: Icons.calendar_today,
-                      onChanged: (value) =>
-                          setState(() => _selectedExerciseFrequency = value),
+                      onChanged: (value) => setState(() => _selectedExerciseFrequency = value),
                     ),
                     const SizedBox(height: 32),
 
@@ -756,18 +563,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: OutlinedButton(
                         onPressed: () => Get.back(),
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(
-                            color: AppColors.primaryGray,
-                            width: 2,
-                          ),
+                          side: const BorderSide(color: AppColors.primaryGray, width: 2),
                           foregroundColor: AppColors.onBackground,
                         ),
-                        child: Text(
-                          'Cancel',
-                          style: AppTextStyles.buttonLarge.copyWith(
-                            color: AppColors.onBackground,
-                          ),
-                        ),
+                        child: Text('Cancel', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onBackground)),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -778,21 +577,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildDropdownField({
-    required String label,
-    required String? value,
-    required List<String> items,
-    required IconData icon,
-    required ValueChanged<String?> onChanged,
-  }) {
+  Widget _buildDropdownField({required String label, required String? value, required List<String> items, required IconData icon, required ValueChanged<String?> onChanged}) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.primaryGray.withOpacity(0.3),
-          width: 1.5,
-        ),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
       ),
       child: DropdownButtonFormField<String>(
         value: value,
@@ -802,14 +592,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             padding: const EdgeInsets.only(left: 16, right: 12),
             child: Icon(icon, color: AppColors.primaryGray, size: 22),
           ),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 48,
-            minHeight: 48,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 0,
-            vertical: 18,
-          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 18),
           filled: false,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -817,29 +601,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           errorBorder: InputBorder.none,
           focusedErrorBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          labelStyle: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.primaryGray,
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-          ),
-          floatingLabelStyle: AppTextStyles.labelMedium.copyWith(
-            color: AppColors.accent,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
+          labelStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, fontSize: 15, fontWeight: FontWeight.w500),
+          floatingLabelStyle: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w600),
         ),
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.onBackground,
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 15, fontWeight: FontWeight.w500),
         dropdownColor: AppColors.surface,
         icon: Padding(
           padding: const EdgeInsets.only(right: 16),
-          child: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppColors.primaryGray,
-          ),
+          child: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryGray),
         ),
         items: items.map((String item) {
           return DropdownMenuItem<String>(value: item, child: Text(item));
@@ -854,19 +623,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.accent.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(8),
-          ),
+          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
           child: Icon(icon, color: AppColors.accent, size: 20),
         ),
         const SizedBox(width: 12),
-        Text(
-          title,
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.onBackground,
-          ),
-        ),
+        Text(title, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
       ],
     );
   }

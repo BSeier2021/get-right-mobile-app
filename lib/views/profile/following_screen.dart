@@ -56,7 +56,7 @@ class _FollowingScreenState extends State<FollowingScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         centerTitle: true,
-        title: Text('Following', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Following', style: AppTextStyles.titleLarge.copyWith()),
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),

@@ -145,10 +145,7 @@ class _ProgramModificationRequestScreenState extends State<ProgramModificationRe
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Request Modification', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text('Request Modification', style: AppTextStyles.titleLarge.copyWith()), centerTitle: true),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(

@@ -81,8 +81,8 @@ class _CustomTextFieldState extends State<CustomTextField> with SingleTickerProv
           curve: Curves.easeInOut,
           height: 56, // Fixed height for all text fields
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: widget.enabled ? AppColors.surface : AppColors.surface.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(50),
+            color: widget.enabled ? Color(0x19523A21) : Color(0x19523A21).withOpacity(0.5),
             border: Border.all(
               color: _hasError
                   ? AppColors.error

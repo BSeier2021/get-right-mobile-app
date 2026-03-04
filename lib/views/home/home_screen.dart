@@ -73,6 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
       () => PopScope(
         canPop: false,
         child: Scaffold(
+          backgroundColor: const Color.fromARGB(0, 250, 255, 239),
           key: _scaffoldKey,
           drawer: const AppDrawer(), // Professional app drawer
           body: IndexedStack(index: _navController.currentIndex, children: _screens),
@@ -98,8 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFF5F5F5).withOpacity(0.8),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 24, offset: const Offset(0, -8))],
+            color: AppColors.white,
+            borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+            border: Border(top: BorderSide(color: AppColors.primaryGrayLight, width: 1)),
           ),
           child: SafeArea(
             top: false,

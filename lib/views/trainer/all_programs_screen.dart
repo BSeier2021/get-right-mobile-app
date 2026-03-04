@@ -61,7 +61,7 @@ class AllProgramsScreen extends StatelessWidget {
           ),
           onPressed: () => Get.back(),
         ),
-        title: Text(sectionTitle, style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text(sectionTitle, style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
       ),
       body: SingleChildScrollView(

@@ -15,7 +15,7 @@ class SearchResultsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Search Results', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Search Results', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
         actions: [
           IconButton(

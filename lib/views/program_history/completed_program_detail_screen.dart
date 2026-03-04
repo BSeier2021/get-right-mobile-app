@@ -167,10 +167,7 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Program Details', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text('Program Details', style: AppTextStyles.titleLarge.copyWith()), centerTitle: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -358,10 +355,7 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
               CircleAvatar(
                 radius: 20,
                 backgroundColor: AppColors.accent,
-                child: Text(
-                  program.trainerImage ?? program.trainerName[0],
-                  style: AppTextStyles.labelMedium.copyWith(color: AppColors.onAccent),
-                ),
+                child: Text(program.trainerImage ?? program.trainerName[0], style: AppTextStyles.labelMedium.copyWith(color: AppColors.onAccent)),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -426,10 +420,7 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
                 CircleAvatar(
                   radius: 24,
                   backgroundColor: AppColors.accent,
-                  child: Text(
-                    program.trainerImage ?? program.trainerName[0],
-                    style: AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent),
-                  ),
+                  child: Text(program.trainerImage ?? program.trainerName[0], style: AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -440,10 +431,7 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
                         'Rate ${program.trainerName}',
                         style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                       ),
-                      Text(
-                        'Share your experience with this trainer',
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-                      ),
+                      Text('Share your experience with this trainer', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                     ],
                   ),
                 ),
@@ -452,9 +440,12 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
             const SizedBox(height: 20),
             const Divider(color: AppColors.primaryGray, height: 1),
             const SizedBox(height: 20),
-            
+
             // Rating
-            Text('Your Rating', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600)),
+            Text(
+              'Your Rating',
+              style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             Row(
               children: List.generate(5, (index) {
@@ -477,19 +468,22 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
                 _rating == 1
                     ? 'Poor'
                     : _rating == 2
-                        ? 'Fair'
-                        : _rating == 3
-                            ? 'Good'
-                            : _rating == 4
-                                ? 'Very Good'
-                                : 'Excellent',
+                    ? 'Fair'
+                    : _rating == 3
+                    ? 'Good'
+                    : _rating == 4
+                    ? 'Very Good'
+                    : 'Excellent',
                 style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
               ),
             ],
             const SizedBox(height: 24),
 
             // Comment
-            Text('Your Review Comment', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600)),
+            Text(
+              'Your Review Comment',
+              style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 4),
             Text('Tell others about your experience with ${program.trainerName}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
             const SizedBox(height: 8),

@@ -382,10 +382,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                       children: [
                         Icon(Icons.trending_up_rounded, color: AppColors.accent, size: 24),
                         const SizedBox(width: 12),
-                        Text(
-                          '≈ $calc lbs',
-                          style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w800),
-                        ),
+                        Text('≈ $calc lbs', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.w800)),
                       ],
                     ),
                   ),

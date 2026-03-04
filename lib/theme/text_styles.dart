@@ -52,7 +52,7 @@ class AppTextStyles {
     fontWeight: FontWeight.bold,
     height: 1.4,
     letterSpacing: 0,
-    color: AppColors.secondary, // Black
+    color: AppColors.black, // Black
   );
 
   static TextStyle titleMedium = TextStyle(

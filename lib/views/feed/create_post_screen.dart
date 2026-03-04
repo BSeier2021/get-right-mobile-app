@@ -132,7 +132,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Get.back()),
-        title: Text('Create Post', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Create Post', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
         actions: [
           TextButton(
@@ -371,14 +371,3 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

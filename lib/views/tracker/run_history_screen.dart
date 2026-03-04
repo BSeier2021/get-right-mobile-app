@@ -160,7 +160,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
           icon: const Icon(Icons.arrow_back_rounded, color: AppColors.onPrimary),
           onPressed: () => Get.back(),
         ),
-        title: Text('Run History', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Run History', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
         actions: [
           IconButton(

@@ -63,10 +63,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
           ),
           onPressed: () => Get.back(),
         ),
-        title: Text(
-          'Add to ${widget.mealType.displayName}',
-          style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-        ),
+        title: Text('Add to ${widget.mealType.displayName}', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
         centerTitle: false,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(68),

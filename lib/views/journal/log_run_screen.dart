@@ -56,7 +56,7 @@ class _LogRunScreenState extends State<LogRunScreen> {
           icon: const Icon(Icons.close, color: AppColors.onPrimary),
           onPressed: () => Get.back(),
         ),
-        title: Text('Log Run', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Log Run', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
       ),
       body: SingleChildScrollView(

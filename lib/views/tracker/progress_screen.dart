@@ -12,7 +12,7 @@ class ProgressScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Text('Progress', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Progress', style: AppTextStyles.titleLarge.copyWith()),
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),

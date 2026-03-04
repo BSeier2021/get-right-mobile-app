@@ -222,10 +222,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
                   ),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8, left: 4),
-                    child: Text(
-                      'km',
-                      style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-                    ),
+                    child: Text('km', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

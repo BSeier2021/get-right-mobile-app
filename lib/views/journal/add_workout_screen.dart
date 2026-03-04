@@ -385,7 +385,7 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
           ),
           onPressed: () => Get.back(),
         ),
-        title: Text('Log Workout', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Log Workout', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
       ),
       body: SingleChildScrollView(

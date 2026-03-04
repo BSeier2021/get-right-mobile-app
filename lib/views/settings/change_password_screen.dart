@@ -93,7 +93,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Change Password', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Change Password', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
         elevation: 0,
         backgroundColor: AppColors.background,

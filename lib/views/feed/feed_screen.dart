@@ -627,7 +627,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFFD6D6D6), Color(0xFFE8E8E8), Color(0xFFC0C0C0)]),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.backgroundColor, AppColors.backgroundColor, AppColors.backgroundColor]),
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -641,28 +641,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
               clipBehavior: Clip.none,
               children: [
                 IconButton(
-                  icon: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 30,
-                        height: 3,
-                        margin: const EdgeInsets.only(bottom: 4),
-                        decoration: BoxDecoration(color: Color(0xFF29603C), borderRadius: BorderRadius.circular(2)),
-                      ),
-                      Container(
-                        width: 25,
-                        height: 3,
-                        margin: const EdgeInsets.only(bottom: 4),
-                        decoration: BoxDecoration(color: Color(0xFF29603C), borderRadius: BorderRadius.circular(2)),
-                      ),
-                      Container(
-                        width: 20,
-                        height: 3,
-                        decoration: BoxDecoration(color: Color(0xFF29603C), borderRadius: BorderRadius.circular(2)),
-                      ),
-                    ],
-                  ),
+                  icon: Image.asset('assets/images/humburger.png'),
                   onPressed: () => Scaffold.of(context).openDrawer(),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -670,7 +649,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                 if (unreadCount > 0)
                   Positioned(
                     right: 0,
-                    top: 8,
+                    top: 4,
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
@@ -702,10 +681,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                 default:
                   titleText = 'Community Feed';
               }
-              return Text(
-                titleText,
-                style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w900),
-              );
+              return Text(titleText, style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.w900));
             },
           ),
           centerTitle: true,
@@ -797,7 +773,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     final isCertified = isTrainer; // Show verified/certified icon if trainer
 
     return GestureDetector(
-      onTap: () => _showPostDetail(post),
+      onTap: () => _openVideoReel(post),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -884,15 +860,18 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
           // Large white circular play button in center
           Center(
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, spreadRadius: 2)],
+            child: GestureDetector(
+              onTap: () => _openVideoReel(post),
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, spreadRadius: 2)],
+                ),
+                child: Icon(Icons.play_arrow, color: AppColors.accent, size: 50),
               ),
-              child: Icon(Icons.play_arrow, color: AppColors.accent, size: 50),
             ),
           ),
 
@@ -1407,6 +1386,14 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     Get.snackbar('Post Detail', 'Opening ${post['title']}', backgroundColor: AppColors.accent, colorText: AppColors.onAccent, snackPosition: SnackPosition.BOTTOM);
   }
 
+  void _openVideoReel(Map<String, dynamic> post) {
+    // Find the index of the current post
+    final currentIndex = _feedPosts.indexWhere((p) => p['id'] == post['id']);
+
+    // Navigate to video reel screen with all posts and current index
+    Get.toNamed(AppRoutes.videoReel, arguments: {'posts': _feedPosts, 'initialIndex': currentIndex >= 0 ? currentIndex : 0});
+  }
+
   void _showComments(Map<String, dynamic> post) {
     Get.snackbar('Comments', '${post['comments']} comments', backgroundColor: AppColors.accent, colorText: AppColors.onAccent, snackPosition: SnackPosition.BOTTOM);
   }
@@ -1499,7 +1486,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: Text('Report Post', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Report Post', style: AppTextStyles.titleLarge.copyWith()),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [_buildReportOption('Inappropriate content'), _buildReportOption('Misleading advice'), _buildReportOption('Spam'), _buildReportOption('Harassment')],
@@ -1580,10 +1567,7 @@ class _SearchScreenState extends State<_SearchScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          'Search',
-          style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w900),
-        ),
+        title: Text('Search', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.w900)),
         centerTitle: true,
       ),
       body: CustomScrollView(

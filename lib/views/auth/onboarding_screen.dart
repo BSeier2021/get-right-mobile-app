@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
-import 'dart:math' as math;
+import 'package:get_right/theme/color_constants.dart';
 
 /// Next-Level Modern Onboarding Screen 2024/2025
 /// Features: Bold visuals, smooth animations, immersive design
@@ -25,38 +26,37 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
 
   // Modern color palette
   static const Color _greenAccent = Color(0xFF29603C);
-  static const Color _blackPrimary = Color(0xFF000000);
+  static const Color _greenAccentVariant = Color(0xFF44C071);
   static const Color _bgGrey = Color(0xFFD6D6D6);
-  static const Color _cardWhite = Color(0xFFF5F5F5);
 
   final List<OnboardingPage> _pages = [
     OnboardingPage(
-      emoji: '💪',
+      width: 550,
+      imagePath: 'assets/images/dumbles.png',
       title: 'Track Every Rep',
       subtitle: 'Your Fitness Journey',
       description: 'Log workouts, track progress, and watch yourself grow stronger every single day.',
-      gradient: [Color(0xFF29603C), Color(0xFF1a3d26)],
     ),
     OnboardingPage(
-      emoji: '📅',
+      width: 550,
+      imagePath: 'assets/images/sportswear.png',
       title: 'Plan Your Goals',
       subtitle: 'Smart Planning',
       description: 'Custom programs designed for your goals. Follow expert plans or create your own.',
-      gradient: [Color(0xFF29603C), Color(0xFF1a3d26)],
     ),
     OnboardingPage(
-      emoji: '🏃',
+      width: 330,
+      imagePath: 'assets/images/run.png',
       title: 'Run & Conquer',
       subtitle: 'GPS Tracking',
       description: 'Track outdoor runs with real-time pace, distance, and elevation data.',
-      gradient: [Color(0xFF29603C), Color(0xFF1a3d26)],
     ),
     OnboardingPage(
-      emoji: '🎯',
+      width: 550,
+      imagePath: 'assets/images/girlrun.png',
       title: 'Get Right',
       subtitle: 'Start Today',
       description: 'Join thousands achieving their fitness goals. Your transformation starts now.',
-      gradient: [Color(0xFF29603C), Color(0xFF1a3d26)],
     ),
   ];
 
@@ -108,58 +108,79 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bgGrey,
-      body: Stack(
-        children: [
-          // Animated gradient background
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 600),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_bgGrey, Color.lerp(_bgGrey, _pages[_currentPage].gradient[0], 0.1)!]),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: _bgGrey,
+        body: Stack(
+          children: [
+            // Onboarding background image
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/Onboarding.jpg',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback to animated gradient if image fails to load
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 600),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_bgGrey, Color.lerp(_bgGrey, _greenAccent, 0.1)!]),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
 
-          // Main content
-          SafeArea(
-            child: Column(
-              children: [
-                // Top bar with skip
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      if (_currentPage < _pages.length - 1)
-                        TextButton(
-                          onPressed: _completeOnboarding,
-                          child: Text(
-                            'Skip',
-                            style: TextStyle(color: _blackPrimary.withOpacity(0.6), fontSize: 15, fontWeight: FontWeight.w600),
+            // Dark overlay for better text readability
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.6)]),
+                ),
+              ),
+            ),
+
+            // Main content
+            SafeArea(
+              child: Column(
+                children: [
+                  // Top bar with skip
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (_currentPage < _pages.length - 1)
+                          TextButton(
+                            onPressed: _completeOnboarding,
+                            child: Text(
+                              'Skip',
+                              style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 15, fontWeight: FontWeight.w600),
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                // Page view
-                Expanded(
-                  child: PageView.builder(
-                    controller: _pageController,
-                    onPageChanged: _onPageChanged,
-                    itemCount: _pages.length,
-                    itemBuilder: (context, index) {
-                      return _buildPage(_pages[index]);
-                    },
+                  // Page view
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _pageController,
+                      onPageChanged: _onPageChanged,
+                      itemCount: _pages.length,
+                      itemBuilder: (context, index) {
+                        return _buildPage(_pages[index]);
+                      },
+                    ),
                   ),
-                ),
 
-                // Bottom section
-                _buildBottomSection(),
-              ],
+                  // Bottom section
+                  _buildBottomSection().paddingOnly(bottom: 30),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -173,46 +194,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
           child: Transform.scale(
             scale: _scaleAnimation.value,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  // Emoji with modern container
-                  Container(
-                    width: 180,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: page.gradient),
-                      borderRadius: BorderRadius.circular(60),
-                      boxShadow: [BoxShadow(color: page.gradient[0].withOpacity(0.4), blurRadius: 40, offset: const Offset(0, 20))],
-                    ),
-                    child: Center(child: Text(page.emoji, style: TextStyle(fontSize: 80))),
-                  ),
-                  const SizedBox(height: 64),
-
-                  // Subtitle
-                  Text(
-                    page.subtitle,
-                    style: TextStyle(color: _greenAccent, fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 2),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Title
-                  Text(
-                    page.title,
-                    style: TextStyle(color: _blackPrimary, fontSize: 40, fontWeight: FontWeight.w900, height: 1.0, letterSpacing: -1.5),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Description
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      page.description,
-                      style: TextStyle(color: _blackPrimary.withOpacity(0.6), fontSize: 16, height: 1.6, fontWeight: FontWeight.w500),
-                      textAlign: TextAlign.center,
-                    ),
+                  // Image with modern container
+                  ClipRRect(
+                    child: Image.asset(page.imagePath, width: page.width, fit: BoxFit.contain),
                   ),
                 ],
               ),
@@ -225,39 +213,65 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
 
   Widget _buildBottomSection() {
     return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Page indicators
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(_pages.length, (index) => _buildPageIndicator(index))),
-          const SizedBox(height: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
 
-          // CTA Button
-          GestureDetector(
-            onTap: _nextPage,
-            child: Container(
-              width: double.infinity,
-              height: 64,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: _pages[_currentPage].gradient),
-                borderRadius: BorderRadius.circular(32),
-                boxShadow: [BoxShadow(color: _pages[_currentPage].gradient[0].withOpacity(0.4), blurRadius: 24, offset: const Offset(0, 12))],
-              ),
-              child: Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _currentPage == _pages.length - 1 ? 'Get Started' : 'Continue',
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 0.5),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 24),
-                  ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+
+        children: [
+          // Subtitle (green text)
+          Text(
+            _pages[_currentPage].subtitle,
+            style: TextStyle(color: _greenAccentVariant, fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 1.2),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Title (white text)
+          Text(
+            _pages[_currentPage].title,
+            style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, height: 1.1, letterSpacing: -1.0),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Description (white text with opacity)
+          Text(
+            _pages[_currentPage].description,
+            style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 16, height: 1.5, fontWeight: FontWeight.w400, letterSpacing: 0.2),
+          ),
+
+          // Bottom navigation row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+            crossAxisAlignment: CrossAxisAlignment.center,
+
+            children: [
+              // Page indicators
+              Row(children: List.generate(_pages.length, (index) => _buildPageIndicator(index))),
+
+              // Next button (circular)
+              GestureDetector(
+                onTap: _nextPage,
+
+                child: Container(
+                  width: 56,
+
+                  height: 56,
+
+                  decoration: BoxDecoration(
+                    color: _greenAccent,
+
+                    shape: BoxShape.circle,
+
+                    boxShadow: [BoxShadow(color: _greenAccent.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))],
+                  ),
+
+                  child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 24),
                 ),
               ),
-            ),
+            ],
           ),
         ],
       ),
@@ -272,17 +286,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
       margin: const EdgeInsets.symmetric(horizontal: 4),
       width: isActive ? 32 : 8,
       height: 8,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: isActive ? _greenAccent : _blackPrimary.withOpacity(0.2)),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: isActive ? _greenAccent : const Color.fromARGB(255, 255, 255, 255)),
     );
   }
 }
 
 class OnboardingPage {
-  final String emoji;
+  final String imagePath;
   final String title;
   final String subtitle;
   final String description;
-  final List<Color> gradient;
-
-  OnboardingPage({required this.emoji, required this.title, required this.subtitle, required this.description, required this.gradient});
+  final double width;
+  OnboardingPage({required this.imagePath, required this.title, required this.subtitle, required this.description, required this.width});
 }

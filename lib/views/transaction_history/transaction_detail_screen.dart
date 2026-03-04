@@ -21,10 +21,7 @@ class TransactionDetailScreen extends StatelessWidget {
     final color = isRefund ? AppColors.completed : AppColors.accent;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Transaction Details', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text('Transaction Details', style: AppTextStyles.titleLarge.copyWith()), centerTitle: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

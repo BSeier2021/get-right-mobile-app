@@ -99,11 +99,12 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final tabBar = Container(
+      color: AppColors.backgroundColor,
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
       child: Container(
         height: 44,
         padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(color: AppColors.primaryGrayLight.withOpacity(0.3), borderRadius: BorderRadius.circular(14)),
+        decoration: BoxDecoration(color: Color.fromARGB(162, 240, 252, 216), borderRadius: BorderRadius.circular(14)),
         child: TabBar(
           controller: _tabController,
           indicator: BoxDecoration(
@@ -114,7 +115,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           indicatorSize: TabBarIndicatorSize.tab,
           dividerColor: Colors.transparent,
           labelColor: AppColors.onAccent,
-          unselectedLabelColor: AppColors.onSurface.withOpacity(0.6),
+          unselectedLabelColor: AppColors.onSurface,
           labelStyle: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.3),
           unselectedLabelStyle: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w500),
           tabs: const [
@@ -126,10 +127,11 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     );
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.backgroundColor,
       appBar: widget.hideAppBar
           ? null
           : AppBar(
+              backgroundColor: AppColors.backgroundColor,
               leading: Obx(() {
                 final notificationController = Get.find<NotificationController>();
                 final unreadCount = notificationController.unreadCount;
@@ -137,28 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   clipBehavior: Clip.none,
                   children: [
                     IconButton(
-                      icon: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 30,
-                            height: 3,
-                            margin: const EdgeInsets.only(bottom: 4),
-                            decoration: BoxDecoration(color: Color(0xFF29603C), borderRadius: BorderRadius.circular(2)),
-                          ),
-                          Container(
-                            width: 25,
-                            height: 3,
-                            margin: const EdgeInsets.only(bottom: 4),
-                            decoration: BoxDecoration(color: Color(0xFF29603C), borderRadius: BorderRadius.circular(2)),
-                          ),
-                          Container(
-                            width: 20,
-                            height: 3,
-                            decoration: BoxDecoration(color: Color(0xFF29603C), borderRadius: BorderRadius.circular(2)),
-                          ),
-                        ],
-                      ),
+                      icon: Image.asset('assets/images/humburger.png'),
                       onPressed: () => Scaffold.of(context).openDrawer(),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -166,7 +147,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     if (unreadCount > 0)
                       Positioned(
                         right: 0,
-                        top: 8,
+                        top: 4,
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
@@ -181,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   ],
                 );
               }),
-              title: Text('Profile', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+              title: Text('Profile', style: AppTextStyles.titleLarge.copyWith()),
               centerTitle: true,
               actions: [
                 IconButton(
@@ -226,7 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       ),
                       child: CircleAvatar(
                         radius: 45,
-                        backgroundColor: AppColors.surface,
+                        backgroundColor: Color.fromARGB(162, 240, 252, 216),
                         child: Icon(Icons.person, size: 50, color: AppColors.accent),
                       ),
                     ),
@@ -287,7 +268,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 3),
                 _personalRecords.isEmpty
                     ? Container(
                         padding: const EdgeInsets.all(24),
@@ -323,15 +304,11 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                     ),
                     Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.accent,
-                        shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))],
-                      ),
+                      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
                       child: IconButton(
-                        icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                        icon: const Icon(Icons.add, color: AppColors.accent, size: 35),
                         onPressed: _showCreatePostOptions,
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(4),
                         constraints: const BoxConstraints(),
                       ),
                     ),
@@ -370,7 +347,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       ),
                       child: CircleAvatar(
                         radius: 50,
-                        backgroundColor: AppColors.accent.withOpacity(0.2),
+                        backgroundColor: Color.fromARGB(162, 240, 252, 216),
+                        // backgroundColor: AppColors.accent.withOpacity(0.2),
                         child: Icon(Icons.person, size: 50, color: AppColors.accent),
                       ),
                     ),
@@ -402,7 +380,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 const SizedBox(height: 16),
                 Text(_fullName ?? "User Name", style: AppTextStyles.headlineMedium.copyWith(color: AppColors.onBackground)),
                 const SizedBox(height: 4),
-                Text(_storageService.getEmail() ?? "user@example.com", style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                Text("user@example.com", style: AppTextStyles.bodyMedium.copyWith(color: AppColors.black)),
                 const SizedBox(height: 16),
                 SizedBox(
                   width: 180,
@@ -435,7 +413,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: const Color.fromARGB(255, 255, 255, 255),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.primaryGray, width: 1),
                   ),
@@ -459,7 +437,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: const Color.fromARGB(255, 255, 255, 255),
+
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.primaryGray, width: 1),
                   ),
@@ -483,52 +462,51 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 ),
                 const SizedBox(height: 16),
                 // Onboarding Preferences Card
-                if (_preference != null || _goals.isNotEmpty || _fitnessLevel != null || _exerciseFrequency != null)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.primaryGray, width: 1),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primaryGray, width: 1),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.quiz_outlined, color: AppColors.accent, size: 20),
+                          const SizedBox(width: 8),
+                          Text('Onboarding Preferences', style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      ...[_buildPreferenceInfoRow('Preference', _preference ?? 'Not set', Icons.fitness_center), const SizedBox(height: 12)],
+                      ...[
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.quiz_outlined, color: AppColors.accent, size: 20),
-                            const SizedBox(width: 8),
-                            Text('Onboarding Preferences', style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
+                            Icon(Icons.flag_outlined, color: AppColors.accent, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Goals', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                                  const SizedBox(height: 8),
+                                  Wrap(spacing: 8, runSpacing: 8, children: _goals.map((goal) => _buildPreferenceChip(goal)).toList()),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        if (_preference != null) ...[_buildPreferenceInfoRow('Preference', _preference!, Icons.fitness_center), const SizedBox(height: 12)],
-                        if (_goals.isNotEmpty) ...[
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.flag_outlined, color: AppColors.accent, size: 20),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Goals', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                                    const SizedBox(height: 8),
-                                    Wrap(spacing: 8, runSpacing: 8, children: _goals.map((goal) => _buildPreferenceChip(goal)).toList()),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_fitnessLevel != null) ...[_buildPreferenceInfoRow('Fitness Level', _fitnessLevel!, Icons.trending_up), const SizedBox(height: 12)],
-                        if (_exerciseFrequency != null) _buildPreferenceInfoRow('Exercise Frequency', _exerciseFrequency!, Icons.calendar_today),
+                        const SizedBox(height: 12),
                       ],
-                    ),
+                      ...[_buildPreferenceInfoRow('Fitness Level', _fitnessLevel ?? 'Not set', Icons.trending_up), const SizedBox(height: 12)],
+                      _buildPreferenceInfoRow('Exercise Frequency', _exerciseFrequency ?? 'Not set', Icons.calendar_today),
+                    ],
                   ),
+                ),
               ],
             ),
           ),
@@ -574,7 +552,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
-        Text(label, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+        Text(label, style: AppTextStyles.bodySmall.copyWith(color: AppColors.black)),
       ],
     );
 
@@ -618,7 +596,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: record.liftName == 'Bench Press' ? Color(0xffF2CAEC) : Color(0xffB9DDEA),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
       ),
@@ -632,10 +610,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           const SizedBox(height: 8),
           Text(
             displayValue,
-            style: AppTextStyles.headlineSmall.copyWith(color: record.displayPublicly ? AppColors.accent : AppColors.primaryGray, fontWeight: FontWeight.bold),
+            style: AppTextStyles.headlineSmall.copyWith(color: record.displayPublicly ? AppColors.black : AppColors.primaryGray, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          Text(dateFormat.format(record.date), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+          Text(dateFormat.format(record.date), style: AppTextStyles.labelSmall.copyWith(color: AppColors.black)),
         ],
       ),
     );
@@ -878,7 +856,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: AppColors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
         ),
@@ -914,7 +892,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         Get.dialog(
           AlertDialog(
             backgroundColor: AppColors.surface,
-            title: Text('Logout', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+            title: Text('Logout', style: AppTextStyles.titleLarge.copyWith()),
             content: Text('Are you sure you want to logout?', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
             actions: [
               TextButton(

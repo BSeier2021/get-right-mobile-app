@@ -136,9 +136,7 @@ class _WorkoutTimerScreenState extends State<WorkoutTimerScreen> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: isRunning ? AppColors.accent : AppColors.primaryGray.withOpacity(0.3), width: isRunning ? 2 : 1),
-        boxShadow: [
-          BoxShadow(color: isRunning ? AppColors.accent.withOpacity(0.2) : Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
-        ],
+        boxShadow: [BoxShadow(color: isRunning ? AppColors.accent.withOpacity(0.2) : Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,7 +239,7 @@ class _WorkoutTimerScreenState extends State<WorkoutTimerScreen> {
         appBar: AppBar(
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.onBackground,
-          title: Text('Timer', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+          title: Text('Timer', style: AppTextStyles.titleLarge.copyWith()),
         ),
         body: Center(
           child: Text('No timed sets available', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),

@@ -40,7 +40,7 @@ class _FollowersScreenState extends State<FollowersScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         centerTitle: true,
-        title: Text('Followers', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Followers', style: AppTextStyles.titleLarge.copyWith()),
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),

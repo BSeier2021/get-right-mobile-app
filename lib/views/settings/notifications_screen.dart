@@ -143,7 +143,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
-          title: Text('Notifications', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+          title: Text('Notifications', style: AppTextStyles.titleLarge.copyWith()),
           leading: IconButton(
             icon: Container(
               padding: const EdgeInsets.all(8),

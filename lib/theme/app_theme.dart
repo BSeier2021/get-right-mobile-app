@@ -43,7 +43,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: false,
         systemOverlayStyle: SystemUiOverlayStyle.dark, // Dark icons for light background
-        titleTextStyle: AppTextStyles.titleLarge.copyWith(color: AppColors.accent), // Green accent title
+        titleTextStyle: AppTextStyles.titleLarge.copyWith(color: AppColors.black), // Green accent title
         iconTheme: const IconThemeData(color: AppColors.accent, size: 24), // Green icons
       ),
 
@@ -182,7 +182,7 @@ class AppTheme {
         elevation: 8,
         shadowColor: AppColors.secondary.withOpacity(0.2), // Black shadow
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        titleTextStyle: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface),
+        titleTextStyle: AppTextStyles.titleLarge.copyWith(color: AppColors.black),
         contentTextStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
       ),
 

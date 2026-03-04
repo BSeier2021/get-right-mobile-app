@@ -152,28 +152,7 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
               clipBehavior: Clip.none,
               children: [
                 IconButton(
-                  icon: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 30,
-                        height: 3,
-                        margin: const EdgeInsets.only(bottom: 4),
-                        decoration: BoxDecoration(color: Color(0xFF29603C), borderRadius: BorderRadius.circular(2)),
-                      ),
-                      Container(
-                        width: 25,
-                        height: 3,
-                        margin: const EdgeInsets.only(bottom: 4),
-                        decoration: BoxDecoration(color: Color(0xFF29603C), borderRadius: BorderRadius.circular(2)),
-                      ),
-                      Container(
-                        width: 20,
-                        height: 3,
-                        decoration: BoxDecoration(color: Color(0xFF29603C), borderRadius: BorderRadius.circular(2)),
-                      ),
-                    ],
-                  ),
+                  icon: Image.asset('assets/images/humburger.png'),
                   onPressed: () => Scaffold.of(context).openDrawer(),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -181,7 +160,7 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
                 if (unreadCount > 0)
                   Positioned(
                     right: 0,
-                    top: 8,
+                    top: 4,
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),

@@ -254,7 +254,7 @@ class _ProgramHistoryScreenState extends State<ProgramHistoryScreen> with Single
             }
           },
         ),
-        title: Text('Program History', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Program History', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,

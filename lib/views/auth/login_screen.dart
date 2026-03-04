@@ -58,11 +58,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Color(0xFFFAFFEF),
       body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(center: Alignment.topRight, radius: 1.2, colors: [AppColors.accent.withOpacity(0.05), AppColors.background]),
-        ),
+        // decoration: BoxDecoration(
+        //   gradient: RadialGradient(center: Alignment.topRight, radius: 1.2, colors: [AppColors.accent.withOpacity(0.05), AppColors.background]),
+        // ),
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
@@ -83,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     // Welcome text with modern typography
                     Text(
                       'Welcome Back!',
-                      style: AppTextStyles.headlineLarge.copyWith(color: AppColors.accent, fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: -1),
+                      style: AppTextStyles.headlineLarge.copyWith(color: AppColors.accentVariant, fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: -1),
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -186,42 +186,15 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
                     // Social login buttons
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(
-                          child: _buildSocialButton(
-                            icon: Icons.g_mobiledata_rounded,
-                            label: 'Google',
-                            onPressed: () {
-                              // TODO: Implement Google login
-                            },
-                          ),
-                        ),
-                        if (Platform.isIOS || Platform.isMacOS) ...[
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildSocialButton(
-                              icon: Icons.apple_rounded,
-                              label: 'Apple',
-                              onPressed: () {
-                                final authController = Get.find<AuthController>();
-                                authController.signInWithApple();
-                              },
-                            ),
-                          ),
-                        ],
+                        Image.asset('assets/images/google.png'),
+                        if (Platform.isIOS || Platform.isMacOS) ...[const SizedBox(width: 12), Image.asset('assets/images/apple.png')],
                         const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildSocialButton(
-                            icon: Icons.facebook_rounded,
-                            label: 'Facebook',
-                            onPressed: () {
-                              // TODO: Implement Facebook login
-                            },
-                          ),
-                        ),
+                        Image.asset('assets/images/facebook.png'),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 120),
 
                     // Sign up link
                     Center(
@@ -254,31 +227,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSocialButton({required IconData icon, required String label, required VoidCallback onPressed}) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 26, color: AppColors.onBackground),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: AppTextStyles.labelSmall.copyWith(color: AppColors.onBackground.withOpacity(0.7), fontSize: 11, fontWeight: FontWeight.w600),
-            ),
-          ],
         ),
       ),
     );

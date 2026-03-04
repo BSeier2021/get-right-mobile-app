@@ -98,6 +98,7 @@ class AppRoutes {
   static const String createPost = '/create-post';
   static const String postDetail = '/post-detail';
   static const String savedPosts = '/saved-posts';
+  static const String videoReel = '/video-reel';
 
   // Search Routes
   static const String search = '/search';

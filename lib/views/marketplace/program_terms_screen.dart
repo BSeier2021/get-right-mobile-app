@@ -135,11 +135,7 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Program Terms', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-      ),
+      appBar: AppBar(title: Text('Program Terms', style: AppTextStyles.titleLarge.copyWith()), centerTitle: true, automaticallyImplyLeading: false),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

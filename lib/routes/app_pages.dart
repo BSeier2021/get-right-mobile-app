@@ -73,6 +73,7 @@ import 'package:get_right/views/feed/feed_screen.dart';
 import 'package:get_right/views/feed/post_detail_screen.dart';
 import 'package:get_right/views/feed/create_post_screen.dart';
 import 'package:get_right/views/feed/saved_posts_screen.dart';
+import 'package:get_right/views/feed/video_reel_screen.dart';
 import 'package:get_right/views/trainer/all_programs_screen.dart';
 import 'package:get_right/views/favorites/favorites_screen.dart';
 import 'package:get_right/views/program_history/program_history_screen.dart';
@@ -178,6 +179,7 @@ class AppPages {
     GetPage(name: AppRoutes.postDetail, page: () => const PostDetailScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.savedPosts, page: () => const SavedPostsScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.createPost, page: () => const CreatePostScreen(), transition: Transition.downToUp),
+    GetPage(name: AppRoutes.videoReel, page: () => const VideoReelScreen(), transition: Transition.fade),
 
     // Search Pages
     GetPage(name: AppRoutes.search, page: () => SearchScreen(), transition: Transition.rightToLeft),

@@ -12,7 +12,7 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('About', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('About', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
         leading: IconButton(
           icon: Container(

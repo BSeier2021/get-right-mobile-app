@@ -41,10 +41,12 @@ class _CustomButtonState extends State<CustomButton> {
       width: widget.isFullWidth ? double.infinity : null,
       height: widget.height ?? 58,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(50),
         gradient: isGreenButton
             ? LinearGradient(
-                colors: widget.onPressed == null || widget.isLoading ? [actualBackgroundColor, actualBackgroundColor] : [AppColors.accent, AppColors.accent.withOpacity(0.85)],
+                colors: widget.onPressed == null || widget.isLoading
+                    ? [actualBackgroundColor, actualBackgroundColor]
+                    : [const Color.fromARGB(255, 29, 68, 43), AppColors.accentVariant.withOpacity(0.85)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
@@ -59,7 +61,7 @@ class _CustomButtonState extends State<CustomButton> {
 
           child: Center(
             child: widget.isLoading
-                ? SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2.5))
+                ? SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: AppColors.accentVariant, strokeWidth: 2.5))
                 : widget.icon != null
                 ? Row(
                     mainAxisSize: MainAxisSize.min,
@@ -119,7 +121,7 @@ class _CustomOutlineButtonState extends State<CustomOutlineButton> {
         width: widget.isFullWidth ? double.infinity : null,
         height: widget.height ?? 58,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(50),
           border: Border.all(color: _isHovered ? AppColors.accent : actualBorderColor, width: 2),
           color: _isHovered ? AppColors.accent.withOpacity(0.05) : Colors.transparent,
         ),

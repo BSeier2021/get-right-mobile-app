@@ -13,7 +13,7 @@ class BlockedUsersScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Blocked Users', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Blocked Users', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
         leading: GestureDetector(
           onTap: () => Get.back(),

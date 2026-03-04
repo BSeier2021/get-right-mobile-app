@@ -21,10 +21,7 @@ class _TrainerReviewsScreenState extends State<TrainerReviewsScreen> {
     final filteredReviews = _filterRating == 'All' ? allReviews : allReviews.where((r) => r['rating'] >= double.parse(_filterRating)).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Reviews', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text('Reviews', style: AppTextStyles.titleLarge.copyWith()), centerTitle: true),
       body: Column(
         children: [
           // Rating Summary

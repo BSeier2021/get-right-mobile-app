@@ -60,7 +60,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         centerTitle: true,
-        title: Text('Saved Posts', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Saved Posts', style: AppTextStyles.titleLarge.copyWith()),
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
@@ -73,21 +73,21 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
           : _savedPosts.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: () async {
-                    _loadSavedPosts();
-                  },
-                  color: AppColors.accent,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _savedPosts.length,
-                    itemBuilder: (context, index) {
-                      final post = _savedPosts[index];
-                      return _buildPostCard(post);
-                    },
-                  ),
-                ),
+          ? _buildEmptyState()
+          : RefreshIndicator(
+              onRefresh: () async {
+                _loadSavedPosts();
+              },
+              color: AppColors.accent,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _savedPosts.length,
+                itemBuilder: (context, index) {
+                  final post = _savedPosts[index];
+                  return _buildPostCard(post);
+                },
+              ),
+            ),
     );
   }
 
@@ -98,10 +98,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), shape: BoxShape.circle),
             child: Icon(Icons.bookmark_border, size: 64, color: AppColors.accent),
           ),
           const SizedBox(height: 24),
@@ -139,13 +136,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,10 +156,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
               post['creator'] ?? 'Unknown',
               style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
             ),
-            subtitle: Text(
-              post['timestamp'] ?? '',
-              style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
-            ),
+            subtitle: Text(post['timestamp'] ?? '', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
             trailing: PopupMenuButton(
               icon: Icon(Icons.more_vert, color: AppColors.primaryGray),
               itemBuilder: (context) => [
@@ -180,10 +168,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
                       Text('Remove from Saved', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error)),
                     ],
                   ),
-                  onTap: () => Future.delayed(
-                    const Duration(milliseconds: 100),
-                    () => _removePost(post['id'] ?? ''),
-                  ),
+                  onTap: () => Future.delayed(const Duration(milliseconds: 100), () => _removePost(post['id'] ?? '')),
                 ),
               ],
             ),
@@ -213,21 +198,12 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
                       right: 12,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(8)),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.play_arrow, color: Colors.white, size: 16),
-                            if (post['duration'] != null) ...[
-                              const SizedBox(width: 4),
-                              Text(
-                                post['duration'],
-                                style: AppTextStyles.labelSmall.copyWith(color: Colors.white),
-                              ),
-                            ],
+                            if (post['duration'] != null) ...[const SizedBox(width: 4), Text(post['duration'], style: AppTextStyles.labelSmall.copyWith(color: Colors.white))],
                           ],
                         ),
                       ),
@@ -294,17 +270,15 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
                             ),
                           ),
                         if (post['tags'] != null)
-                          ...(post['tags'] as List).take(3).map((tag) => Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryGray.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
+                          ...(post['tags'] as List)
+                              .take(3)
+                              .map(
+                                (tag) => Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                                  child: Text(tag.toString(), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
                                 ),
-                                child: Text(
-                                  tag.toString(),
-                                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
-                                ),
-                              )),
+                              ),
                       ],
                     ),
                   ),

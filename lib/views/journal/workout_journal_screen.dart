@@ -373,9 +373,9 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     // Standalone screen with full scaffold
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.backgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.menu, color: AppColors.accent),
@@ -611,10 +611,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
             _buildHeader('Warmup', Icons.local_fire_department, isWarmup: true),
             ..._buildExercisesList(_workout!.warmupExercises, true),
           ],
-          if (_workout!.workoutExercises.isNotEmpty) ...[
-            _buildHeader('Workout', Icons.fitness_center, isWarmup: false),
-            ..._buildExercisesList(_workout!.workoutExercises, false),
-          ],
+          if (_workout!.workoutExercises.isNotEmpty) ...[_buildHeader('Workout', Icons.fitness_center, isWarmup: false), ..._buildExercisesList(_workout!.workoutExercises, false)],
           const SizedBox(height: 100),
         ],
       ),
@@ -844,9 +841,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               ListTile(
                 onTap: () {
                   Get.back();
-                  Get.toNamed(AppRoutes.reorderExercises, arguments: {'exercises': isWarmup ? _workout!.warmupExercises : _workout!.workoutExercises})?.then((
-                    r,
-                  ) {
+                  Get.toNamed(AppRoutes.reorderExercises, arguments: {'exercises': isWarmup ? _workout!.warmupExercises : _workout!.workoutExercises})?.then((r) {
                     if (r != null && r['exercises'] != null)
                       setState(() {
                         if (isWarmup)
