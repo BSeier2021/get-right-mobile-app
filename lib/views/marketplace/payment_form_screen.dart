@@ -107,6 +107,7 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
       behavior: HitTestBehavior.opaque,
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: AppColors.backgroundColor,
           title: Text('Payment', style: AppTextStyles.titleLarge.copyWith()),
           centerTitle: true,
           leading: IconButton(

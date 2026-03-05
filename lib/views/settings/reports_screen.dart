@@ -15,6 +15,7 @@ class ReportsScreen extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: AppColors.backgroundColor,
           title: Text('Reports', style: AppTextStyles.titleLarge.copyWith()),
           centerTitle: true,
           bottom: TabBar(

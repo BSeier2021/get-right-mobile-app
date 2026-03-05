@@ -90,11 +90,11 @@ class _HomeScreenState extends State<HomeScreen> {
       // {'icon': 'assets/images/Vector (4).png', 'activeIcon': 'assets/images/Vector (4).png', 'label': 'Journal'},
       // {'icon': 'assets/images/nutrition.png', 'activeIcon': 'assets/images/nutritionfill.png', 'label': 'Nutrition'},
       // {'icon': 'assets/images/profile.png', 'activeIcon': 'assets/images/profilefill.png', 'label': 'Profile'},
-      {'icon': 'assets/images/market.png', 'activeIcon': 'assets/images/marketfill.png', 'label': 'Market'},
-      {'icon': 'assets/images/feed.png', 'activeIcon': 'assets/images/feedfill.png', 'label': 'Feed'},
-      {'icon': 'assets/images/Vector (4).png', 'activeIcon': 'assets/images/Vector (4).png', 'label': 'Journal'},
-      {'icon': 'assets/images/nutrition.png', 'activeIcon': 'assets/images/nutritionfill.png', 'label': 'Nutrition'},
-      {'icon': 'assets/images/profile.png', 'activeIcon': 'assets/images/profilefill.png', 'label': 'Profile'},
+      {'icon': 'assets/images/markett.png', 'activeIcon': 'assets/images/markett.png', 'label': 'Market'},
+      {'icon': 'assets/images/feedd.png', 'activeIcon': 'assets/images/feedd.png', 'label': 'Feed'},
+      {'icon': 'assets/images/Journal.png', 'activeIcon': 'assets/images/Journal.png', 'label': 'Journal'},
+      {'icon': 'assets/images/nutritionn.png', 'activeIcon': 'assets/images/nutritionn.png', 'label': 'Nutrition'},
+      {'icon': 'assets/images/profilee.png', 'activeIcon': 'assets/images/profilee.png', 'label': 'Profile'},
     ];
 
     return ClipRRect(
@@ -146,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showSubscriptionRequiredDialog() {
     Get.dialog(
       AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.backgroundColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
@@ -271,35 +271,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       boxShadow: isCenter ? [BoxShadow(color: greenAccent.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 4))] : null,
                     ),
                     child: Center(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        transitionBuilder: (child, animation) {
-                          return ScaleTransition(scale: animation, child: child);
-                        },
-                        child: isLocked
-                            ? Icon(
-                                Icons.lock,
-                                key: ValueKey('$index-$isSelected-$isLocked-lock'),
-                                color: isCenter
-                                    ? Colors.white
-                                    : isSelected
-                                    ? greenAccent
-                                    : textSecondary,
-                                size: isCenter ? 24 : 20,
-                              )
-                            : Image.asset(
-                                isSelected ? activeIcon : icon,
-                                key: ValueKey('$index-$isSelected-$isLocked'),
-                                width: isCenter ? 24 : 20,
-                                height: isCenter ? 24 : 20,
-                                color: isCenter
-                                    ? Colors.white
-                                    : isSelected
-                                    ? greenAccent
-                                    : textSecondary,
-                                colorBlendMode: BlendMode.srcIn,
-                              ),
-                      ),
+                      child: isSelected
+                          ? AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              transitionBuilder: (child, animation) {
+                                return ScaleTransition(scale: animation, child: child);
+                              },
+                              child: isLocked
+                                  ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : greenAccent, size: isCenter ? 24 : 20)
+                                  : Image.asset(activeIcon, key: ValueKey('$index-$isSelected-$isLocked'), width: isCenter ? 24 : 20, height: isCenter ? 24 : 20),
+                            )
+                          : isLocked
+                          ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : textSecondary, size: isCenter ? 24 : 20)
+                          : Image.asset(icon, key: ValueKey('$index-$isSelected-$isLocked'), width: isCenter ? 24 : 20, height: isCenter ? 24 : 20),
                     ),
                   ),
                   // Lock badge overlay for locked nutrition tab

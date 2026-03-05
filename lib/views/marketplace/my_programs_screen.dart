@@ -253,6 +253,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> with SingleTickerPr
       },
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: AppColors.backgroundColor,
           leading: IconButton(
             icon: Container(
               padding: const EdgeInsets.all(8),
@@ -362,7 +363,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> with SingleTickerPr
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: isActive ? AppColors.accent.withOpacity(0.3) : AppColors.primaryGray.withOpacity(0.3)),
       ),

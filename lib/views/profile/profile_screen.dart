@@ -164,12 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               }),
               title: Text('Profile', style: AppTextStyles.titleLarge.copyWith()),
               centerTitle: true,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.settings_outlined, color: AppColors.accent),
-                  onPressed: () => Get.toNamed(AppRoutes.settings),
-                ),
-              ],
+              actions: [IconButton(icon: Image.asset('assets/images/setting.png', width: 30), onPressed: () => Get.toNamed(AppRoutes.settings)).paddingOnly(bottom: 10)],
               bottom: PreferredSize(preferredSize: const Size.fromHeight(68), child: tabBar),
             ),
       body: widget.showOnlyPublic
@@ -203,12 +198,12 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.accent, width: 3),
+                        border: Border.all(color: AppColors.black, width: 3),
                       ),
                       child: CircleAvatar(
                         radius: 45,
                         backgroundColor: Color.fromARGB(162, 240, 252, 216),
-                        child: Icon(Icons.person, size: 50, color: AppColors.accent),
+                        child: Icon(Icons.person, size: 50, color: AppColors.black),
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -221,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       label: Text('Edit Info', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontSize: 11)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.accent,
-                        side: const BorderSide(color: AppColors.accent, width: 1),
+                        side: const BorderSide(color: AppColors.black, width: 1),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         minimumSize: const Size(0, 24),
                       ),
@@ -343,13 +338,13 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.accent, width: 3),
+                        border: Border.all(color: AppColors.black, width: 3),
                       ),
                       child: CircleAvatar(
                         radius: 50,
                         backgroundColor: Color.fromARGB(162, 240, 252, 216),
                         // backgroundColor: AppColors.accent.withOpacity(0.2),
-                        child: Icon(Icons.person, size: 50, color: AppColors.accent),
+                        child: Icon(Icons.person, size: 50, color: AppColors.black),
                       ),
                     ),
 

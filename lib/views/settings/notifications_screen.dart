@@ -141,8 +141,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       _syncNotifications();
 
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.backgroundColor,
         appBar: AppBar(
+          backgroundColor: AppColors.backgroundColor,
           title: Text('Notifications', style: AppTextStyles.titleLarge.copyWith()),
           leading: IconButton(
             icon: Container(

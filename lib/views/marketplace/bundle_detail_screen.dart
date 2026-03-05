@@ -48,6 +48,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
             slivers: [
               // App Bar with Bundle Header
               SliverAppBar(
+                backgroundColor: AppColors.backgroundColor,
                 expandedHeight: 250,
                 pinned: true,
                 automaticallyImplyLeading: false,

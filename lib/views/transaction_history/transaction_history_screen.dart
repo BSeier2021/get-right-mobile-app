@@ -91,7 +91,11 @@ class TransactionHistoryScreen extends StatelessWidget {
     refundedTransactions.sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
 
     return Scaffold(
-      appBar: AppBar(title: Text('Transaction History', style: AppTextStyles.titleLarge.copyWith()), centerTitle: true),
+      appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
+        title: Text('Transaction History', style: AppTextStyles.titleLarge.copyWith()),
+        centerTitle: true,
+      ),
       body: refundedTransactions.isEmpty
           ? Center(
               child: Column(

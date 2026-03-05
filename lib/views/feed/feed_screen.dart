@@ -687,7 +687,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           centerTitle: true,
           actions: [
             IconButton(
-              icon: const Icon(Icons.search, color: AppColors.accent),
+              icon: Image.asset('assets/images/search.png'),
               onPressed: () {
                 _showSearchScreen();
               },
@@ -699,9 +699,9 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
             labelColor: AppColors.accent,
             unselectedLabelColor: const Color(0xFF404040),
             tabs: [
-              Tab(icon: Icon(Icons.public)),
-              Tab(icon: Icon(Icons.people)),
-              Tab(icon: Icon(Icons.person)),
+              Tab(icon: Image.asset('assets/images/world.png', width: 35)),
+              Tab(icon: Image.asset('assets/images/people.png', width: 45)),
+              Tab(icon: Image.asset('assets/images/profilee.png', width: 35)),
             ],
           ),
         ),

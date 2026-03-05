@@ -430,7 +430,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         backgroundColor: AppColors.background,
         resizeToAvoidBottomInset: true,
         appBar: AppBar(
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.backgroundColor,
           elevation: 0,
           leading: IconButton(
             icon: Container(

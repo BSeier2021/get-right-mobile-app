@@ -18,7 +18,7 @@ class AppColors {
   // Primary Colors
   // Primary Background: Light Grey - modern, clean foundation
   static const Color primary = lightGrey; // Light grey as primary background
-  static const Color primaryVariant = Color(0xFFC0C0C0); // Darker light grey for emphasis
+  static const Color primaryVariant = Color(0xFFFAFFEF); // Darker light grey for emphasis
   static const Color onPrimary = black; // Text/icons on light grey
 
   // Primary Accent: Green - used for buttons, icons, active states, progress indicators
@@ -37,9 +37,9 @@ class AppColors {
   static const Color primaryGrayLight = Color(0xFFD1D5DB); // Light gray for subtle elements
 
   // Background and Surface
-  static const Color background = lightGrey; // Light grey background (modern design)
+  static const Color background = Color(0xFFFAFFEF); // Light grey background (modern design)
   static const Color onBackground = black; // Black text on light grey
-  static const Color surface = cardWhite; // Card white surface for cards
+  static const Color surface = Color.fromARGB(255, 248, 255, 233); // Card white surface for cards
   static const Color onSurface = black; // Black text on card surfaces
   static const Color surfaceDark = Color(0xFF4B5563); // Darker surface variant (legacy)
   static const Color onSurfaceDark = white; // White text on dark surfaces

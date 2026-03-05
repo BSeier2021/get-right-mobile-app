@@ -86,6 +86,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
               // App Bar with Program Image
               SliverAppBar(
                 expandedHeight: 250,
+                backgroundColor: AppColors.background,
                 pinned: true,
                 automaticallyImplyLeading: false,
                 actions: [
@@ -99,7 +100,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                           isFavorite ? 'Removed' : 'Added',
                           isFavorite ? 'Removed from favorites' : 'Added to favorites',
                           snackPosition: SnackPosition.BOTTOM,
-                          backgroundColor: isFavorite ? AppColors.primaryGray : AppColors.completed,
+                          backgroundColor: isFavorite ? AppColors.error : AppColors.completed,
                           colorText: Colors.white,
                           duration: const Duration(seconds: 2),
                         );
@@ -114,7 +115,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                     children: [
                       // Demo Video
                       Container(
-                        color: AppColors.primaryVariant,
+                        color: AppColors.background,
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
@@ -168,11 +169,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                         child: Container(
                           height: 60,
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Colors.transparent, AppColors.background],
-                            ),
+                            gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, AppColors.background]),
                           ),
                         ),
                       ),
@@ -223,10 +220,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                                       children: [
                                         SizedBox(
                                           width: 180.w,
-                                          child: Text(
-                                            _safeProgram['trainer'] ?? 'Trainer',
-                                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface),
-                                          ),
+                                          child: Text(_safeProgram['trainer'] ?? 'Trainer', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
                                         ),
                                         if (_safeProgram['certified'] == true)
                                           Padding(
@@ -273,10 +267,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                         style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        _safeProgram['description'] ?? 'No description available',
-                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, height: 1.6),
-                      ),
+                      Text(_safeProgram['description'] ?? 'No description available', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, height: 1.6)),
                       const SizedBox(height: 24),
 
                       // What's Included
@@ -300,19 +291,9 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                           style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 12),
-                        _buildEnrolledContentCard(
-                          icon: Icons.video_library,
-                          title: 'Full Program Video',
-                          subtitle: 'Complete training video',
-                          onTap: () => _openEnrolledVideo(),
-                        ),
+                        _buildEnrolledContentCard(icon: Icons.video_library, title: 'Full Program Video', subtitle: 'Complete training video', onTap: () => _openEnrolledVideo()),
                         const SizedBox(height: 12),
-                        _buildEnrolledContentCard(
-                          icon: Icons.picture_as_pdf,
-                          title: 'Program Guide PDF',
-                          subtitle: 'Download program guide',
-                          onTap: () => _openPDF(),
-                        ),
+                        _buildEnrolledContentCard(icon: Icons.picture_as_pdf, title: 'Program Guide PDF', subtitle: 'Download program guide', onTap: () => _openPDF()),
                         const SizedBox(height: 24),
                       ],
 
@@ -339,10 +320,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                             children: [
                               Icon(Icons.star, color: AppColors.upcoming, size: 20),
                               const SizedBox(width: 4),
-                              Text(
-                                '${_safeProgram['rating']} (${_safeProgram['reviews']} reviews)',
-                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
-                              ),
+                              Text('${_safeProgram['rating']} (${_safeProgram['reviews']} reviews)', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
                             ],
                           ),
                         ],
@@ -480,12 +458,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(review['userName'], style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
-                    Row(
-                      children: List.generate(
-                        5,
-                        (index) => Icon(index < review['rating'] ? Icons.star : Icons.star_border, size: 14, color: AppColors.upcoming),
-                      ),
-                    ),
+                    Row(children: List.generate(5, (index) => Icon(index < review['rating'] ? Icons.star : Icons.star_border, size: 14, color: AppColors.upcoming))),
                   ],
                 ),
               ),
@@ -957,10 +930,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
           const SizedBox(height: 12),
           Text('Your Comment', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
           const SizedBox(height: 4),
-          Text(
-            existingReview.toString().isNotEmpty ? existingReview.toString() : 'No comment provided',
-            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
-          ),
+          Text(existingReview.toString().isNotEmpty ? existingReview.toString() : 'No comment provided', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
         ],
       ),
     );

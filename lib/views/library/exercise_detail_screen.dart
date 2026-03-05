@@ -87,6 +87,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
@@ -103,14 +104,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
             return IconButton(
               icon: Icon(favoriteStatus ? Icons.favorite : Icons.favorite_border, color: favoriteStatus ? AppColors.error : AppColors.onPrimary),
               onPressed: () {
-                _favoritesController.toggleFavorite(
-                  exerciseId,
-                  {
-                    ...exercise,
-                    'type': 'exercise',
-                    'id': exerciseId,
-                  },
-                );
+                _favoritesController.toggleFavorite(exerciseId, {...exercise, 'type': 'exercise', 'id': exerciseId});
                 Get.snackbar(
                   favoriteStatus ? 'Removed from Favorites' : 'Added to Favorites',
                   exercise['name'],

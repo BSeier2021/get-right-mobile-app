@@ -405,13 +405,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           }
         });
 
-        Get.snackbar(
-          'Success',
-          '$type photo added successfully',
-          backgroundColor: AppColors.completed,
-          colorText: AppColors.onError,
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        Get.snackbar('Success', '$type photo added successfully', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to capture photo: $e', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
@@ -556,14 +550,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 if (_dayData[key] != null) {
                   _dayData[key]!['notes'] = notesController.text;
                 } else {
-                  _dayData[key] = {
-                    'workoutStatus': null,
-                    'hasProgressPhoto': false,
-                    'workout': null,
-                    'run': null,
-                    'nutrition': null,
-                    'notes': notesController.text,
-                  };
+                  _dayData[key] = {'workoutStatus': null, 'hasProgressPhoto': false, 'workout': null, 'run': null, 'nutrition': null, 'notes': notesController.text};
                 }
               });
               Navigator.pop(context);
@@ -579,23 +566,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
   void _markAsRestDay() {
     setState(() {
       final key = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      _dayData[key] = {
-        'workoutStatus': 'rest',
-        'hasProgressPhoto': false,
-        'workout': null,
-        'run': null,
-        'nutrition': null,
-        'notes': _dayData[key]?['notes'] ?? '',
-      };
+      _dayData[key] = {'workoutStatus': 'rest', 'hasProgressPhoto': false, 'workout': null, 'run': null, 'nutrition': null, 'notes': _dayData[key]?['notes'] ?? ''};
     });
 
-    Get.snackbar(
-      'Success',
-      'Day marked as rest day',
-      backgroundColor: const Color(0xFF4A90E2),
-      colorText: AppColors.onError,
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    Get.snackbar('Success', 'Day marked as rest day', backgroundColor: const Color(0xFF4A90E2), colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
   }
 
   void _showPhotoHistory() {
@@ -603,13 +577,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final photoDates = _dayData.entries.where((entry) => entry.value['hasProgressPhoto'] == true).map((entry) => entry.key).toList();
 
     if (photoDates.isEmpty) {
-      Get.snackbar(
-        'No Photos',
-        'You haven\'t added any progress photos yet',
-        backgroundColor: AppColors.error,
-        colorText: AppColors.onError,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('No Photos', 'You haven\'t added any progress photos yet', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
@@ -632,7 +600,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
-                color: AppColors.primary,
+                color: AppColors.backgroundColor,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Row(
@@ -711,7 +679,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   },
                   child: Container(
                     height: 150,
-                    decoration: BoxDecoration(color: AppColors.primaryGrayLight, borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(8)),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -733,7 +701,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   },
                   child: Container(
                     height: 150,
-                    decoration: BoxDecoration(color: AppColors.primaryGrayLight, borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(8)),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -826,13 +794,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   void _showShareOptions() {
     final data = _getDataForDate(_selectedDate);
     if (data == null || (data['workout'] == null && data['run'] == null)) {
-      Get.snackbar(
-        'No Data',
-        'No workout or run data to share for this date',
-        backgroundColor: AppColors.error,
-        colorText: AppColors.onError,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('No Data', 'No workout or run data to share for this date', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
@@ -1263,7 +1225,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.background,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
@@ -1326,7 +1288,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.primaryGray, width: 1),
               ),
@@ -1346,10 +1308,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                             });
                           },
                         ),
-                        Text(
-                          '${_getMonthName(_focusedMonth.month)} ${_focusedMonth.year}',
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface),
-                        ),
+                        Text('${_getMonthName(_focusedMonth.month)} ${_focusedMonth.year}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
                         IconButton(
                           icon: const Icon(Icons.chevron_right, color: AppColors.onSurface),
                           onPressed: () {
@@ -1496,9 +1455,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   Text(
                     '$day',
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: isSelected
-                          ? AppColors.onAccent
-                          : (isToday ? AppColors.onBackground : (dateColor != Colors.transparent ? AppColors.onSurface : AppColors.primaryGray)),
+                      color: isSelected ? AppColors.onAccent : (isToday ? AppColors.onBackground : (dateColor != Colors.transparent ? AppColors.onSurface : AppColors.primaryGray)),
                       fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
@@ -1525,11 +1482,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final data = _getDataForDate(_selectedDate);
 
     if (data == null ||
-        (data['workout'] == null &&
-            data['run'] == null &&
-            data['nutrition'] == null &&
-            (data['notes'] == null || data['notes'].toString().isEmpty) &&
-            !data['hasProgressPhoto'])) {
+        (data['workout'] == null && data['run'] == null && data['nutrition'] == null && (data['notes'] == null || data['notes'].toString().isEmpty) && !data['hasProgressPhoto'])) {
       return Padding(
         padding: const EdgeInsets.all(40),
         child: Center(
@@ -1752,7 +1705,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.accent.withOpacity(0.4)),
         boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 2))],
@@ -1793,7 +1746,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
           Row(
             children: [
               Expanded(child: _buildStatItem(Icons.fitness_center, 'Exercises', workout['exercises'].toString())),
+              const SizedBox(width: 5),
               Expanded(child: _buildStatItem(Icons.repeat, 'Sets', workout['sets'].toString())),
+              const SizedBox(width: 5),
               Expanded(child: _buildStatItem(Icons.local_fire_department, 'Calories', workout['calories'].toString())),
             ],
           ),
@@ -1918,9 +1873,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       final averagePace = paceMinutes + (paceSeconds / 60.0);
 
       // Get calories
-      final calories = runData['calories'] is int
-          ? runData['calories'] as int
-          : (runData['calories'] is String ? int.tryParse(runData['calories'].toString()) ?? 0 : 0);
+      final calories = runData['calories'] is int ? runData['calories'] as int : (runData['calories'] is String ? int.tryParse(runData['calories'].toString()) ?? 0 : 0);
 
       // Create RunModel from parsed data
       final runModel = RunModel(
@@ -1947,7 +1900,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.upcoming.withOpacity(0.4)),
         boxShadow: [BoxShadow(color: AppColors.upcoming.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 2))],
@@ -1987,7 +1940,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.primaryGray.withOpacity(0.4)),
         boxShadow: [BoxShadow(color: AppColors.blackOverlay.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2))],

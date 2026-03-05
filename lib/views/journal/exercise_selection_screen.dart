@@ -95,10 +95,10 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
     final showButtons = (!_isSuperset && _selected.isNotEmpty) || (_isSuperset && _selected.length == 2);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.backgroundColor,
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.backgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: Container(
@@ -145,6 +145,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(color: sel ? AppColors.accent : Colors.transparent, width: 2),
                       ),
+                      color: AppColors.white,
                       child: InkWell(
                         onTap: () => _toggleSelect(ex),
                         child: Padding(

@@ -1805,7 +1805,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   children: [
                     Text(
                       'All Programs',
-                      style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w900),
+                      style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w800),
                     ),
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
@@ -1964,7 +1964,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               SizedBox(width: 8.w),
               Text(
                 'Featured & Trending',
-                style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w900),
+                style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -1994,7 +1994,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           margin: EdgeInsets.only(right: 16.w),
           height: 220.h,
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
           ),
@@ -2084,7 +2084,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         onTap: () => _showProgramDetail(program),
                         child: Text(
                           program['title'],
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w900, height: 1.1, fontSize: 25.sp),
+                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800, height: 1.1, fontSize: 25.sp),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -2173,7 +2173,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               SizedBox(width: 8.w),
               Text(
                 title,
-                style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w900),
+                style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -2208,7 +2208,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               SizedBox(width: 8.w),
               Text(
                 'Bundle Deals',
-                style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w900),
+                style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -2256,7 +2256,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         onTap: () => _showProgramDetail(program),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
           ),
@@ -2346,7 +2346,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         onTap: () => _showProgramDetail(program),
                         child: Text(
                           program['title'],
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w900, height: 1.1, fontSize: 25.sp),
+                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800, height: 1.1, fontSize: 25.sp),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -2483,17 +2483,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
                               // Profile Picture
-                              CircleAvatar(
-                                radius: 10.r,
-                                backgroundImage: trainerImage != null ? NetworkImage(trainerImage) : null,
-                                backgroundColor: AppColors.primaryGray.withOpacity(0.3),
-                                child: trainerImage == null
-                                    ? Text(
-                                        primaryTrainer.isNotEmpty ? primaryTrainer[0].toUpperCase() : 'S',
-                                        style: TextStyle(color: AppColors.onSurface, fontSize: 12.sp, fontWeight: FontWeight.bold),
-                                      )
-                                    : null,
-                              ),
+                              Image.asset('assets/images/avatar.png', height: 20.h),
+
                               SizedBox(width: 6.w),
                               // Trainer Name
                               Text(
@@ -2549,7 +2540,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           // Program Title
                           Text(
                             bundle['title'] ?? 'Gym Floor Mastery',
-                            style: TextStyle(color: const Color(0xFF000000), fontWeight: FontWeight.w900, fontSize: 20.sp, height: 1.2),
+                            style: TextStyle(color: const Color(0xFF000000), fontWeight: FontWeight.w800, fontSize: 20.sp, height: 1.2),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -2582,7 +2573,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             children: [
                               Text(
                                 '\$${bundlePrice.toStringAsFixed(2)}',
-                                style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w900, fontSize: 26.sp),
+                                style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800, fontSize: 26.sp),
                               ),
                               SizedBox(width: 8.w),
                               Text(
@@ -2671,7 +2662,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       width: 270.w,
       child: Container(
         margin: EdgeInsets.only(right: 12.w),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(8)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2764,7 +2755,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       onTap: () => _showProgramDetail(program),
                       child: Text(
                         program['title'],
-                        style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w900, height: 1.1, fontSize: 25.sp),
+                        style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800, height: 1.1, fontSize: 25.sp),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),

@@ -15,7 +15,9 @@ class SettingsScreen extends StatelessWidget {
     final SettingsController controller = Get.put(SettingsController());
 
     return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),

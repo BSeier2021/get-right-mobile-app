@@ -204,6 +204,7 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
@@ -214,14 +215,14 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
         ),
         title: Text(muscleGroup['name'], style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list, color: AppColors.onPrimary),
-            onPressed: () {
-              // TODO: Show filter options
-            },
-          ),
-        ],
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.filter_list, color: AppColors.onPrimary),
+        //     onPressed: () {
+        //       // TODO: Show filter options
+        //     },
+        //   ),
+        // ],
       ),
       body: Column(
         children: [
@@ -309,7 +310,7 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))],
       ),

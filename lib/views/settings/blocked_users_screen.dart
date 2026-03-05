@@ -12,7 +12,9 @@ class BlockedUsersScreen extends StatelessWidget {
     final SafetyCenterController controller = Get.put(SafetyCenterController());
 
     return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         title: Text('Blocked Users', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
         leading: GestureDetector(
