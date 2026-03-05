@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -74,23 +75,29 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 40),
+                    SizedBox(height: 140.h),
 
                     // Logo with modern styling
-                    Center(child: const AppLogo(borderRadius: 16, size: 100)),
-                    const SizedBox(height: 25),
+                    // Center(child: const AppLogo(borderRadius: 16, size: 100)),
+                    Center(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            textAlign: TextAlign.center,
+                            'Welcome Back!',
+                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.black, fontSize: 40.sp, fontWeight: FontWeight.w800, letterSpacing: -1),
+                          ),
 
-                    // Welcome text with modern typography
-                    Text(
-                      'Welcome Back!',
-                      style: AppTextStyles.headlineLarge.copyWith(color: AppColors.accentVariant, fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: -1),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Login to continue your fitness journey',
+                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontSize: 15.sp, fontWeight: FontWeight.w400, letterSpacing: 0.2),
+                          ),
+                          SizedBox(height: 35.h),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Login to continue your fitness journey',
-                      style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.2),
-                    ),
-                    const SizedBox(height: 25),
 
                     // Email field
                     CustomTextField(
@@ -123,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 height: 20,
                                 decoration: BoxDecoration(
                                   color: _rememberMe ? AppColors.accent : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(5),
+                                  shape: BoxShape.circle,
                                   border: Border.all(color: _rememberMe ? AppColors.accent : AppColors.primaryGray.withOpacity(0.5), width: 2),
                                 ),
                                 child: _rememberMe ? const Icon(Icons.check_rounded, size: 14, color: AppColors.onAccent) : null,
@@ -131,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               const SizedBox(width: 8),
                               Text(
                                 'Remember Me',
-                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.7), fontSize: 14, fontWeight: FontWeight.w500),
+                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.7), fontSize: 14.sp, fontWeight: FontWeight.w500),
                               ),
                             ],
                           ),
@@ -141,9 +148,20 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         TextButton(
                           onPressed: () => Get.toNamed(AppRoutes.forgotPassword),
                           style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),
-                          child: Text(
-                            'Forgot Password?',
-                            style: AppTextStyles.labelLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Forgot Password?',
+                                style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontSize: 14.sp, fontWeight: FontWeight.w600),
+                              ),
+                              SizedBox(height: 2),
+                              Container(
+                                height: 1.h,
+                                width: 120.w, // or use double.infinity for full width underline
+                                color: AppColors.accent,
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -171,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
                             'OR',
-                            style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                            style: AppTextStyles.labelMedium.copyWith(color: AppColors.black, fontWeight: FontWeight.w600),
                           ),
                         ),
                         Expanded(
@@ -194,7 +212,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         Image.asset('assets/images/facebook.png'),
                       ],
                     ),
-                    const SizedBox(height: 120),
+                    SizedBox(height: 135.h),
 
                     // Sign up link
                     Center(
@@ -204,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         children: [
                           Text(
                             'Don\'t have an account? ',
-                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.7), fontSize: 15),
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.7), fontSize: 15.sp),
                           ).paddingOnly(top: 4),
                           TextButton(
                             onPressed: () => Get.toNamed(AppRoutes.signup),
@@ -215,7 +233,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             ),
                             child: Text(
                               'Sign Up',
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 15),
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 15.sp),
                             ),
                           ),
                         ],

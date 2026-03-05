@@ -82,16 +82,16 @@ class _CustomTextFieldState extends State<CustomTextField> with SingleTickerProv
           height: 56, // Fixed height for all text fields
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(50),
-            color: widget.enabled ? Color(0x19523A21) : Color(0x19523A21).withOpacity(0.5),
+            color: _isFocused ? Colors.white : Color(0x19523A21),
             border: Border.all(
               color: _hasError
                   ? AppColors.error
                   : _isFocused
-                  ? AppColors.accent
-                  : const Color(0xFF666666), // Dark gray border
+                  ? Color(0x1A523A21)
+                  : const Color(0x1A523A21), // Dark gray border
               width: _isFocused ? 2 : 1.5,
             ),
-            boxShadow: _isFocused ? [BoxShadow(color: AppColors.accent.withOpacity(0.15), blurRadius: 12, spreadRadius: 0, offset: const Offset(0, 4))] : null,
+            // boxShadow: _isFocused ? [BoxShadow(color: Color(0x19523A21).withOpacity(0.15), blurRadius: 12, spreadRadius: 0, offset: const Offset(0, 4))] : null,
           ),
           child: TextFormField(
             controller: widget.controller,
@@ -146,7 +146,7 @@ class _CustomTextFieldState extends State<CustomTextField> with SingleTickerProv
               labelStyle: AppTextStyles.bodyMedium.copyWith(color: _isFocused ? AppColors.accent : AppColors.primaryGray, fontSize: 15, fontWeight: FontWeight.w500),
               floatingLabelStyle: AppTextStyles.labelMedium.copyWith(color: _isFocused ? AppColors.accent : AppColors.primaryGray, fontSize: 13, fontWeight: FontWeight.w600),
               hintStyle: AppTextStyles.bodyMedium.copyWith(
-                color: const Color.fromARGB(255, 117, 116, 116), // Consistent light grey hint text color
+                color: const Color.fromARGB(255, 31, 30, 30), // Consistent light grey hint text color
                 fontSize: 15,
                 fontWeight: FontWeight.w400,
               ),
