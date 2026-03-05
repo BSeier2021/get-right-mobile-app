@@ -122,7 +122,7 @@ class _CustomOutlineButtonState extends State<CustomOutlineButton> {
         height: widget.height ?? 58,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(50),
-          border: Border.all(color: _isHovered ? AppColors.accent : actualBorderColor, width: 2),
+          border: Border.all(color: _isHovered ? AppColors.accent : const Color.fromARGB(255, 7, 7, 8), width: 2),
           color: _isHovered ? AppColors.accent.withOpacity(0.05) : Colors.transparent,
         ),
         child: Material(
@@ -156,7 +156,7 @@ class _CustomOutlineButtonState extends State<CustomOutlineButton> {
                   : Text(
                       widget.text,
                       style: AppTextStyles.buttonLarge.copyWith(
-                        color: _isHovered ? AppColors.accent : actualTextColor,
+                        color: _isHovered ? AppColors.accent : AppColors.black,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,

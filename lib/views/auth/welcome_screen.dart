@@ -30,7 +30,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
     _slideController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut));
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
 
     _fadeController.forward();
     _slideController.forward();
@@ -63,7 +66,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
             stops: const [0.0, 0.9], // 80% primary, 20% black
             colors: [
               AppColors.primary, // Primary color at top (80%)
-              const Color.fromARGB(216, 0, 0, 0), // Black at bottom (20%)
+              AppColors.backgroundColor, // Black at bottom (20%)
             ],
           ),
         ),

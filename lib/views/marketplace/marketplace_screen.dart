@@ -1805,7 +1805,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   children: [
                     Text(
                       'All Programs',
-                      style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w800),
+                      style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w900),
                     ),
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
@@ -1912,7 +1912,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               // Title
                               Text(
                                 'The Weekly Strength Series',
-                                style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800, fontSize: 28.sp),
+                                style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700, height: 1.0, fontSize: 28.sp),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -1960,18 +1960,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           padding: EdgeInsets.symmetric(horizontal: 16.w),
           child: Row(
             children: [
-              Icon(Icons.local_fire_department, color: AppColors.error, size: 24),
+              Icon(Icons.local_fire_department, color: AppColors.error, size: 24.sp),
               SizedBox(width: 8.w),
               Text(
                 'Featured & Trending',
-                style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w800),
+                style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w900),
               ),
             ],
           ),
         ),
         SizedBox(height: 12.h),
         SizedBox(
-          height: 250.h,
+          height: 235.h,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: 16.w),
@@ -1992,7 +1992,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         child: Container(
           width: MediaQuery.of(context).size.width * 0.50,
           margin: EdgeInsets.only(right: 16.w),
-          height: 220.h,
+          height: 200.h,
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
@@ -2084,7 +2084,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         onTap: () => _showProgramDetail(program),
                         child: Text(
                           program['title'],
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800, height: 1.1, fontSize: 25.sp),
+                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w900, height: 1.1, fontSize: 25.sp),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -2138,13 +2138,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               ),
                               label: Text(
                                 'Add to Calendar',
-                                style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontSize: 12.sp, fontWeight: FontWeight.bold),
+                                style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontSize: 10.sp, fontWeight: FontWeight.w700),
                               ),
                             ),
                           ),
                           Text(
                             '\$${program['price'].toStringAsFixed(2)}',
-                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 18.sp),
+                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 18.sp),
                           ),
                         ],
                       ),
@@ -2173,7 +2173,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               SizedBox(width: 8.w),
               Text(
                 title,
-                style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w800),
+                style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w900),
               ),
             ],
           ),
@@ -2208,7 +2208,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               SizedBox(width: 8.w),
               Text(
                 'Bundle Deals',
-                style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w800),
+                style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w900),
               ),
             ],
           ),
@@ -2251,7 +2251,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Widget _buildGridProgramCard(Map<String, dynamic> program) {
     return SizedBox(
-      height: 175.h,
+      height: 160.h,
       child: GestureDetector(
         onTap: () => _showProgramDetail(program),
         child: Container(
@@ -2346,12 +2346,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         onTap: () => _showProgramDetail(program),
                         child: Text(
                           program['title'],
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800, height: 1.1, fontSize: 25.sp),
+                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w900, height: 1.1, fontSize: 25.sp),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      SizedBox(height: 10.h),
+                      SizedBox(height: 15.h),
 
                       // Instructor with Certification Badge
                       Row(
@@ -2380,7 +2380,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         ],
                       ),
 
-                      SizedBox(height: 10.h),
+                      SizedBox(height: 15.h),
 
                       // Price and Button
                       Row(
@@ -2400,13 +2400,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               ),
                               label: Text(
                                 'Add to Calendar',
-                                style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontSize: 12.sp, fontWeight: FontWeight.bold),
+                                style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontSize: 10.sp, fontWeight: FontWeight.w700),
                               ),
                             ),
                           ),
                           Text(
                             '\$${program['price'].toStringAsFixed(2)}',
-                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 18.sp),
+                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 18.sp),
                           ),
                         ],
                       ),
@@ -2540,7 +2540,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           // Program Title
                           Text(
                             bundle['title'] ?? 'Gym Floor Mastery',
-                            style: TextStyle(color: const Color(0xFF000000), fontWeight: FontWeight.w800, fontSize: 20.sp, height: 1.2),
+                            style: TextStyle(color: const Color(0xFF000000), fontWeight: FontWeight.w900, fontSize: 20.sp, height: 1.2),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -2573,7 +2573,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             children: [
                               Text(
                                 '\$${bundlePrice.toStringAsFixed(2)}',
-                                style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800, fontSize: 26.sp),
+                                style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w900, fontSize: 26.sp),
                               ),
                               SizedBox(width: 8.w),
                               Text(
@@ -2658,7 +2658,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Widget _buildProgramCard(Map<String, dynamic> program) {
     return SizedBox(
-      height: 175.h,
+      height: 160.h,
       width: 270.w,
       child: Container(
         margin: EdgeInsets.only(right: 12.w),
@@ -2755,7 +2755,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       onTap: () => _showProgramDetail(program),
                       child: Text(
                         program['title'],
-                        style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800, height: 1.1, fontSize: 25.sp),
+                        style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w900, height: 1.1, fontSize: 25.sp),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -2811,13 +2811,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             ),
                             label: Text(
                               'Add to Calendar',
-                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold),
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w700, fontSize: 10.sp),
                             ),
                           ),
                         ),
                         Text(
                           '\$${program['price'].toStringAsFixed(2)}',
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 20.sp),
+                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 18.sp),
                         ),
                       ],
                     ),
