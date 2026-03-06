@@ -70,6 +70,10 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
       // Save subscription to storage
       await _storageService.saveSubscription(true, expiryDate: expiryDate, subscriptionType: subscriptionType);
 
+      // Verify subscription was saved
+      final subscriptionSaved = _storageService.hasActiveSubscription();
+      debugPrint('Subscription saved: $subscriptionSaved');
+
       // Unlock nutrition tab immediately so it updates when user goes back
       if (Get.isRegistered<NutritionController>()) {
         Get.find<NutritionController>().refreshSubscription();
@@ -89,10 +93,10 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
         duration: const Duration(seconds: 2),
       );
 
-      // Navigate back to previous screen or home
-      Future.delayed(const Duration(milliseconds: 500), () {
-        Get.back(); // Go back to previous screen
-      });
+      // Navigate back to previous screen
+      // Add delay to ensure storage is fully committed and UI can refresh
+      await Future.delayed(const Duration(milliseconds: 500));
+      Get.back(); // Go back to previous screen
     } else {
       // Regular program payment - navigate to program terms screen
       setState(() {

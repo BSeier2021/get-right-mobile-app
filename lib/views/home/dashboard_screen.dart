@@ -778,6 +778,7 @@ class _UltraPremium3DRingPainter extends CustomPainter {
 class HomeNavigationController extends GetxController {
   final _currentIndex = 2.obs;
   final journalTabIndex = 0.obs; // 0 = Workout Journal, 1 = Runner Log
+  final refreshTrigger = 0.obs; // Trigger to force UI refresh
   GlobalKey<ScaffoldState>? scaffoldKey;
 
   int get currentIndex => _currentIndex.value;
@@ -787,6 +788,10 @@ class HomeNavigationController extends GetxController {
       journalTabIndex.value = journalTab.clamp(0, 1);
     }
     _currentIndex.value = index;
+  }
+
+  void triggerRefresh() {
+    refreshTrigger.value++;
   }
 
   void openDrawer() {

@@ -22,7 +22,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late final HomeNavigationController _navController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool? _hasSubscriptionCache;
@@ -38,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Initialize navigation controller
     _navController = Get.put(HomeNavigationController());
     // Store scaffold key in controller for global access
@@ -47,11 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Cache subscription status after first frame to avoid build-time issues
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _hasSubscriptionCache = _hasSubscription();
-      if (mounted) {
-        setState(() {});
-      }
-      setState(() {});
+      _refreshSubscriptionStatus();
     });
 
     // Check if we should redirect based on preference from auth questionnaire or navigateToTab argument
@@ -77,22 +74,76 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh subscription status when app comes back to foreground
+    if (state == AppLifecycleState.resumed) {
+      _refreshSubscriptionStatus();
+    }
+  }
+
+  /// Refresh subscription status and update UI
+  void _refreshSubscriptionStatus() {
+    if (!mounted) return;
+    try {
+      final newStatus = _hasSubscription();
+      debugPrint('🔄 Refreshing subscription: old=$_hasSubscriptionCache, new=$newStatus');
+      if (_hasSubscriptionCache != newStatus) {
+        debugPrint('✅ Subscription status changed! Updating UI...');
+        if (mounted) {
+          setState(() {
+            _hasSubscriptionCache = newStatus;
+          });
+          // Trigger Obx rebuild by updating refresh trigger
+          _navController.triggerRefresh();
+          debugPrint('✅ UI updated with new subscription status: $_hasSubscriptionCache');
+        }
+      } else {
+        debugPrint('ℹ️ Subscription status unchanged: $_hasSubscriptionCache');
+      }
+    } catch (e) {
+      debugPrint('❌ Error refreshing subscription status: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => PopScope(
-        canPop: false,
-        child: Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        // Refresh subscription when returning from any route (especially payment screen)
+        if (didPop && mounted) {
+          // Add a small delay to ensure storage is updated
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              _refreshSubscriptionStatus();
+            }
+          });
+        }
+      },
+      child: Obx(() {
+        // Access refresh trigger to ensure Obx rebuilds when subscription changes
+        final _ = _navController.refreshTrigger.value;
+
+        // Refresh subscription status when Obx rebuilds (catches changes from payment screen)
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _refreshSubscriptionStatus();
+          }
+        });
+
+        return Scaffold(
           backgroundColor: AppColors.backgroundColor,
           key: _scaffoldKey,
           drawer: const AppDrawer(), // Professional app drawer
           body: IndexedStack(index: _navController.currentIndex, children: _screens),
-          bottomNavigationBar: _buildProfessionalBottomNav(),
-        ),
-      ),
+          bottomNavigationBar: _buildProfessionalBottomNav(key: ValueKey('nav_${_hasSubscriptionCache}_${_navController.currentIndex}')),
+        );
+      }),
     );
   }
 
-  Widget _buildProfessionalBottomNav() {
+  Widget _buildProfessionalBottomNav({Key? key}) {
     final navItems = [
       // {'icon': Icons.home_outlined, 'activeIcon': Icons.home_rounded, 'label': 'Home'},
       {'icon': 'assets/images/market1.png', 'activeIcon': 'assets/images/marketfill.png', 'label': 'Market'},
@@ -103,6 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return ClipRRect(
+      key: key,
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
@@ -222,10 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title,
                 style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
               ),
-              if (description.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray)),
-              ],
+              if (description.isNotEmpty) ...[const SizedBox(height: 2), Text(description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray))],
             ],
           ),
         ),
@@ -234,21 +283,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Modern navigation item
-  Widget _buildNavItem({
-    required String icon,
-    required String activeIcon,
-    required String label,
-    required int index,
-    required bool isSelected,
-    bool isCenter = false,
-  }) {
+  Widget _buildNavItem({required String icon, required String activeIcon, required String label, required int index, required bool isSelected, bool isCenter = false}) {
     const greenAccent = Color(0xFF29603C);
     const blackPrimary = Color(0xFF000000);
     const textSecondary = Color(0xFF404040);
 
-    // Check if this is the nutrition tab (index 4) and user doesn't have subscription
+    // Check if this is the nutrition tab (index 3) and user doesn't have subscription
     final isNutritionTab = index == 3;
-    final hasSubscription = _hasSubscriptionCache ?? false;
+    // Always check fresh subscription status to ensure it's up to date
+    final hasSubscription = _hasSubscriptionCache ?? _hasSubscription();
     final isLocked = isNutritionTab && !hasSubscription;
 
     return Expanded(
@@ -293,45 +336,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 return ScaleTransition(scale: animation, child: child);
                               },
                               child: isLocked
-                                  ? Icon(
-                                      Icons.lock,
-                                      key: ValueKey('$index-$isSelected-$isLocked-lock'),
-                                      color: isCenter ? Colors.white : greenAccent,
-                                      size: isCenter ? 24 : 20,
-                                    )
-                                  : Image.asset(
-                                      activeIcon,
-                                      key: ValueKey('$index-$isSelected-$isLocked'),
-                                      width: isCenter ? 24 : 20,
-                                      height: isCenter ? 24 : 20,
-                                    ),
+                                  ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : greenAccent, size: isCenter ? 24 : 20)
+                                  : Image.asset(activeIcon, key: ValueKey('$index-$isSelected-$isLocked'), width: isCenter ? 24 : 20, height: isCenter ? 24 : 20),
                             )
                           : isLocked
-                          ? Icon(
-                              Icons.lock,
-                              key: ValueKey('$index-$isSelected-$isLocked-lock'),
-                              color: isCenter ? Colors.white : textSecondary,
-                              size: isCenter ? 24 : 20,
-                            )
+                          ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : textSecondary, size: isCenter ? 24 : 20)
                           : Image.asset(icon, key: ValueKey('$index-$isSelected-$isLocked'), width: isCenter ? 24 : 20, height: isCenter ? 24 : 20),
                     ),
                   ),
-                  // Lock badge overlay for locked nutrition tab
-                  if (isLocked && !isSelected)
-                    Positioned(
-                      top: -2,
-                      right: -2,
-                      child: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: AppColors.accent,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
-                        ),
-                        child: const Icon(Icons.lock, size: 8, color: Colors.white),
-                      ),
-                    ),
                 ],
               ),
               // Label (hidden for center item)
@@ -359,6 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     Get.delete<HomeNavigationController>();
     super.dispose();
   }
