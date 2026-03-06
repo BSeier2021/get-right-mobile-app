@@ -3,11 +3,15 @@ import 'package:get_right/models/food_item.dart';
 import 'package:get_right/models/meal_entry.dart';
 import 'package:get_right/models/nutrition_day.dart';
 import 'package:get_right/models/recipe.dart';
+import 'package:get_right/services/storage_service.dart';
 
 /// Controller for managing nutrition tracking and recipes
 class NutritionController extends GetxController {
   // Current selected date
   final Rx<DateTime> selectedDate = DateTime.now().obs;
+
+  /// Subscription status so nutrition tab unlocks immediately after payment.
+  final RxBool hasSubscription = false.obs;
 
   // Nutrition days (indexed by date string)
   final RxMap<String, NutritionDay> nutritionDays = <String, NutritionDay>{}.obs;
@@ -37,7 +41,19 @@ class NutritionController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    refreshSubscription();
     _initializeDemoData();
+  }
+
+  /// Re-read subscription from storage. Call after payment success so nutrition unlocks immediately.
+  void refreshSubscription() {
+    try {
+      final storage = Get.find<StorageService>();
+      hasSubscription.value = storage.hasActiveSubscription();
+    } catch (_) {
+      hasSubscription.value = false;
+    }
+    update();
   }
 
   // Get or create nutrition day for a specific date

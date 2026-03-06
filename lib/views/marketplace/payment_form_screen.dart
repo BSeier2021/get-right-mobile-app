@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/nutrition_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -68,6 +69,11 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
 
       // Save subscription to storage
       await _storageService.saveSubscription(true, expiryDate: expiryDate, subscriptionType: subscriptionType);
+
+      // Unlock nutrition tab immediately so it updates when user goes back
+      if (Get.isRegistered<NutritionController>()) {
+        Get.find<NutritionController>().refreshSubscription();
+      }
 
       setState(() {
         _isProcessing = false;

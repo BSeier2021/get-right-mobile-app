@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import 'package:get_right/controllers/nutrition_controller.dart';
 import 'package:get_right/models/meal_entry.dart';
 import 'package:get_right/routes/app_routes.dart';
-import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/nutrition/add_food_screen.dart';
@@ -13,19 +12,14 @@ import 'package:get_right/views/nutrition/add_food_screen.dart';
 class NutritionTrackerTab extends StatelessWidget {
   NutritionTrackerTab({super.key});
 
-  bool _hasSubscription() {
-    final storageService = Get.find<StorageService>();
-    return storageService.hasActiveSubscription();
-  }
-
   @override
   Widget build(BuildContext context) {
     return GetBuilder<NutritionController>(
       builder: (controller) {
         final currentDay = controller.currentDay;
 
-        // If no subscription, show locked view with upgrade prompt
-        if (!_hasSubscription()) {
+        // If no subscription, show locked view; unlocks when controller.refreshSubscription() is called after payment
+        if (!controller.hasSubscription.value) {
           return _buildLockedView(context);
         }
 
@@ -108,8 +102,7 @@ class NutritionTrackerTab extends StatelessWidget {
   }
 
   void _showAddFoodOptions(BuildContext context, NutritionController controller) {
-    // Check subscription before showing add food options
-    if (!_hasSubscription()) {
+    if (!controller.hasSubscription.value) {
       _showSubscriptionRequiredDialog(context);
       return;
     }
@@ -165,7 +158,11 @@ class NutritionTrackerTab extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [AppColors.accent.withOpacity(0.1), AppColors.accent.withOpacity(0.05)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              gradient: LinearGradient(
+                colors: [AppColors.accent.withOpacity(0.1), AppColors.accent.withOpacity(0.05)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 2),
             ),
@@ -656,7 +653,12 @@ class NutritionTrackerTab extends StatelessWidget {
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(value: progress, backgroundColor: color.withOpacity(0.15), valueColor: AlwaysStoppedAnimation<Color>(color), minHeight: 12),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: color.withOpacity(0.15),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+              minHeight: 12,
+            ),
           ),
         ],
       ),
@@ -678,7 +680,7 @@ class NutritionTrackerTab extends StatelessWidget {
         children: [
           InkWell(
             onTap: () {
-              if (!_hasSubscription()) {
+              if (!controller.hasSubscription.value) {
                 _showSubscriptionRequiredDialog(context);
                 return;
               }
@@ -734,7 +736,10 @@ class NutritionTrackerTab extends StatelessWidget {
               ),
             ),
           ),
-          if (meals.isNotEmpty) ...[const Divider(height: 1, color: AppColors.lightGray, thickness: 1), ...meals.map((meal) => _buildMealItem(controller, meal))],
+          if (meals.isNotEmpty) ...[
+            const Divider(height: 1, color: AppColors.lightGray, thickness: 1),
+            ...meals.map((meal) => _buildMealItem(controller, meal)),
+          ],
         ],
       ),
     );
@@ -753,7 +758,10 @@ class NutritionTrackerTab extends StatelessWidget {
                   'Delete Food Item',
                   style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                 ),
-                content: Text('Are you sure you want to remove "${meal.foodItem.name}" from your log?', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray)),
+                content: Text(
+                  'Are you sure you want to remove "${meal.foodItem.name}" from your log?',
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray),
+                ),
                 actions: [
                   TextButton(
                     onPressed: () => Get.back(result: false),

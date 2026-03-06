@@ -51,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         setState(() {});
       }
+      setState(() {});
     });
 
     // Check if we should redirect based on preference from auth questionnaire or navigateToTab argument
@@ -221,7 +222,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 title,
                 style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
               ),
-              if (description.isNotEmpty) ...[const SizedBox(height: 2), Text(description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray))],
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray)),
+              ],
             ],
           ),
         ),
@@ -230,7 +234,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Modern navigation item
-  Widget _buildNavItem({required String icon, required String activeIcon, required String label, required int index, required bool isSelected, bool isCenter = false}) {
+  Widget _buildNavItem({
+    required String icon,
+    required String activeIcon,
+    required String label,
+    required int index,
+    required bool isSelected,
+    bool isCenter = false,
+  }) {
     const greenAccent = Color(0xFF29603C);
     const blackPrimary = Color(0xFF000000);
     const textSecondary = Color(0xFF404040);
@@ -282,11 +293,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                 return ScaleTransition(scale: animation, child: child);
                               },
                               child: isLocked
-                                  ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : greenAccent, size: isCenter ? 24 : 20)
-                                  : Image.asset(activeIcon, key: ValueKey('$index-$isSelected-$isLocked'), width: isCenter ? 24 : 20, height: isCenter ? 24 : 20),
+                                  ? Icon(
+                                      Icons.lock,
+                                      key: ValueKey('$index-$isSelected-$isLocked-lock'),
+                                      color: isCenter ? Colors.white : greenAccent,
+                                      size: isCenter ? 24 : 20,
+                                    )
+                                  : Image.asset(
+                                      activeIcon,
+                                      key: ValueKey('$index-$isSelected-$isLocked'),
+                                      width: isCenter ? 24 : 20,
+                                      height: isCenter ? 24 : 20,
+                                    ),
                             )
                           : isLocked
-                          ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : textSecondary, size: isCenter ? 24 : 20)
+                          ? Icon(
+                              Icons.lock,
+                              key: ValueKey('$index-$isSelected-$isLocked-lock'),
+                              color: isCenter ? Colors.white : textSecondary,
+                              size: isCenter ? 24 : 20,
+                            )
                           : Image.asset(icon, key: ValueKey('$index-$isSelected-$isLocked'), width: isCenter ? 24 : 20, height: isCenter ? 24 : 20),
                     ),
                   ),
