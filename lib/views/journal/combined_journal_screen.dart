@@ -163,7 +163,7 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
               clipBehavior: Clip.none,
               children: [
                 IconButton(
-                  icon: Image.asset('assets/images/humburger.png'),
+                  icon: Image.asset('assets/images/humburger1.png'),
                   onPressed: () => Scaffold.of(context).openDrawer(),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -243,17 +243,11 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
             ],
           ),
           centerTitle: true,
-          actions: [GestureDetector(onTap: () => Get.to(const PlannerScreen()), child: Image.asset('assets/images/calender.png')).paddingOnly(right: 15, bottom: 10)],
+          actions: [GestureDetector(onTap: () => Get.to(const PlannerScreen()), child: Image.asset('assets/images/calender1.png')).paddingOnly(right: 15, bottom: 10)],
         ),
 
         body: !_isDisposed && mounted
-            ? TabBarView(
-                controller: _tabController,
-                children: const [
-                  WorkoutJournalScreen(isEmbedded: true),
-                  RunTrackerScreen(),
-                ],
-              )
+            ? TabBarView(controller: _tabController, children: const [WorkoutJournalScreen(isEmbedded: true), RunTrackerScreen()])
             : const SizedBox.shrink(),
       ),
     );

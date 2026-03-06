@@ -46,8 +46,8 @@ class AppDrawer extends StatelessWidget {
                 _buildSectionLabel('FITNESS'),
 
                 _buildDrawerItem(
-                  icon: 'assets/images/progress.png',
-                  activeIcon: 'assets/images/progress.png',
+                  icon: Icons.trending_up,
+                  activeIcon: Icons.trending_up,
                   title: 'Progress',
                   onTap: () {
                     Get.back();
@@ -56,8 +56,8 @@ class AppDrawer extends StatelessWidget {
                 ),
 
                 _buildDrawerItem(
-                  icon: 'assets/images/myprogram.png',
-                  activeIcon: 'assets/images/myprogram.png',
+                  icon: Icons.track_changes_outlined,
+                  activeIcon: Icons.track_changes,
                   title: 'My Programs',
                   onTap: () {
                     Get.toNamed(AppRoutes.myPrograms);
@@ -65,8 +65,8 @@ class AppDrawer extends StatelessWidget {
                 ),
 
                 _buildDrawerItem(
-                  icon: 'assets/images/library.png',
-                  activeIcon: 'assets/images/library.png',
+                  icon: Icons.sports_gymnastics_rounded,
+                  activeIcon: Icons.library_books,
                   title: 'Library',
                   onTap: () {
                     Get.to(() => const LibraryScreen());
@@ -82,8 +82,8 @@ class AppDrawer extends StatelessWidget {
                 // Notifications item with badge
                 Obx(
                   () => _buildDrawerItemWithBadge(
-                    icon: 'assets/images/notification.png',
-                    activeIcon: 'assets/images/notification.png',
+                    icon: Icons.notifications_outlined,
+                    activeIcon: Icons.notifications,
                     title: 'Notifications',
                     unreadCount: notificationController.unreadCount,
                     onTap: () {
@@ -100,8 +100,8 @@ class AppDrawer extends StatelessWidget {
                 // Help & Support Section
                 _buildSectionLabel('HELP & SUPPORT'),
                 _buildDrawerItem(
-                  icon: 'assets/images/setting.png',
-                  activeIcon: 'assets/images/setting.png',
+                  icon: Icons.settings_outlined,
+                  activeIcon: Icons.settings,
                   title: 'Settings',
                   onTap: () {
                     Get.back();
@@ -109,8 +109,8 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
                 _buildDrawerItem(
-                  icon: 'assets/images/helpandsupport.png',
-                  activeIcon: 'assets/images/helpandsupport.png',
+                  icon: Icons.help_outline,
+                  activeIcon: Icons.help,
                   title: 'Help & Feedback',
                   onTap: () {
                     Get.back();
@@ -118,8 +118,8 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
                 _buildDrawerItem(
-                  icon: 'assets/images/about.png',
-                  activeIcon: 'assets/images/about.png',
+                  icon: Icons.info_outline,
+                  activeIcon: Icons.info,
                   title: 'About',
                   onTap: () {
                     Get.back();
@@ -127,8 +127,8 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
                 _buildDrawerItem(
-                  icon: 'assets/images/privacy.png',
-                  activeIcon: 'assets/images/privacy.png',
+                  icon: Icons.privacy_tip_outlined,
+                  activeIcon: Icons.privacy_tip,
                   title: 'Privacy Policy',
                   onTap: () {
                     Get.back();
@@ -215,14 +215,16 @@ class AppDrawer extends StatelessWidget {
   }
 
   /// Drawer Item
-  Widget _buildDrawerItem({required String icon, required String activeIcon, required String title, required VoidCallback onTap}) {
+  Widget _buildDrawerItem({required IconData icon, required IconData activeIcon, required String title, required VoidCallback onTap}) {
     return ListTile(
-      leading: Image.asset(icon, width: 24, height: 24),
+      leading: Icon(icon, color: AppColors.accent, size: 24),
       title: Text(
         title,
         style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w500),
       ),
       onTap: onTap,
+      hoverColor: AppColors.accent.withOpacity(0.1),
+      selectedTileColor: AppColors.accent.withOpacity(0.15),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       dense: true,
@@ -231,12 +233,12 @@ class AppDrawer extends StatelessWidget {
   }
 
   /// Drawer Item with Badge (for notifications)
-  Widget _buildDrawerItemWithBadge({required String icon, required String activeIcon, required String title, required int unreadCount, required VoidCallback onTap}) {
+  Widget _buildDrawerItemWithBadge({required IconData icon, required IconData activeIcon, required String title, required int unreadCount, required VoidCallback onTap}) {
     return ListTile(
       leading: Stack(
         clipBehavior: Clip.none,
         children: [
-          Image.asset(icon, width: 24, height: 24),
+          Icon(icon, color: AppColors.accent, size: 24),
           if (unreadCount > 0)
             Positioned(
               right: -8,

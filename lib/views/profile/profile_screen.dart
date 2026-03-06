@@ -139,7 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   clipBehavior: Clip.none,
                   children: [
                     IconButton(
-                      icon: Image.asset('assets/images/humburger.png'),
+                      icon: Image.asset('assets/images/humburger1.png'),
                       onPressed: () => Scaffold.of(context).openDrawer(),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -164,7 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               }),
               title: Text('Profile', style: AppTextStyles.titleLarge.copyWith()),
               centerTitle: true,
-              actions: [IconButton(icon: Image.asset('assets/images/setting.png', width: 30), onPressed: () => Get.toNamed(AppRoutes.settings)).paddingOnly(bottom: 10)],
+              actions: [IconButton(icon: Icon(Icons.settings), onPressed: () => Get.toNamed(AppRoutes.settings))],
               bottom: PreferredSize(preferredSize: const Size.fromHeight(68), child: tabBar),
             ),
       body: widget.showOnlyPublic

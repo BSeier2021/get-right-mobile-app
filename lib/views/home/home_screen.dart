@@ -25,6 +25,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late final HomeNavigationController _navController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool? _hasSubscriptionCache;
 
   final List<Widget> _screens = const [
     MarketplaceScreen(), // Marketplace
@@ -43,6 +44,14 @@ class _HomeScreenState extends State<HomeScreen> {
     _navController.scaffoldKey = _scaffoldKey;
     // Initialize notification controller
     Get.put(NotificationController());
+
+    // Cache subscription status after first frame to avoid build-time issues
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _hasSubscriptionCache = _hasSubscription();
+      if (mounted) {
+        setState(() {});
+      }
+    });
 
     // Check if we should redirect based on preference from auth questionnaire or navigateToTab argument
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -85,16 +94,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildProfessionalBottomNav() {
     final navItems = [
       // {'icon': Icons.home_outlined, 'activeIcon': Icons.home_rounded, 'label': 'Home'},
-      // {'icon': 'assets/images/market.png', 'activeIcon': 'assets/images/marketfill.png', 'label': 'Market'},
-      // {'icon': 'assets/images/feed.png', 'activeIcon': 'assets/images/feedfill.png', 'label': 'Feed'},
-      // {'icon': 'assets/images/Vector (4).png', 'activeIcon': 'assets/images/Vector (4).png', 'label': 'Journal'},
-      // {'icon': 'assets/images/nutrition.png', 'activeIcon': 'assets/images/nutritionfill.png', 'label': 'Nutrition'},
-      // {'icon': 'assets/images/profile.png', 'activeIcon': 'assets/images/profilefill.png', 'label': 'Profile'},
-      {'icon': 'assets/images/markett.png', 'activeIcon': 'assets/images/markett.png', 'label': 'Market'},
-      {'icon': 'assets/images/feedd.png', 'activeIcon': 'assets/images/feedd.png', 'label': 'Feed'},
-      {'icon': 'assets/images/Journal.png', 'activeIcon': 'assets/images/Journal.png', 'label': 'Journal'},
-      {'icon': 'assets/images/nutritionn.png', 'activeIcon': 'assets/images/nutritionn.png', 'label': 'Nutrition'},
-      {'icon': 'assets/images/profilee.png', 'activeIcon': 'assets/images/profilee.png', 'label': 'Profile'},
+      {'icon': 'assets/images/market1.png', 'activeIcon': 'assets/images/marketfill.png', 'label': 'Market'},
+      {'icon': 'assets/images/feed1.png', 'activeIcon': 'assets/images/feedfill.png', 'label': 'Feed'},
+      {'icon': 'assets/images/Vector (4).png', 'activeIcon': 'assets/images/Vector (4).png', 'label': 'Journal'},
+      {'icon': 'assets/images/nutrition1.png', 'activeIcon': 'assets/images/nutritionfill.png', 'label': 'Nutrition'},
+      {'icon': 'assets/images/profile1.png', 'activeIcon': 'assets/images/profilefill.png', 'label': 'Profile'},
     ];
 
     return ClipRRect(
@@ -233,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Check if this is the nutrition tab (index 4) and user doesn't have subscription
     final isNutritionTab = index == 3;
-    final hasSubscription = _hasSubscription();
+    final hasSubscription = _hasSubscriptionCache ?? false;
     final isLocked = isNutritionTab && !hasSubscription;
 
     return Expanded(

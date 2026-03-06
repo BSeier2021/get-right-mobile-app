@@ -7,6 +7,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/nutrition/nutrition_tracker_tab.dart';
 import 'package:get_right/views/nutrition/recipes_tab.dart';
+import 'package:get_right/views/planner/planner_screen.dart';
 
 /// Main Nutrition Screen with Tracker and Recipes tabs
 class NutritionScreen extends StatefulWidget {
@@ -137,14 +138,8 @@ class _NutritionScreenState extends State<NutritionScreen> with SingleTickerProv
             );
           },
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.calendar_month, color: AppColors.accent),
-            onPressed: () {
-              Get.toNamed('/planner');
-            },
-          ),
-        ],
+        actions: [GestureDetector(onTap: () => Get.to(const PlannerScreen()), child: Image.asset('assets/images/calender1.png')).paddingOnly(right: 15, bottom: 10)],
+
         centerTitle: true,
       ),
       body: TabBarView(controller: _tabController, children: [NutritionTrackerTab(), const RecipesTab()]),
