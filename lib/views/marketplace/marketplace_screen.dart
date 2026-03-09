@@ -1732,14 +1732,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           centerTitle: true,
           actions: [
             IconButton(
-              icon: Image.asset('assets/images/search1.png'),
+              icon: Image.asset('assets/images/search.png', width: 25.w),
               onPressed: () {
                 // TODO: Implement search
               },
             ),
             Stack(
               children: [
-                IconButton(icon: Image.asset('assets/images/filter11.png'), onPressed: _showFilterModal),
+                IconButton(
+                  icon: Image.asset('assets/images/filter1.png', width: 25.w),
+                  onPressed: _showFilterModal,
+                ),
                 if (hasActiveFilters)
                   Positioned(
                     right: 18,
