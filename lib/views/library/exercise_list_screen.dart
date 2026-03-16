@@ -245,7 +245,7 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
                   },
                   style: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF000000)),
                   decoration: InputDecoration(
-                    hintText: 'Search exercises',
+                    hintText: 'Search exercises', filled: true, fillColor: AppColors.white,
                     hintStyle: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF404040)),
                     prefixIcon: const Icon(Icons.search, color: Color(0xFF404040)),
                     suffixIcon: _searchQuery.isNotEmpty
@@ -259,8 +259,7 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
                             },
                           )
                         : null,
-                    filled: true,
-                    fillColor: const Color(0xFFF5F5F5),
+          
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),

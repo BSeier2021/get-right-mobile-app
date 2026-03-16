@@ -24,11 +24,10 @@ class RecipesTab extends StatelessWidget {
                 child: TextField(
                   onChanged: (value) => controller.setSearchQuery(value),
                   decoration: InputDecoration(
-                    hintText: 'Search recipes...',
+                    hintText: 'Search recipes...', filled: true, fillColor: AppColors.white,
                     hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray),
                     prefixIcon: const Icon(Icons.search, color: AppColors.mediumGray),
-                    filled: true,
-                    fillColor: AppColors.lightGray,
+                  
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
@@ -318,8 +317,9 @@ class RecipesTab extends StatelessWidget {
       onTap: () => Get.to(() => RecipeDetailScreen(recipe: recipe)),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+           color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Row(

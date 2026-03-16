@@ -134,7 +134,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                       });
                     },
                     style: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF000000)),
-                    decoration: InputDecoration(
+                    decoration: InputDecoration( filled: true, fillColor: AppColors.white,
                       hintText: 'Search exercises',
                       hintStyle: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF404040)),
                       prefixIcon: const Icon(Icons.search, color: Color(0xFF404040)),
@@ -149,8 +149,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                               },
                             )
                           : null,
-                      filled: true,
-                      fillColor: const Color(0xFFF5F5F5),
+                    
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),

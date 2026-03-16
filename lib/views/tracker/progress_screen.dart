@@ -56,9 +56,13 @@ class ProgressScreen extends StatelessWidget {
             height: 200,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.primaryGray, width: 1),
+
+               color:AppColors.surface ,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.primaryGray.withOpacity(0.2) ),
+            boxShadow:  [BoxShadow(color: AppColors.accent.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 1))],
+         
+           
             ),
             child: Center(
               child: Column(
@@ -89,9 +93,10 @@ class ProgressScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
+         
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray, width: 1),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
       ),
       child: Column(
         children: [
@@ -121,7 +126,7 @@ class ProgressScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray, width: 1),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
       ),
       child: Row(
         children: [

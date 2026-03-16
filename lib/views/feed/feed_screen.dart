@@ -1655,7 +1655,7 @@ class _SearchScreenState extends State<_SearchScreen> {
                         )
                       : null,
                   filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
+                  fillColor: AppColors.white,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),

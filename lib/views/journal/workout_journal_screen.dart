@@ -558,67 +558,86 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     );
   }
 
-  Widget _buildContent() {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_isStarted) _buildMetrics(),
-          if (!_isStarted && !_workout!.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: _startWorkout,
-                    icon: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(color: AppColors.onAccent, shape: BoxShape.circle),
-                      child: Icon(Icons.play_arrow, color: AppColors.accent, size: 18),
-                    ),
-                    label: Text('Start Workout', style: AppTextStyles.buttonMedium),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: AppColors.onAccent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 2,
-                    ),
-                  ),
-                  _workout == null || _workout!.isEmpty
-                      ? const SizedBox.shrink()
-                      : Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              IconButton(
-                                icon: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-                                  child: const Icon(Icons.add, color: AppColors.onAccent, size: 20),
-                                ),
-                                onPressed: _showAddExerciseDialog,
-                              ),
-                            ],
-                          ),
-                        ),
-                ],
-              ),
-            ),
-          if (_workout!.warmupExercises.isNotEmpty) ...[
-            _buildHeader('Warmup', Icons.local_fire_department, isWarmup: true),
-            ..._buildExercisesList(_workout!.warmupExercises, true),
-          ],
-          if (_workout!.workoutExercises.isNotEmpty) ...[_buildHeader('Workout', Icons.fitness_center, isWarmup: false), ..._buildExercisesList(_workout!.workoutExercises, false)],
-          const SizedBox(height: 100),
-        ],
-      ),
-    );
-  }
+Widget _buildContent() {
+  return Column(
+    children: [
+      Expanded(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_isStarted) _buildMetrics(),
 
+              if (_workout!.warmupExercises.isNotEmpty) ...[
+                _buildHeader('Workout Summary', isWarmup: true),
+                ..._buildExercisesList(_workout!.warmupExercises, true),
+              ],
+
+              if (_workout!.workoutExercises.isNotEmpty) ...[
+                _buildHeader('Workout', isWarmup: false),
+                ..._buildExercisesList(_workout!.workoutExercises, false),
+              ],
+
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+
+      /// Bottom Buttons
+      if (!_isStarted && !_workout!.isEmpty)
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _startWorkout,
+                icon: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: AppColors.onAccent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.play_arrow,
+                      color: AppColors.accent, size: 18),
+                ),
+                label: Text(
+                  'Start Workout',
+                  style: AppTextStyles.buttonMedium,
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 60),
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: AppColors.onAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+
+              if (_workout != null && !_workout!.isEmpty)
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.add,
+                        color: AppColors.onAccent, size: 20),
+                  ),
+                  onPressed: _showAddExerciseDialog,
+                ),
+            ],
+          ),
+        ),
+    ],
+  );
+}
   Widget _buildMetrics() {
     return Container(
       margin: const EdgeInsets.all(16),
@@ -683,11 +702,11 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     );
   }
 
-  Widget _buildHeader(String title, IconData icon, {bool isWarmup = false}) => Padding(
+  Widget _buildHeader(String title,  {bool isWarmup = false}) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
     child: Row(
       children: [
-        Icon(icon, color: isWarmup ? Colors.red : AppColors.accent, size: 20),
+        // Icon(icon, color: isWarmup ? Colors.red : AppColors.accent, size: 20),
         const SizedBox(width: 8),
         Text(
           title,

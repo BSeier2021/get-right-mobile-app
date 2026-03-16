@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
-import 'package:get_right/theme/color_constants.dart';
 
 /// Next-Level Modern Onboarding Screen 2024/2025
 /// Features: Bold visuals, smooth animations, immersive design
@@ -15,7 +15,8 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> with TickerProviderStateMixin {
+class _OnboardingScreenState extends State<OnboardingScreen>
+    with TickerProviderStateMixin {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
@@ -35,39 +36,54 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
       imagePath: 'assets/images/dumbles.png',
       title: 'Track Every Rep',
       subtitle: 'Your Fitness Journey',
-      description: 'Log workouts, track progress, and watch yourself grow stronger every single day.',
+      description:
+          'Log workouts, track progress, and watch yourself grow stronger every single day.',
     ),
     OnboardingPage(
       width: 550,
       imagePath: 'assets/images/sportswear.png',
       title: 'Plan Your Goals',
       subtitle: 'Smart Planning',
-      description: 'Custom programs designed for your goals. Follow expert plans or create your own.',
+      description:
+          'Custom programs designed for your goals. Follow expert plans or create your own.',
     ),
     OnboardingPage(
       width: 330,
       imagePath: 'assets/images/run.png',
       title: 'Run & Conquer',
       subtitle: 'GPS Tracking',
-      description: 'Track outdoor runs with real-time pace, distance, and elevation data.',
+      description:
+          'Track outdoor runs with real-time pace, distance, and elevation data.',
     ),
     OnboardingPage(
       width: 550,
       imagePath: 'assets/images/girlrun.png',
       title: 'Get Right',
       subtitle: 'Start Today',
-      description: 'Join thousands achieving their fitness goals. Your transformation starts now.',
+      description:
+          'Join thousands achieving their fitness goals. Your transformation starts now.',
     ),
   ];
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
-    _scaleController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _scaleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(CurvedAnimation(parent: _scaleController, curve: Curves.easeOutBack));
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeOutBack),
+    );
 
     _fadeController.forward();
     _scaleController.forward();
@@ -85,7 +101,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
 
   void _nextPage() {
     if (_currentPage < _pages.length - 1) {
-      _pageController.nextPage(duration: const Duration(milliseconds: 400), curve: Curves.easeInOutCubic);
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOutCubic,
+      );
     } else {
       _completeOnboarding();
     }
@@ -124,7 +143,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 600),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_bgGrey, Color.lerp(_bgGrey, _greenAccent, 0.1)!]),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          _bgGrey,
+                          Color.lerp(_bgGrey, _greenAccent, 0.1)!,
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -135,7 +161,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.6)]),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.4),
+                      Colors.black.withOpacity(0.6),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -155,7 +188,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                             onPressed: _completeOnboarding,
                             child: Text(
                               'Skip',
-                              style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 15, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                       ],
@@ -200,7 +237,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                 children: [
                   // Image with modern container
                   ClipRRect(
-                    child: Image.asset(page.imagePath, width: page.width, fit: BoxFit.contain),
+                    child: Image.asset(
+                      page.imagePath,
+                      width: page.width,
+                      height: 390.h,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ],
               ),
@@ -222,7 +264,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
           // Subtitle (green text)
           Text(
             _pages[_currentPage].subtitle,
-            style: TextStyle(color: _greenAccentVariant, fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 1.2),
+            style: TextStyle(
+              color: _greenAccentVariant,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+            ),
           ),
 
           const SizedBox(height: 12),
@@ -230,7 +277,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
           // Title (white text)
           Text(
             _pages[_currentPage].title,
-            style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, height: 1.1, letterSpacing: -1.0),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 36,
+              fontWeight: FontWeight.w900,
+              height: 1.1,
+              letterSpacing: -1.0,
+            ),
           ),
 
           const SizedBox(height: 16),
@@ -238,7 +291,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
           // Description (white text with opacity)
           Text(
             _pages[_currentPage].description,
-            style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 16, height: 1.5, fontWeight: FontWeight.w400, letterSpacing: 0.2),
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.85),
+              fontSize: 16,
+              height: 1.5,
+              fontWeight: FontWeight.w400,
+              letterSpacing: 0.2,
+            ),
           ),
 
           // Bottom navigation row
@@ -249,7 +308,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
 
             children: [
               // Page indicators
-              Row(children: List.generate(_pages.length, (index) => _buildPageIndicator(index))),
+              Row(
+                children: List.generate(
+                  _pages.length,
+                  (index) => _buildPageIndicator(index),
+                ),
+              ),
 
               // Next button (circular)
               GestureDetector(
@@ -265,10 +329,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
 
                     shape: BoxShape.circle,
 
-                    boxShadow: [BoxShadow(color: _greenAccent.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))],
+                    boxShadow: [
+                      BoxShadow(
+                        color: _greenAccent.withOpacity(0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
 
-                  child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 24),
+                  child: const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
               ),
             ],
@@ -286,7 +360,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
       margin: const EdgeInsets.symmetric(horizontal: 4),
       width: isActive ? 32 : 8,
       height: 8,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: isActive ? _greenAccent : const Color.fromARGB(255, 255, 255, 255)),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        color: isActive
+            ? _greenAccent
+            : const Color.fromARGB(255, 255, 255, 255),
+      ),
     );
   }
 }
@@ -297,5 +376,11 @@ class OnboardingPage {
   final String subtitle;
   final String description;
   final double width;
-  OnboardingPage({required this.imagePath, required this.title, required this.subtitle, required this.description, required this.width});
+  OnboardingPage({
+    required this.imagePath,
+    required this.title,
+    required this.subtitle,
+    required this.description,
+    required this.width,
+  });
 }

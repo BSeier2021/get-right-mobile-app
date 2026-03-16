@@ -31,7 +31,7 @@ class BlockedUsersScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
               onChanged: (v) => controller.blockedQuery.value = v,
-              decoration: InputDecoration(
+              decoration: InputDecoration( filled: true, fillColor: AppColors.white,
                 hintText: 'Search blocked users',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: Obx(

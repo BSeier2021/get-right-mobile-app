@@ -52,23 +52,7 @@ class _NutritionScreenState extends State<NutritionScreen> with SingleTickerProv
                 icon: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 30,
-                      height: 3,
-                      margin: const EdgeInsets.only(bottom: 4),
-                      decoration: BoxDecoration(color: Color(0xFF29603C), borderRadius: BorderRadius.circular(2)),
-                    ),
-                    Container(
-                      width: 25,
-                      height: 3,
-                      margin: const EdgeInsets.only(bottom: 4),
-                      decoration: BoxDecoration(color: Color(0xFF29603C), borderRadius: BorderRadius.circular(2)),
-                    ),
-                    Container(
-                      width: 20,
-                      height: 3,
-                      decoration: BoxDecoration(color: Color(0xFF29603C), borderRadius: BorderRadius.circular(2)),
-                    ),
+                   Image.asset('assets/images/humburger1.png', ),
                   ],
                 ),
                 onPressed: () => Scaffold.of(context).openDrawer(),

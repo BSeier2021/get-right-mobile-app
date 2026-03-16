@@ -41,8 +41,9 @@ class ReportsScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: TextField(
                 onChanged: (v) => controller.reportsQuery.value = v,
-                decoration: InputDecoration(
+                decoration: InputDecoration( filled: true, fillColor: AppColors.white,
                   hintText: 'Search reports',
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.accent.withOpacity(0.3), width: 2)),
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: Obx(
                     () => controller.reportsQuery.value.trim().isEmpty

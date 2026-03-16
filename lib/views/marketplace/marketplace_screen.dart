@@ -1905,7 +1905,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               // Weekly Free Workout Badge
                               Container(
                                 padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                                decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(50)),
+                                decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(10)),
                                 child: Text(
                                   'WEEKLY FREE WORKOUT',
                                   style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold, letterSpacing: 1.1, fontSize: 13.sp),
@@ -2144,7 +2144,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                   foregroundColor: AppColors.onAccent,
                                   elevation: 0,
                                   padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.h),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 ),
                                 label: Text(
                                   'Add to Calendar',
@@ -2415,7 +2415,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                   foregroundColor: AppColors.onAccent,
                                   elevation: 0,
                                   padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.h),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 ),
                                 label: Text(
                                   'Add to Calendar',
@@ -2612,7 +2612,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               backgroundColor: const Color(0xFF1A1A1A), // Dark almost black
                               foregroundColor: Colors.white,
                               elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               padding: EdgeInsets.zero,
                             ),
                             child: Text(
@@ -2833,7 +2833,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 foregroundColor: AppColors.onAccent,
                                 elevation: 0,
                                 padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 0.h),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
                               label: Text(
                                 'Add to Calendar',

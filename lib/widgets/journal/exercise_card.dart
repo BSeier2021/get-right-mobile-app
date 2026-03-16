@@ -23,9 +23,9 @@ class _ExerciseCardState extends State<ExerciseCard> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: widget.showBorder ? Border.all(color: AppColors.accent.withOpacity(0.3), width: 2) : null,
+        // border: widget.showBorder ? Border.all(color: AppColors.accent.withOpacity(0.3), width: 2) : null,
         boxShadow: widget.showBorder ? [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))] : null,
       ),
       child: Column(
@@ -66,8 +66,25 @@ class _ExerciseCardState extends State<ExerciseCard> {
               ],
             ),
           ),
+          Container(
+            padding: EdgeInsets.all(12),
+            margin: EdgeInsets.all(20),
+ decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        // border: widget.showBorder ? Border.all(color: AppColors.accent.withOpacity(0.3), width: 2) : null,
+        boxShadow: widget.showBorder ? [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))] : null,
+      ),
+
+
+            child: Column(children: [
+
           if (widget.exercise.sets.isNotEmpty) ...[_buildSetsTable(), const SizedBox(height: 6)],
           if (_isNotesExpanded && widget.exercise.notes != null && widget.exercise.notes!.isNotEmpty) _buildNotesSection(),
+      
+
+            ],),
+          )
         ],
       ),
     );
@@ -80,30 +97,51 @@ class _ExerciseCardState extends State<ExerciseCard> {
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Row(
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   flex: 1,
-                  child: Text(
-                    'Set',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                  child: Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      'Set',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                    ),
                   ),
                 ),
                 Expanded(
                   flex: 2,
-                  child: Text(
-                    widget.exercise.hasTimedSets ? 'Time' : 'Reps',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                  child: Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      widget.exercise.hasTimedSets ? 'Time' : 'Reps',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                    ),
                   ),
                 ),
                 Expanded(
                   flex: 2,
-                  child: Text(
-                    'Weight',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                  child: Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      'Weight',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                    ),
                   ),
                 ),
               ],
