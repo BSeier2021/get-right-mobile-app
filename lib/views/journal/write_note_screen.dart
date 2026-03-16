@@ -55,6 +55,7 @@ class _WriteNoteScreenState extends State<WriteNoteScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         leading: IconButton(
           icon: const Icon(Icons.close, color: AppColors.onPrimary),
           onPressed: () => Get.back(),

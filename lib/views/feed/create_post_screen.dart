@@ -131,6 +131,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Get.back()),
         title: Text('Create Post', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,

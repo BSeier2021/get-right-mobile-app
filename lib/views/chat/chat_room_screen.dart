@@ -502,6 +502,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

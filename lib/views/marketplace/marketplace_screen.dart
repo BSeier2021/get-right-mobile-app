@@ -2078,9 +2078,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               // Content section
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.all(10.w),
+                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       // Title
                       GestureDetector(
@@ -2092,7 +2093,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      SizedBox(height: 10.h),
+                      SizedBox(height: 8.h),
 
                       // Instructor with Certification Badge
                       Row(
@@ -2100,10 +2101,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           Image.asset('assets/images/avatar.png', height: 23.h),
                           SizedBox(width: 6.w),
                           // Trainer Name
-                          Text(
-                            "Sarah\nMaxwell",
-                            style: TextStyle(color: const Color(0xFF333333), fontSize: 10.sp, height: 1.0, fontWeight: FontWeight.w600),
-                            maxLines: 2,
+                          Flexible(
+                            child: Text(
+                              "Sarah\nMaxwell",
+                              style: TextStyle(color: const Color(0xFF333333), fontSize: 10.sp, height: 1.0, fontWeight: FontWeight.w600),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           SizedBox(width: 7.w),
                           Icon(Icons.star, color: AppColors.accent, size: 13.sp),
@@ -2114,37 +2118,43 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 5.w),
                           Icon(Icons.people, color: Colors.black, size: 13.sp),
                           SizedBox(width: 3.w),
-                          Text(
-                            '${_formatNumber(program['students'] as int)}',
-                            style: TextStyle(color: Colors.black, fontSize: 13.sp),
+                          Flexible(
+                            child: Text(
+                              '${_formatNumber(program['students'] as int)}',
+                              style: TextStyle(color: Colors.black, fontSize: 13.sp),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
 
-                      SizedBox(height: 10.h),
+                      SizedBox(height: 8.h),
 
                       // Price and Button
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          SizedBox(
-                            width: 90.w,
-                            height: 25.h,
-                            child: ElevatedButton.icon(
-                              onPressed: () => _showAddToCalendarModal(program, isBundle: false),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.accent,
-                                foregroundColor: AppColors.onAccent,
-                                elevation: 0,
-                                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.h),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                              ),
-                              label: Text(
-                                'Add to Calendar',
-                                style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontSize: 10.sp, fontWeight: FontWeight.w700),
+                          Flexible(
+                            child: SizedBox(
+                              height: 25.h,
+                              child: ElevatedButton.icon(
+                                onPressed: () => _showAddToCalendarModal(program, isBundle: false),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.accent,
+                                  foregroundColor: AppColors.onAccent,
+                                  elevation: 0,
+                                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.h),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                                ),
+                                label: Text(
+                                  'Add to Calendar',
+                                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontSize: 10.sp, fontWeight: FontWeight.w700),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ),
                           ),
+                          SizedBox(width: 4.w),
                           Text(
                             '\$${program['price'].toStringAsFixed(2)}',
                             style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 18.sp),
@@ -2218,7 +2228,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         ),
         SizedBox(height: 12.h),
         SizedBox(
-          height: 175.h,
+          height: 195.h,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: 16.w),
@@ -2362,10 +2372,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           Image.asset('assets/images/avatar.png', height: 23.h),
                           SizedBox(width: 6.w),
                           // Trainer Name
-                          Text(
-                            "Sarah\nMaxwell",
-                            style: TextStyle(color: const Color(0xFF333333), fontSize: 10.sp, height: 1.0, fontWeight: FontWeight.w600),
-                            maxLines: 2,
+                          Flexible(
+                            child: Text(
+                              "Sarah\nMaxwell",
+                              style: TextStyle(color: const Color(0xFF333333), fontSize: 10.sp, height: 1.0, fontWeight: FontWeight.w600),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           SizedBox(width: 7.w),
                           Icon(Icons.star, color: AppColors.accent, size: 13.sp),
@@ -2376,9 +2389,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 5.w),
                           Icon(Icons.people, color: Colors.black, size: 13.sp),
                           SizedBox(width: 3.w),
-                          Text(
-                            '${_formatNumber(program['students'] as int)}',
-                            style: TextStyle(color: Colors.black, fontSize: 13.sp),
+                          Flexible(
+                            child: Text(
+                              '${_formatNumber(program['students'] as int)}',
+                              style: TextStyle(color: Colors.black, fontSize: 13.sp),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -2389,24 +2405,27 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          SizedBox(
-                            width: 90.w,
-                            height: 25.h,
-                            child: ElevatedButton.icon(
-                              onPressed: () => _showAddToCalendarModal(program, isBundle: false),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.accent,
-                                foregroundColor: AppColors.onAccent,
-                                elevation: 0,
-                                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.h),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                              ),
-                              label: Text(
-                                'Add to Calendar',
-                                style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontSize: 10.sp, fontWeight: FontWeight.w700),
+                          Flexible(
+                            child: SizedBox(
+                              height: 25.h,
+                              child: ElevatedButton.icon(
+                                onPressed: () => _showAddToCalendarModal(program, isBundle: false),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.accent,
+                                  foregroundColor: AppColors.onAccent,
+                                  elevation: 0,
+                                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.h),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                                ),
+                                label: Text(
+                                  'Add to Calendar',
+                                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontSize: 10.sp, fontWeight: FontWeight.w700),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ),
                           ),
+                          SizedBox(width: 4.w),
                           Text(
                             '\$${program['price'].toStringAsFixed(2)}',
                             style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 18.sp),
@@ -2451,8 +2470,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         Get.toNamed(AppRoutes.bundleDetail, arguments: bundle);
       },
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.85,
-        margin: EdgeInsets.only(right: 16.w),
+        width: MediaQuery.of(context).size.width * 0.90,
         decoration: BoxDecoration(
           color: const Color.fromARGB(0, 255, 229, 229), // Soft pink background
           borderRadius: BorderRadius.circular(20),
@@ -2466,7 +2484,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
-                  image: DecorationImage(image: AssetImage(bgImage), fit: BoxFit.cover),
+                  image: DecorationImage(image: AssetImage(bgImage), fit: BoxFit.contain),
                 ),
               ),
             ),
@@ -2491,8 +2509,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             // Trainer Name
                             Text(
                               "Sarah\nMaxwell",
-                              style: TextStyle(color: const Color(0xFF333333), fontSize: 12.sp, fontWeight: FontWeight.w600),
+                              style: TextStyle(color: const Color(0xFF333333), fontSize: 12.sp, height: 1.0, fontWeight: FontWeight.w600),
                               maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             SizedBox(width: 4.w),
                             // Hot Badge
@@ -2538,11 +2557,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               ),
                           ],
                         ),
-                        SizedBox(height: 10.h),
+                        SizedBox(height: 7.h),
                         // Program Title
                         Text(
                           bundle['title'] ?? 'Gym Floor Mastery',
-                          style: TextStyle(color: const Color(0xFF000000), fontWeight: FontWeight.w700, fontSize: 20.sp, height: 1.2),
+                          style: TextStyle(color: const Color(0xFF000000), fontWeight: FontWeight.w700, fontSize: 18.sp, height: 1.0),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -2608,7 +2627,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     // Bottom section - Pricing and Button
                   ],
                 ),
-                Image.asset(personImage),
+                Image.asset(personImage, width: 125.w, fit: BoxFit.contain),
               ],
             ),
             // Right side - Person image extending beyond card (above and to the right)
@@ -2746,9 +2765,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             // Content section
             Expanded(
               child: Padding(
-                padding: EdgeInsets.all(10.w),
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Title
                     GestureDetector(
@@ -2760,7 +2780,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    SizedBox(height: 10.h),
+                    SizedBox(height: 6.h),
 
                     // Instructor with Certification Badge
                     Row(
@@ -2768,10 +2788,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         Image.asset('assets/images/avatar.png', height: 23.h),
                         SizedBox(width: 6.w),
                         // Trainer Name
-                        Text(
-                          "Sarah\nMaxwell",
-                          style: TextStyle(color: const Color(0xFF333333), fontSize: 10.sp, height: 1.0, fontWeight: FontWeight.w600),
-                          maxLines: 2,
+                        Flexible(
+                          child: Text(
+                            "Sarah\nMaxwell",
+                            style: TextStyle(color: const Color(0xFF333333), fontSize: 10.sp, height: 1.0, fontWeight: FontWeight.w600),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         SizedBox(width: 7.w),
                         Icon(Icons.star, color: AppColors.accent, size: 13.sp),
@@ -2782,14 +2805,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         SizedBox(width: 5.w),
                         Icon(Icons.people, color: Colors.black, size: 13.sp),
                         SizedBox(width: 3.w),
-                        Text(
-                          '${_formatNumber(program['students'] as int)}',
-                          style: TextStyle(color: Colors.black, fontSize: 13.sp),
+                        Flexible(
+                          child: Text(
+                            '${_formatNumber(program['students'] as int)}',
+                            style: TextStyle(color: Colors.black, fontSize: 13.sp),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
 
-                    SizedBox(height: 10.h),
+                    SizedBox(height: 6.h),
 
                     // Rating
 
@@ -2797,24 +2823,27 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        SizedBox(
-                          width: 100.w,
-                          height: 25.h,
-                          child: ElevatedButton.icon(
-                            onPressed: () => _showAddToCalendarModal(program, isBundle: false),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accent,
-                              foregroundColor: AppColors.onAccent,
-                              elevation: 0,
-                              padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 0.h),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                            ),
-                            label: Text(
-                              'Add to Calendar',
-                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w700, fontSize: 10.sp),
+                        Flexible(
+                          child: SizedBox(
+                            height: 25.h,
+                            child: ElevatedButton.icon(
+                              onPressed: () => _showAddToCalendarModal(program, isBundle: false),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.accent,
+                                foregroundColor: AppColors.onAccent,
+                                elevation: 0,
+                                padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 0.h),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                              ),
+                              label: Text(
+                                'Add to Calendar',
+                                style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w700, fontSize: 10.sp),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
                         ),
+                        SizedBox(width: 4.w),
                         Text(
                           '\$${program['price'].toStringAsFixed(2)}',
                           style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 18.sp),

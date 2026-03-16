@@ -14,6 +14,7 @@ class AllBundlesScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),

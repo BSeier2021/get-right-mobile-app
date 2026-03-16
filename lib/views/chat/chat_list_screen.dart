@@ -106,6 +106,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         title: Text('Messages', style: AppTextStyles.titleLarge.copyWith()),
         leading: IconButton(
           icon: Container(

@@ -54,6 +54,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),

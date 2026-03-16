@@ -39,6 +39,7 @@ class _FollowersScreenState extends State<FollowersScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         centerTitle: true,
         title: Text('Followers', style: AppTextStyles.titleLarge.copyWith()),
         leading: IconButton(

@@ -34,6 +34,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         title: Text('Purchase Details', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
         leading: IconButton(

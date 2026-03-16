@@ -16,7 +16,7 @@ class ExerciseLibraryDetailScreen extends StatelessWidget {
       return Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.backgroundColor,
           elevation: 0,
           leading: IconButton(
             icon: Container(

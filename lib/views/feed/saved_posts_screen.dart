@@ -59,6 +59,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         centerTitle: true,
         title: Text('Saved Posts', style: AppTextStyles.titleLarge.copyWith()),
         leading: IconButton(

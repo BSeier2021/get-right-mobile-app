@@ -200,6 +200,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
         title: Text('Create Plan', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
         centerTitle: true,
       ),
