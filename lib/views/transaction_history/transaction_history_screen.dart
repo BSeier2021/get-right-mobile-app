@@ -93,6 +93,15 @@ class TransactionHistoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.backgroundColor,
+        leading: GestureDetector(
+          onTap: () {
+            Get.back();
+          },
+          child: Container(
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+          ).paddingAll(8),
+        ),
         title: Text('Transaction History', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
       ),
@@ -128,7 +137,7 @@ class TransactionHistoryScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),

@@ -336,10 +336,10 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.black.withOpacity(0.75),
+        color: AppColors.surface.withOpacity(0.75),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 1.5),
-        boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: AppColors.lightGrey, blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -348,13 +348,13 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
             children: [
               Icon(icon, color: AppColors.accent, size: 18),
               const SizedBox(width: 6),
-              Text(label, style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray, fontSize: 12)),
+              Text(label, style: AppTextStyles.labelMedium.copyWith(color: AppColors.black, fontSize: 12)),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             value,
-            style: AppTextStyles.titleLarge.copyWith(color: AppColors.white, fontWeight: FontWeight.bold, fontSize: 20),
+            style: AppTextStyles.titleLarge.copyWith(color: AppColors.black, fontWeight: FontWeight.bold, fontSize: 20),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

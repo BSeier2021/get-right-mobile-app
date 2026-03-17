@@ -79,7 +79,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
     return SliverAppBar(
       expandedHeight: 120,
       pinned: true,
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.background,
       leading: IconButton(
         icon: const Icon(Icons.close_rounded, color: AppColors.onPrimary),
         onPressed: () => Get.back(),

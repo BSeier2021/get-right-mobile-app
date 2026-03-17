@@ -558,86 +558,66 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     );
   }
 
-Widget _buildContent() {
-  return Column(
-    children: [
-      Expanded(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_isStarted) _buildMetrics(),
+  Widget _buildContent() {
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_isStarted) _buildMetrics(),
 
-              if (_workout!.warmupExercises.isNotEmpty) ...[
-                _buildHeader('Workout Summary', isWarmup: true),
-                ..._buildExercisesList(_workout!.warmupExercises, true),
+                if (_workout!.warmupExercises.isNotEmpty) ...[_buildHeader('Workout Summary', isWarmup: true), ..._buildExercisesList(_workout!.warmupExercises, true)],
+
+                if (_workout!.workoutExercises.isNotEmpty) ...[_buildHeader('Workout', isWarmup: false), ..._buildExercisesList(_workout!.workoutExercises, false)],
+
+                const SizedBox(height: 20),
               ],
-
-              if (_workout!.workoutExercises.isNotEmpty) ...[
-                _buildHeader('Workout', isWarmup: false),
-                ..._buildExercisesList(_workout!.workoutExercises, false),
-              ],
-
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
         ),
-      ),
 
-      /// Bottom Buttons
-      if (!_isStarted && !_workout!.isEmpty)
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              ElevatedButton.icon(
-                onPressed: _startWorkout,
-                icon: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: AppColors.onAccent,
-                    shape: BoxShape.circle,
+        /// Bottom Buttons
+        if (!_isStarted && !_workout!.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _startWorkout,
+                  icon: Icon(Icons.play_arrow, color: AppColors.white, size: 25),
+                  label: Text('Start Workout', style: AppTextStyles.buttonMedium),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 75),
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.onAccent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 2,
                   ),
-                  child: Icon(Icons.play_arrow,
-                      color: AppColors.accent, size: 18),
                 ),
-                label: Text(
-                  'Start Workout',
-                  style: AppTextStyles.buttonMedium,
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 60),
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: AppColors.onAccent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  elevation: 2,
-                ),
-              ),
 
-              if (_workout != null && !_workout!.isEmpty)
-                IconButton(
-                  icon: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      borderRadius: BorderRadius.circular(10),
+                if (_workout != null && !_workout!.isEmpty)
+                  IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color.fromARGB(33, 33, 78, 49),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.accentVariant.withOpacity(0.25), width: 2),
+                      ),
+                      child: Icon(Icons.add, color: AppColors.accentVariant, size: 30.sp),
                     ),
-                    child: const Icon(Icons.add,
-                        color: AppColors.onAccent, size: 20),
+                    onPressed: _showAddExerciseDialog,
                   ),
-                  onPressed: _showAddExerciseDialog,
-                ),
-            ],
+              ],
+            ),
           ),
-        ),
-    ],
-  );
-}
+      ],
+    );
+  }
+
   Widget _buildMetrics() {
     return Container(
       margin: const EdgeInsets.all(16),
@@ -702,7 +682,7 @@ Widget _buildContent() {
     );
   }
 
-  Widget _buildHeader(String title,  {bool isWarmup = false}) => Padding(
+  Widget _buildHeader(String title, {bool isWarmup = false}) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
     child: Row(
       children: [

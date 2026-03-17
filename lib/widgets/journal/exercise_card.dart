@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/models/exercise_set_model.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -19,22 +20,66 @@ class ExerciseCard extends StatefulWidget {
 class _ExerciseCardState extends State<ExerciseCard> {
   bool _isNotesExpanded = true;
 
+  // Get icon and color for exercise based on exercise name
+  Map<String, dynamic> _getExerciseIconAndColor(String exerciseName) {
+    final name = exerciseName.toLowerCase();
+
+    if (name.contains('chest') || name.contains('bench') || name.contains('press') && !name.contains('overhead') && !name.contains('shoulder')) {
+      return {'icon': Icons.fitness_center, 'color': AppColors.accent};
+    } else if (name.contains('back') || name.contains('pull') || name.contains('row') || name.contains('lat')) {
+      return {'icon': Icons.rowing, 'color': AppColors.completed};
+    } else if (name.contains('squat') || name.contains('leg') || name.contains('quad') || name.contains('lunge')) {
+      return {'icon': Icons.directions_run, 'color': AppColors.upcoming};
+    } else if (name.contains('shoulder') || name.contains('overhead') || name.contains('press') && (name.contains('overhead') || name.contains('shoulder'))) {
+      return {'icon': Icons.sports_mma, 'color': AppColors.accent};
+    } else if (name.contains('core') || name.contains('plank') || name.contains('ab') || name.contains('crunch')) {
+      return {'icon': Icons.self_improvement, 'color': AppColors.primaryGray};
+    } else if (name.contains('bicep') || name.contains('curl')) {
+      return {'icon': Icons.emoji_events, 'color': AppColors.upcoming};
+    } else if (name.contains('tricep') || name.contains('extension') || name.contains('pushdown')) {
+      return {'icon': Icons.local_fire_department, 'color': AppColors.error};
+    } else if (name.contains('glute') || name.contains('hamstring') || name.contains('deadlift')) {
+      return {'icon': Icons.directions_walk, 'color': AppColors.upcoming};
+    } else {
+      // Default icon and color
+      return {'icon': Icons.fitness_center, 'color': AppColors.accent};
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        // border: widget.showBorder ? Border.all(color: AppColors.accent.withOpacity(0.3), width: 2) : null,
+        border: widget.showBorder ? Border.all(color: AppColors.accent.withOpacity(0.3), width: 2) : null,
         boxShadow: widget.showBorder ? [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))] : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7).copyWith(top: 10),
             child: Row(
               children: [
+                Builder(
+                  builder: (context) {
+                    final iconData = _getExerciseIconAndColor(widget.exercise.exerciseName);
+                    final icon = iconData['icon'] as IconData;
+                    final color = iconData['color'] as Color;
+                    return Container(
+                      width: 40.w,
+                      height: 40.h,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: [color.withOpacity(0.25), color.withOpacity(0.1)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: color.withOpacity(0.25), width: 1),
+                      ),
+                      child: Center(child: Icon(icon, color: color, size: 22)),
+                    );
+                  },
+                ),
                 Expanded(
                   child: Text(
                     widget.exercise.exerciseName,
@@ -67,24 +112,22 @@ class _ExerciseCardState extends State<ExerciseCard> {
             ),
           ),
           Container(
-            padding: EdgeInsets.all(12),
-            margin: EdgeInsets.all(20),
- decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        // border: widget.showBorder ? Border.all(color: AppColors.accent.withOpacity(0.3), width: 2) : null,
-        boxShadow: widget.showBorder ? [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))] : null,
-      ),
+            padding: EdgeInsets.all(10),
+            margin: EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              // border: widget.showBorder ? Border.all(color: AppColors.accent.withOpacity(0.3), width: 2) : null,
+              boxShadow: widget.showBorder ? [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))] : null,
+            ),
 
-
-            child: Column(children: [
-
-          if (widget.exercise.sets.isNotEmpty) ...[_buildSetsTable(), const SizedBox(height: 6)],
-          if (_isNotesExpanded && widget.exercise.notes != null && widget.exercise.notes!.isNotEmpty) _buildNotesSection(),
-      
-
-            ],),
-          )
+            child: Column(
+              children: [
+                if (widget.exercise.sets.isNotEmpty) ...[_buildSetsTable(), const SizedBox(height: 6)],
+                if (_isNotesExpanded && widget.exercise.notes != null && widget.exercise.notes!.isNotEmpty) _buildNotesSection(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -97,35 +140,25 @@ class _ExerciseCardState extends State<ExerciseCard> {
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   flex: 1,
                   child: Container(
                     padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      'Set',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      widget.exercise.hasTimedSets ? 'Time' : 'Reps',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.settings, size: 12, color: AppColors.accentVariant),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Set',
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -133,14 +166,37 @@ class _ExerciseCardState extends State<ExerciseCard> {
                   flex: 2,
                   child: Container(
                     padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(16),
+                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(widget.exercise.hasTimedSets ? Icons.timer_outlined : Icons.repeat, size: 12, color: AppColors.accentVariant),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.exercise.hasTimedSets ? 'Time' : 'Reps',
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      'Weight',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.fitness_center, size: 12, color: AppColors.accentVariant),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Weight',
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                        ),
+                      ],
                     ),
                   ),
                 ),

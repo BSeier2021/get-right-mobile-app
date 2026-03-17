@@ -158,11 +158,7 @@ class NutritionTrackerTab extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.accent.withOpacity(0.1), AppColors.accent.withOpacity(0.05)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              gradient: LinearGradient(colors: [AppColors.accent.withOpacity(0.1), AppColors.accent.withOpacity(0.05)], begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 2),
             ),
@@ -519,9 +515,9 @@ class NutritionTrackerTab extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.lightGray.withOpacity(0.3),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.lightGray),
+          border: Border.all(color: AppColors.primaryGrayLight),
         ),
         child: Row(
           children: [
@@ -630,7 +626,7 @@ class NutritionTrackerTab extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-       color: AppColors.surface,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
       ),
@@ -653,12 +649,7 @@ class NutritionTrackerTab extends StatelessWidget {
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: color.withOpacity(0.15),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-              minHeight: 12,
-            ),
+            child: LinearProgressIndicator(value: progress, backgroundColor: color.withOpacity(0.15), valueColor: AlwaysStoppedAnimation<Color>(color), minHeight: 12),
           ),
         ],
       ),
@@ -671,7 +662,7 @@ class NutritionTrackerTab extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-       color: AppColors.surface,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
@@ -736,10 +727,7 @@ class NutritionTrackerTab extends StatelessWidget {
               ),
             ),
           ),
-          if (meals.isNotEmpty) ...[
-            const Divider(height: 1, color: AppColors.lightGray, thickness: 1),
-            ...meals.map((meal) => _buildMealItem(controller, meal)),
-          ],
+          if (meals.isNotEmpty) ...[const Divider(height: 1, color: AppColors.lightGray, thickness: 1), ...meals.map((meal) => _buildMealItem(controller, meal))],
         ],
       ),
     );
@@ -758,10 +746,7 @@ class NutritionTrackerTab extends StatelessWidget {
                   'Delete Food Item',
                   style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                 ),
-                content: Text(
-                  'Are you sure you want to remove "${meal.foodItem.name}" from your log?',
-                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray),
-                ),
+                content: Text('Are you sure you want to remove "${meal.foodItem.name}" from your log?', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray)),
                 actions: [
                   TextButton(
                     onPressed: () => Get.back(result: false),

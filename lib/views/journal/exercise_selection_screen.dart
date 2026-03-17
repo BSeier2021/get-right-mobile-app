@@ -9,8 +9,7 @@ import 'package:get_right/theme/text_styles.dart';
 class ExerciseSelectionScreen extends StatefulWidget {
   const ExerciseSelectionScreen({super.key});
   @override
-  State<ExerciseSelectionScreen> createState() =>
-      _ExerciseSelectionScreenState();
+  State<ExerciseSelectionScreen> createState() => _ExerciseSelectionScreenState();
 }
 
 class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
@@ -40,15 +39,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
 
   void _filter() {
     final q = _searchCtrl.text.toLowerCase();
-    setState(
-      () => _filtered = ExerciseLibraryData.exercises
-          .where(
-            (e) =>
-                e.name.toLowerCase().contains(q) ||
-                e.primaryMuscle.toLowerCase().contains(q),
-          )
-          .toList(),
-    );
+    setState(() => _filtered = ExerciseLibraryData.exercises.where((e) => e.name.toLowerCase().contains(q) || e.primaryMuscle.toLowerCase().contains(q)).toList());
   }
 
   void _toggleSelect(ExerciseLibraryModel ex) {
@@ -71,21 +62,11 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
 
   void _onContinue() {
     if (_selected.isEmpty) {
-      Get.snackbar(
-        'Select Exercise',
-        'Please select at least one exercise',
-        backgroundColor: AppColors.error,
-        colorText: AppColors.onError,
-      );
+      Get.snackbar('Select Exercise', 'Please select at least one exercise', backgroundColor: AppColors.error, colorText: AppColors.onError);
       return;
     }
     if (_isSuperset && _selected.length != 2) {
-      Get.snackbar(
-        'Superset',
-        'Select exactly 2 exercises for superset',
-        backgroundColor: AppColors.error,
-        colorText: AppColors.onError,
-      );
+      Get.snackbar('Superset', 'Select exactly 2 exercises for superset', backgroundColor: AppColors.error, colorText: AppColors.onError);
       return;
     }
     // If selectOnly mode, return the selected exercise directly
@@ -106,19 +87,39 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
     });
   }
 
-  void _onManual() =>
-      Get.toNamed(
-        AppRoutes.exerciseConfiguration,
-        arguments: {'isWarmup': _isWarmup, 'isManual': true},
-      )?.then((r) {
-        if (r != null) Get.back(result: r);
-      });
+  void _onManual() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {'isWarmup': _isWarmup, 'isManual': true})?.then((r) {
+    if (r != null) Get.back(result: r);
+  });
+
+  // Get icon and color for exercise based on primary muscle group
+  Map<String, dynamic> _getExerciseIconAndColor(ExerciseLibraryModel exercise) {
+    final muscle = exercise.primaryMuscle.toLowerCase();
+
+    if (muscle.contains('chest')) {
+      return {'icon': Icons.fitness_center, 'color': AppColors.accent};
+    } else if (muscle.contains('back')) {
+      return {'icon': Icons.rowing, 'color': AppColors.completed};
+    } else if (muscle.contains('quadriceps') || muscle.contains('leg')) {
+      return {'icon': Icons.directions_run, 'color': AppColors.upcoming};
+    } else if (muscle.contains('shoulder')) {
+      return {'icon': Icons.sports_mma, 'color': AppColors.accent};
+    } else if (muscle.contains('core')) {
+      return {'icon': Icons.self_improvement, 'color': AppColors.primaryGray};
+    } else if (muscle.contains('bicep')) {
+      return {'icon': Icons.emoji_events, 'color': AppColors.upcoming};
+    } else if (muscle.contains('tricep')) {
+      return {'icon': Icons.local_fire_department, 'color': AppColors.error};
+    } else if (muscle.contains('glute') || muscle.contains('hamstring')) {
+      return {'icon': Icons.directions_walk, 'color': AppColors.upcoming};
+    } else {
+      // Default icon and color
+      return {'icon': Icons.fitness_center, 'color': AppColors.accent};
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final showButtons =
-        (!_isSuperset && _selected.isNotEmpty) ||
-        (_isSuperset && _selected.length == 2);
+    final showButtons = (!_isSuperset && _selected.isNotEmpty) || (_isSuperset && _selected.length == 2);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
@@ -131,23 +132,11 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
           child: Container(
             margin: EdgeInsets.only(left: 16.w, top: 16.h),
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.arrow_back_ios_new,
-              color: AppColors.accent,
-              size: 18,
-            ),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
         ),
-        title: Text(
-          'Select Exercise',
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.onBackground,
-          ),
-        ),
+        title: Text('Select Exercise', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
         centerTitle: true,
       ),
       body: Stack(
@@ -160,24 +149,13 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                   controller: _searchCtrl,
                   decoration: InputDecoration(
                     hintText: 'Search exercises...',
-                    prefixIcon: const Icon(
-                      Icons.search,
-                      color: AppColors.primaryGrayDark,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
+                    prefixIcon: const Icon(Icons.search, color: AppColors.primaryGrayDark),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     filled: true,
                     fillColor: AppColors.white,
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 0,
-                      horizontal: 16,
-                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                   ),
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.onSurface,
-                  ),
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
                 ),
               ),
 
@@ -188,19 +166,22 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                   itemBuilder: (ctx, i) {
                     final ex = _filtered[i];
                     final sel = _selected.contains(ex);
+                    final iconData = _getExerciseIconAndColor(ex);
+                    final icon = iconData['icon'] as IconData;
+                    final color = iconData['color'] as Color;
+
                     return Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
+                      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 7.h),
                       elevation: sel ? 4 : 1,
+                      // Add a 1 width border with proper color for clarity between cards. Using a light gray as border color.
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color: sel ? AppColors.accent.withOpacity(0.2) : Colors.transparent,
-                          width: 2,
-                        ),
+                        side: BorderSide(color: const Color(0xFFE0E0E0), width: 1),
                       ),
+                      // shape: RoundedRectangleBorder(
+                      //   borderRadius: BorderRadius.circular(12),
+                      //   side: BorderSide(color: sel ? AppColors.accent.withOpacity(0.2) : Colors.transparent, width: 2),
+                      // ),
                       color: AppColors.surface,
                       child: InkWell(
                         onTap: () {
@@ -210,20 +191,24 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                           padding: const EdgeInsets.all(16),
                           child: Row(
                             children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(colors: [color.withOpacity(0.25), color.withOpacity(0.1)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: color.withOpacity(0.25), width: 1),
+                                ),
+                                child: Center(child: Icon(icon, color: color, size: 22)),
+                              ),
+                              SizedBox(width: 12.w),
                               if (sel)
                                 Container(
                                   width: 24,
                                   height: 24,
                                   margin: const EdgeInsets.only(right: 12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.check,
-                                    color: AppColors.onAccent,
-                                    size: 16,
-                                  ),
+                                  decoration: BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+                                  child: const Icon(Icons.check, color: AppColors.onAccent, size: 16),
                                 ),
                               Expanded(
                                 child: Column(
@@ -231,36 +216,18 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                                   children: [
                                     Text(
                                       ex.name,
-                                      style: AppTextStyles.titleSmall.copyWith(
-                                        color: AppColors.onSurface,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text(
-                                      ex.primaryMuscle,
-                                      style: AppTextStyles.bodySmall.copyWith(
-                                        color: AppColors.primaryGrayDark,
-                                      ),
-                                    ),
+                                    Text(ex.primaryMuscle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark)),
                                   ],
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(
-                                  Icons.info_outline,
-                                  color: AppColors.primaryGrayDark,
-                                ),
-                                onPressed: () => Get.toNamed(
-                                  AppRoutes.exerciseLibraryDetail,
-                                  arguments: {'exercise': ex},
-                                ),
+                                icon: const Icon(Icons.info_outline, color: AppColors.primaryGrayDark),
+                                onPressed: () => Get.toNamed(AppRoutes.exerciseLibraryDetail, arguments: {'exercise': ex}),
                               ),
-                              const Icon(
-                                Icons.add_circle_outline,
-                                size: 25,
-                                color: AppColors.accent,
-                              ),
+                              const Icon(Icons.add_circle_outline, size: 25, color: AppColors.accent),
                             ],
                           ),
                         ),
@@ -279,12 +246,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
               bottom: 0,
               child: Container(
                 color: AppColors.background,
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).padding.bottom,
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                ),
+                padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom, left: 16, right: 16, top: 16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -296,17 +258,11 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accent,
                           foregroundColor: AppColors.onAccent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         child: Text(
-                          _isSuperset && _selected.length == 2
-                              ? 'Configure Superset'
-                              : 'Configure ${_selected.first.name}',
-                          style: AppTextStyles.buttonMedium.copyWith(
-                            color: AppColors.onAccent,
-                          ),
+                          _isSuperset && _selected.length == 2 ? 'Configure Superset' : 'Configure ${_selected.first.name}',
+                          style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent),
                         ),
                       ),
                     ),
@@ -318,20 +274,10 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                         onPressed: _onManual,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.onBackground,
-                          side: const BorderSide(
-                            color: AppColors.primaryGray,
-                            width: 2,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          side: const BorderSide(color: AppColors.primaryGray, width: 2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: Text(
-                          "Couldn't find Exercise?",
-                          style: AppTextStyles.buttonMedium.copyWith(
-                            color: AppColors.onBackground,
-                          ),
-                        ),
+                        child: Text("Couldn't find Exercise?", style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onBackground)),
                       ),
                     ),
                   ],

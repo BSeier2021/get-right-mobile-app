@@ -53,7 +53,7 @@ class _ActivityTypeSelectionScreenState extends State<ActivityTypeSelectionScree
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.background,
         elevation: 0,
         leading: GestureDetector(
           onTap: () => Get.back(),
@@ -152,12 +152,12 @@ class _ActivityTypeSelectionScreenState extends State<ActivityTypeSelectionScree
                 child: ElevatedButton.icon(
                   onPressed: _selectedActivity != null ? _startActivity : null,
                   icon: const Icon(Icons.play_arrow, size: 28),
-                  label: Text('Start Activity', style: AppTextStyles.buttonLarge.copyWith(color: _selectedActivity != null ? Colors.white : Colors.black)),
+                  label: Text('Start Activity', style: AppTextStyles.buttonLarge.copyWith(color: _selectedActivity != null ? Colors.white : Colors.white)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: AppColors.primaryGrayLight,
-                    disabledForegroundColor: Colors.black,
+                    disabledBackgroundColor: AppColors.accentVariant,
+                    disabledForegroundColor: Colors.white,
 
                     shape: RoundedRectangleBorder(
                       side: BorderSide(color: AppColors.accent.withOpacity(0.5), width: 2),

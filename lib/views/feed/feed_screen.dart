@@ -627,11 +627,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.backgroundColor, AppColors.backgroundColor, AppColors.backgroundColor],
-        ),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.backgroundColor, AppColors.backgroundColor, AppColors.backgroundColor]),
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -691,7 +687,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           centerTitle: true,
           actions: [
             IconButton(
-              icon: Image.asset('assets/images/search.png', width: 25.w),
+              icon: Image.asset('assets/images/search.png', width: 20.w),
               onPressed: () {
                 _showSearchScreen();
               },
@@ -767,8 +763,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            _SearchScreen(allPosts: _feedPosts, onPostTap: (post) => _showPostDetail(post), buildExploreGridItem: (post) => _buildExploreGridItem(post)),
+        builder: (context) => _SearchScreen(allPosts: _feedPosts, onPostTap: (post) => _showPostDetail(post), buildExploreGridItem: (post) => _buildExploreGridItem(post)),
       ),
     );
   }
@@ -943,12 +938,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                 const SizedBox(height: 20),
 
                 // Comment button
-                _buildVerticalInteractionButton(
-                  icon: Icons.comment_outlined,
-                  count: post['comments'] ?? 0,
-                  color: Colors.white,
-                  onTap: () => _showComments(post),
-                ),
+                _buildVerticalInteractionButton(icon: Icons.comment_outlined, count: post['comments'] ?? 0, color: Colors.white, onTap: () => _showComments(post)),
                 const SizedBox(height: 20),
 
                 // Save/Bookmark button
@@ -972,12 +962,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                 const SizedBox(height: 20),
 
                 // Share button
-                _buildVerticalInteractionButton(
-                  icon: Icons.share_outlined,
-                  count: post['shares'] ?? 0,
-                  color: Colors.white,
-                  onTap: () => _showShareOptions(post),
-                ),
+                _buildVerticalInteractionButton(icon: Icons.share_outlined, count: post['shares'] ?? 0, color: Colors.white, onTap: () => _showShareOptions(post)),
                 const SizedBox(height: 20),
 
                 // Premium star icon
@@ -1165,11 +1150,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                         width: double.infinity,
                         height: 400,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [const Color(0xFF9333EA), const Color(0xFFFBBF24)],
-                          ),
+                          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [const Color(0xFF9333EA), const Color(0xFFFBBF24)]),
                         ),
                       ),
                     ),
@@ -1177,11 +1158,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                       width: double.infinity,
                       height: 400,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.black.withOpacity(0.5)],
-                        ),
+                        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.5)]),
                       ),
                     ),
                     Positioned.fill(
@@ -1247,12 +1224,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                         },
                       ),
                       const SizedBox(width: 16),
-                      _buildInteractionButton(
-                        icon: Icons.comment_outlined,
-                        label: _formatCount(post['comments']),
-                        color: AppColors.primaryGray,
-                        onTap: () => _showComments(post),
-                      ),
+                      _buildInteractionButton(icon: Icons.comment_outlined, label: _formatCount(post['comments']), color: AppColors.primaryGray, onTap: () => _showComments(post)),
                       const SizedBox(width: 16),
                       _buildInteractionButton(
                         icon: post['isSaved'] ? Icons.bookmark : Icons.bookmark_border,
@@ -1272,12 +1244,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                         },
                       ),
                       const SizedBox(width: 16),
-                      _buildInteractionButton(
-                        icon: Icons.share_outlined,
-                        label: _formatCount(post['shares']),
-                        color: AppColors.primaryGray,
-                        onTap: () => _showShareOptions(post),
-                      ),
+                      _buildInteractionButton(icon: Icons.share_outlined, label: _formatCount(post['shares']), color: AppColors.primaryGray, onTap: () => _showShareOptions(post)),
                     ],
                   ),
                 ),
@@ -1416,13 +1383,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   }
 
   void _showPostDetail(Map<String, dynamic> post) {
-    Get.snackbar(
-      'Post Detail',
-      'Opening ${post['title']}',
-      backgroundColor: AppColors.accent,
-      colorText: AppColors.onAccent,
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    Get.snackbar('Post Detail', 'Opening ${post['title']}', backgroundColor: AppColors.accent, colorText: AppColors.onAccent, snackPosition: SnackPosition.BOTTOM);
   }
 
   void _openVideoReel(Map<String, dynamic> post) {
@@ -1434,13 +1395,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   }
 
   void _showComments(Map<String, dynamic> post) {
-    Get.snackbar(
-      'Comments',
-      '${post['comments']} comments',
-      backgroundColor: AppColors.accent,
-      colorText: AppColors.onAccent,
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    Get.snackbar('Comments', '${post['comments']} comments', backgroundColor: AppColors.accent, colorText: AppColors.onAccent, snackPosition: SnackPosition.BOTTOM);
   }
 
   void _showShareOptions(Map<String, dynamic> post) {
@@ -1457,11 +1412,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildShareIcon(Icons.message, 'Message', () {}),
-                _buildShareIcon(Icons.link, 'Copy Link', () {}),
-                _buildShareIcon(Icons.share, 'More', () {}),
-              ],
+              children: [_buildShareIcon(Icons.message, 'Message', () {}), _buildShareIcon(Icons.link, 'Copy Link', () {}), _buildShareIcon(Icons.share, 'More', () {})],
             ),
             const SizedBox(height: 16),
           ],
@@ -1538,12 +1489,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         title: Text('Report Post', style: AppTextStyles.titleLarge.copyWith()),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildReportOption('Inappropriate content'),
-            _buildReportOption('Misleading advice'),
-            _buildReportOption('Spam'),
-            _buildReportOption('Harassment'),
-          ],
+          children: [_buildReportOption('Inappropriate content'), _buildReportOption('Misleading advice'), _buildReportOption('Spam'), _buildReportOption('Harassment')],
         ),
         actions: [
           TextButton(

@@ -100,7 +100,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
               style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
-            Text('Activity Type', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryGray)),
+            Text('Activity Type', style: AppTextStyles.labelLarge.copyWith(color: AppColors.surface)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -117,6 +117,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
                     Get.back();
                   },
                   selectedColor: AppColors.accent.withOpacity(0.2),
+                  backgroundColor: isSelected ? null : Colors.white,
                   labelStyle: TextStyle(color: isSelected ? AppColors.accent : AppColors.onSurface, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
                   side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray, width: isSelected ? 2 : 1),
                 );
@@ -140,6 +141,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
                     Get.back();
                   },
                   selectedColor: AppColors.accent.withOpacity(0.2),
+                  backgroundColor: isSelected ? null : Colors.white,
                   labelStyle: TextStyle(color: isSelected ? AppColors.accent : AppColors.onSurface, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
                   side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray, width: isSelected ? 2 : 1),
                 );
@@ -156,9 +158,13 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.onPrimary),
-          onPressed: () => Get.back(),
+        backgroundColor: AppColors.background,
+        leading: GestureDetector(
+          onTap: () => Get.back(),
+          child: Container(
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+          ).paddingAll(8),
         ),
         title: Text('Run History', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,

@@ -1732,7 +1732,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           centerTitle: true,
           actions: [
             IconButton(
-              icon: Image.asset('assets/images/search.png', width: 25.w),
+              icon: Image.asset('assets/images/search.png', width: 20.w),
               onPressed: () {
                 // TODO: Implement search
               },
@@ -1740,7 +1740,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             Stack(
               children: [
                 IconButton(
-                  icon: Image.asset('assets/images/filter1.png', width: 25.w),
+                  icon: Image.asset('assets/images/filter1.png', width: 20.w),
                   onPressed: _showFilterModal,
                 ),
                 if (hasActiveFilters)
@@ -1764,7 +1764,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               // WEEKLY FREE WORKOUT BANNER
               _buildWeeklyFreeWorkoutBanner(),
 
-              // FEATURED SECTION - Netflix Style
+              // FEATURED SECTION - Netflix Style &
               _buildFeaturedSection(featuredPrograms),
 
               SizedBox(height: 24.h),
@@ -2088,7 +2088,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         onTap: () => _showProgramDetail(program),
                         child: Text(
                           program['title'],
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, height: 1.1, fontSize: 20.sp),
+                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, height: 1.1, fontSize: 16.sp),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -2359,7 +2359,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         onTap: () => _showProgramDetail(program),
                         child: Text(
                           program['title'],
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, height: 1.1, fontSize: 20.sp),
+                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, height: 1.1, fontSize: 16.sp),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -2775,7 +2775,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       onTap: () => _showProgramDetail(program),
                       child: Text(
                         program['title'],
-                        style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, height: 1.1, fontSize: 20.sp),
+                        style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, height: 1.1, fontSize: 16.sp),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
