@@ -20,19 +20,32 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
   bool _isSearchBarVisible = true;
   double _lastScrollOffset = 0.0;
 
+  // Icon colors for each muscle group (multiple colors across the library)
+  static const Color _chestColor = Color(0xFF29603C); // green (accent)
+  static const Color _backColor = Color(0xFF1565C0); // blue
+  static const Color _shouldersColor = Color(0xFF7B1FA2); // purple
+  static const Color _quadsColor = Color(0xFFE65100); // deep orange
+  static const Color _hamstringsColor = Color(0xFF00897B); // teal
+  static const Color _tricepsColor = Color(0xFFC62828); // red
+  static const Color _bicepsColor = Color(0xFFF9A825); // amber
+  static const Color _coreColor = Color(0xFF2E7D32); // dark green
+  static const Color _glutesColor = Color(0xFF6A1B9A); // deep purple
+  static const Color _calvesColor = Color(0xFF0277BD); // light blue
+  static const Color _forearmsColor = Color(0xFFD84315); // orange
+
   // Mock muscle groups data
   final List<Map<String, dynamic>> _muscleGroups = [
-    {'id': 'chest', 'name': 'Chest', 'exerciseCount': 25, 'icon': Icons.fitness_center, 'color': AppColors.accent},
-    {'id': 'back', 'name': 'Back', 'exerciseCount': 25, 'icon': Icons.accessibility_new, 'color': AppColors.accent},
-    {'id': 'shoulders', 'name': 'Shoulders', 'exerciseCount': 25, 'icon': Icons.fitness_center, 'color': AppColors.accent},
-    {'id': 'quads', 'name': 'Quads', 'exerciseCount': 24, 'icon': Icons.directions_walk, 'color': AppColors.accent},
-    {'id': 'hamstrings', 'name': 'Hamstrings', 'exerciseCount': 20, 'icon': Icons.directions_run, 'color': AppColors.accent},
-    {'id': 'triceps', 'name': 'Triceps', 'exerciseCount': 25, 'icon': Icons.fitness_center, 'color': AppColors.accent},
-    {'id': 'biceps', 'name': 'Biceps', 'exerciseCount': 24, 'icon': Icons.fitness_center, 'color': AppColors.accent},
-    {'id': 'core', 'name': 'Core', 'exerciseCount': 30, 'icon': Icons.self_improvement, 'color': AppColors.accent},
-    {'id': 'glutes', 'name': 'Glutes', 'exerciseCount': 18, 'icon': Icons.fitness_center, 'color': AppColors.accent},
-    {'id': 'calves', 'name': 'Calves', 'exerciseCount': 12, 'icon': Icons.directions_walk, 'color': AppColors.accent},
-    {'id': 'forearms', 'name': 'Forearms', 'exerciseCount': 15, 'icon': Icons.fitness_center, 'color': AppColors.accent},
+    {'id': 'chest', 'name': 'Chest', 'exerciseCount': 25, 'icon': Icons.fitness_center, 'color': _chestColor},
+    {'id': 'back', 'name': 'Back', 'exerciseCount': 25, 'icon': Icons.accessibility_new, 'color': _backColor},
+    {'id': 'shoulders', 'name': 'Shoulders', 'exerciseCount': 25, 'icon': Icons.fitness_center, 'color': _shouldersColor},
+    {'id': 'quads', 'name': 'Quads', 'exerciseCount': 24, 'icon': Icons.directions_walk, 'color': _quadsColor},
+    {'id': 'hamstrings', 'name': 'Hamstrings', 'exerciseCount': 20, 'icon': Icons.directions_run, 'color': _hamstringsColor},
+    {'id': 'triceps', 'name': 'Triceps', 'exerciseCount': 25, 'icon': Icons.fitness_center, 'color': _tricepsColor},
+    {'id': 'biceps', 'name': 'Biceps', 'exerciseCount': 24, 'icon': Icons.fitness_center, 'color': _bicepsColor},
+    {'id': 'core', 'name': 'Core', 'exerciseCount': 30, 'icon': Icons.self_improvement, 'color': _coreColor},
+    {'id': 'glutes', 'name': 'Glutes', 'exerciseCount': 18, 'icon': Icons.fitness_center, 'color': _glutesColor},
+    {'id': 'calves', 'name': 'Calves', 'exerciseCount': 12, 'icon': Icons.directions_walk, 'color': _calvesColor},
+    {'id': 'forearms', 'name': 'Forearms', 'exerciseCount': 15, 'icon': Icons.fitness_center, 'color': _forearmsColor},
   ];
 
   List<Map<String, dynamic>> get _filteredMuscleGroups {
@@ -85,7 +98,11 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
 
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.backgroundColor, AppColors.backgroundColor, AppColors.backgroundColor]),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.backgroundColor, AppColors.backgroundColor, AppColors.backgroundColor],
+        ),
       ),
       child: Scaffold(
         backgroundColor: AppColors.backgroundColor,
@@ -134,7 +151,9 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                       });
                     },
                     style: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF000000)),
-                    decoration: InputDecoration( filled: true, fillColor: AppColors.white,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: AppColors.white,
                       hintText: 'Search exercises',
                       hintStyle: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF404040)),
                       prefixIcon: const Icon(Icons.search, color: Color(0xFF404040)),
@@ -149,7 +168,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                               },
                             )
                           : null,
-                    
+
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
@@ -190,7 +209,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, 6))],
       ),
@@ -199,7 +218,10 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
         leading: Container(
           width: 56,
           height: 56,
-          decoration: BoxDecoration(color: muscleGroup['color'].withOpacity(0.15), shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: muscleGroup['color'].withOpacity(0.15),
+            borderRadius: BorderRadius.circular(18), // squircle-like corner radius
+          ),
           child: Icon(muscleGroup['icon'], color: muscleGroup['color'], size: 28),
         ),
         title: Text(

@@ -905,7 +905,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: ['All', 'Strength', 'Cardio', 'Flexibility', 'Bodyweight', 'Running', 'Core', 'Fat Loss', 'Hypertrophy', 'Sports-Specific'].map((category) {
+                    children: ['All', 'Strength', 'Cardio', 'Flexibility', 'Bodyweight', 'Running', 'Core', 'Fat Loss', 'Hypertrophy', 'Sports-Specific'].map((
+                      category,
+                    ) {
                       final isSelected = _selectedCategory == category;
                       return GestureDetector(
                         onTap: () {
@@ -1260,7 +1262,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             children: [
                               Text('Start Date', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
                               const SizedBox(height: 4),
-                              Text('${selectedDate.day}/${selectedDate.month}/${selectedDate.year}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+                              Text(
+                                '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface),
+                              ),
                             ],
                           ),
                         ),
@@ -1684,7 +1689,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final featuredPrograms = _featuredPrograms;
     final newReleases = _newReleases;
 
-    final hasActiveFilters = _selectedCategory != 'All' || _selectedDifficulty != 'All' || _selectedDuration != 'All' || _sortBy != 'Featured' || _showCertifiedOnly;
+    final hasActiveFilters =
+        _selectedCategory != 'All' || _selectedDifficulty != 'All' || _selectedDuration != 'All' || _sortBy != 'Featured' || _showCertifiedOnly;
 
     return Container(
       decoration: const BoxDecoration(
@@ -1908,14 +1914,24 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(10)),
                                 child: Text(
                                   'WEEKLY FREE WORKOUT',
-                                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold, letterSpacing: 1.1, fontSize: 13.sp),
+                                  style: AppTextStyles.labelSmall.copyWith(
+                                    color: AppColors.onAccent,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.1,
+                                    fontSize: 13.sp,
+                                  ),
                                 ),
                               ),
                               SizedBox(height: 20.h),
                               // Title
                               Text(
                                 'The Weekly Strength Series',
-                                style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700, height: 1.0, fontSize: 25.sp),
+                                style: AppTextStyles.headlineSmall.copyWith(
+                                  color: AppColors.onBackground,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.0,
+                                  fontSize: 25.sp,
+                                ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -2020,7 +2036,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           width: double.infinity,
                           height: 110.h,
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: [const Color(0xFF9333EA), const Color(0xFFFBBF24)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                            gradient: LinearGradient(
+                              colors: [const Color(0xFF9333EA), const Color(0xFFFBBF24)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                           ),
                           child: const Center(child: Icon(Icons.fitness_center, size: 40, color: Colors.white)),
                         ),
@@ -2292,7 +2312,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           width: double.infinity,
                           height: 110.h,
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: [const Color(0xFF9333EA), const Color(0xFFFBBF24)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                            gradient: LinearGradient(
+                              colors: [const Color(0xFF9333EA), const Color(0xFFFBBF24)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                           ),
                           child: const Center(child: Icon(Icons.fitness_center, size: 40, color: Colors.white)),
                         ),
@@ -2701,7 +2725,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         width: double.infinity,
                         height: 130.h,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [const Color(0xFF9333EA), const Color(0xFFFBBF24)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                          gradient: LinearGradient(
+                            colors: [const Color(0xFF9333EA), const Color(0xFFFBBF24)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                         ),
                         child: const Center(child: Icon(Icons.fitness_center, size: 40, color: Colors.white)),
                       ),
@@ -2907,7 +2935,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       'id': program['trainer'].toString().toLowerCase().replaceAll(' ', '_'),
       'name': program['trainer'],
       'initials': program['trainerImage'],
-      'bio': 'Certified personal trainer with years of experience helping clients achieve their fitness goals. Specializing in ${program['category']} and ${program['goal']}.',
+      'bio':
+          'Certified personal trainer with years of experience helping clients achieve their fitness goals. Specializing in ${program['category']} and ${program['goal']}.',
       'specialties': [program['category'], program['goal'], 'Nutrition Coaching'],
       'yearsOfExperience': 8,
       'certified': program['certified'],
