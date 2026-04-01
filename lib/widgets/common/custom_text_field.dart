@@ -82,7 +82,7 @@ class _CustomTextFieldState extends State<CustomTextField> with SingleTickerProv
           height: 56, // Fixed height for all text fields
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(50),
-            color: _isFocused ? Colors.white : Color(0x19523A21),
+            color: _isFocused ? Color(0x19523A21) : Colors.white,
             border: Border.all(
               color: _hasError
                   ? AppColors.error
@@ -125,7 +125,7 @@ class _CustomTextFieldState extends State<CustomTextField> with SingleTickerProv
                               ? AppColors.accent
                               : _hasError
                               ? AppColors.error
-                              : AppColors.primaryGray,
+                              : AppColors.black,
                           size: 22,
                         ),
                         child: widget.prefixIcon!,
@@ -213,7 +213,7 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
               child: FadeTransition(opacity: animation, child: child),
             );
           },
-          child: Icon(_obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined, key: ValueKey<bool>(_obscureText), color: AppColors.primaryGray, size: 22),
+          child: Icon(_obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined, key: ValueKey<bool>(_obscureText), color: AppColors.black, size: 22),
         ),
         onPressed: _toggleVisibility,
         tooltip: _obscureText ? 'Show password' : 'Hide password',

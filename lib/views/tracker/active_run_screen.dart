@@ -240,9 +240,6 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
 
   /// Set custom map style for dark theme
   void _setMapStyle(GoogleMapController controller) {
-    // "Light" map - essentially disables custom styling so Google's normal light map shows.
-    // If you want a pure white background, use below (but it will hide features).
-    // To closely resemble Google Maps "default" light mode, just set to null or empty.
     controller.setMapStyle(null);
   }
 

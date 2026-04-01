@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -9,149 +10,120 @@ class ExerciseFrequencySelectionScreen extends StatefulWidget {
   const ExerciseFrequencySelectionScreen({super.key});
 
   @override
-  State<ExerciseFrequencySelectionScreen> createState() =>
-      _ExerciseFrequencySelectionScreenState();
+  State<ExerciseFrequencySelectionScreen> createState() => _ExerciseFrequencySelectionScreenState();
 }
 
-class _ExerciseFrequencySelectionScreenState
-    extends State<ExerciseFrequencySelectionScreen> {
+class _ExerciseFrequencySelectionScreenState extends State<ExerciseFrequencySelectionScreen> {
   String? _selectedFrequency;
 
-  final List<String> _frequencies = [
-    'Daily (7x/week)',
-    '5 times per week',
-    '3 times per week',
-    '2 times per week',
-    'Once per week',
-  ];
-
-  int get _currentIndex {
-    final args = Get.arguments as Map<String, dynamic>?;
-    return args?['index'] as int? ?? 0;
-  }
+  final List<String> _frequencies = ['Daily (7x/week)', '5 times per week', '3 times per week', '2 times per week', 'Once per week'];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            // Header with Skip button
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.chevron_left,
-                    color: AppColors.accent,
-                    size: 28,
-                  ),
-                  onPressed: () => Get.back(),
-                ),
-                _currentIndex == 3
-                    ? const SizedBox.shrink()
-                    : TextButton(
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Image.asset('assets/images/planexercisebg.png', fit: BoxFit.fitHeight),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        width: 35.w,
+                        height: 35.h,
+                        decoration: BoxDecoration(color: const Color(0xFFE7F1E7), borderRadius: BorderRadius.circular(5)),
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: Icon(Icons.chevron_left, color: AppColors.accent, size: 20.sp),
+                          onPressed: () => Get.back(),
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(4, (index) {
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.accent),
+                          );
+                        }),
+                      ),
+                      TextButton(
                         onPressed: () => Get.offAllNamed(AppRoutes.home),
                         child: Text(
                           'Skip',
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.accent,
-                            fontWeight: FontWeight.w600,
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 16, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            textAlign: TextAlign.left,
+                            'How Often Do\nYou Plan To\nExercise?',
+                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 35.sp, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'This helps us create realistic\ngoals for you',
+                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 15.sp, fontWeight: FontWeight.w400, height: 1.35),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: 250.w),
+                          child: Column(
+                            children: [
+                              ..._frequencies.map((frequency) => Padding(padding: const EdgeInsets.only(bottom: 10), child: _buildFrequencyButton(frequency))),
+                              const SizedBox(height: 6),
+                              CustomButton(
+                                text: 'Get Started',
+                                onPressed: _selectedFrequency != null
+                                    ? () {
+                                        final args = Get.arguments as Map<String, dynamic>?;
+                                        final preference = args?['preference'] as String?;
+                                        Get.offAllNamed(AppRoutes.home, arguments: {'preference': preference});
+                                      }
+                                    : null,
+                                backgroundColor: _selectedFrequency != null ? AppColors.accent : const Color.fromARGB(195, 41, 96, 60),
+                                textColor: Colors.white,
+                              ),
+                              const SizedBox(height: 16),
+                            ],
                           ),
                         ),
                       ),
-              ],
-            ),
-
-            // Progress indicators
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (index) {
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: index < 4
-                        ? AppColors.accent
-                        : AppColors.accent.withOpacity(0.3),
+                    ],
                   ),
-                );
-              }),
-            ),
-            const SizedBox(height: 32),
-
-            // Main content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title
-                    Center(
-                      child: Text(
-                        textAlign: TextAlign.center,
-                        'How often do you plan to exercise?',
-                        style: AppTextStyles.headlineLarge.copyWith(
-                          color: AppColors.accent,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Subtitle
-                    Center(
-                      child: Text(
-                        textAlign: TextAlign.center,
-                        'This helps us create realistic goals for you',
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          color: AppColors.onBackground.withOpacity(0.7),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-
-                    // Options
-                    ..._frequencies.map(
-                      (frequency) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildFrequencyButton(frequency),
-                      ),
-                    ),
-
-                    const SizedBox(height: 25),
-                    CustomButton(
-                      text: 'Get Started',
-                      onPressed: _selectedFrequency != null
-                          ? () {
-                              final args =
-                                  Get.arguments as Map<String, dynamic>?;
-                              final preference = args?['preference'] as String?;
-                              Get.offAllNamed(
-                                AppRoutes.home,
-                                arguments: {'preference': preference},
-                              );
-                            }
-                          : null,
-                      backgroundColor: _selectedFrequency != null
-                          ? AppColors.accent
-                          : AppColors.primaryGray,
-                      textColor: Colors.white,
-                    ),
-                  ],
-                ),
+                ],
               ),
             ),
-
-            // Get Started button
-            const SizedBox(height: 25),
           ],
         ),
       ),
@@ -161,37 +133,19 @@ class _ExerciseFrequencySelectionScreenState
   Widget _buildFrequencyButton(String frequency) {
     final isSelected = _selectedFrequency == frequency;
     return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedFrequency = frequency;
-        });
-      },
-      borderRadius: BorderRadius.circular(12),
+      onTap: () => setState(() => _selectedFrequency = frequency),
+      borderRadius: BorderRadius.circular(24),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.accent : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.accent : const Color(0xFF666666),
-            width: isSelected ? 2 : 1.5,
-          ),
+          color: isSelected ? const Color.fromARGB(45, 41, 96, 60) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: isSelected ? AppColors.accent : const Color(0xFFD8DDD8), width: 1.2),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              frequency,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: isSelected ? Colors.white : AppColors.onBackground,
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            if (isSelected)
-              const Icon(Icons.check_circle, color: Colors.white, size: 20),
-          ],
+        child: Text(
+          frequency,
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ),
     );

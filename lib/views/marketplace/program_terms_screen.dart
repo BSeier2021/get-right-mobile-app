@@ -58,48 +58,65 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
   Widget _buildEnrollmentConfirmationDialog() {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: Color(0xFFF8FFE9),
       child: Container(
         padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(color: Color(0xFFF8FFE9), borderRadius: BorderRadius.circular(20)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: AppColors.completed.withOpacity(0.1), shape: BoxShape.circle),
-              child: Icon(Icons.check_circle, color: AppColors.completed, size: 60),
-            ),
-            const SizedBox(height: 20),
             Text(
               'Enrollment Confirmed!',
-              style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'You have been successfully enrolled in',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+              style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              programData['title'] ?? '',
-              style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+              'You have been successfully\nenrolled in',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.75)),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 15),
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 236, 247, 213),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE8EFE0)),
+              ),
               child: Column(
                 children: [
-                  _buildConfirmationRow(Icons.calendar_today, 'Starts', _formatDate(programData['startDate'])),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Starts', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                      Flexible(
+                        child: Text(
+                          '3/25/2026',
+                          textAlign: TextAlign.right,
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
                   const Divider(height: 16),
-                  _buildConfirmationRow(Icons.person, 'Trainer', programData['trainer'] ?? ''),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Trainer', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                      Flexible(
+                        child: Text(
+                          'Sarah Johnson',
+                          textAlign: TextAlign.right,
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 15),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -107,7 +124,8 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                  elevation: 0,
                 ),
                 child: Text('Continue', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onAccent)),
               ),
@@ -115,20 +133,6 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildConfirmationRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppColors.accent),
-        const SizedBox(width: 8),
-        Text('$label: ', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-        Text(
-          value,
-          style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-        ),
-      ],
     );
   }
 
@@ -201,7 +205,7 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     side: BorderSide(color: AppColors.primaryGray, width: 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                   ),
                   child: Text('Decline', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onBackground)),
                 ),
@@ -213,7 +217,7 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                     disabledBackgroundColor: AppColors.primaryGray,
                   ),
                   child: Text('Accept', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onAccent)),

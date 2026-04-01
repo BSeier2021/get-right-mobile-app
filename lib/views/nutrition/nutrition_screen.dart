@@ -51,9 +51,7 @@ class _NutritionScreenState extends State<NutritionScreen> with SingleTickerProv
               IconButton(
                 icon: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                   Image.asset('assets/images/humburger1.png', ),
-                  ],
+                  children: [Image.asset('assets/images/humburger.png', width: 25.w)],
                 ),
                 onPressed: () => Scaffold.of(context).openDrawer(),
                 padding: EdgeInsets.zero,

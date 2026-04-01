@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -17,10 +20,11 @@ class ProfileSetupScreen extends StatefulWidget {
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
 }
 
-class _ProfileSetupScreenState extends State<ProfileSetupScreen>
-    with SingleTickerProviderStateMixin {
+class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTickerProviderStateMixin {
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+  File? _profileImageFile;
 
   DateTime? _dateOfBirth;
   String? _selectedGender;
@@ -36,20 +40,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen>
   }
 
   void _setupAnimations() {
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: Curves.easeOutCubic,
-          ),
-        );
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
+    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
     _animationController.forward();
   }
 
@@ -64,20 +57,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen>
   Future<void> _selectDateOfBirth() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate:
-          _dateOfBirth ??
-          DateTime.now().subtract(const Duration(days: 365 * 25)),
+      initialDate: _dateOfBirth ?? DateTime.now().subtract(const Duration(days: 365 * 25)),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: AppColors.accent,
-              onPrimary: AppColors.onAccent,
-              surface: Colors.white,
-              onSurface: AppColors.onBackground,
-            ),
+            colorScheme: ColorScheme.light(primary: AppColors.accent, onPrimary: AppColors.onAccent, surface: Colors.white, onSurface: AppColors.onBackground),
           ),
           child: child!,
         );
@@ -95,256 +81,176 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen>
     Get.toNamed(AppRoutes.preferenceSelection);
   }
 
+  Future<void> _showImageSourceDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Select Image'),
+          content: const Text('Choose image source'),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _pickProfileImage(ImageSource.camera);
+              },
+              child: const Text('Camera'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _pickProfileImage(ImageSource.gallery);
+              },
+              child: const Text('Gallery'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _pickProfileImage(ImageSource source) async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(source: source, maxWidth: 1024, maxHeight: 1024, imageQuality: 85);
+      if (image == null) return;
+      if (!mounted) return;
+      setState(() {
+        _profileImageFile = File(image.path);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      Get.snackbar('Error', 'Unable to pick image. Please try again.', snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment.topLeft,
-              radius: 1.2,
-              colors: [
-                AppColors.accent.withOpacity(0.05),
-                AppColors.background,
-              ],
-            ),
-          ),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back_ios_new,
-                              size: 20,
-                            ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const SizedBox(width: 18),
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(color: const Color(0xFFE9F3E9), borderRadius: BorderRadius.circular(7)),
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.arrow_back_ios_new, size: 14, color: AppColors.accent),
                             onPressed: () => Get.close(1),
                           ),
+                        ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 12),
+                          Text(
+                            'Welcome to\nGetRight',
+                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 35.sp, fontWeight: FontWeight.w600, height: 1.05),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Create an account to access your personal fitness\njournal, workout programs, and more.',
+                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 14.sp, fontWeight: FontWeight.w400, height: 1.35),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildAvatarSection(),
+                          const SizedBox(height: 16),
+                          _buildSimpleLabel('Full Name'),
+                          const SizedBox(height: 8),
+                          CustomTextField(
+                            controller: _fullNameController,
+                            hintText: 'Enter your full name',
+                            suffixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.onBackground, size: 21),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildSimpleLabel('Date Of Birth'),
+                          const SizedBox(height: 8),
+                          _buildDateOfBirthField(),
+                          const SizedBox(height: 12),
+                          _buildLabelWithOptional('Phone Number'),
+                          const SizedBox(height: 8),
+                          CustomTextField(
+                            controller: _phoneController,
+                            hintText: 'Enter your phone number',
+                            keyboardType: TextInputType.phone,
+                            suffixIcon: const Icon(Icons.phone_outlined, color: AppColors.onBackground, size: 21),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildSimpleLabel('Gender'),
+                          const SizedBox(height: 8),
+                          _buildDropdownField(
+                            label: null,
+                            value: _selectedGender,
+                            items: AppConstants.genderOptions,
+                            icon: null,
+                            onChanged: (value) => setState(() => _selectedGender = value),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.check_circle, size: 18, color: AppColors.accent),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text.rich(
+                                  TextSpan(
+                                    text: 'By continuing, you agree to GetRight\'s ',
+                                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.75), fontSize: 13, fontWeight: FontWeight.w400),
+                                    children: const [
+                                      TextSpan(
+                                        text: 'Terms &\nConditions',
+                                        style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700),
+                                      ),
+                                      TextSpan(
+                                        text: ' and ',
+                                        style: TextStyle(color: AppColors.onBackground),
+                                      ),
+                                      TextSpan(
+                                        text: 'Privacy Policy',
+                                        style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          GetBuilder<AuthController>(
+                            builder: (controller) {
+                              return CustomButton(
+                                text: 'Continue',
+                                onPressed: _continue,
+                                isLoading: controller.isLoading,
+                                backgroundColor: AppColors.accent,
+                                textColor: AppColors.onAccent,
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 20),
                         ],
                       ),
-
-                      // Header
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Column(
-                          children: [
-                            Column(
-                              children: [
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Welcome to GetRight',
-                                  style: AppTextStyles.headlineLarge.copyWith(
-                                    color: AppColors.accent,
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.5,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 10),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
-                                  child: Text(
-                                    'Create an account to access your personal fitness journal, workout programs, and more.',
-                                    style: AppTextStyles.bodyLarge.copyWith(
-                                      color: AppColors.onBackground.withOpacity(
-                                        0.7,
-                                      ),
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w400,
-                                      height: 1.5,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            // Full Name
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildLabelWithAsterisk('Full name'),
-
-                                const SizedBox(height: 8),
-                                CustomTextField(
-                                  controller: _fullNameController,
-                                  labelText: null,
-                                  hintText: 'Full name',
-                                  prefixIcon: null,
-                                ),
-                                const SizedBox(height: 10),
-
-                                // Date of Birth
-                                _buildLabelWithAsterisk('Date of Birth'),
-                                const SizedBox(height: 8),
-                                _buildDateOfBirthField(),
-                                const SizedBox(height: 10),
-
-                                // Phone Number (Optional)
-                                _buildLabelWithOptional('Phone Number'),
-                                const SizedBox(height: 8),
-                                CustomTextField(
-                                  controller: _phoneController,
-                                  labelText: null,
-                                  hintText: 'Enter your phone number',
-                                  keyboardType: TextInputType.phone,
-                                  prefixIcon: null,
-                                ),
-                                const SizedBox(height: 10),
-
-                                // Gender dropdown
-                                _buildLabelWithAsterisk('Gender'),
-                                const SizedBox(height: 8),
-                                _buildDropdownField(
-                                  label: null,
-                                  value: _selectedGender,
-                                  items: AppConstants.genderOptions,
-                                  icon: null,
-                                  onChanged: (value) =>
-                                      setState(() => _selectedGender = value),
-                                ),
-                                const SizedBox(height: 18),
-                              ],
-                            ),
-                            // Terms and Conditions
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
-                              child: Text.rich(
-                                TextSpan(
-                                  text:
-                                      'By continuing, you agree to GetRight\'s ',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.onBackground.withOpacity(
-                                      0.7,
-                                    ),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                  children: [
-                                    TextSpan(
-                                      text: 'Terms & Conditions',
-                                      style: TextStyle(
-                                        color: AppColors.accent,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const TextSpan(text: ' and '),
-                                    TextSpan(
-                                      text: 'Privacy Policy',
-                                      style: TextStyle(
-                                        color: AppColors.accent,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const TextSpan(text: '.'),
-                                  ],
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-
-                            // Continue button
-                            GetBuilder<AuthController>(
-                              builder: (controller) {
-                                return CustomButton(
-                                  text: 'Continue',
-                                  onPressed: _continue,
-                                  isLoading: controller.isLoading,
-                                  backgroundColor: AppColors.accent,
-                                  textColor: AppColors.onAccent,
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Divider with "or"
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    height: 1,
-                                    color: AppColors.primaryGray.withOpacity(
-                                      0.3,
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
-                                  child: Text(
-                                    'or',
-                                    style: AppTextStyles.bodyMedium.copyWith(
-                                      color: AppColors.onBackground.withOpacity(
-                                        0.6,
-                                      ),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Container(
-                                    height: 1,
-                                    color: AppColors.primaryGray.withOpacity(
-                                      0.3,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Social login icons
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                _buildSocialIcon(
-                                  Icons.apple_rounded,
-                                  Colors.black,
-                                  () {},
-                                ),
-                                const SizedBox(width: 20),
-                                _buildSocialIcon(
-                                  Icons.facebook_rounded,
-                                  const Color(0xFF1877F2),
-                                  () {},
-                                ),
-                                const SizedBox(width: 20),
-                                _buildSocialIcon(
-                                  Icons.g_mobiledata_rounded,
-                                  Colors.white,
-                                  () {},
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 32),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -354,146 +260,116 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen>
     );
   }
 
-  Widget _buildLabelWithAsterisk(String label) {
-    return RichText(
-      text: TextSpan(
-        text: label,
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.onBackground,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-        children: const [
-          TextSpan(
-            text: ' *',
-            style: TextStyle(color: Colors.red),
-          ),
-        ],
+  Widget _buildSimpleLabel(String label) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        label,
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 15.sp, fontWeight: FontWeight.w600),
       ),
-    );
-  }
-
-  Widget _buildLabel(String label) {
-    return Text(
-      label,
-      style: AppTextStyles.bodyMedium.copyWith(
-        color: AppColors.onBackground,
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-      ),
-    );
+    ).paddingSymmetric(horizontal: 20.w);
   }
 
   Widget _buildLabelWithOptional(String label) {
-    return RichText(
-      text: TextSpan(
-        text: label,
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.onBackground,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: RichText(
+        text: TextSpan(
+          text: label,
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 15.sp, fontWeight: FontWeight.w600),
+          children: [
+            TextSpan(
+              text: ' (Optional)',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.65), fontSize: 14.sp, fontWeight: FontWeight.w400),
+            ),
+          ],
         ),
-        children: [
-          TextSpan(
-            text: ' (Optional)',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: const Color.fromARGB(255, 39, 40, 41),
-              fontSize: 10,
-              fontWeight: FontWeight.w400,
+      ),
+    ).paddingSymmetric(horizontal: 20.w);
+  }
+
+  Widget _buildAvatarSection() {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 85.w,
+          height: 85.h,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF6FFE9),
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFE4F2D8), width: 1.2),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+          ),
+          child: Padding(
+            padding: _profileImageFile != null ? EdgeInsets.zero : EdgeInsets.all(20.r),
+            child: _profileImageFile != null
+                ? ClipOval(
+                    child: Image.file(_profileImageFile!, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                  )
+                : Image.asset('assets/images/profile00.png', fit: BoxFit.contain, width: 20.w),
+          ),
+        ),
+        Positioned(
+          right: -2,
+          bottom: -2,
+          child: GestureDetector(
+            onTap: _showImageSourceDialog,
+            child: Container(
+              width: 30.w,
+              height: 30.h,
+              decoration: BoxDecoration(
+                color: AppColors.accent,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: Icon(Icons.camera_alt_outlined, color: Colors.white, size: 13.sp),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildDateOfBirthField() {
     return InkWell(
       onTap: _selectDateOfBirth,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(30),
       child: Container(
         height: 56,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: AppColors.surface,
-          border: Border.all(
-            color: const Color(0xFF666666),
-            width: 1.5,
-          ), // Dark gray border
+          borderRadius: BorderRadius.circular(30),
+          color: Colors.white,
+          border: Border.all(color: AppColors.primaryGray.withOpacity(0.35), width: 1.2),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 18),
         child: Row(
           children: [
             Expanded(
               child: Text(
-                _dateOfBirth != null
-                    ? DateFormat('MMMM dd, yyyy').format(_dateOfBirth!)
-                    : 'December 22, 2025',
+                _dateOfBirth != null ? DateFormat('MMMM dd, yyyy').format(_dateOfBirth!) : 'Select your date of birth',
                 style: AppTextStyles.bodyMedium.copyWith(
-                  color: _dateOfBirth != null
-                      ? AppColors.onBackground
-                      : const Color.fromARGB(255, 117, 116, 116),
+                  color: _dateOfBirth != null ? AppColors.onBackground : AppColors.onBackground.withOpacity(0.6),
                   fontSize: 15,
                   fontWeight: FontWeight.w400,
                 ),
               ),
             ),
-            Icon(
-              Icons.calendar_today_rounded,
-              color: AppColors.accent,
-              size: 20,
-            ),
+            Image.asset('assets/images/calendar-2.png', width: 19, height: 19, fit: BoxFit.contain),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSocialIcon(
-    IconData icon,
-    Color backgroundColor,
-    VoidCallback onTap,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: backgroundColor,
-          border: Border.all(
-            color: AppColors.primaryGray.withOpacity(0.2),
-            width: 1,
-          ),
-        ),
-        child: Icon(
-          icon,
-          color: backgroundColor == Colors.white
-              ? AppColors.onBackground
-              : Colors.white,
-          size: 24,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDropdownField({
-    required String? label,
-    required String? value,
-    required List<String> items,
-    required IconData? icon,
-    required ValueChanged<String?> onChanged,
-  }) {
+  Widget _buildDropdownField({required String? label, required String? value, required List<String> items, required IconData? icon, required ValueChanged<String?> onChanged}) {
     return Container(
       height: 56,
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF666666),
-          width: 1.5,
-        ), // Dark gray border
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.35), width: 1.2),
       ),
       child: DropdownButtonFormField<String>(
         value: value,
@@ -505,14 +381,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen>
                   child: Icon(icon, color: AppColors.primaryGray, size: 22),
                 )
               : null,
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 48,
-            minHeight: 48,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 16,
-          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           filled: false,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -520,40 +390,22 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen>
           errorBorder: InputBorder.none,
           focusedErrorBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          labelStyle: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.primaryGray,
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-          ),
-          floatingLabelStyle: AppTextStyles.labelMedium.copyWith(
-            color: AppColors.accent,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
+          labelStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, fontSize: 15, fontWeight: FontWeight.w500),
+          floatingLabelStyle: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w600),
         ),
         style: AppTextStyles.bodyMedium.copyWith(
-          color: value != null
-              ? AppColors.onBackground
-              : const Color.fromARGB(255, 117, 116, 116),
+          color: value != null ? AppColors.onBackground : AppColors.onBackground.withOpacity(0.6),
           fontSize: 15,
           fontWeight: FontWeight.w400,
         ),
         dropdownColor: AppColors.surface,
-        icon: Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppColors.accent,
-            size: 20,
-          ),
+        icon: const Padding(
+          padding: EdgeInsets.only(right: 16),
+          child: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.onBackground, size: 22),
         ),
         hint: Text(
           'Select gender',
-          style: AppTextStyles.bodyMedium.copyWith(
-            color: const Color.fromARGB(255, 117, 116, 116),
-            fontSize: 15,
-            fontWeight: FontWeight.w400,
-          ),
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 15, fontWeight: FontWeight.w400),
         ),
         items: items.map((String item) {
           return DropdownMenuItem<String>(value: item, child: Text(item));

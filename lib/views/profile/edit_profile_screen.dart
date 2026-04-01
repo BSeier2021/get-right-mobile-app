@@ -1,13 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
-import 'package:get_right/utils/validators.dart';
 import 'package:get_right/widgets/common/custom_button.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
 import 'package:image_picker/image_picker.dart';
@@ -36,11 +34,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _emergencyContactNameController = TextEditingController();
   final _emergencyContactPhoneController = TextEditingController();
 
-  String? _selectedFitnessGoal;
   String? _selectedGender;
-  String? _selectedActivityLevel;
-  String? _selectedUnits; // Default to metric
-  List<String> _selectedWorkoutTypes = [];
+  // Default to metric
   String? _profileImagePath;
 
   // Onboarding questionnaire fields

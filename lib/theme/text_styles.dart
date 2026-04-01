@@ -16,6 +16,7 @@ class AppTextStyles {
 
   // Font Families
   static const String primaryFont = 'Inter'; // Clean, geometric sans-serif
+  static const String secondaryFont = 'DM Sans'; // Clean, geometric sans-serif
 
   // Heading Styles - Bold or semibold for section titles
   static TextStyle headlineLarge = TextStyle(
@@ -47,7 +48,7 @@ class AppTextStyles {
 
   // Title Styles - Bold or semibold
   static TextStyle titleLarge = TextStyle(
-    fontFamily: primaryFont,
+    fontFamily: secondaryFont,
     fontSize: 22.sp,
     fontWeight: FontWeight.bold,
     height: 1.4,

@@ -507,21 +507,27 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                 children: [
                   Expanded(
                     child: SizedBox(
-                      height: 52,
+                      height: 52.h,
                       child: ElevatedButton(
                         onPressed: () {
                           Get.back();
                           _onAddWarmup();
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFB71C1C),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          backgroundColor: const Color.fromARGB(0, 0, 0, 0),
+                          foregroundColor: const Color(0xFF777777),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(50),
+                            side: const BorderSide(
+                              color: Color(0xFF777777), // Added border color
+                              width: 1.2,
+                            ),
+                          ),
                           elevation: 0,
                         ),
                         child: Text(
                           'Warmup',
-                          style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: AppTextStyles.buttonMedium.copyWith(color: Color(0xFF777777), fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -529,7 +535,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: SizedBox(
-                      height: 52,
+                      height: 52.h,
                       child: ElevatedButton(
                         onPressed: () {
                           Get.back();
@@ -538,7 +544,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accent,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                           elevation: 0,
                         ),
                         child: Text(

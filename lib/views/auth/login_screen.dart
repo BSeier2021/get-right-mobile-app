@@ -86,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           Text(
                             textAlign: TextAlign.center,
                             'Welcome Back!',
-                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.black, fontSize: 40.sp, fontWeight: FontWeight.w800, letterSpacing: -1),
+                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.black, fontSize: 40.sp, fontWeight: FontWeight.w600, letterSpacing: -1),
                           ),
 
                           const SizedBox(height: 12),
@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
                     // Password field
                     PasswordTextField(controller: _passwordController),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 15),
 
                     // Remember Me and Forgot Password row
                     Row(
@@ -166,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 20),
 
                     // Login button
                     GetBuilder<AuthController>(
@@ -206,10 +206,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Image.asset('assets/images/google.png'),
-                        if (Platform.isIOS || Platform.isMacOS) ...[const SizedBox(width: 12), Image.asset('assets/images/apple.png')],
+                        Image.asset('assets/images/google.png', width: 60.w),
+                        if (Platform.isIOS || Platform.isMacOS) ...[const SizedBox(width: 12), Image.asset('assets/images/apple.png', width: 60.w)],
                         const SizedBox(width: 12),
-                        Image.asset('assets/images/facebook.png'),
+                        Image.asset('assets/images/facebook.png', width: 60.w),
                       ],
                     ),
                     SizedBox(height: 135.h),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -143,21 +144,34 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
         children: [
           Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: TextField(
-                  controller: _searchCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Search exercises...',
-                    prefixIcon: const Icon(Icons.search, color: AppColors.primaryGrayDark),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    filled: true,
-                    fillColor: AppColors.white,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+              TextField(
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: AppColors.white,
+                  hintText: 'Enter exercise name',
+                  hintStyle: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGrayDark.withOpacity(0.6)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(50),
+                    borderSide: BorderSide(color: AppColors.primaryGrayDark.withOpacity(0.3)),
                   ),
-                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(50),
+                    borderSide: BorderSide(color: AppColors.primaryGrayDark.withOpacity(0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(50),
+                    borderSide: BorderSide(color: AppColors.accent.withOpacity(0.3), width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  suffixIcon: IconButton(
+                    icon: SizedBox(width: 22, height: 22, child: SvgPicture.asset('assets/icons/search-normal.svg', width: 22, height: 22)),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {},
+                  ),
                 ),
-              ),
+                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+              ).paddingSymmetric(horizontal: 20, vertical: 20),
 
               Expanded(
                 child: ListView.builder(

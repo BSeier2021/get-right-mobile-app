@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -15,132 +16,116 @@ class GoalSelectionScreen extends StatefulWidget {
 class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
   final List<String> _selectedGoals = [];
 
-  final List<String> _goals = [
-    'Lose Weight',
-    'Build Muscle',
-    'Stay Healthy',
-    'Improve Performance',
-    'Track Progress',
-    'Build Habits',
-  ];
+  final List<String> _goals = ['Lose Weight', 'Build Muscle', 'Stay Healthy', 'Improve Performance', 'Track Progress', 'Build Habits'];
 
   @override
   Widget build(BuildContext context) {
+    final double contentMaxWidth = MediaQuery.of(context).size.width * 0.72;
+
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            // Header with Skip button
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.chevron_left,
-                    color: AppColors.accent,
-                    size: 28,
-                  ),
-                  onPressed: () => Get.back(),
-                ),
-                TextButton(
-                  onPressed: () => Get.offAllNamed(AppRoutes.home),
-                  child: Text(
-                    'Skip',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.accent,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            // Progress indicators
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (index) {
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: index < 2
-                        ? AppColors.accent
-                        : AppColors.accent.withOpacity(0.3),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 32),
-
-            // Main content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title
-                    Center(
-                      child: Text(
-                        'What\'s your main goal?',
-                        style: AppTextStyles.headlineLarge.copyWith(
-                          color: AppColors.accent,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Subtitle
-                    Center(
-                      child: Text(
-                        textAlign: TextAlign.center,
-                        'This helps us recommend the best features for you \n Select all that apply',
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          color: AppColors.onBackground.withOpacity(0.7),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Options
-                    ..._goals.map(
-                      (goal) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildGoalButton(goal),
-                      ),
-                    ),
-                    const SizedBox(height: 25),
-                    CustomButton(
-                      text: 'Continue',
-                      onPressed: _selectedGoals.isNotEmpty
-                          ? () {
-                              final args =
-                                  Get.arguments as Map<String, dynamic>?;
-                              Get.toNamed(
-                                AppRoutes.fitnessLevelSelection,
-                                arguments: args,
-                              );
-                            }
-                          : null,
-                      backgroundColor: _selectedGoals.isNotEmpty
-                          ? AppColors.accent
-                          : AppColors.primaryGray,
-                      textColor: Colors.white,
-                    ),
-                  ],
-                ),
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Image.asset('assets/images/maingoalbg.png', fit: BoxFit.fitHeight),
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        width: 35.w,
+                        height: 35.h,
+                        decoration: BoxDecoration(color: const Color(0xFFE7F1E7), borderRadius: BorderRadius.circular(5)),
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: Icon(Icons.chevron_left, color: AppColors.accent, size: 20.sp),
+                          onPressed: () => Get.back(),
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(4, (index) {
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: index < 2 ? AppColors.accent : const Color(0xFFC8D8C8)),
+                          );
+                        }),
+                      ),
+                      TextButton(
+                        onPressed: () => Get.offAllNamed(AppRoutes.home),
+                        child: Text(
+                          'Skip',
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 16, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
 
-            // Continue button
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'What\'s Your\nMain Goal?',
+                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 35.sp, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'This helps us\nrecommend the best\nfeatures for you select\nall that apply',
+                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 15.sp, fontWeight: FontWeight.w400, height: 1.35),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: 250.w),
+                          child: Column(
+                            children: [
+                              ..._goals.map((goal) => Padding(padding: const EdgeInsets.only(bottom: 10), child: _buildGoalButton(goal))),
+                              const SizedBox(height: 6),
+                              CustomButton(
+                                text: 'Continue',
+                                onPressed: _selectedGoals.isNotEmpty
+                                    ? () {
+                                        final args = Get.arguments as Map<String, dynamic>?;
+                                        Get.toNamed(AppRoutes.fitnessLevelSelection, arguments: args);
+                                      }
+                                    : null,
+                                backgroundColor: _selectedGoals.isNotEmpty ? AppColors.accent : const Color.fromARGB(195, 41, 96, 60),
+                                textColor: Colors.white,
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -159,32 +144,18 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
           }
         });
       },
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(24),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.accent : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.accent : const Color(0xFF666666),
-            width: isSelected ? 2 : 1.5,
-          ),
+          color: isSelected ? const Color.fromARGB(45, 41, 96, 60) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: isSelected ? AppColors.accent : const Color(0xFFD8DDD8), width: 1.2),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              goal,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: isSelected ? Colors.white : AppColors.onBackground,
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            if (isSelected)
-              const Icon(Icons.check_circle, color: Colors.white, size: 20),
-          ],
+        child: Text(
+          goal,
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ),
     );

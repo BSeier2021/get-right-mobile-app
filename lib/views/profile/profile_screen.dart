@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/notification_controller.dart';
@@ -139,7 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   clipBehavior: Clip.none,
                   children: [
                     IconButton(
-                      icon: Image.asset('assets/images/humburger1.png'),
+                      icon: Image.asset('assets/images/humburger.png', width: 25.w),
                       onPressed: () => Scaffold.of(context).openDrawer(),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),

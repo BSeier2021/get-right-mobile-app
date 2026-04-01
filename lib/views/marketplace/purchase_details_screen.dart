@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -35,11 +36,22 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.backgroundColor,
-        title: Text('Purchase Details', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
-        leading: IconButton(
-          onPressed: () => Get.back(),
-          icon: Icon(Icons.arrow_back_ios_new, color: AppColors.accent),
+        title: Text(
+          'Purchase Detail',
+          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700),
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: IconButton(
+            onPressed: () => Get.back(),
+            icon: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(color: const Color(0xFFE7F1E7), borderRadius: BorderRadius.circular(6)),
+              child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 18),
+            ),
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -51,69 +63,132 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
+                color: const Color(0xFFF8FFE9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE8EFE0)),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [AppColors.accent.withOpacity(0.8), AppColors.accentVariant]),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(Icons.fitness_center, color: AppColors.onAccent, size: 30),
-                      ),
-                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              programData['title'] ?? '',
-                              style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                              programData['title'] ?? 'Complete Strength Program',
+                              style: AppTextStyles.titleMedium.copyWith(color: AppColors.black, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 4),
-                            Text('by ${programData['trainer'] ?? ''}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                            Text('by', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const Divider(height: 24),
-                  _buildInfoRow(Icons.calendar_today, 'Start Date', _formatDate(programData['startDate'])),
+                  const SizedBox(height: 20),
+                  // Trainer mini card row like screenshot
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: AppColors.accent,
+                        child: Image.asset('assets/images/avatar.png', width: 24.w, height: 24.h),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              programData['trainer'] ?? 'Sarah Johnson',
+                              style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
-                  _buildInfoRow(Icons.flag, 'End Date', _formatDate(programData['endDate'])),
+                  Row(
+                    children: [
+                      const Icon(Icons.star_rate_rounded, size: 16, color: Color(0xFFF6A623)),
+                      const SizedBox(width: 8),
+                      Text('Start Date: ', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                      Expanded(
+                        child: Text(
+                          "3/25/2026",
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
-                  _buildInfoRow(Icons.schedule, 'Duration', programData['duration'] ?? ''),
+                  Row(
+                    children: [
+                      const Icon(Icons.star_rate_rounded, size: 16, color: Color(0xFFF6A623)),
+                      const SizedBox(width: 8),
+                      Text('End Date: ', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                      Expanded(
+                        child: Text(
+                          "4/15/2026",
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.star_rate_rounded, size: 16, color: Color(0xFFF6A623)),
+                      const SizedBox(width: 8),
+                      Text('Duration: ', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                      Expanded(
+                        child: Text(
+                          "12 weeks",
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
 
-            // Price Breakdown
+            // Featured Workouts / Price Summary
             Text(
-              'Price Breakdown',
+              'Featured Workouts',
               style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: const Color(0xFFF8FFE9),
+
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
+                border: Border.all(color: const Color(0xFFE8EFE0)),
               ),
               child: Column(
                 children: [
                   _buildPriceRow('Program Fee', _subtotal),
-                  const SizedBox(height: 12),
-                  _buildPriceRow('Tax (10%)', _tax),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('End Date', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                      Text(
+                        _formatDate(programData['endDate']),
+                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
                   const Divider(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -123,8 +198,8 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                         style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        '\$${_total.toStringAsFixed(2)}',
-                        style: AppTextStyles.headlineSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                        '\$${_subtotal.toStringAsFixed(2)}',
+                        style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
                       ),
                     ],
                   ),
@@ -139,13 +214,13 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
               style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            _buildPaymentOption('card', 'Credit / Debit Card', Icons.credit_card, 'Visa, MasterCard, Amex'),
+            _buildPaymentOption('card', 'Credit / Debit Card', 'Visa, MasterCard, Amex', asset: 'assets/images/card.png'),
             const SizedBox(height: 12),
-            _buildPaymentOption('paypal', 'PayPal', Icons.account_balance_wallet, 'Fast & secure payment'),
+            _buildPaymentOption('paypal', 'PayPal', 'Fast & secure payment', asset: 'assets/icons/paypal.png'),
             const SizedBox(height: 12),
-            _buildPaymentOption('google_pay', 'Google Pay', Icons.payment, 'Quick checkout'),
+            _buildPaymentOption('google_pay', 'Google Pay', 'Quick checkout', asset: 'assets/images/google000.png'),
             const SizedBox(height: 12),
-            _buildPaymentOption('apple_pay', 'Apple Pay', Icons.apple, 'Secure payment'),
+            _buildPaymentOption('apple_pay', 'Apple Pay', 'Secure payment', asset: 'assets/images/apple000.png'),
             const SizedBox(height: 24),
 
             // Security Badge
@@ -191,26 +266,12 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accent,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
             ),
             child: Text('Proceed to Payment', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onAccent)),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: AppColors.primaryGray),
-        const SizedBox(width: 8),
-        Text('$label: ', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-        Text(
-          value,
-          style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-        ),
-      ],
     );
   }
 
@@ -227,7 +288,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
     );
   }
 
-  Widget _buildPaymentOption(String value, String title, IconData icon, String subtitle) {
+  Widget _buildPaymentOption(String value, String title, String subtitle, {String? asset, IconData? icon}) {
     final isSelected = _selectedPaymentMethod == value;
 
     return GestureDetector(
@@ -248,7 +309,9 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(color: isSelected ? AppColors.accent.withOpacity(0.2) : AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-              child: Icon(icon, color: isSelected ? AppColors.accent : AppColors.primaryGray, size: 24),
+              child: asset != null
+                  ? Image.asset(asset, width: 24, height: 24, color: null)
+                  : Icon(icon ?? Icons.credit_card, color: isSelected ? AppColors.accent : AppColors.primaryGray, size: 24),
             ),
             const SizedBox(width: 12),
             Expanded(

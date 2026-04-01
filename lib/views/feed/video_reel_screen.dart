@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
@@ -231,8 +232,8 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
 
         // Right side interaction buttons
         Positioned(
-          right: 16.w,
-          bottom: 100.h,
+          right: 16,
+          bottom: 60,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -240,62 +241,45 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
               GestureDetector(
                 onTap: () => _navigateToCreatorProfile(post),
                 child: Container(
-                  margin: EdgeInsets.only(bottom: 20.h),
+                  margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+                    border: Border.all(color: AppColors.accent, width: 2),
                   ),
                   child: CircleAvatar(
-                    radius: 25.r,
-                    backgroundColor: AppColors.accent.withOpacity(0.2),
+                    radius: 20,
+                    backgroundColor: AppColors.white,
                     child: Text(
                       post['creatorImage'] ?? 'U',
-                      style: AppTextStyles.titleSmall.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
               ),
 
-              // Like button
-              _buildVerticalInteractionButton(
-                icon: post['isLiked'] ? Icons.favorite : Icons.favorite_border,
-                count: post['likes'] ?? 0,
-                color: post['isLiked'] ? Colors.red : Colors.white,
-                onTap: () {
-                  setState(() {
-                    post['isLiked'] = !post['isLiked'];
-                    post['likes'] += post['isLiked'] ? 1 : -1;
-                  });
-                },
-              ),
-              SizedBox(height: 20.h),
+              // Like button (heart turns red on tap)
+              _buildLikeButton(post),
+              const SizedBox(height: 20),
 
               // Comment button
-              _buildVerticalInteractionButton(icon: Icons.comment_outlined, count: post['comments'] ?? 0, color: Colors.white, onTap: () => _showComments(post)),
-              SizedBox(height: 20.h),
+              _buildCommentButton(post),
+              const SizedBox(height: 20),
 
               // Save/Bookmark button
-              _buildVerticalInteractionButton(
-                icon: post['isSaved'] ? Icons.bookmark : Icons.bookmark_border,
-                count: post['saves'] ?? 0,
-                color: Colors.white,
-                onTap: () async {
-                  final isSaved = post['isSaved'] ?? false;
-                  setState(() {
-                    post['isSaved'] = !isSaved;
-                    post['saves'] += !isSaved ? 1 : -1;
-                  });
-                  if (!isSaved) {
-                    await _storageService.addSavedPost(post);
-                  } else {
-                    await _storageService.removeSavedPost(post['id']);
-                  }
-                },
-              ),
-              SizedBox(height: 20.h),
+              _buildSaveButton(post),
+              const SizedBox(height: 20),
 
               // Share button
-              _buildVerticalInteractionButton(icon: Icons.share_outlined, count: post['shares'] ?? 0, color: Colors.white, onTap: () => _showShareOptions(post)),
+              _buildVerticalInteractionSvgButton(assetPath: 'assets/icons/share.svg', count: post['shares'] ?? 0, onTap: () => _showShareOptions(post)),
+              const SizedBox(height: 20),
+
+              // Premium star icon
+              GestureDetector(
+                onTap: () {
+                  // TODO: Handle premium/favorite action
+                },
+                child: Image.asset('assets/images/Frame 1000001604.png', width: 44.w, height: 44.h),
+              ),
             ],
           ),
         ),
@@ -303,7 +287,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
         // Bottom left text content
         Positioned(
           left: 16.w,
-          bottom: 15.h,
+          bottom: 50.h,
           right: 100.w,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -385,19 +369,200 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
     );
   }
 
-  Widget _buildVerticalInteractionButton({required IconData icon, required int count, required Color color, required VoidCallback onTap}) {
+  Widget _buildVerticalInteractionSvgButton({required String assetPath, required int count, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 28.sp),
-          SizedBox(height: 6.h),
+          SvgPicture.asset(assetPath, width: 28, height: 28, colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
+          const SizedBox(height: 6),
           Text(
             _formatCount(count),
             style: AppTextStyles.labelSmall.copyWith(
               color: Colors.white,
-              fontSize: 12.sp,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 4, offset: const Offset(0, 1))],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLikeButton(Map<String, dynamic> post) {
+    final bool isLiked = post['isLiked'] ?? false;
+    final int count = post['likes'] ?? 0;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          post['isLiked'] = !isLiked;
+          post['likes'] = (post['likes'] ?? 0) + (post['isLiked'] ? 1 : -1);
+        });
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SvgPicture.asset('assets/icons/heart.svg', width: 28, height: 28, colorFilter: ColorFilter.mode(isLiked ? Colors.red : Colors.white, BlendMode.srcIn)),
+          const SizedBox(height: 6),
+          Text(
+            _formatCount(count),
+            style: AppTextStyles.labelSmall.copyWith(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 4, offset: const Offset(0, 1))],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openCommentsSheet(Map<String, dynamic> post) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 16 + MediaQuery.of(context).viewInsets.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.4), borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text(
+                    'Comments',
+                    style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                  ),
+                  const Spacer(),
+                  Text(_formatCount(post['comments'] ?? 0), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 220,
+                child: ListView.separated(
+                  itemBuilder: (_, i) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.accent.withOpacity(0.2),
+                      child: Text('U', style: AppTextStyles.labelMedium),
+                    ),
+                    title: Text('Great tip! Thanks.', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
+                    subtitle: Text('2h ago', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                  ),
+                  separatorBuilder: (_, __) => const Divider(height: 8),
+                  itemCount: 6,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Add a comment...',
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: AppColors.accent),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 0, width: 8),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.send, color: AppColors.accent),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Comment button - opens bottom sheet
+  Widget _buildCommentButton(Map<String, dynamic> post) {
+    final int count = post['comments'] ?? 0;
+    return GestureDetector(
+      onTap: () => _openCommentsSheet(post),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SvgPicture.asset('assets/icons/messagee.svg', width: 28, height: 28, colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
+          const SizedBox(height: 6),
+          Text(
+            _formatCount(count),
+            style: AppTextStyles.labelSmall.copyWith(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 4, offset: const Offset(0, 1))],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Save button - fills white background when saved
+  Widget _buildSaveButton(Map<String, dynamic> post) {
+    final bool isSaved = post['isSaved'] ?? false;
+    final int count = post['saves'] ?? 0;
+    return GestureDetector(
+      onTap: () async {
+        final wasSaved = isSaved;
+        setState(() {
+          post['isSaved'] = !wasSaved;
+          post['saves'] = (post['saves'] ?? 0) + (!wasSaved ? 1 : -1);
+        });
+        if (!wasSaved) {
+          await _storageService.addSavedPost(post);
+        } else {
+          await _storageService.removeSavedPost(post['id']);
+        }
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: isSaved ? Colors.white : Colors.transparent,
+              shape: BoxShape.circle,
+              border: isSaved ? Border.all(color: Colors.white, width: 0) : null,
+            ),
+            alignment: Alignment.center,
+            child: SvgPicture.asset('assets/icons/save.svg', width: 24, height: 24, colorFilter: ColorFilter.mode(isSaved ? AppColors.accent : Colors.white, BlendMode.srcIn)),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _formatCount(count),
+            style: AppTextStyles.labelSmall.copyWith(
+              color: Colors.white,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 4, offset: const Offset(0, 1))],
             ),

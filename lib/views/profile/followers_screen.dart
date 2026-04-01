@@ -75,7 +75,7 @@ class _FollowersScreenState extends State<FollowersScreen> {
       ),
       child: Row(
         children: [
-          // Avatar
+          // Avatar Image
           GestureDetector(
             onTap: () => _viewProfile(user),
             child: CircleAvatar(

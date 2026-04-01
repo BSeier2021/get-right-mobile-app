@@ -58,6 +58,7 @@ dependencies:
   geocoding: ^4.0.0
   sign_in_with_apple: ^6.1.3  # Apple Sign-In authentication
   video_player: ^2.8.2  # Video playback for reels
+  flutter_svg: ^2.0.10+1
   
 dev_dependencies:
   flutter_test:
@@ -93,6 +94,7 @@ flutter:
   # Assets
   assets:
     - assets/images/
+    - assets/icons/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

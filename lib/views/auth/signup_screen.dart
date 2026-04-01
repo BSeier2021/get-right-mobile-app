@@ -69,9 +69,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(center: Alignment.topCenter, radius: 1.0, colors: [AppColors.accent.withOpacity(0.05), AppColors.background]),
-        ),
+        decoration: BoxDecoration(color: AppColors.background),
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
@@ -80,17 +78,18 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
               child: SlideTransition(
                 position: _slideAnimation,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.chevron_left, color: AppColors.accent, size: 35),
-                          onPressed: () => Get.back(),
-                        ),
-                      ],
-                    ),
+                    // Row(
+                    //   children: [
+                    //     IconButton(
+                    //       icon: const Icon(Icons.chevron_left, color: AppColors.accent, size: 35),
+                    //       onPressed: () => Get.back(),
+                    //     ),
+                    //   ],
+                    // ),
                     // Title
+                    SizedBox(height: 100.h),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Column(
@@ -101,7 +100,15 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                             child: Text(
                               'Create Account',
                               textAlign: TextAlign.center,
-                              style: AppTextStyles.headlineLarge.copyWith(color: AppColors.accent, fontSize: 30.sp, fontWeight: FontWeight.w800, letterSpacing: -1),
+                              style: AppTextStyles.headlineLarge.copyWith(color: AppColors.black, fontSize: 35.sp, fontWeight: FontWeight.w800, letterSpacing: -1),
+                            ),
+                          ),
+                          SizedBox(height: 5.h),
+                          Center(
+                            child: Text(
+                              textAlign: TextAlign.center,
+                              'Sign up to start your fitness journey.',
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 13.sp, fontWeight: FontWeight.w400, height: 1.4),
                             ),
                           ),
                           SizedBox(height: 30.h),
@@ -129,18 +136,14 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                           _buildLabelWithAsterisk('Confirm Password'),
                           const SizedBox(height: 8),
                           PasswordTextField(controller: _confirmPasswordController, labelText: null, hintText: 'Confirm your password', onChanged: (value) => setState(() {})),
-                          const SizedBox(height: 15),
+                          const SizedBox(height: 20),
 
                           // Instructions
                           Text(
                             'Password must be at least 8 characters long and include uppercase and lowercase letters.',
-                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 13, fontWeight: FontWeight.w400, height: 1.4),
+                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontSize: 13.sp, fontWeight: FontWeight.w400, height: 1.4),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'After creating your account, check your email (including spam folder) for verification.',
-                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 13, fontWeight: FontWeight.w400, height: 1.4),
-                          ),
+
                           const SizedBox(height: 32),
 
                           // Create Account button
@@ -155,54 +158,52 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                               );
                             },
                           ),
+                          SizedBox(height: 20.h),
+                          Center(
+                            child: Text(
+                              textAlign: TextAlign.center,
+                              'After creating your account, check your email (including spam folder) for verification.',
+                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontSize: 13.sp, fontWeight: FontWeight.w400, height: 1.4),
+                            ),
+                          ).paddingSymmetric(horizontal: 24.w),
                           const SizedBox(height: 10),
 
                           // Divider with "or"
                           Row(
                             children: [
-                              Expanded(child: Container(height: 1, color: AppColors.primaryGray.withOpacity(0.3))),
+                              Expanded(
+                                child: Container(
+                                  height: 1,
+                                  decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.transparent, AppColors.primaryGray.withOpacity(0.3)])),
+                                ),
+                              ),
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
                                 child: Text(
-                                  'or',
-                                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 14, fontWeight: FontWeight.w400),
+                                  'OR',
+                                  style: AppTextStyles.labelMedium.copyWith(color: AppColors.black, fontWeight: FontWeight.w600),
                                 ),
                               ),
-                              Expanded(child: Container(height: 1, color: AppColors.primaryGray.withOpacity(0.3))),
+                              Expanded(
+                                child: Container(
+                                  height: 1,
+                                  decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.primaryGray.withOpacity(0.3), Colors.transparent])),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 10),
 
                           // Social signup buttons
-                          _buildSocialButton(
-                            icon: Icons.g_mobiledata_rounded,
-                            label: 'Continue with Google',
-                            onPressed: () {
-                              // TODO: Implement Google sign up
-                            },
-                            isFullWidth: true,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Image.asset('assets/images/google.png', width: 60.w),
+                              if (Platform.isIOS || Platform.isMacOS) ...[const SizedBox(width: 12), Image.asset('assets/images/apple.png', width: 60.w)],
+                              const SizedBox(width: 12),
+                              Image.asset('assets/images/facebook.png', width: 60.w),
+                            ],
                           ),
-                          const SizedBox(height: 12),
-                          _buildSocialButton(
-                            icon: Icons.facebook_rounded,
-                            label: 'Continue with Facebook',
-                            onPressed: () {
-                              // TODO: Implement Facebook sign up
-                            },
-                            isFullWidth: true,
-                          ),
-                          if (Platform.isIOS || Platform.isMacOS) ...[
-                            const SizedBox(height: 12),
-                            _buildSocialButton(
-                              icon: Icons.apple_rounded,
-                              label: 'Continue with Apple',
-                              onPressed: () {
-                                final authController = Get.find<AuthController>();
-                                authController.signInWithApple();
-                              },
-                              isFullWidth: true,
-                            ),
-                          ],
                           const SizedBox(height: 20),
 
                           // Login link
@@ -213,7 +214,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                               children: [
                                 Text(
                                   'Already have an account? ',
-                                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.7), fontSize: 15),
+                                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.black, fontSize: 15.sp),
                                 ).paddingOnly(top: 4),
                                 TextButton(
                                   onPressed: () => Get.toNamed(AppRoutes.login),
@@ -224,7 +225,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                   ),
                                   child: Text(
                                     'Log In',
-                                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 15),
+                                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 15.sp),
                                   ),
                                 ),
                               ],
@@ -248,7 +249,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     return RichText(
       text: TextSpan(
         text: label,
-        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 14, fontWeight: FontWeight.w500),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 14.sp, fontWeight: FontWeight.w500),
         children: const [
           TextSpan(
             text: ' *',

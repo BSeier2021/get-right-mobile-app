@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/constants/app_constants.dart';
@@ -27,8 +27,7 @@ class _OtpScreenState extends State<OtpScreen> with TickerProviderStateMixin {
   late AnimationController _animationController;
   late AnimationController _shakeController;
   late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-  late Animation<double> _shakeAnimation;
+  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
 
   @override
   void initState() {
@@ -43,10 +42,6 @@ class _OtpScreenState extends State<OtpScreen> with TickerProviderStateMixin {
     _shakeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
-
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
-
-    _shakeAnimation = Tween<double>(begin: 0, end: 10).animate(CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn));
 
     _animationController.forward();
   }
@@ -106,20 +101,6 @@ class _OtpScreenState extends State<OtpScreen> with TickerProviderStateMixin {
     _startTimer();
   }
 
-  void _onOtpChanged(String value, int index) {
-    if (value.isNotEmpty && index < AppConstants.otpLength - 1) {
-      _focusNodes[index + 1].requestFocus();
-    }
-    if (value.isEmpty && index > 0) {
-      _focusNodes[index - 1].requestFocus();
-    }
-
-    // Auto-verify when all fields are filled
-    // if (_otpControllers.every((c) => c.text.isNotEmpty)) {
-    //   _verifyOTP();
-    // }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Get email from arguments if passed
@@ -139,7 +120,7 @@ class _OtpScreenState extends State<OtpScreen> with TickerProviderStateMixin {
             child: FadeTransition(
               opacity: _fadeAnimation,
               child: SlideTransition(
-                position: _slideAnimation,
+                position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -147,25 +128,20 @@ class _OtpScreenState extends State<OtpScreen> with TickerProviderStateMixin {
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.chevron_left, color: AppColors.accent, size: 35),
+                          icon: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+                          ),
                           onPressed: () => Get.back(),
                         ),
                       ],
-                    ),
+                    ).paddingOnly(left: 10.w),
                     const SizedBox(height: 24),
 
                     // Icon with animation
-                    Center(
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withOpacity(0.8)]),
-                        ),
-                        child: const Icon(Icons.verified_outlined, size: 60, color: AppColors.onAccent),
-                      ),
-                    ),
+                    Image.asset('assets/images/otpicon.png', width: 100.w, height: 100.h),
+
                     const SizedBox(height: 40),
 
                     // Title
@@ -175,11 +151,11 @@ class _OtpScreenState extends State<OtpScreen> with TickerProviderStateMixin {
                         children: [
                           Text(
                             'Verify Your Email',
-                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.accent, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -1),
+                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.black, fontSize: 35.sp, fontWeight: FontWeight.w600, letterSpacing: -1),
                             textAlign: TextAlign.center,
                           ),
 
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 10),
 
                           // Description
                           Padding(
@@ -188,23 +164,14 @@ class _OtpScreenState extends State<OtpScreen> with TickerProviderStateMixin {
                               email != null
                                   ? 'We\'ve sent a ${AppConstants.otpLength}-digit verification code to\n$email'
                                   : 'We\'ve sent a ${AppConstants.otpLength}-digit verification code to your email.\nPlease enter it below.',
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 15, height: 1.5),
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 15.sp, height: 1.5),
                               textAlign: TextAlign.center,
                             ),
                           ),
                           const SizedBox(height: 48),
 
                           // OTP input fields
-                          AnimatedBuilder(
-                            animation: _shakeAnimation,
-                            builder: (context, child) {
-                              return Transform.translate(
-                                offset: Offset(_shakeAnimation.value * (_shakeController.isAnimating ? ((_shakeController.value * 4).floor() % 2 == 0 ? 1 : -1) : 0), 0),
-                                child: child,
-                              );
-                            },
-                            child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: List.generate(AppConstants.otpLength, (index) => _buildOtpField(index))),
-                          ),
+                          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: List.generate(6, (index) => _buildOtpCircleField(index))),
                           const SizedBox(height: 48),
 
                           // Verify button
@@ -231,33 +198,48 @@ class _OtpScreenState extends State<OtpScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildOtpField(int index) {
-    return Container(
-      width: 55,
-      height: 50,
+  /// OTP field styled as an outlined circle with thin gray border, centered thin dash
+  Widget _buildOtpCircleField(int index) {
+    final bool isFocused = _focusNodes[index].hasFocus;
+    final controller = _controllers[index];
 
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: AppColors.surface,
-        border: Border.all(color: _focusNodes[index].hasFocus ? AppColors.accent : AppColors.primaryGray.withOpacity(0.3), width: _focusNodes[index].hasFocus ? 2.0 : 1.5),
-        boxShadow: _focusNodes[index].hasFocus ? [BoxShadow(color: AppColors.accent.withOpacity(0.15), blurRadius: 12, spreadRadius: 0, offset: const Offset(0, 4))] : [],
-      ),
-      child: TextField(
-        controller: _otpControllers[index],
-        focusNode: _focusNodes[index],
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        maxLength: 1,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
-        // Remove background by not specifying fillColor and by keeping border: InputBorder.none
-        decoration: const InputDecoration(
-          border: InputBorder.none,
-          counterText: '',
-          contentPadding: EdgeInsets.zero,
-          // fillColor and filled are omitted to prevent white background
+    return ClipOval(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 54,
+        height: 54,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: isFocused ? AppColors.primaryGray.withOpacity(0.7) : AppColors.primaryGray.withOpacity(0.35), width: 1.2),
+          color: Colors.transparent,
         ),
-        onChanged: (value) => _onOtpChanged(value, index),
+        alignment: Alignment.center,
+        child: TextField(
+          controller: controller,
+          focusNode: _focusNodes[index],
+          autofocus: index == 0,
+          textAlign: TextAlign.center,
+          textAlignVertical: TextAlignVertical.center,
+          keyboardType: TextInputType.number,
+          maxLength: 1,
+          showCursor: false,
+          style: AppTextStyles.bodyLarge.copyWith(color: AppColors.black, fontWeight: FontWeight.w700, fontSize: 18),
+          decoration: InputDecoration(
+            border: InputBorder.none,
+            counterText: '',
+            hintText: '-',
+            hintStyle: AppTextStyles.bodyLarge.copyWith(color: AppColors.primaryGray.withOpacity(0.6), fontWeight: FontWeight.w600, fontSize: 18),
+            contentPadding: EdgeInsets.zero,
+          ),
+          onChanged: (value) {
+            if (value.isNotEmpty && index < _focusNodes.length - 1) {
+              _focusNodes[index + 1].requestFocus();
+            }
+            if (value.isEmpty && index > 0) {
+              _focusNodes[index - 1].requestFocus();
+            }
+          },
+        ),
       ),
     );
   }

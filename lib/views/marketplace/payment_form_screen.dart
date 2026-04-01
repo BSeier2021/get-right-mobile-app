@@ -109,7 +109,6 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final paymentMethod = paymentData['paymentMethod'] ?? 'card';
     final total = paymentData['total'] ?? 0.0;
 
     return GestureDetector(
@@ -118,11 +117,22 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: AppColors.backgroundColor,
-          title: Text('Payment', style: AppTextStyles.titleLarge.copyWith()),
           centerTitle: true,
-          leading: IconButton(
-            onPressed: () => Get.back(),
-            icon: Icon(Icons.arrow_back_ios_new, color: AppColors.accent),
+          title: Text(
+            'Payment',
+            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700),
+          ),
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: IconButton(
+              onPressed: () => Get.back(),
+              icon: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(color: const Color(0xFFE7F1E7), borderRadius: BorderRadius.circular(6)),
+                child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 18),
+              ),
+            ),
           ),
         ),
         body: SingleChildScrollView(
@@ -133,44 +143,30 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
               // Amount Card
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [AppColors.accent, AppColors.accentVariant], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                  borderRadius: BorderRadius.circular(16),
+                  color: const Color(0xFFF8FFE9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE8EFE0)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Total Amount', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onAccent.withOpacity(0.9))),
+                    Text('Total Amount', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark)),
                     const SizedBox(height: 4),
                     Text(
                       '\$${total.toStringAsFixed(2)}',
-                      style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      paymentData['title'] ?? '',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.onAccent.withOpacity(0.8)),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
-
-              // Payment Method Display
-              Row(
-                children: [
-                  Icon(_getPaymentIcon(paymentMethod), color: AppColors.accent, size: 24),
-                  const SizedBox(width: 8),
-                  Text(
-                    _getPaymentMethodName(paymentMethod),
-                    style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
               const SizedBox(height: 24),
+              Text(
+                'Featured Workouts',
+                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 16),
 
               // Card Number
               Text(
@@ -182,7 +178,6 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                 controller: _cardNumberController,
                 hintText: '1234 5678 9012 3456',
                 keyboardType: TextInputType.number,
-                prefixIcon: Icon(Icons.credit_card),
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(16), _CardNumberFormatter()],
               ),
               const SizedBox(height: 20),
@@ -193,7 +188,7 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                 style: AppTextStyles.labelMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              CustomTextField(controller: _cardHolderController, hintText: 'JOHN DOE', keyboardType: TextInputType.name, prefixIcon: Icon(Icons.person)),
+              CustomTextField(controller: _cardHolderController, hintText: 'JOHN DOE', keyboardType: TextInputType.name),
               const SizedBox(height: 20),
 
               // Expiry and CVV
@@ -213,7 +208,6 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                           controller: _expiryController,
                           hintText: 'MM/YY',
                           keyboardType: TextInputType.number,
-                          prefixIcon: Icon(Icons.calendar_today),
                           inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(4), _ExpiryDateFormatter()],
                         ),
                       ],
@@ -235,7 +229,6 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                           hintText: '123',
                           keyboardType: TextInputType.number,
                           obscureText: false,
-                          prefixIcon: Icon(Icons.lock),
                           inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(3)],
                         ),
                       ],
@@ -249,13 +242,18 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.completed.withOpacity(0.1),
+                  color: const Color(0xFFF8FFE9),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.completed.withOpacity(0.3)),
+                  border: Border.all(color: const Color(0xFFE8EFE0)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.security, color: AppColors.completed, size: 24),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(color: Color(0xFFFCE7F3), shape: BoxShape.circle),
+                      child: const Icon(Icons.verified_user_outlined, color: AppColors.onBackground, size: 22),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text('Your payment is secured with 256-bit SSL encryption', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
@@ -279,7 +277,7 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accent,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                 disabledBackgroundColor: AppColors.primaryGray,
               ),
               child: _isProcessing
@@ -297,32 +295,6 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
         ),
       ),
     );
-  }
-
-  IconData _getPaymentIcon(String method) {
-    switch (method) {
-      case 'paypal':
-        return Icons.account_balance_wallet;
-      case 'google_pay':
-        return Icons.payment;
-      case 'apple_pay':
-        return Icons.apple;
-      default:
-        return Icons.credit_card;
-    }
-  }
-
-  String _getPaymentMethodName(String method) {
-    switch (method) {
-      case 'paypal':
-        return 'PayPal';
-      case 'google_pay':
-        return 'Google Pay';
-      case 'apple_pay':
-        return 'Apple Pay';
-      default:
-        return 'Credit / Debit Card';
-    }
   }
 }
 
