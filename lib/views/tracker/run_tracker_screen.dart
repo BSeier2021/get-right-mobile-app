@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
@@ -9,7 +10,6 @@ import 'package:get_right/services/gps_service.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
-import 'package:get_right/views/home/dashboard_screen.dart';
 
 /// Run Tracker - GPS tracking and run history
 class RunTrackerScreen extends StatefulWidget {
@@ -22,7 +22,9 @@ class RunTrackerScreen extends StatefulWidget {
 class _RunTrackerScreenState extends State<RunTrackerScreen> {
   final RunTrackingController _trackingController = Get.put(RunTrackingController());
   GoogleMapController? _mapController;
+  // ignore: unused_field
   int _totalRuns = 0;
+  // ignore: unused_field
   double _totalDistance = 0.0;
   bool _mapLoadError = false;
   bool _isMapCreated = false;
@@ -31,6 +33,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
   DateTime? _lastCameraUpdate;
   String? _selectedActivity;
 
+  // ignore: unused_field
   final List<Map<String, dynamic>> _activities = [
     {'type': 'Walk', 'icon': Icons.directions_walk, 'color': const Color(0xFF4CAF50), 'description': 'Low intensity cardio'},
     {'type': 'Jog', 'icon': Icons.directions_walk_outlined, 'color': const Color(0xFFFF9800), 'description': 'Moderate pace activity'},
@@ -171,42 +174,15 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
 
           // Draggable Bottom Sheet with Activity Selection
           DraggableScrollableSheet(
-            initialChildSize: 0.13,
-            minChildSize: 0.12,
-            maxChildSize: 0.30,
+            initialChildSize: 0.20,
+            minChildSize: 0.20,
+            maxChildSize: 0.38,
             snap: true,
             snapSizes: const [0.12, 0.30],
             builder: (context, scrollController) => _buildDraggableBottomSheet(scrollController),
           ),
 
           // Plan Route Button - Top Right
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
-            right: 16,
-            child: Material(
-              elevation: 4,
-              borderRadius: BorderRadius.circular(12),
-              color: AppColors.accent,
-              child: InkWell(
-                onTap: () => Get.toNamed(AppRoutes.routePlanning),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.map_outlined, color: AppColors.white, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Plan Route',
-                        style: AppTextStyles.labelMedium.copyWith(color: AppColors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -497,6 +473,32 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
         padding: EdgeInsets.zero,
         children: [
           8.h.verticalSpace,
+          // Plan Route - full width primary CTA
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            child: SizedBox(
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () => Get.toNamed(AppRoutes.routePlanning),
+
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accentVariant,
+                  foregroundColor: AppColors.onAccent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                  elevation: 0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.route, size: 20),
+                    const SizedBox(width: 8),
+                    Text('Plan Route', style: AppTextStyles.labelLarge.copyWith(color: AppColors.onAccent)),
+                  ],
+                ),
+              ),
+            ),
+          ),
           // Action Buttons - Non-scrollable section
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -509,21 +511,22 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
                     child: OutlinedButton(
                       onPressed: _startActivity,
                       style: OutlinedButton.styleFrom(
+                        backgroundColor: AppColors.accentVariant,
                         side: BorderSide(color: AppColors.accent.withOpacity(0.5), width: 2),
                         foregroundColor: AppColors.accent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                         padding: EdgeInsets.zero,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.play_arrow, size: 20),
+                          SvgPicture.asset('assets/icons/play.svg', width: 20, height: 20),
                           const SizedBox(width: 8),
                           Flexible(
                             child: Text(
                               'Start Activity',
-                              style: AppTextStyles.labelLarge.copyWith(color: AppColors.black),
+                              style: AppTextStyles.labelLarge.copyWith(color: AppColors.white),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -542,21 +545,22 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
                         Get.toNamed(AppRoutes.runHistory);
                       },
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 2),
+                        side: BorderSide(color: AppColors.accentVariant.withOpacity(0.5), width: 2),
                         foregroundColor: AppColors.onSurface,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        backgroundColor: AppColors.accentVariant,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                         padding: EdgeInsets.zero,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.history_rounded, size: 20),
+                          const Icon(Icons.history_rounded, size: 20, color: AppColors.white),
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
                               'View History',
-                              style: AppTextStyles.labelLarge.copyWith(color: AppColors.onSurface),
+                              style: AppTextStyles.labelLarge.copyWith(color: AppColors.white),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -583,21 +587,13 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
                 ),
                 const SizedBox(height: 16),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: _activities.map((activity) {
-                    final isSelected = _selectedActivity == activity['type'];
-                    return _buildActivityIcon(
-                      type: activity['type'] as String,
-                      icon: activity['icon'] as IconData,
-                      color: activity['color'] as Color,
-                      isSelected: isSelected,
-                      onTap: () {
-                        setState(() {
-                          _selectedActivity = activity['type'] as String;
-                        });
-                      },
-                    );
-                  }).toList(),
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildActivityOption(type: 'walk', label: 'Walk', asset: 'assets/images/run111.png', bgColor: const Color(0xFFE4F3E9)),
+                    _buildActivityOption(type: 'jog', label: 'Jog', asset: 'assets/images/jog.png', bgColor: const Color(0xFFFEEFDA)),
+                    _buildActivityOption(type: 'run', label: 'Run', asset: 'assets/images/runing.png', bgColor: const Color(0xFFF3E7F6)),
+                    _buildActivityOption(type: 'bike', label: 'Bike', asset: 'assets/images/byke.png', bgColor: const Color(0xFFE3F0FF)),
+                  ],
                 ),
               ],
             ),
@@ -607,7 +603,35 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
     );
   }
 
+  Widget _buildActivityOption({required String type, required String label, required String asset, required Color bgColor}) {
+    final bool isSelected = _selectedActivity == type;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedActivity = type),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: bgColor,
+              shape: BoxShape.circle,
+              border: Border.all(color: isSelected ? const Color(0xFF5BA3FF) : Colors.transparent, width: 2),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Image.asset(asset, fit: BoxFit.contain),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface)),
+        ],
+      ),
+    );
+  }
+
   /// Build activity type icon button
+  // ignore: unused_element
   Widget _buildActivityIcon({required String type, required IconData icon, required Color color, required bool isSelected, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,

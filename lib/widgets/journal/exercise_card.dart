@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/utils.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/models/exercise_set_model.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -50,7 +51,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: widget.showBorder ? Border.all(color: AppColors.accent.withOpacity(0.3), width: 2) : null,
         boxShadow: widget.showBorder ? [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))] : null,
@@ -115,7 +116,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
             padding: EdgeInsets.all(10),
             margin: EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: AppColors.white,
               borderRadius: BorderRadius.circular(16),
               // border: widget.showBorder ? Border.all(color: AppColors.accent.withOpacity(0.3), width: 2) : null,
               boxShadow: widget.showBorder ? [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))] : null,
@@ -135,7 +136,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
 
   Widget _buildSetsTable() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Column(
         children: [
           Padding(
@@ -147,59 +148,59 @@ class _ExerciseCardState extends State<ExerciseCard> {
                   flex: 1,
                   child: Container(
                     padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
+                    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.settings, size: 12, color: AppColors.accentVariant),
+                        Image.asset('assets/images/sets.png', width: 17.w),
                         const SizedBox(width: 4),
                         Text(
                           'Set',
                           textAlign: TextAlign.center,
-                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
                         ),
                       ],
                     ),
                   ),
-                ),
+                ).paddingOnly(right: 10),
                 Expanded(
-                  flex: 2,
+                  flex: 1,
                   child: Container(
                     padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
+                    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(widget.exercise.hasTimedSets ? Icons.timer_outlined : Icons.repeat, size: 12, color: AppColors.accentVariant),
+                        Image.asset('assets/images/reps.png', width: 17.w),
                         const SizedBox(width: 4),
                         Text(
                           widget.exercise.hasTimedSets ? 'Time' : 'Reps',
                           textAlign: TextAlign.center,
-                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
                         ),
                       ],
                     ),
                   ),
-                ),
+                ).paddingOnly(left: 10, right: 10),
                 Expanded(
-                  flex: 2,
+                  flex: 1,
                   child: Container(
                     padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
+                    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.fitness_center, size: 12, color: AppColors.accentVariant),
+                        Image.asset('assets/images/weight.png', width: 17.w),
                         const SizedBox(width: 4),
                         Text(
                           'Weight',
                           textAlign: TextAlign.center,
-                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
                         ),
                       ],
                     ),
                   ),
-                ),
+                ).paddingSymmetric(horizontal: 10),
               ],
             ),
           ),
@@ -217,19 +218,17 @@ class _ExerciseCardState extends State<ExerciseCard> {
         border: isLast ? null : Border(bottom: BorderSide(color: AppColors.primaryGray.withOpacity(0.1), width: 1)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            flex: 1,
-            child: Text(
-              '${set.setNumber}',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 12),
-            ),
+          Text(
+            '${set.setNumber}',
+            textAlign: TextAlign.left,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 12),
           ),
-          Expanded(flex: 2, child: _buildRepsOrTime(set)),
-          Expanded(flex: 2, child: _buildWeight(set)),
+          _buildRepsOrTime(set),
+          _buildWeight(set),
         ],
-      ),
+      ).paddingSymmetric(horizontal: 30),
     );
   }
 
@@ -293,7 +292,6 @@ class _ExerciseCardState extends State<ExerciseCard> {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(color: AppColors.primaryGrayLight.withOpacity(0.3), borderRadius: BorderRadius.circular(8)),
       child: Text(
         widget.exercise.notes!,

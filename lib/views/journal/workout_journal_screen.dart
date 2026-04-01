@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/workout_journal_model.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
@@ -119,6 +120,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     return '$exerciseCount Exercise${exerciseCount != 1 ? 's' : ''}';
   }
 
+  // ignore: unused_element
   Widget _buildStatBadge({required IconData icon, required String value, required String label}) {
     return Column(
       children: [
@@ -157,8 +159,10 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         _workout = _workout!.copyWith(workoutExercises: [..._workout!.workoutExercises, ...r['exercises'] as List<WorkoutExerciseModel>]);
       });
   });
+  // ignore: unused_element
   void _onAddExercise() => Get.toNamed(AppRoutes.addExercise);
 
+  // ignore: unused_element
   void _showQuickAddDialog({required bool isTimer}) {
     final TextEditingController nameController = TextEditingController();
     final TextEditingController setsController = TextEditingController(text: '3');
@@ -564,6 +568,97 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     );
   }
 
+  void _showShareDialog() {
+    Get.dialog(
+      Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Share Post',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Get.back(),
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.08),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.red.withOpacity(0.25)),
+                      ),
+                      child: const Icon(Icons.close, size: 16, color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text('Choose how you want to share your activity', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark)),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildShareOption(icon: Icons.message_outlined, label: 'Message', onTap: () => _shareVia('message')),
+                  _buildShareOption(icon: Icons.link, label: 'Copy Link', onTap: () => _shareVia('copy')),
+                  _buildShareOption(icon: Icons.share_outlined, label: 'More', onTap: () => _shareVia('more')),
+                ],
+              ),
+              const SizedBox(height: 6),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+    );
+  }
+
+  Widget _buildShareOption({required IconData icon, required String label, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withOpacity(0.12),
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.accent.withOpacity(0.25)),
+            ),
+            child: Icon(icon, color: const Color(0xFF1E5B2E)),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface)),
+        ],
+      ),
+    );
+  }
+
+  void _shareVia(String method) {
+    Get.back();
+    switch (method) {
+      case 'message':
+        Get.snackbar('Share', 'Open messages to share', backgroundColor: AppColors.accent, colorText: AppColors.onAccent);
+        break;
+      case 'copy':
+        Get.snackbar('Link Copied', 'Workout link copied to clipboard', backgroundColor: AppColors.completed, colorText: AppColors.onError);
+        break;
+      default:
+        Get.snackbar('Share', 'Opening system share sheet', backgroundColor: AppColors.accentVariant, colorText: Colors.white);
+    }
+  }
+
   Widget _buildContent() {
     return Column(
       children: [
@@ -591,15 +686,27 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color.fromARGB(33, 33, 78, 49),
+                      borderRadius: BorderRadius.circular(50),
+                      border: Border.all(color: AppColors.accentVariant.withOpacity(0.25), width: 2),
+                    ),
+                    child: SvgPicture.asset('assets/icons/share.svg', width: 22, colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn)).paddingAll(5),
+                  ),
+                  onPressed: _showShareDialog,
+                ),
                 ElevatedButton.icon(
                   onPressed: _startWorkout,
                   icon: Icon(Icons.play_arrow, color: AppColors.white, size: 25),
+
                   label: Text('Start Workout', style: AppTextStyles.buttonMedium),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 75),
                     backgroundColor: AppColors.accent,
                     foregroundColor: AppColors.onAccent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                     elevation: 2,
                   ),
                 ),
@@ -610,7 +717,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: const Color.fromARGB(33, 33, 78, 49),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(50),
                         border: Border.all(color: AppColors.accentVariant.withOpacity(0.25), width: 2),
                       ),
                       child: Icon(Icons.add, color: AppColors.accentVariant, size: 30.sp),
@@ -903,9 +1010,9 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                   child: ElevatedButton(
                     onPressed: () => Get.back(),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
+                      backgroundColor: AppColors.accentVariant,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     child: Text('Cancel', style: AppTextStyles.buttonMedium),

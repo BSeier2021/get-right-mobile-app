@@ -92,30 +92,51 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
     if (r != null) Get.back(result: r);
   });
 
-  // Get icon and color for exercise based on primary muscle group
-  Map<String, dynamic> _getExerciseIconAndColor(ExerciseLibraryModel exercise) {
-    final muscle = exercise.primaryMuscle.toLowerCase();
+  // Resolve exercise-specific image asset by exercise name
+  String _getExerciseAsset(ExerciseLibraryModel exercise) {
+    final name = exercise.name.toLowerCase().replaceAll('-', ' ').trim();
+    // Map normalized names to assets provided by user
+    const Map<String, String> map = {
+      'bench press': 'assets/images/1. bench press.png',
+      'squat': 'assets/images/2. squat.png',
+      'deadlift': 'assets/images/3. deadlift.png',
+      'overhead press': 'assets/images/4. overhead press.png',
+      'pull up': 'assets/images/5. pull up.png',
+      'plank': 'assets/images/6. plank.png',
+      'front squat': 'assets/images/7. front squat.png',
+      'lat pulldown': 'assets/images/8. lat pulldown.png',
+      'dumbbell curl': 'assets/images/9.  dumbell curl.png', // handle common spelling
+      'dumbell curl': 'assets/images/9.  dumbell curl.png',
+      'triceps pushdown': 'assets/images/10. tricep pushdown.png',
+      'tricep pushdown': 'assets/images/10. tricep pushdown.png',
+      'lunges': 'assets/images/11. lunges.png',
+      'leg press': 'assets/images/12. Leg press.png',
+    };
 
-    if (muscle.contains('chest')) {
-      return {'icon': Icons.fitness_center, 'color': AppColors.accent};
-    } else if (muscle.contains('back')) {
-      return {'icon': Icons.rowing, 'color': AppColors.completed};
-    } else if (muscle.contains('quadriceps') || muscle.contains('leg')) {
-      return {'icon': Icons.directions_run, 'color': AppColors.upcoming};
-    } else if (muscle.contains('shoulder')) {
-      return {'icon': Icons.sports_mma, 'color': AppColors.accent};
-    } else if (muscle.contains('core')) {
-      return {'icon': Icons.self_improvement, 'color': AppColors.primaryGray};
-    } else if (muscle.contains('bicep')) {
-      return {'icon': Icons.emoji_events, 'color': AppColors.upcoming};
-    } else if (muscle.contains('tricep')) {
-      return {'icon': Icons.local_fire_department, 'color': AppColors.error};
-    } else if (muscle.contains('glute') || muscle.contains('hamstring')) {
-      return {'icon': Icons.directions_walk, 'color': AppColors.upcoming};
-    } else {
-      // Default icon and color
-      return {'icon': Icons.fitness_center, 'color': AppColors.accent};
+    // Try exact match
+    if (map.containsKey(name)) return map[name]!;
+
+    // Try relaxed contains matching for safety
+    for (final entry in map.entries) {
+      if (name.contains(entry.key)) return entry.value;
     }
+
+    // Fallback to a neutral placeholder (uses accent icon background with no image)
+    return '';
+  }
+
+  // Soft tint color based on primary muscle
+  Color _getMuscleTint(ExerciseLibraryModel exercise) {
+    final muscle = exercise.primaryMuscle.toLowerCase();
+    if (muscle.contains('chest')) return AppColors.accent;
+    if (muscle.contains('back')) return AppColors.completed;
+    if (muscle.contains('quadriceps') || muscle.contains('leg')) return AppColors.upcoming;
+    if (muscle.contains('shoulder')) return AppColors.accent;
+    if (muscle.contains('core')) return AppColors.primaryGray;
+    if (muscle.contains('bicep')) return AppColors.upcoming;
+    if (muscle.contains('tricep')) return AppColors.error;
+    if (muscle.contains('glute') || muscle.contains('hamstring')) return AppColors.upcoming;
+    return AppColors.accent;
   }
 
   @override
@@ -180,9 +201,10 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                   itemBuilder: (ctx, i) {
                     final ex = _filtered[i];
                     final sel = _selected.contains(ex);
-                    final iconData = _getExerciseIconAndColor(ex);
-                    final icon = iconData['icon'] as IconData;
-                    final color = iconData['color'] as Color;
+                    final asset = _getExerciseAsset(ex);
+                    final baseTint = _getMuscleTint(ex);
+                    // Slightly stronger tint when selected
+                    final Color color = sel ? baseTint : baseTint.withOpacity(0.9);
 
                     return Card(
                       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 7.h),
@@ -209,11 +231,18 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                                 width: 44,
                                 height: 44,
                                 decoration: BoxDecoration(
-                                  gradient: LinearGradient(colors: [color.withOpacity(0.25), color.withOpacity(0.1)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: color.withOpacity(0.25), width: 1),
+                                  color: color.withOpacity(0.18),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: color.withOpacity(0.45), width: 1),
+                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
                                 ),
-                                child: Center(child: Icon(icon, color: color, size: 22)),
+                                clipBehavior: Clip.antiAlias,
+                                child: asset.isNotEmpty
+                                    ? Padding(
+                                        padding: const EdgeInsets.all(6),
+                                        child: Image.asset(asset, fit: BoxFit.contain),
+                                      )
+                                    : Center(child: Icon(Icons.fitness_center, color: color, size: 20)),
                               ),
                               SizedBox(width: 12.w),
                               if (sel)
