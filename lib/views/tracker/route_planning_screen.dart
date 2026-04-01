@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:get_right/routes/app_routes.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
@@ -209,8 +211,8 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
       createdAt: DateTime.now(),
     );
 
-    // Return to activity type screen with route
-    Get.back(result: route);
+    // Navigate directly to live tracking screen with this planned route
+    Get.toNamed(AppRoutes.runTracking, arguments: {'plannedRoute': route, 'activityType': 'run'});
   }
 
   @override
@@ -244,11 +246,8 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
                 // Instructions overlay (top)
                 _buildInstructions(),
 
-                // Distance card (bottom)
-                _buildDistanceCard(),
-
-                // Action buttons
-                _buildActionButtons(),
+                // Bottom sheet card (distance + actions)
+                _buildBottomSheetCard(),
               ],
             ),
     );
@@ -291,18 +290,20 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.black.withOpacity(0.85),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.accent.withOpacity(0.5), width: 1.5),
+          color: AppColors.accent,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: AppColors.accent.withOpacity(0.9), width: 1.2),
+          boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.25), blurRadius: 12, offset: const Offset(0, 3))],
         ),
         child: Row(
           children: [
-            const Icon(Icons.touch_app, color: AppColors.accent, size: 20),
+            Icon(Icons.gps_fixed, color: AppColors.white, size: 16),
+
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                _routePoints.isEmpty ? 'Tap to add start point' : 'Tap to add more points • Drag markers to adjust',
-                style: AppTextStyles.labelMedium.copyWith(color: AppColors.white, fontWeight: FontWeight.w600),
+                _routePoints.isEmpty ? 'Tap to add start point and end point' : 'Tap to add more points • Drag markers to adjust',
+                style: AppTextStyles.labelMedium.copyWith(color: AppColors.white, fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -311,7 +312,7 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
     );
   }
 
-  /// Build distance card
+  // ignore: unused_element
   Widget _buildDistanceCard() {
     return Positioned(
       bottom: 100,
@@ -359,7 +360,7 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
     );
   }
 
-  /// Build action buttons
+  // ignore: unused_element
   Widget _buildActionButtons() {
     return Positioned(
       bottom: 16,
@@ -412,6 +413,93 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Bottom sheet style card (distance + actions)
+  Widget _buildBottomSheetCard() {
+    String _formatHmsFromDistance(double meters) {
+      final seconds = (meters / 1000 * 6 * 60).round();
+      final h = (seconds ~/ 3600).toString().padLeft(2, '0');
+      final m = ((seconds % 3600) ~/ 60).toString().padLeft(2, '0');
+      final s = (seconds % 60).toString().padLeft(2, '0');
+      return '$h:$m:$s';
+    }
+
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.4), borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Route Distance',
+                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _formatHmsFromDistance(_totalDistance),
+                style: AppTextStyles.headlineLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w900, fontSize: 42),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: _saveRoute,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          foregroundColor: AppColors.onAccent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.save, size: 20, color: AppColors.white),
+                        label: Text('Save', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onAccent)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: _startRunWithRoute,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.primaryGray, width: 2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                          foregroundColor: AppColors.onSurface,
+                          backgroundColor: Colors.transparent,
+                        ),
+                        icon: SvgPicture.asset('assets/icons/play.svg', width: 20, height: 20, color: AppColors.onSurface),
+
+                        label: Text('Start', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onSurface)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );

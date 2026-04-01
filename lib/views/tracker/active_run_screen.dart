@@ -99,14 +99,11 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
               // Map Layer
               _buildMap(),
 
-              // Overlay with stats (hidden when locked, only shown when tracking)
-              // if (!_isLocked) Obx(() => _controller.isTracking.value ? _buildStatsOverlay() : const SizedBox.shrink()),
+              // Running header (like screenshot)
+              if (!_isLocked) _buildRunningHeader(),
 
-              // Top safe area with back button (hidden when locked)
-              if (!_isLocked) _buildTopBar(),
-
-              // Bottom sheet with controls (hidden when locked)
-              if (!_isLocked) _buildBottomSheet(),
+              // Bottom controls bar (Stop / Pause / Map)
+              if (!_isLocked) _buildBottomControlsBar(),
 
               // Lock overlay (shown when locked)
               if (_isLocked) _buildLockOverlay(),
@@ -244,6 +241,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
   }
 
   /// Build top bar with status
+  // ignore: unused_element
   Widget _buildTopBar() {
     return Positioned(
       top: 0,
@@ -286,7 +284,166 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
     );
   }
 
+  /// Header card like the screenshot (Running, big timer, three mini stats)
+  Widget _buildRunningHeader() {
+    return Obx(() {
+      final time = _controller.formatDuration(_controller.elapsedTime.value);
+      final distanceKm = (_controller.distanceMeters.value / 1000).toStringAsFixed(2);
+      final pace = _controller.formatPace(_controller.currentPace.value);
+      final kcal = _controller.caloriesBurned.value > 0 ? _controller.caloriesBurned.value.toStringAsFixed(0) : '0';
+
+      return Positioned(
+        top: 0,
+        left: 0,
+        right: 0,
+        child: Container(
+          padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 8, left: 16, right: 16, bottom: 14),
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                'Running',
+                style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                time,
+                style: AppTextStyles.headlineLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w900, fontSize: 36),
+              ),
+              const SizedBox(height: 2),
+              Text('mins', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark)),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _miniStat(value: distanceKm, label: 'km'),
+                  _miniStat(value: pace, label: 'Pace (Min/km)'),
+                  _miniStat(value: kcal, label: 'kcal'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _miniStat({required String value, required String label}) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 2),
+        Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11)),
+      ],
+    );
+  }
+
+  /// Bottom controls bar like screenshot
+  Widget _buildBottomControlsBar() {
+    return Obx(() {
+      final isPaused = _controller.isPaused.value;
+      return Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, -4))],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Stop (red)
+                  _roundIconButton(
+                    color: AppColors.error,
+                    onTap: _showStopDialog,
+                    customChild: Center(
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: AppColors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Pause/Resume (green)
+                  _roundIconButton(
+                    color: AppColors.accent,
+                    icon: isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                    onTap: () {
+                      if (isPaused) {
+                        _controller.resumeTracking();
+                      } else {
+                        _controller.pauseTracking();
+                      }
+                    },
+                    large: true,
+                  ),
+                  // Lock (grey)
+                  _roundIconButton(
+                    color: AppColors.primaryGray,
+                    icon: _isLocked ? Icons.lock_open_rounded : Icons.lock_rounded,
+                    onTap: () {
+                      setState(() {
+                        _isLocked = !_isLocked;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _roundIconButton({required Color color, IconData? icon, Widget? customChild, required VoidCallback onTap, bool large = false}) {
+    final double size = large ? 64 : 50;
+    final double iconSize = large ? 28 : 22;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: [BoxShadow(color: color.withOpacity(0.35), blurRadius: 12)],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: customChild ??
+              Icon(
+                icon,
+                color: AppColors.white,
+                size: iconSize,
+              ),
+        ),
+      ),
+    );
+  }
+
   /// Build stats overlay (for Stack positioning)
+  // ignore: unused_element
   Widget _buildStatsOverlay() {
     return Positioned(top: MediaQuery.of(context).padding.top + 80, left: 16, right: 16, child: _buildStatsContent());
   }
@@ -361,6 +518,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
   }
 
   /// Build bottom sheet with controls
+  // ignore: unused_element
   Widget _buildBottomSheet() {
     return DraggableScrollableSheet(
       initialChildSize: 0.25,
@@ -482,6 +640,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
     );
   }
 
+  // ignore: unused_element
   Widget _buildBottomSheetStat(String label, String value, {bool showHeart = false}) {
     return Column(
       children: [

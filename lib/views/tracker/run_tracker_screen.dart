@@ -253,19 +253,19 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
             // Map info badge
             if (hasPosition)
               Positioned(
-                top: MediaQuery.of(Get.context!).padding.top + 125,
+                top: MediaQuery.of(Get.context!).padding.top + 80,
                 right: 16,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.black.withOpacity(0.75),
+                    color: AppColors.accentVariant,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.accent.withOpacity(0.5), width: 1.5),
+                    border: Border.all(color: AppColors.white.withOpacity(0.5), width: 1.5),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.gps_fixed, color: AppColors.accent, size: 16),
+                      Icon(Icons.gps_fixed, color: AppColors.white, size: 16),
                       const SizedBox(width: 6),
                       Text(
                         'GPS Ready',
