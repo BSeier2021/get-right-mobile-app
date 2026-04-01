@@ -178,7 +178,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
             minChildSize: 0.20,
             maxChildSize: 0.38,
             snap: true,
-            snapSizes: const [0.12, 0.30],
+            snapSizes: const [0.20, 0.30, 0.38],
             builder: (context, scrollController) => _buildDraggableBottomSheet(scrollController),
           ),
 
