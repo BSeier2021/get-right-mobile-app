@@ -24,10 +24,12 @@ class RecipesTab extends StatelessWidget {
                 child: TextField(
                   onChanged: (value) => controller.setSearchQuery(value),
                   decoration: InputDecoration(
-                    hintText: 'Search recipes...', filled: true, fillColor: AppColors.white,
+                    hintText: 'Search recipes...',
+                    filled: true,
+                    fillColor: AppColors.white,
                     hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray),
                     prefixIcon: const Icon(Icons.search, color: AppColors.mediumGray),
-                  
+
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
@@ -185,9 +187,9 @@ class RecipesTab extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.onSurface : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? AppColors.onSurface : AppColors.lightGray, width: 1.5),
+          color: isSelected ? AppColors.accentVariant : Colors.white,
+          borderRadius: BorderRadius.circular(50),
+          border: Border.all(color: isSelected ? AppColors.accentVariant : AppColors.lightGray, width: 1.5),
         ),
         child: Row(
           children: [
@@ -317,9 +319,9 @@ class RecipesTab extends StatelessWidget {
       onTap: () => Get.to(() => RecipeDetailScreen(recipe: recipe)),
       child: Container(
         decoration: BoxDecoration(
-           color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Row(

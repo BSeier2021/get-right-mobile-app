@@ -6,6 +6,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/nutrition/add_food_screen.dart';
+import 'package:get_right/views/nutrition/add_food_gateway_screen.dart';
 
 /// Nutrition Tracker Tab - Shows daily calorie and macro tracking
 /// Requires subscription for full access
@@ -37,19 +38,13 @@ class NutritionTrackerTab extends StatelessWidget {
                   // Macros Overview
                   const SizedBox(height: 24),
 
-                  // Daily Progress Section
+                  // Daily Progress Section (Donut + macros like screenshot)
                   Text(
                     'Daily Progress',
                     style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  _buildProgressBar('Protein', currentDay.totalProtein, currentDay.proteinGoal, const Color(0xFF4A90E2)),
                   const SizedBox(height: 12),
-                  _buildProgressBar('Carbs', currentDay.totalCarbs, currentDay.carbsGoal, const Color(0xFFFFA726)),
-                  const SizedBox(height: 12),
-                  _buildProgressBar('Fats', currentDay.totalFats, currentDay.fatsGoal, const Color(0xFF9C27B0)),
+                  _buildDailyProgressSection(currentDay),
 
                   const SizedBox(height: 24),
 
@@ -82,7 +77,7 @@ class NutritionTrackerTab extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 16, bottom: 16),
                 child: FloatingActionButton.extended(
                   onPressed: () {
-                    _showAddFoodOptions(context, controller);
+                    Get.to(() => AddFoodGatewayScreen());
                   },
                   backgroundColor: AppColors.accent,
                   elevation: 6,
@@ -98,6 +93,98 @@ class NutritionTrackerTab extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildDailyProgressSection(dynamic currentDay) {
+    final consumed = currentDay.totalCalories;
+    final carbsG = currentDay.totalCarbs;
+    final fatsG = currentDay.totalFats;
+    final proteinG = currentDay.totalProtein;
+
+    // Calculate calorie share per macro (4/9/4 kcal per gram)
+    final carbsCal = carbsG * 4.0;
+    final fatsCal = fatsG * 9.0;
+    final proteinCal = proteinG * 4.0;
+    final totalMacroCal = (carbsCal + fatsCal + proteinCal).clamp(0.0, double.infinity);
+
+    final carbsPct = totalMacroCal == 0 ? 0.0 : (carbsCal / totalMacroCal) * 100.0;
+    final fatsPct = totalMacroCal == 0 ? 0.0 : (fatsCal / totalMacroCal) * 100.0;
+    final proteinPct = totalMacroCal == 0 ? 0.0 : (proteinCal / totalMacroCal) * 100.0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          // Donut with three colored segments (Carbs, Fat, Proteins)
+          SizedBox(
+            width: 72,
+            height: 72,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  size: const Size(72, 72),
+                  painter: _SegmentedDonutPainter(
+                    percents: [carbsPct, fatsPct, proteinPct],
+                    colors: const [
+                      Color(0xFFFFA726), // Carbs - orange
+                      Color(0xFF9C27B0), // Fat - purple
+                      Color(0xFF4A90E2), // Proteins - blue
+                    ],
+                    trackColor: AppColors.lightGray,
+                    thickness: 12,
+                    gapDegrees: 2,
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      consumed.toStringAsFixed(0),
+                      style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                    ),
+                    Text('cal', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 10)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Percent rows
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _macroStat(color: const Color(0xFFFFA726), percent: carbsPct, grams: carbsG, label: 'Carbs'),
+                _macroStat(color: const Color(0xFF9C27B0), percent: fatsPct, grams: fatsG, label: 'Fat'),
+                _macroStat(color: const Color(0xFF4A90E2), percent: proteinPct, grams: proteinG, label: 'Proteins'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  double _pct(double value, double goal) {
+    if (goal == 0) return 0;
+    return (value / goal * 100).clamp(0, 100);
+  }
+
+  Widget _macroStat({required Color color, required double percent, required double grams, required String label}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          '${percent.toStringAsFixed(0)}%',
+          style: AppTextStyles.labelMedium.copyWith(color: color, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 2),
+        Text('${grams.toStringAsFixed(1)} g', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11)),
+        const SizedBox(height: 2),
+        Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11)),
+      ],
     );
   }
 
@@ -538,23 +625,19 @@ class NutritionTrackerTab extends StatelessWidget {
   Widget _buildCaloriesCard(double consumed, double goal, double progress, {bool isLimited = false}) {
     final remaining = goal - consumed;
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: const Color(0xFFE5F4CC),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        border: Border.all(color: const Color(0xFFBDE2B7)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.local_fire_department, color: AppColors.accent, size: 20),
-              ),
+              Image.asset("assets/images/Container (1).png"),
               const SizedBox(width: 12),
               Text(
                 'Calories',
@@ -562,28 +645,28 @@ class NutritionTrackerTab extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(
                 consumed.toStringAsFixed(0),
-                style: const TextStyle(fontSize: 40, color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 44, color: AppColors.onSurface, fontWeight: FontWeight.w900),
               ),
               const SizedBox(width: 4),
               Text(
                 '/ ${goal.toStringAsFixed(0)} kcal',
-                style: AppTextStyles.titleMedium.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w500),
+                style: AppTextStyles.titleMedium.copyWith(color: AppColors.black, fontWeight: FontWeight.w500),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
               value: progress.clamp(0.0, 1.0),
-              backgroundColor: AppColors.lightGray,
+              backgroundColor: Colors.white,
               valueColor: AlwaysStoppedAnimation<Color>(progress > 1.0 ? Colors.red : AppColors.accent),
               minHeight: 10,
             ),
@@ -591,7 +674,7 @@ class NutritionTrackerTab extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             remaining > 0 ? '${remaining.toStringAsFixed(0)} kcal remaining' : '${(-remaining).toStringAsFixed(0)} kcal over',
-            style: AppTextStyles.bodyMedium.copyWith(color: remaining > 0 ? AppColors.mediumGray : Colors.red, fontWeight: FontWeight.w500),
+            style: AppTextStyles.bodyMedium.copyWith(color: remaining > 0 ? AppColors.black : Colors.red, fontWeight: FontWeight.w500),
           ),
           if (isLimited) ...[
             const SizedBox(height: 16),
@@ -669,66 +752,99 @@ class NutritionTrackerTab extends StatelessWidget {
       ),
       child: Column(
         children: [
-          InkWell(
-            onTap: () {
-              if (!controller.hasSubscription.value) {
-                _showSubscriptionRequiredDialog(context);
-                return;
-              }
-              Get.to(() => AddFoodScreen(mealType: mealType));
-            },
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: meals.isEmpty ? Colors.transparent : AppColors.lightGray.withOpacity(0.2),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                    child: Text(mealType.icon, style: const TextStyle(fontSize: 20)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          mealType.displayName,
-                          style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
-                        ),
-                        if (meals.isNotEmpty)
-                          Text(
-                            '${totalCalories.toStringAsFixed(0)} kcal',
-                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w500),
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (meals.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-                      child: const Icon(Icons.add, color: Colors.white, size: 18),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                      child: Text(
-                        '${totalCalories.toStringAsFixed(0)} kcal',
-                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: meals.isEmpty ? Colors.transparent : AppColors.lightGray.withOpacity(0.2),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: Row(
+              children: [
+                _mealHeaderIcon(mealType),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        mealType.displayName,
+                        style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
                       ),
-                    ),
-                ],
-              ),
+                      if (meals.isNotEmpty)
+                        Text(
+                          '${totalCalories.toStringAsFixed(0)} kcal',
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w500),
+                        ),
+                    ],
+                  ),
+                ),
+                if (meals.isEmpty)
+                  _smallAddCircle(
+                    onTap: () {
+                      if (!controller.hasSubscription.value) {
+                        _showSubscriptionRequiredDialog(context);
+                        return;
+                      }
+                      Get.to(() => AddFoodScreen(mealType: mealType));
+                    },
+                  )
+                else
+                  _smallAddCircle(
+                    onTap: () {
+                      if (!controller.hasSubscription.value) {
+                        _showSubscriptionRequiredDialog(context);
+                        return;
+                      }
+                      Get.to(() => AddFoodScreen(mealType: mealType));
+                    },
+                  ),
+              ],
             ),
           ),
           if (meals.isNotEmpty) ...[const Divider(height: 1, color: AppColors.lightGray, thickness: 1), ...meals.map((meal) => _buildMealItem(controller, meal))],
         ],
+      ),
+    );
+  }
+
+  /// Header circular icon for each meal using provided PNG assets with pastel background
+  Widget _mealHeaderIcon(MealType mealType) {
+    final Color bg = switch (mealType) {
+      MealType.breakfast => const Color(0xFFFFF0D8),
+      MealType.lunch => const Color(0xFFFFE7D5),
+      MealType.dinner => const Color(0xFFF3E6FF),
+      MealType.snacks => const Color(0xFFE0F3FF),
+    };
+    final String asset = switch (mealType) {
+      MealType.breakfast => 'assets/images/Group 48099133.png',
+      MealType.lunch => 'assets/images/Subtract.png',
+      MealType.dinner => 'assets/images/Subtract (1).png',
+      MealType.snacks => 'assets/images/Group 48099134.png',
+    };
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Image.asset(
+          asset,
+          fit: BoxFit.contain,
+          errorBuilder: (c, e, s) => Text(mealType.icon, style: const TextStyle(fontSize: 20)),
+        ),
+      ),
+    );
+  }
+
+  Widget _smallAddCircle({required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      customBorder: const CircleBorder(),
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: const BoxDecoration(color: Colors.transparent, shape: BoxShape.circle),
+        child: const Icon(Icons.add_circle_outline, color: AppColors.primaryGray, size: 22),
       ),
     );
   }
@@ -801,30 +917,8 @@ class NutritionTrackerTab extends StatelessWidget {
         ),
         child: Row(
           children: [
-            if (meal.foodItem.imageUrl != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  meal.foodItem.imageUrl!,
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(color: AppColors.lightGray, borderRadius: BorderRadius.circular(10)),
-                    child: const Icon(Icons.restaurant, color: AppColors.mediumGray, size: 28),
-                  ),
-                ),
-              )
-            else
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(color: AppColors.lightGray, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.restaurant, color: AppColors.mediumGray, size: 28),
-              ),
-            const SizedBox(width: 14),
+            // Compact item like screenshot: just names and kcal pill
+            const SizedBox(width: 4),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -835,36 +929,74 @@ class NutritionTrackerTab extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${meal.quantity} ${meal.foodItem.servingUnit}',
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w500),
-                  ),
                 ],
               ),
             ),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${meal.totalCalories.toStringAsFixed(0)} kcal',
-                  style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: AppColors.lightGray.withOpacity(0.5), borderRadius: BorderRadius.circular(8)),
-                  child: Text(
-                    'P${meal.totalProtein.toStringAsFixed(0)} C${meal.totalCarbs.toStringAsFixed(0)} F${meal.totalFats.toStringAsFixed(0)}',
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2F4E1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFB5E0B2)),
+              ),
+              child: Text(
+                '${meal.totalCalories.toStringAsFixed(0)} kcal',
+                style: AppTextStyles.labelSmall.copyWith(color: const Color(0xFF2F7D32), fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+// Painter for multi-segment donut chart
+class _SegmentedDonutPainter extends CustomPainter {
+  _SegmentedDonutPainter({required this.percents, required this.colors, required this.trackColor, this.thickness = 12, this.gapDegrees = 0});
+
+  final List<double> percents; // each in 0..100
+  final List<Color> colors;
+  final Color trackColor;
+  final double thickness;
+  final double gapDegrees;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final center = rect.center;
+    final radius = (size.shortestSide / 2) - 2;
+
+    final trackPaint = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = thickness;
+
+    // Draw full track ring
+    canvas.drawCircle(center, radius, trackPaint);
+
+    // Draw segments
+    double startAngle = -90 * (3.141592653589793 / 180.0);
+    final gapRad = gapDegrees * (3.141592653589793 / 180.0);
+    for (int i = 0; i < percents.length; i++) {
+      final sweep = (percents[i].clamp(0.0, 100.0) / 100.0) * (2 * 3.141592653589793) - gapRad;
+      if (sweep <= 0) continue;
+
+      final segPaint = Paint()
+        ..color = colors[i % colors.length]
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.butt
+        ..strokeWidth = thickness;
+
+      canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle + (gapRad / 2), sweep, false, segPaint);
+      startAngle += sweep + gapRad;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SegmentedDonutPainter oldDelegate) {
+    return oldDelegate.percents != percents || oldDelegate.colors != colors || oldDelegate.thickness != thickness || oldDelegate.gapDegrees != gapDegrees;
   }
 }

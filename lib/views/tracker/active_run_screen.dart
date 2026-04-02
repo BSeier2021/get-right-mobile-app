@@ -60,6 +60,14 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       });
     }
 
+    // Auto-start tracking when screen opens (so timer and pause/play work)
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (!_controller.isTracking.value) {
+        await _controller.startTracking(activity: _controller.activityType.value);
+      }
+    });
+
     _startMapUpdates();
   }
 
@@ -107,6 +115,9 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
 
               // Lock overlay (shown when locked)
               if (_isLocked) _buildLockOverlay(),
+
+              // Corner overlay buttons on map (e.g., re-center)
+              if (!_isLocked) _buildCornerButtons(),
             ],
           ),
         ),
@@ -151,7 +162,6 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
             points: routePoints.map((point) => LatLng(point.latitude, point.longitude)).toList(),
             color: AppColors.accent,
             width: 5,
-            patterns: [PatternItem.dot, PatternItem.gap(10)],
           ),
         );
       }
@@ -305,9 +315,17 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                'Running',
-                style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600),
+              Row(
+                children: [
+                  _smallRoundButton(icon: Icons.arrow_back_ios_new_rounded, onTap: _showExitDialog),
+                  const Spacer(),
+                  Text(
+                    'Running',
+                    style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600),
+                  ),
+                  const Spacer(),
+                  const SizedBox(width: 36),
+                ],
               ),
               const SizedBox(height: 4),
               Text(
@@ -321,15 +339,39 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _miniStat(value: distanceKm, label: 'km'),
+                  _verticalDivider(),
                   _miniStat(value: pace, label: 'Pace (Min/km)'),
+                  _verticalDivider(),
                   _miniStat(value: kcal, label: 'kcal'),
                 ],
               ),
+              const SizedBox(height: 4),
+              Icon(Icons.keyboard_arrow_up_rounded, color: AppColors.primaryGrayDark, size: 18),
             ],
           ),
         ),
       );
     });
+  }
+
+  Widget _verticalDivider() {
+    return Container(width: 1, height: 22, color: AppColors.primaryGray.withOpacity(0.35));
+  }
+
+  Widget _smallRoundButton({required IconData icon, required VoidCallback onTap}) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.2), shape: BoxShape.circle),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Icon(icon, size: 16, color: AppColors.onSurface),
+        ),
+      ),
+    );
   }
 
   Widget _miniStat({required String value, required String label}) {
@@ -352,62 +394,56 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       return Positioned(
         left: 0,
         right: 0,
-        bottom: 0,
+        bottom: 20,
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(32),
-                boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, -4))],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Stop (red)
-                  _roundIconButton(
-                    color: AppColors.error,
-                    onTap: _showStopDialog,
-                    customChild: Center(
-                      child: Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: AppColors.white, width: 2),
-                        ),
+            padding: const EdgeInsets.fromLTRB(24, 6, 24, 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Stop (red)
+                _roundIconButton(
+                  color: AppColors.error,
+                  onTap: _showStopDialog,
+                  customChild: Center(
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: AppColors.white, width: 2),
                       ),
                     ),
                   ),
-                  // Pause/Resume (green)
-                  _roundIconButton(
-                    color: AppColors.accent,
-                    icon: isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                    onTap: () {
-                      if (isPaused) {
-                        _controller.resumeTracking();
-                      } else {
-                        _controller.pauseTracking();
-                      }
-                    },
-                    large: true,
-                  ),
-                  // Lock (grey)
-                  _roundIconButton(
-                    color: AppColors.primaryGray,
-                    icon: _isLocked ? Icons.lock_open_rounded : Icons.lock_rounded,
-                    onTap: () {
-                      setState(() {
-                        _isLocked = !_isLocked;
-                      });
-                    },
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 20),
+                // Pause/Resume (green)
+                _roundIconButton(
+                  color: AppColors.accent,
+                  icon: isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                  onTap: () {
+                    if (isPaused) {
+                      _controller.resumeTracking();
+                    } else {
+                      _controller.pauseTracking();
+                    }
+                  },
+                  large: true,
+                ),
+                const SizedBox(width: 20),
+                // Lock (grey)
+                _roundIconButton(
+                  color: AppColors.primaryGray,
+                  icon: _isLocked ? Icons.lock_open_rounded : Icons.lock_rounded,
+                  onTap: () {
+                    setState(() {
+                      _isLocked = !_isLocked;
+                    });
+                  },
+                ),
+              ],
             ),
           ),
         ),
@@ -431,13 +467,25 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
         child: InkWell(
           onTap: onTap,
           customBorder: const CircleBorder(),
-          child: customChild ??
-              Icon(
-                icon,
-                color: AppColors.white,
-                size: iconSize,
-              ),
+          child: customChild ?? Icon(icon, color: AppColors.white, size: iconSize),
         ),
+      ),
+    );
+  }
+
+  /// Corner overlay buttons for map (top-right re-center)
+  Widget _buildCornerButtons() {
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 8,
+      right: 12,
+      child: _smallRoundButton(
+        icon: Icons.my_location_rounded,
+        onTap: () {
+          final position = _controller.currentPosition.value;
+          if (position != null && _mapController != null) {
+            _mapController!.animateCamera(CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)));
+          }
+        },
       ),
     );
   }

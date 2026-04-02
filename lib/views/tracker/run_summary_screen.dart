@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Split;
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get/get.dart';
@@ -36,13 +37,37 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-          _buildAppBar(context, run),
           SliverToBoxAdapter(
             child: Column(
               children: [
-                _buildSuccessIcon(),
-                _buildMapSection(run),
+                SizedBox(height: 40.h),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: AppColors.onPrimary),
+                      onPressed: () => Get.back(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Image.asset('assets/images/Container.png'),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Run Complete!',
+                      style: AppTextStyles.titleLarge.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.bold),
+                    ),
+                    Text(DateFormat('EEEE, MMM d, yyyy').format(run.startTime), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
                 _buildStatsSection(run),
+                const SizedBox(height: 20),
+                _buildMapSection(run),
+
                 _buildDetailedStats(run),
                 if (run.splits != null && run.splits!.isNotEmpty) _buildSplitsSection(run),
                 _buildActionButtons(run),
@@ -55,63 +80,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
     );
   }
 
-  /// Build success icon
-  Widget _buildSuccessIcon() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Container(
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(
-          color: AppColors.completed.withOpacity(0.2),
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.completed, width: 3),
-        ),
-        child: const Icon(Icons.check_circle_rounded, color: AppColors.completed, size: 60),
-      ),
-    );
-  }
-
   /// Build app bar with run title
-  Widget _buildAppBar(BuildContext context, RunModel run) {
-    final dateFormat = DateFormat('EEEE, MMM d, yyyy');
-
-    return SliverAppBar(
-      expandedHeight: 120,
-      pinned: true,
-      backgroundColor: AppColors.background,
-      leading: IconButton(
-        icon: const Icon(Icons.close_rounded, color: AppColors.onPrimary),
-        onPressed: () => Get.back(),
-      ),
-      flexibleSpace: FlexibleSpaceBar(
-        centerTitle: true,
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Run Complete!',
-              style: AppTextStyles.titleLarge.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.bold),
-            ),
-            Text(dateFormat.format(run.startTime), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11)),
-          ],
-        ),
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [AppColors.accent.withOpacity(0.2), AppColors.primary]),
-          ),
-        ),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.share_rounded, color: AppColors.onPrimary),
-          onPressed: () {
-            Get.snackbar('Coming Soon', 'Share run feature', snackPosition: SnackPosition.BOTTOM);
-          },
-        ),
-      ],
-    );
-  }
 
   /// Build map section with Google Maps
   Widget _buildMapSection(RunModel run) {
@@ -175,75 +144,66 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
 
   /// Build main stats section
   Widget _buildStatsSection(RunModel run) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [AppColors.accent.withOpacity(0.15), AppColors.surface], begin: Alignment.topLeft, end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 1.5),
-      ),
-      child: Column(
-        children: [
-          // Activity Type Badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: _getActivityColor(run.activityType).withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _getActivityColor(run.activityType), width: 2),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(_getActivityIcon(run.activityType), color: _getActivityColor(run.activityType), size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  run.activityType.toUpperCase(),
-                  style: AppTextStyles.labelMedium.copyWith(color: _getActivityColor(run.activityType), fontWeight: FontWeight.bold, letterSpacing: 1.2),
-                ),
-              ],
-            ),
+    return Column(
+      children: [
+        // Activity Type Badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: _getActivityColor(run.activityType).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _getActivityColor(run.activityType), width: 2),
           ),
-          const SizedBox(height: 20),
-
-          // Distance - main stat
-          Column(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Total Distance', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryGray, letterSpacing: 1.2)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    (run.distanceMeters / 1000).toStringAsFixed(2),
-                    style: AppTextStyles.headlineLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 48, height: 1),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8, left: 4),
-                    child: Text('km', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
-                  ),
-                ],
+              Icon(_getActivityIcon(run.activityType), color: _getActivityColor(run.activityType), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                run.activityType.toUpperCase(),
+                style: AppTextStyles.labelMedium.copyWith(color: _getActivityColor(run.activityType), fontWeight: FontWeight.bold, letterSpacing: 1.2),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          const Divider(color: AppColors.primaryGray, height: 1),
-          const SizedBox(height: 24),
-          // Secondary stats grid
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildSecondaryStatItem(Icons.timer_rounded, 'Time', _formatDuration(run.duration)),
-              Container(width: 1, height: 40, color: AppColors.primaryGray.withOpacity(0.3)),
-              _buildSecondaryStatItem(Icons.speed_rounded, 'Avg Pace', run.averagePace != null ? '${run.averagePace!.toStringAsFixed(1)}\'/km' : '--'),
-              Container(width: 1, height: 40, color: AppColors.primaryGray.withOpacity(0.3)),
-              _buildSecondaryStatItem(Icons.local_fire_department_rounded, 'Calories', run.caloriesBurned != null ? '${run.caloriesBurned}' : '--'),
-            ],
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 20),
+
+        // Distance - main stat
+        Column(
+          children: [
+            Text('Total Distance', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryGray, letterSpacing: 1.2)),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  (run.distanceMeters / 1000).toStringAsFixed(2),
+                  style: AppTextStyles.headlineLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 48, height: 1),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8, left: 4),
+                  child: Text('km', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const Divider(color: AppColors.primaryGray, height: 1),
+        const SizedBox(height: 24),
+        // Secondary stats grid
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildSecondaryStatItem(Icons.timer_rounded, 'Time', _formatDuration(run.duration)),
+            Container(width: 1, height: 40, color: AppColors.primaryGray.withOpacity(0.3)),
+            _buildSecondaryStatItem(Icons.speed_rounded, 'Avg Pace', run.averagePace != null ? '${run.averagePace!.toStringAsFixed(1)}\'/km' : '--'),
+            Container(width: 1, height: 40, color: AppColors.primaryGray.withOpacity(0.3)),
+            _buildSecondaryStatItem(Icons.local_fire_department_rounded, 'Calories', run.caloriesBurned != null ? '${run.caloriesBurned}' : '--'),
+          ],
+        ),
+      ],
     );
   }
 

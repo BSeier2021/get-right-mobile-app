@@ -123,7 +123,7 @@ class _NutritionScreenState extends State<NutritionScreen> with SingleTickerProv
         actions: [
           GestureDetector(
             onTap: () => Get.to(const PlannerScreen()),
-            child: Image.asset('assets/images/calender1.png', width: 20.w),
+            child: Image.asset('assets/images/calendar-222.png', width: 25.w),
           ).paddingOnly(right: 15, bottom: 10),
         ],
 

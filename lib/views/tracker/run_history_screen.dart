@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:get_right/models/run_model.dart';
@@ -162,18 +163,13 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
         leading: GestureDetector(
           onTap: () => Get.back(),
           child: Container(
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 18),
           ).paddingAll(8),
         ),
-        title: Text('Run History', style: AppTextStyles.titleLarge.copyWith()),
+        title: Text('History', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list_rounded, color: AppColors.onPrimary),
-            onPressed: _showFilterMenu,
-          ),
-        ],
+        actions: const [],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
@@ -215,18 +211,18 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accentVariant,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+              border: Border.all(color: AppColors.accent.withOpacity(0.35)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.filter_alt_outlined, size: 16, color: AppColors.accent),
+                SvgPicture.asset('assets/icons/filter.svg', color: AppColors.white, width: 16, height: 16),
                 const SizedBox(width: 6),
                 Text(
-                  _selectedFilter,
-                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                  'All',
+                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.white, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -235,18 +231,18 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: Colors.transparent,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+              border: Border.all(color: AppColors.primaryGray.withOpacity(0.6)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.sort_rounded, size: 16, color: AppColors.accent),
+                const Icon(Icons.sort_rounded, size: 16, color: AppColors.primaryGrayDark),
                 const SizedBox(width: 6),
                 Text(
-                  _selectedSort,
-                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                  'Date',
+                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -313,19 +309,20 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
 
     return Container(
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [AppColors.accent.withOpacity(0.15), AppColors.surface], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.25), width: 1.5),
+        boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatItem('${_filteredRuns.length}', 'Total Runs'),
-          Container(width: 1, height: 40, color: AppColors.primaryGray.withOpacity(0.3)),
-          _buildStatItem('${(totalDistance / 1000).toStringAsFixed(1)} km', 'Total Distance'),
-          Container(width: 1, height: 40, color: AppColors.primaryGray.withOpacity(0.3)),
+          Container(width: 1, height: 36, color: AppColors.primaryGray.withOpacity(0.25)),
+          _buildStatItem('${(totalDistance / 1000).toStringAsFixed(2)} km', 'Total Distance'),
+          Container(width: 1, height: 36, color: AppColors.primaryGray.withOpacity(0.25)),
           _buildStatItem(_formatTotalDuration(totalDuration), 'Total Time'),
         ],
       ),
@@ -375,7 +372,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 2),
+        border: Border.all(color: AppColors.accent.withOpacity(0.25), width: 1.5),
         boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Material(
@@ -393,8 +390,8 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
                     Container(
                       width: 48,
                       height: 48,
-                      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.route, color: AppColors.accent, size: 24),
+                      decoration: BoxDecoration(color: const Color(0xFFF6EAFE), shape: BoxShape.circle),
+                      child: const Icon(Icons.sports_gymnastics_rounded, color: Color(0xFF7C49E2), size: 24),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -402,29 +399,16 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            route.name,
-                            style: AppTextStyles.titleSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                            'Planned Route',
+                            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 2),
+                          Text(DateFormat('yyyy-MM-dd HH:mm').format(route.createdAt), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12)),
                           Text(dateFormat.format(route.createdAt), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12)),
                         ],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.play_arrow_rounded, color: AppColors.accent, size: 18),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Start',
-                            style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _startPill(),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -440,6 +424,24 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _startPill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(22)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.play_arrow_rounded, color: AppColors.onAccent, size: 18),
+          const SizedBox(width: 4),
+          Text(
+            'Start',
+            style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }

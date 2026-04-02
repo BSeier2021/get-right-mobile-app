@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/nutrition_controller.dart';
 import 'package:get_right/models/food_item.dart';
@@ -59,20 +60,20 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.close, color: AppColors.accent, size: 18),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
         ),
-        title: Text('Add to ${widget.mealType.displayName}', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
-        centerTitle: false,
+        title: Text('Add To ${widget.mealType.displayName}', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
+        centerTitle: true,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(68),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
             child: Container(
-              height: 44,
+              height: 50.h,
               padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(color: AppColors.primaryGrayLight.withOpacity(0.3), borderRadius: BorderRadius.circular(14)),
+              decoration: BoxDecoration(color: const Color.fromARGB(0, 209, 213, 219), borderRadius: BorderRadius.circular(14)),
               child: AnimatedBuilder(
                 animation: _tabController,
                 builder: (context, child) {
@@ -80,9 +81,10 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                     controller: _tabController,
                     indicator: BoxDecoration(
                       gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withOpacity(0.85)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(50),
                       boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
                     ),
+
                     indicatorSize: TabBarIndicatorSize.tab,
                     dividerColor: Colors.transparent,
                     labelColor: AppColors.onAccent,
@@ -90,26 +92,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                     labelStyle: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.3),
                     unselectedLabelStyle: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w500),
                     tabs: [
-                      Tab(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.bookmark, size: 18, color: _tabController.index == 0 ? AppColors.onAccent : AppColors.onSurface.withOpacity(0.6)),
-                            const SizedBox(width: 6),
-                            const Text('Saved Items'),
-                          ],
-                        ),
-                      ),
-                      Tab(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.add_circle_outline, size: 18, color: _tabController.index == 1 ? AppColors.onAccent : AppColors.onSurface.withOpacity(0.6)),
-                            const SizedBox(width: 6),
-                            const Text('Custom'),
-                          ],
-                        ),
-                      ),
+                      Tab(child: const Text('Saved Items')),
+                      Tab(child: const Text('Custom')),
                     ],
                   );
                 },
@@ -170,10 +154,10 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.accent.withOpacity(0.06),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGrayLight.withOpacity(0.5)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        border: Border.all(color: AppColors.accent.withOpacity(0.14), width: 1.5),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 1))],
       ),
       child: InkWell(
         onTap: () => _showQuantityDialog(item),
@@ -182,13 +166,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.restaurant_menu, color: AppColors.accent, size: 28),
-              ),
-              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,8 +185,12 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 1.5),
+                          ),
                           child: Text(
                             '${item.calories.toStringAsFixed(0)} kcal',
                             style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
@@ -228,8 +209,12 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
               PopupMenuButton<String>(
                 icon: Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: AppColors.primaryGrayLight.withOpacity(0.3), shape: BoxShape.circle),
-                  child: const Icon(Icons.more_vert, color: AppColors.mediumGray, size: 18),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.accent.withOpacity(0.6), width: 1.5),
+                  ),
+                  child: const Icon(Icons.more_vert, color: AppColors.accent, size: 18),
                 ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -364,7 +349,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _addCustomFood,
+              onPressed: () => Get.back(),
+
               icon: const Icon(Icons.add_circle_outline, size: 22),
               label: Text(
                 'Add to Tracker',
@@ -374,7 +360,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                 backgroundColor: AppColors.accent,
                 foregroundColor: AppColors.onAccent,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                 elevation: 2,
               ),
             ),
@@ -386,7 +372,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: _saveCustomFood,
+              onPressed: () => Get.back(),
               icon: const Icon(Icons.bookmark_outline, size: 20),
               label: Text(
                 'Save for Later',
@@ -396,7 +382,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                 foregroundColor: AppColors.accent,
                 side: const BorderSide(color: AppColors.accent, width: 2),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
               ),
             ),
           ),
@@ -411,7 +397,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
       children: [
         Text(
           label,
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w600),
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.black, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -419,19 +405,19 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
           keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray),
+            hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.black),
             filled: true,
-            fillColor: AppColors.surface,
+            fillColor: AppColors.white,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(50),
               borderSide: BorderSide(color: AppColors.primaryGrayLight),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(50),
               borderSide: BorderSide(color: AppColors.primaryGrayLight),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(50),
               borderSide: const BorderSide(color: AppColors.accent, width: 2),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
