@@ -89,44 +89,32 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
             // ── Personal Information ────────────────────────────
             _sectionLabel('Personal Information'),
             const SizedBox(height: 12),
-            _infoRow(Icons.person_outline, 'Full Name', _fullName ?? 'Demo User'),
-            _infoRow(Icons.calendar_today_outlined, 'Date of Birth', _dateOfBirth ?? 'Not Set'),
-            _infoRow(Icons.phone_outlined, 'Contact Number', _contactNumber ?? '+1234 567 8900'),
-            _infoRow(Icons.wc_outlined, 'Gender', _gender ?? 'Male'),
-            const SizedBox(height: 4),
-            _bioRow(),
+            _infoCard([
+              _infoRow('assets/images/profile00.png', 'Full Name', _fullName ?? 'Demo User'),
+              _infoRow('assets/images/calendar-222.png', 'Date of Birth', _dateOfBirth ?? 'Not Set'),
+              _infoRow('assets/images/call.png', 'Contact Number', _contactNumber ?? '+1234 567 8900'),
+              _infoRow('assets/images/people22.png', 'Gender', _gender ?? 'Male'),
+              _infoRow('assets/images/clipboard-text.png', 'Bio', _bio != null && _bio!.isNotEmpty ? _bio! : 'No Bio Added Yet'),
+            ]),
             const SizedBox(height: 24),
 
             // ── Onboarding Preferences ──────────────────────────
             _sectionLabel('Onboarding Preferences'),
             const SizedBox(height: 12),
-            _infoRow(Icons.fitness_center, 'Preference', _preference ?? 'Not Set'),
-            _infoRow(Icons.flag_outlined, 'Goals', _goals.isNotEmpty ? _goals.join(', ') : 'Not Set'),
-            _infoRow(Icons.trending_up, 'Fitness Level', _fitnessLevel ?? 'Not Set'),
-            _infoRow(Icons.calendar_today, 'Exercise Frequency', _exerciseFrequency ?? 'Not Set'),
+            _infoCard([
+              _infoRow('assets/images/Vector.png', 'Preference', _preference ?? 'Not Set'),
+              _infoRow('assets/images/flag.png', 'Goals', _goals.isNotEmpty ? _goals.join(', ') : 'Not Set'),
+              _infoRow('assets/images/diagram.png', 'Fitness Level', _fitnessLevel ?? 'Not Set'),
+              _infoRow('assets/images/calendar-222.png', 'Exercise Frequency', _exerciseFrequency ?? 'Not Set'),
+            ]),
             const SizedBox(height: 24),
 
             // ── Menu ─────────────────────────────────────────────
             _sectionLabel('Menu'),
             const SizedBox(height: 12),
-            _menuRow(
-              icon: Icons.favorite_outline,
-              title: 'Favorites',
-              subtitle: 'View your favorite posts and users',
-              onTap: () => Get.toNamed(AppRoutes.favorites),
-            ),
-            _menuRow(
-              icon: Icons.bookmark_outline,
-              title: 'Saved Posts',
-              subtitle: 'Access your saved posts',
-              onTap: () => Get.toNamed(AppRoutes.savedPosts),
-            ),
-            _menuRow(
-              icon: Icons.chat_bubble_outline,
-              title: 'Chat',
-              subtitle: 'View your conversations',
-              onTap: () => Get.to(() => const ChatListScreen()),
-            ),
+            _menuRow(icon: Icons.favorite_outline, title: 'Favorites', subtitle: 'View your favorite posts and users', onTap: () => Get.toNamed(AppRoutes.favorites)),
+            _menuRow(icon: Icons.bookmark_outline, title: 'Saved Posts', subtitle: 'Access your saved posts', onTap: () => Get.toNamed(AppRoutes.savedPosts)),
+            _menuRow(icon: Icons.chat_bubble_outline, title: 'Chat', subtitle: 'View your conversations', onTap: () => Get.to(() => const ChatListScreen())),
             _menuRow(
               icon: Icons.receipt_long_outlined,
               title: 'Transaction History',
@@ -193,10 +181,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
             style: AppTextStyles.titleMedium.copyWith(color: AppColors.black, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
-          Text(
-            'billykane@domain.com',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-          ),
+          Text('billykane@domain.com', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
           const SizedBox(height: 16),
           // Edit Profile pill button
           SizedBox(
@@ -229,93 +214,52 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
   Widget _sectionLabel(String text) {
     return Text(
       text,
-      style: AppTextStyles.titleSmall.copyWith(
-        color: AppColors.onBackground,
-        fontWeight: FontWeight.w700,
-        fontSize: 15,
-      ),
+      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700, fontSize: 15),
     );
   }
 
   // ────────────────────────────────────────────────────────────────
-  // Info row (icon + label + value)
+  // Info card – groups rows inside a rounded container
   // ────────────────────────────────────────────────────────────────
-  Widget _infoRow(IconData icon, String label, String value) {
+  Widget _infoCard(List<Widget> rows) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE6F0DA), width: 1),
+      ),
+      child: Column(children: rows),
+    );
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Info row (image + label + value) — used inside _infoCard
+  // ────────────────────────────────────────────────────────────────
+  Widget _infoRow(String image, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: AppColors.accent, size: 18),
+            width: 36,
+            height: 36,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), shape: BoxShape.circle),
+            child: Image.asset(image),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12),
-                ),
+                Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11.5)),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.onBackground,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ────────────────────────────────────────────────────────────────
-  // Bio row
-  // ────────────────────────────────────────────────────────────────
-  Widget _bioRow() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.edit_note, color: AppColors.accent, size: 18),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bio',
-                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _bio != null && _bio!.isNotEmpty ? _bio! : 'No Bio Added Yet',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: _bio != null && _bio!.isNotEmpty ? AppColors.onBackground : AppColors.primaryGray,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600, fontSize: 14),
                 ),
               ],
             ),
@@ -328,12 +272,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
   // ────────────────────────────────────────────────────────────────
   // Menu row (icon + title + subtitle + chevron)
   // ────────────────────────────────────────────────────────────────
-  Widget _menuRow({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
+  Widget _menuRow({required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: InkWell(
@@ -351,10 +290,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), shape: BoxShape.circle),
                 child: Icon(icon, color: AppColors.accent, size: 20),
               ),
               const SizedBox(width: 14),
@@ -364,17 +300,10 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                   children: [
                     Text(
                       title,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.onBackground,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700, fontSize: 14),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12),
-                    ),
+                    Text(subtitle, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12)),
                   ],
                 ),
               ),
@@ -432,10 +361,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE85050).withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: const Color(0xFFE85050).withOpacity(0.12), shape: BoxShape.circle),
               child: const Icon(Icons.logout, color: Color(0xFFE85050), size: 20),
             ),
             const SizedBox(width: 14),
@@ -445,17 +371,10 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                 children: [
                   Text(
                     'Logout',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: const Color(0xFFE85050),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
+                    style: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFFE85050), fontWeight: FontWeight.w700, fontSize: 14),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    'Sign out of your account',
-                    style: AppTextStyles.labelSmall.copyWith(color: const Color(0xFFE85050).withOpacity(0.7), fontSize: 12),
-                  ),
+                  Text('Sign out of your account', style: AppTextStyles.labelSmall.copyWith(color: const Color(0xFFE85050).withOpacity(0.7), fontSize: 12)),
                 ],
               ),
             ),
