@@ -753,32 +753,32 @@ class NutritionTrackerTab extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: meals.isEmpty ? Colors.transparent : AppColors.lightGray.withOpacity(0.2),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            ),
-            child: Row(
-              children: [
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: meals.isEmpty ? Colors.transparent : AppColors.lightGray.withOpacity(0.2),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              ),
+              child: Row(
+                children: [
                 _mealHeaderIcon(mealType),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        mealType.displayName,
-                        style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
-                      ),
-                      if (meals.isNotEmpty)
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          '${totalCalories.toStringAsFixed(0)} kcal',
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w500),
+                          mealType.displayName,
+                          style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
                         ),
-                    ],
+                        if (meals.isNotEmpty)
+                          Text(
+                            '${totalCalories.toStringAsFixed(0)} kcal',
+                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w500),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                if (meals.isEmpty)
+                  if (meals.isEmpty)
                   _smallAddCircle(
                     onTap: () {
                       if (!controller.hasSubscription.value) {
@@ -787,8 +787,8 @@ class NutritionTrackerTab extends StatelessWidget {
                       }
                       Get.to(() => AddFoodScreen(mealType: mealType));
                     },
-                  )
-                else
+                    )
+                  else
                   _smallAddCircle(
                     onTap: () {
                       if (!controller.hasSubscription.value) {
@@ -797,8 +797,8 @@ class NutritionTrackerTab extends StatelessWidget {
                       }
                       Get.to(() => AddFoodScreen(mealType: mealType));
                     },
-                  ),
-              ],
+                    ),
+                ],
             ),
           ),
           if (meals.isNotEmpty) ...[const Divider(height: 1, color: AppColors.lightGray, thickness: 1), ...meals.map((meal) => _buildMealItem(controller, meal))],
@@ -933,17 +933,17 @@ class NutritionTrackerTab extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            Container(
+                Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFFE2F4E1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFB5E0B2)),
               ),
-              child: Text(
+                  child: Text(
                 '${meal.totalCalories.toStringAsFixed(0)} kcal',
                 style: AppTextStyles.labelSmall.copyWith(color: const Color(0xFF2F7D32), fontWeight: FontWeight.bold),
-              ),
+                  ),
             ),
           ],
         ),

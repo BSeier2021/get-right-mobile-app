@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/favorites_controller.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -29,7 +30,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   Color _getDifficultyColor(String difficulty) {
     switch (difficulty.toLowerCase()) {
       case 'beginner':
-        return AppColors.completed;
+        return AppColors.accentVariant;
       case 'intermediate':
         return AppColors.upcoming;
       case 'advanced':
@@ -53,13 +54,12 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   }
 
   Map<String, dynamic> _getExerciseDetails(String exerciseName) {
-    // Mock detailed information - in real app, this would come from database
     return {
       'why':
           'This exercise targets the ${exercise['muscleGroup']} muscles effectively. It helps build strength, improve muscle definition, and enhance overall functional fitness. Perfect for both beginners and advanced athletes looking to develop this muscle group.',
-      'recommendedSets': '3-4 sets',
-      'recommendedReps': '8-12 reps',
-      'restTime': '60-90 seconds',
+      'recommendedSets': '3–4',
+      'recommendedReps': '8–12',
+      'restTime': '60–90 sec',
       'cues': [
         'Keep your core engaged throughout the movement',
         'Control the eccentric (lowering) phase',
@@ -84,10 +84,13 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     final details = _getExerciseDetails(exercise['name']);
     final difficultyColor = _getDifficultyColor(exercise['difficulty']);
     final difficultyValue = _getDifficultyValue(exercise['difficulty']);
+    final imageUrl = exercise['image'] as String? ?? '';
 
     return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
         backgroundColor: AppColors.backgroundColor,
+        elevation: 0,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
@@ -96,19 +99,24 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
           ),
           onPressed: () => Get.back(),
         ),
-        title: Text(exercise['name'], style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent)),
+        title: Text(
+          exercise['name'] ?? '',
+          style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         centerTitle: true,
         actions: [
           Obx(() {
-            final favoriteStatus = _favoritesController.isFavorite(exerciseId);
+            final fav = _favoritesController.isFavorite(exerciseId);
             return IconButton(
-              icon: Icon(favoriteStatus ? Icons.favorite : Icons.favorite_border, color: favoriteStatus ? AppColors.error : AppColors.onPrimary),
+              icon: Icon(fav ? Icons.favorite : Icons.favorite_border, color: fav ? AppColors.error : AppColors.onPrimary),
               onPressed: () {
                 _favoritesController.toggleFavorite(exerciseId, {...exercise, 'type': 'exercise', 'id': exerciseId});
                 Get.snackbar(
-                  favoriteStatus ? 'Removed from Favorites' : 'Added to Favorites',
+                  fav ? 'Removed from Favorites' : 'Added to Favorites',
                   exercise['name'],
-                  backgroundColor: favoriteStatus ? AppColors.primaryGray : AppColors.completed,
+                  backgroundColor: fav ? AppColors.primaryGray : AppColors.completed,
                   colorText: Colors.white,
                   snackPosition: SnackPosition.BOTTOM,
                   duration: const Duration(seconds: 2),
@@ -117,308 +125,293 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
             );
           }),
           IconButton(
-            icon: const Icon(Icons.share, color: AppColors.onPrimary),
-            onPressed: () {
-              // TODO: Implement share functionality
-            },
+            icon: const Icon(Icons.share_outlined, color: AppColors.onPrimary),
+            onPressed: () {},
           ),
         ],
       ),
+
+      // ── Bottom CTA ──────────────────────────────────────────────────────
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 12.h),
+          child: SizedBox(
+            height: 52.h,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Get.snackbar(
+                  'Added to Workout',
+                  '${exercise['name']} has been added to your workout',
+                  backgroundColor: AppColors.completed,
+                  colorText: Colors.white,
+                  snackPosition: SnackPosition.BOTTOM,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accentVariant,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+              ),
+              icon: const Icon(Icons.add_circle_outline, size: 22),
+              label: Text(
+                'Add O Workout',
+                style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ),
+      ),
+
       body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(horizontal: 20.w),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Video Player Placeholder
-            Container(
-              width: double.infinity,
-              height: 250,
-              color: Colors.black,
+            SizedBox(height: 8.h),
+
+            // ── Hero image card ───────────────────────────────────────────
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Placeholder for video
+                  imageUrl.isNotEmpty
+                      ? Image.network(imageUrl, width: double.infinity, height: 200.h, fit: BoxFit.cover, errorBuilder: (c, e, s) => _imagePlaceholder())
+                      : _imagePlaceholder(),
                   Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [const Color(0xFF9333EA), const Color(0xFFFBBF24)]),
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.play_circle_outline, size: 80, color: Colors.white.withOpacity(0.9)),
-                          const SizedBox(height: 12),
-                          Text('Video Demonstration', style: AppTextStyles.titleMedium.copyWith(color: Colors.white)),
-                          const SizedBox(height: 4),
-                          Text('Tap to play', style: AppTextStyles.bodySmall.copyWith(color: Colors.white70)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Play button overlay
-                  Positioned.fill(
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {
-                          // TODO: Implement video playback
-                          Get.snackbar(
-                            'Video Player',
-                            'Video playback feature coming soon!',
-                            backgroundColor: AppColors.accent,
-                            colorText: AppColors.onAccent,
-                            snackPosition: SnackPosition.BOTTOM,
-                          );
-                        },
-                      ),
-                    ),
+                    width: 48.w,
+                    height: 48.w,
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), shape: BoxShape.circle),
+                    child: Icon(Icons.play_arrow_rounded, color: AppColors.accent, size: 30.w),
                   ),
                 ],
               ),
             ),
 
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Exercise Info Tags
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+            SizedBox(height: 20.h),
+
+            // ── Info tags row (column layout per tag) ─────────────────────
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildInfoColumn(Icons.all_inclusive, '12 Weeks'),
+                _buildInfoColumn(Icons.sports_martial_arts, exercise['muscleGroup'] ?? 'Muscle'),
+                _buildInfoColumn(Icons.signal_cellular_alt, exercise['difficulty'] ?? 'Level'),
+              ],
+            ),
+
+            SizedBox(height: 24.h),
+
+            // ── Difficulty Level ──────────────────────────────────────────
+            Text(
+              'Difficulty Level',
+              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
+            ),
+            SizedBox(height: 12.h),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(exercise['difficulty'], style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                Text('${(difficultyValue * 100).toInt()}%', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+              ],
+            ),
+            SizedBox(height: 8.h),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: difficultyValue,
+                minHeight: 8,
+                backgroundColor: AppColors.primaryGray.withOpacity(0.15),
+                valueColor: AlwaysStoppedAnimation<Color>(difficultyColor),
+              ),
+            ),
+            SizedBox(height: 6.h),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Beginner', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                Text('Advanced', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+              ],
+            ),
+
+            SizedBox(height: 28.h),
+
+            // ── Why? ─────────────────────────────────────────────────────
+            Text(
+              'Why?',
+              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
+            ),
+            SizedBox(height: 10.h),
+            Text(details['why'], style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, height: 1.6)),
+
+            SizedBox(height: 28.h),
+
+            // ── Recommended Programming ───────────────────────────────────
+            Text(
+              'Recommended Programming',
+              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
+            ),
+            SizedBox(height: 14.h),
+            Row(
+              children: [
+                Expanded(child: _buildStatCard('assets/images/sets111.png', 'Sets', details['recommendedSets'], const Color(0xFFF5E6C8))),
+                SizedBox(width: 10.w),
+                Expanded(child: _buildStatCard('assets/images/infinity.png', 'Reps', details['recommendedReps'], const Color(0xFFCCDFF3))),
+                SizedBox(width: 10.w),
+                Expanded(child: _buildStatCard('assets/images/clock333.png', 'Rest Time', details['restTime'], const Color(0xFFD6E8D0))),
+              ],
+            ),
+
+            SizedBox(height: 28.h),
+
+            // ── Key Form Cues ────────────────────────────────────────────
+            Text(
+              'Key Form Cues',
+              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
+            ),
+            SizedBox(height: 10.h),
+            ...(details['cues'] as List).cast<String>().map((cue) => _buildCueItem(cue)),
+
+            SizedBox(height: 24.h),
+
+            // ── Targeted Muscles ─────────────────────────────────────────
+            Text(
+              'Targeted Muscles',
+              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
+            ),
+            SizedBox(height: 12.h),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Primary
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildInfoTag(Icons.fitness_center, exercise['equipment'], AppColors.accent),
-                      _buildInfoTag(Icons.category, exercise['muscleGroup'], AppColors.completed),
-                      _buildInfoTag(Icons.signal_cellular_alt, exercise['difficulty'], difficultyColor),
+                      Text(
+                        'Primary:',
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontWeight: FontWeight.w600),
+                      ),
+                      SizedBox(height: 6.h),
+                      Wrap(spacing: 6, runSpacing: 6, children: (details['primaryMuscles'] as List).cast<String>().map((m) => _buildMuscleChip(m, true)).toList()),
                     ],
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Difficulty Meter
-                  _buildSection(
-                    'Difficulty Level',
-                    Icons.speed,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              exercise['difficulty'],
-                              style: AppTextStyles.titleSmall.copyWith(color: difficultyColor, fontWeight: FontWeight.bold),
-                            ),
-                            Text('${(difficultyValue * 100).toInt()}%', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: LinearProgressIndicator(
-                            value: difficultyValue,
-                            minHeight: 12,
-                            backgroundColor: AppColors.primaryGray.withOpacity(0.2),
-                            valueColor: AlwaysStoppedAnimation<Color>(difficultyColor),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Beginner', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                            Text('Advanced', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Why Section
-                  _buildSection(
-                    'Why?',
-                    Icons.help_outline,
-                    child: Text(details['why'], style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, height: 1.6)),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Recommended Sets & Reps
-                  _buildSection(
-                    'Recommended Programming',
-                    Icons.repeat,
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.accent.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 1),
+                ),
+                SizedBox(width: 16.w),
+                // Secondary
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Secondary:',
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontWeight: FontWeight.w600),
                       ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(child: _buildStatCard('Sets', details['recommendedSets'], Icons.format_list_numbered)),
-                              const SizedBox(width: 12),
-                              Expanded(child: _buildStatCard('Reps', details['recommendedReps'], Icons.repeat_one)),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          _buildStatCard('Rest Time', details['restTime'], Icons.timer, fullWidth: true),
-                        ],
-                      ),
-                    ),
+                      SizedBox(height: 6.h),
+                      Wrap(spacing: 6, runSpacing: 6, children: (details['secondaryMuscles'] as List).cast<String>().map((m) => _buildMuscleChip(m, false)).toList()),
+                    ],
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Form Cues
-                  _buildSection('Key Form Cues', Icons.checklist, child: Column(children: (details['cues'] as List).cast<String>().map((cue) => _buildCueItem(cue)).toList())),
-
-                  const SizedBox(height: 24),
-
-                  // Targeted Muscles
-                  _buildSection(
-                    'Targeted Muscles',
-                    Icons.accessibility_new,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Primary:', style: AppTextStyles.titleSmall.copyWith(color: AppColors.accent)),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: (details['primaryMuscles'] as List).cast<String>().map((muscle) => _buildMuscleChip(muscle, true)).toList()),
-                        const SizedBox(height: 16),
-                        Text('Secondary:', style: AppTextStyles.titleSmall.copyWith(color: AppColors.primaryGray)),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: (details['secondaryMuscles'] as List).cast<String>().map((muscle) => _buildMuscleChip(muscle, false)).toList()),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Pro Tips
-                  _buildSection('Pro Tips', Icons.lightbulb_outline, child: Column(children: (details['tips'] as List).cast<String>().map((tip) => _buildTipItem(tip)).toList())),
-
-                  const SizedBox(height: 32),
-
-                  // Action Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: Add to workout
-                        Get.snackbar(
-                          'Added to Workout',
-                          '${exercise['name']} has been added to your workout',
-                          backgroundColor: AppColors.completed,
-                          colorText: AppColors.onError,
-                          snackPosition: SnackPosition.BOTTOM,
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: AppColors.onAccent,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      icon: const Icon(Icons.add_circle_outline, size: 24),
-                      label: Text('Add to Workout', style: AppTextStyles.buttonLarge),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-                ],
-              ),
+                ),
+              ],
             ),
+
+            SizedBox(height: 28.h),
+
+            // ── Pro Tips ─────────────────────────────────────────────────
+            Text(
+              'Pro Tips',
+              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
+            ),
+            SizedBox(height: 10.h),
+            ...(details['tips'] as List).cast<String>().asMap().entries.map((e) => _buildTipItem(e.key + 1, e.value)),
+
+            SizedBox(height: 24.h),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSection(String title, IconData icon, {required Widget child}) {
+  // ─── Helpers ─────────────────────────────────────────────────────────
+
+  Widget _imagePlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: 200.h,
+      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.08), borderRadius: BorderRadius.circular(16)),
+      child: const Center(child: Icon(Icons.fitness_center, color: AppColors.accent, size: 40)),
+    );
+  }
+
+  /// Column info tag (icon on top → label below)
+  Widget _buildInfoColumn(IconData icon, String label) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(icon, color: AppColors.accent, size: 24),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-            ),
-          ],
+        Container(
+          width: 44.w,
+          height: 44.w,
+          decoration: BoxDecoration(color: const Color(0xFFEFF5EE), shape: BoxShape.circle),
+          child: Icon(icon, color: AppColors.accent, size: 22.w),
         ),
-        const SizedBox(height: 12),
-        child,
+        SizedBox(height: 6.h),
+        Text(
+          label,
+          style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w500, fontSize: 11.5.sp),
+        ),
       ],
     );
   }
 
-  Widget _buildInfoTag(IconData icon, String label, Color color) {
+  /// Recommended programming rounded card
+  Widget _buildStatCard(String image, String label, String value, Color iconBg) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 8.w),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8E8E0), width: 0.8),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
         children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 6),
+          Container(
+            width: 48.w,
+            height: 48.w,
+            decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+            child: Padding(
+              padding: EdgeInsets.all(10.w),
+              child: Image.asset(image, fit: BoxFit.contain),
+            ),
+          ),
+          SizedBox(height: 10.h),
           Text(
             label,
-            style: AppTextStyles.labelMedium.copyWith(color: color, fontWeight: FontWeight.w600),
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground, fontSize: 12.sp),
+          ),
+          SizedBox(height: 4.h),
+          Text(
+            value,
+            style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w800, fontSize: 14.sp),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, {bool fullWidth = false}) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(8)),
-      child: Row(
-        mainAxisAlignment: fullWidth ? MainAxisAlignment.center : MainAxisAlignment.start,
-        children: [
-          Icon(icon, color: AppColors.accent, size: 20),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-              Text(
-                value,
-                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
+  /// Bullet cue item
   Widget _buildCueItem(String cue) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: 10.h),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            margin: const EdgeInsets.only(top: 4),
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+            margin: EdgeInsets.only(top: 6.h),
+            width: 6.w,
+            height: 6.w,
+            decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 10.w),
           Expanded(
             child: Text(cue, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, height: 1.5)),
           ),
@@ -427,20 +420,34 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  Widget _buildTipItem(String tip) {
+  /// Numbered pro-tip card
+  Widget _buildTipItem(int index, String tip) {
+    final numberStr = index.toString().padLeft(2, '0');
+    final Color numberColor = _tipNumberColor(index);
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.only(bottom: 12.h),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
       decoration: BoxDecoration(
-        color: AppColors.upcoming.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.upcoming.withOpacity(0.3), width: 1),
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE6F0DA), width: 1),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          Icon(Icons.tips_and_updates, color: AppColors.upcoming, size: 20),
-          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                numberStr,
+                style: AppTextStyles.titleMedium.copyWith(color: numberColor, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          SizedBox(width: 12.w),
           Expanded(
             child: Text(tip, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, height: 1.5)),
           ),
@@ -449,13 +456,21 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
+  Color _tipNumberColor(int index) {
+    // 01 orange, 02 blue, 03 green, 04 purple (repeat afterwards)
+    const List<Color> palette = [Color(0xFFF39C12), Color(0xFF2E86DE), Color(0xFF27AE60), Color(0xFF8E44AD)];
+    final idx = (index - 1) % palette.length;
+    return palette[idx];
+  }
+
+  /// Muscle group chip
   Widget _buildMuscleChip(String muscle, bool isPrimary) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: isPrimary ? AppColors.accent.withOpacity(0.2) : AppColors.primaryGray.withOpacity(0.2), borderRadius: BorderRadius.circular(16)),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+      decoration: BoxDecoration(color: const Color(0xFFE5F2CF), borderRadius: BorderRadius.circular(50)),
       child: Text(
         muscle,
-        style: AppTextStyles.labelMedium.copyWith(color: isPrimary ? AppColors.accent : AppColors.primaryGray, fontWeight: isPrimary ? FontWeight.bold : FontWeight.normal),
+        style: AppTextStyles.bodySmall.copyWith(color: isPrimary ? AppColors.accent : AppColors.black, fontWeight: isPrimary ? FontWeight.w600 : FontWeight.w500),
       ),
     );
   }

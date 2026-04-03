@@ -1,11 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 
-/// Help & Feedback Screen - Placeholder for Alpha
-class HelpFeedbackScreen extends StatelessWidget {
+/// Help & Feedback Screen
+class HelpFeedbackScreen extends StatefulWidget {
   const HelpFeedbackScreen({super.key});
+
+  @override
+  State<HelpFeedbackScreen> createState() => _HelpFeedbackScreenState();
+}
+
+class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
+  int _expandedFAQ = -1; // index of currently expanded FAQ, -1 = none
+
+  final List<Map<String, String>> _faqs = [
+    {'q': 'How Do I Log A Workout?', 'a': 'Navigate to the Journal tab and tap the "+" button to add a new workout entry.'},
+    {'q': 'Can I Track My Runs With GPS?', 'a': 'Yes! Go to the Run tab and tap "Start Run" to begin GPS tracking.'},
+    {'q': 'How Do I Purchase A Program?', 'a': 'Browse available programs in the Marketplace tab and follow the checkout process.'},
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +27,7 @@ class HelpFeedbackScreen extends StatelessWidget {
       backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
         backgroundColor: AppColors.backgroundColor,
-        title: Text('Help & Feedback', style: AppTextStyles.titleLarge.copyWith()),
+        elevation: 0,
         centerTitle: true,
         leading: IconButton(
           icon: Container(
@@ -23,93 +37,115 @@ class HelpFeedbackScreen extends StatelessWidget {
           ),
           onPressed: () => Get.back(),
         ),
+        title: Text('Help & Feedback', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.w700)),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
         children: [
-          // FAQ Section
-          Text('Frequently Asked Questions', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
-          const SizedBox(height: 16),
-          _buildFAQItem('How do I log a workout?', 'Navigate to the Journal tab and tap the "+" button to add a new workout entry.'),
-          _buildFAQItem('Can I track my runs with GPS?', 'Yes! Go to the Run tab and tap "Start Run" to begin GPS tracking.'),
-          _buildFAQItem('How do I purchase a program?', 'Browse available programs in the Marketplace tab and follow the checkout process.'),
-          const SizedBox(height: 32),
+          // ── FAQ Section ──────────────────────────────────────────────
+          Text('Frequently Asked Questions', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
+          SizedBox(height: 14.h),
+          ...List.generate(_faqs.length, (i) => _buildFAQItem(i, _faqs[i]['q']!, _faqs[i]['a']!)),
 
-          // Contact Section
-          Text('Contact Support', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
-          const SizedBox(height: 16),
-          _buildContactCard(icon: Icons.email_outlined, title: 'Email Support', subtitle: 'support@getright.com'),
-          _buildContactCard(icon: Icons.chat_bubble_outline, title: 'Live Chat', subtitle: 'Coming soon'),
-          const SizedBox(height: 32),
+          SizedBox(height: 28.h),
 
-          // Feedback Section
-          Text('Send Feedback', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
-          const SizedBox(height: 16),
+          // ── Contact Support ──────────────────────────────────────────
+          Text('Contact Support', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
+          SizedBox(height: 14.h),
+          _buildContactCard(
+            icon: Icons.email_outlined,
+            iconBg: const Color(0xFFF5E6C8),
+            iconColor: const Color(0xFFD4A24C),
+            title: 'Email Support',
+            subtitle: 'support@getrightfom',
+          ),
+          _buildContactCard(icon: Icons.chat_bubble_outline, iconBg: const Color(0xFFCCDFF3), iconColor: const Color(0xFF5A9BD5), title: 'Live Chat', subtitle: 'Coming soon'),
+
+          SizedBox(height: 28.h),
+
+          // ── Send Feedback ────────────────────────────────────────────
+          Text('Send Feedback', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
+          SizedBox(height: 14.h),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primaryGray, width: 1),
+              color: const Color(0xFFF8FFE9),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE6F0DA), width: 0.8),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('We\'d love to hear from you!', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-                const SizedBox(height: 8),
-                Text('Email us at feedback@getright.com', style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent)),
+                Text("We'd Love To Hear From You!", style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w700)),
+                SizedBox(height: 4.h),
+                Text('Email us at feedback@getright.com', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
               ],
             ),
           ),
+
+          SizedBox(height: 24.h),
         ],
       ),
     );
   }
 
-  Widget _buildFAQItem(String question, String answer) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(question, style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
-          const SizedBox(height: 8),
-          Text(answer, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-        ],
+  // ─── FAQ expandable card ──────────────────────────────────────────────
+  Widget _buildFAQItem(int index, String question, String answer) {
+    final isExpanded = _expandedFAQ == index;
+
+    return GestureDetector(
+      onTap: () => setState(() => _expandedFAQ = isExpanded ? -1 : index),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 10.h),
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FFE9),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE6F0DA), width: 0.8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(question, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w700)),
+                ),
+                Icon(isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: AppColors.onBackground, size: 24),
+              ],
+            ),
+            if (isExpanded) ...[SizedBox(height: 8.h), Text(answer, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, height: 1.5))],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildContactCard({required IconData icon, required String title, required String subtitle}) {
+  // ─── Contact card ─────────────────────────────────────────────────────
+  Widget _buildContactCard({required IconData icon, required Color iconBg, Color? iconColor, required String title, required String subtitle}) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: 10.h),
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray, width: 1),
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE6F0DA), width: 0.8),
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: AppColors.accent),
+            width: 46.w,
+            height: 46.w,
+            decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+            child: Icon(icon, color: iconColor ?? AppColors.accent, size: 22),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 14.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
-                const SizedBox(height: 4),
+                Text(title, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w700)),
+                SizedBox(height: 2.h),
                 Text(subtitle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
               ],
             ),

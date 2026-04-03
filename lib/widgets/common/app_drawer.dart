@@ -47,7 +47,7 @@ class AppDrawer extends StatelessWidget {
                   _sectionLabel('FITNESS'),
                   const SizedBox(height: 4),
                   _drawerItem(
-                    asset: 'assets/images/progress_icon.png',
+                    asset: 'assets/images/diagram.png',
                     fallbackIcon: Icons.show_chart_rounded,
                     title: 'Progress',
                     onTap: () {
@@ -56,7 +56,7 @@ class AppDrawer extends StatelessWidget {
                     },
                   ),
                   _drawerItem(
-                    asset: 'assets/images/programs_icon.png',
+                    asset: 'assets/images/radar-2.png',
                     fallbackIcon: Icons.track_changes_outlined,
                     title: 'My Programs',
                     onTap: () {
@@ -65,7 +65,7 @@ class AppDrawer extends StatelessWidget {
                     },
                   ),
                   _drawerItem(
-                    asset: 'assets/images/library_icon.png',
+                    asset: 'assets/images/music-library-2.png',
                     fallbackIcon: Icons.lock_outline_rounded,
                     title: 'Library',
                     onTap: () {
@@ -121,6 +121,7 @@ class AppDrawer extends StatelessWidget {
                     },
                   ),
                   _drawerItem(
+                    asset: 'assets/images/danger.png',
                     fallbackIcon: Icons.privacy_tip_outlined,
                     title: 'Privacy Policy',
                     onTap: () {
@@ -144,53 +145,38 @@ class AppDrawer extends StatelessWidget {
 
   // ─── User header ──────────────────────────────────────────────────────
   Widget _buildUserHeader(String name, String email, String? photoUrl) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Avatar
-          Container(
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.accent.withOpacity(0.15),
-              border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 2),
-              image: photoUrl != null ? DecorationImage(image: NetworkImage(photoUrl), fit: BoxFit.cover) : null,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Avatar
+            Image.asset('assets/images/Ellipse 8.png', width: 70.w),
+
+            const SizedBox(height: 14),
+
+            // Name
+            Text(
+              "Billy Kane",
+              style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onPrimary, fontSize: 20.sp),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            child: photoUrl == null
-                ? Center(
-                    child: Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                      style: AppTextStyles.headlineSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 28),
-                    ),
-                  )
-                : null,
-          ),
 
-          const SizedBox(height: 14),
+            const SizedBox(height: 2),
 
-          // Name
-          Text(
-            name,
-            style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onPrimary, fontSize: 20.sp),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-
-          const SizedBox(height: 2),
-
-          // Email
-          Text(
-            email,
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
+            // Email
+            Text(
+              "billykane@domain.com",
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontSize: 13.sp),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ],
+    ).paddingOnly(left: 24, top: 24, right: 24, bottom: 24);
   }
 
   // ─── Section label ────────────────────────────────────────────────────
@@ -199,7 +185,7 @@ class AppDrawer extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Text(
         label,
-        style: AppTextStyles.labelSmall.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w700, fontSize: 11.sp, letterSpacing: 1.2),
+        style: AppTextStyles.labelSmall.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w800, fontSize: 15.sp, letterSpacing: 1.2),
       ),
     );
   }
@@ -294,7 +280,7 @@ class AppDrawer extends StatelessWidget {
         width: double.infinity,
         child: ElevatedButton.icon(
           onPressed: () => _showLogoutDialog(context),
-          icon: const Icon(Icons.logout_rounded, size: 20),
+          icon: Image.asset('assets/images/logout.png', width: 20, height: 20),
           label: Text(
             'Logout',
             style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15.sp),

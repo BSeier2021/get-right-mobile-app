@@ -18,181 +18,168 @@ class SettingsScreen extends StatelessWidget {
       backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
         backgroundColor: AppColors.backgroundColor,
+        elevation: 0,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.accent.withOpacity(0.15), width: 1),
+            ),
+            child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 20),
           ),
           onPressed: () => Get.back(),
         ),
-        title: Text('Settings', style: AppTextStyles.titleLarge.copyWith()),
+        title: Text(
+          'Settings',
+          style: AppTextStyles.titleLarge.copyWith(color: AppColors.black, fontWeight: FontWeight.w700),
+        ),
         centerTitle: true,
       ),
       body: ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
-          // Account Section
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              'Account',
-              style: AppTextStyles.labelLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
-            ),
+          // ── Introduction section ─────────────────────────────
+          _sectionLabel('Introduction'),
+
+          // Personal Profile
+          _settingsCard(
+            iconBg: const Color(0xFFE8D5F5),
+            image: 'assets/images/profile00.png',
+            title: 'Personal Profile',
+            subtitle: 'Manage your personal information',
+            onTap: () => Get.toNamed(AppRoutes.editProfile),
           ),
 
-          // Enable Notifications Toggle
-          Obx(
-            () => SwitchListTile(
-              secondary: const Icon(Icons.notifications_outlined, color: AppColors.onBackground),
-              title: Text('Enable Notifications', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-              subtitle: Text('Receive workout reminders and updates', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-              value: controller.notificationsEnabled,
-              // Ensure strong ON-state contrast (white thumb on green track).
-              // The app theme also defines these, but this makes the intent explicit here.
-              activeColor: AppColors.onAccent,
-              activeTrackColor: AppColors.accent,
-              onChanged: controller.toggleNotifications,
-            ),
+          // Enable Notifications
+          _settingsCard(
+            iconBg: const Color(0xFFF5E6C8),
+            image: 'assets/images/notification.png',
+            title: 'Enable Notifications',
+            subtitle: 'Receive workout reminders and updates',
+            onTap: () => controller.toggleNotifications(!controller.notificationsEnabled),
           ),
 
           // Change Password
-          ListTile(
-            leading: const Icon(Icons.lock_outline, color: AppColors.onBackground),
-            title: Text('Change Password', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-            subtitle: Text('Update your account password', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.primaryGray),
+          _settingsCard(
+            iconBg: const Color(0xFFD5EAD0),
+            image: 'assets/images/danger.png',
+            title: 'Change Password',
+            subtitle: 'Update your account password',
+            showChevron: true,
             onTap: () => Get.to(() => const ChangePasswordScreen()),
           ),
 
           // Blocked Users
-          ListTile(
-            leading: const Icon(Icons.person_off_outlined, color: AppColors.onBackground),
-            title: Text('Blocked Users', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-            subtitle: Text('Manage people you’ve blocked', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.primaryGray),
+          _settingsCard(
+            iconBg: const Color(0xFFD0E8D8),
+            image: 'assets/images/people22.png',
+            title: 'Blocked Users',
+            subtitle: "Manage people you've blocked",
+            showChevron: true,
             onTap: () => Get.toNamed(AppRoutes.blockedUsers),
           ),
 
           // Reports
-          ListTile(
-            leading: const Icon(Icons.report_outlined, color: AppColors.onBackground),
-            title: Text('Reports', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-            subtitle: Text('Reported users and posts', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.primaryGray),
+          _settingsCard(
+            iconBg: const Color(0xFFE0F0D8),
+            image: 'assets/images/status-up.png',
+            title: 'Reports',
+            subtitle: 'Reported users and posts',
+            showChevron: true,
             onTap: () => Get.toNamed(AppRoutes.reports),
           ),
 
           // Transaction History
-          ListTile(
-            leading: const Icon(Icons.receipt_long_outlined, color: AppColors.onBackground),
-            title: Text('Transaction History', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-            subtitle: Text('View your payment history', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.primaryGray),
+          _settingsCard(
+            iconBg: const Color(0xFFCCDFF3),
+            image: 'assets/images/transiction.png',
+            title: 'Transaction History',
+            subtitle: 'View your payment history',
+            showChevron: true,
             onTap: () => Get.toNamed(AppRoutes.transactionHistory),
           ),
 
-          // Notifications Settings
-
-          // const Divider(height: 32),
-
-          // // Trainer Section
-          // Padding(
-          //   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          //   child: Text(
-          //     'Trainer',
-          //     style: AppTextStyles.labelLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
-          //   ),
-          // ),
-
-          // Become a Trainer Toggle
-          // Obx(
-          //   () => SwitchListTile(
-          //     secondary: Icon(Icons.fitness_center, color: controller.isTrainer ? AppColors.accent : AppColors.onBackground),
-          //     title: Text('Trainer Mode', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-          //     subtitle: Text(
-          //       controller.isTrainer ? 'You are a trainer on Get Right' : 'Become a trainer and earn money',
-          //       style: AppTextStyles.labelSmall.copyWith(color: controller.isTrainer ? AppColors.accent : AppColors.primaryGray),
-          //     ),
-          //     value: controller.isTrainer,
-          //     activeColor: AppColors.accent,
-          //     onChanged: controller.toggleTrainerMode,
-          //   ),
-          // ),
-
-          // const Divider(height: 32),
-
-          // General Section
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Text(
-              'General',
-              style: AppTextStyles.labelLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.help_outline, color: AppColors.onBackground),
-            title: Text('Help & Feedback', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.primaryGray),
-            onTap: () => Get.toNamed(AppRoutes.helpFeedback),
-          ),
-          ListTile(
-            leading: const Icon(Icons.description_outlined, color: AppColors.onBackground),
-            title: Text('Terms & Conditions', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.primaryGray),
-            onTap: () => Get.toNamed(AppRoutes.termsConditions),
-          ),
-          ListTile(
-            leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.onBackground),
-            title: Text('Privacy Policy', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.primaryGray),
-            onTap: () => Get.toNamed(AppRoutes.privacyPolicy),
-          ),
-          ListTile(
-            leading: const Icon(Icons.info_outline, color: AppColors.onBackground),
-            title: Text('About', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.primaryGray),
-            onTap: () => Get.toNamed(AppRoutes.about),
-          ),
-
-          const Divider(height: 32),
-
-          // Account Actions Section
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Text(
-              'Account Actions',
-              style: AppTextStyles.labelLarge.copyWith(color: AppColors.error, fontWeight: FontWeight.w600),
-            ),
-          ),
+          // ── Account Actions section ──────────────────────────
+          _sectionLabel('Account Actions'),
 
           // Logout
-          ListTile(
-            leading: const Icon(Icons.logout, color: AppColors.onBackground),
-            title: Text('Logout', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.primaryGray),
-            onTap: controller.logout,
-          ),
+          _settingsCard(iconBg: const Color(0xFFF5D5D0), image: 'assets/images/logout.png', title: 'Logout', onTap: controller.logout),
 
           // Delete Account
-          ListTile(
-            leading: const Icon(Icons.delete_forever, color: AppColors.error),
-            title: Text(
-              'Delete Account',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error, fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text('Permanently delete your account and data', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.error),
+          _settingsCard(
+            iconBg: const Color(0xFFF5D0D5),
+            image: 'assets/images/trash.png',
+            title: 'Delete Account',
+            subtitle: 'Permanently delete your account and data',
+            showChevron: true,
             onTap: controller.deleteAccount,
           ),
 
-          const SizedBox(height: 24),
-
-          // Version Info
-          Center(
-            child: Text('Get Right v1.0.0', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-          ),
           const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+
+  // ── Section label ──────────────────────────────────────────
+  Widget _sectionLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 12, left: 4),
+      child: Text(
+        text,
+        style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontSize: 16, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  // ── Individual settings card ───────────────────────────────
+  Widget _settingsCard({required Color iconBg, required String image, required String title, String? subtitle, bool showChevron = false, VoidCallback? onTap}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FFE9),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE6F0DA), width: 1),
+            ),
+            child: Row(
+              children: [
+                // Circular icon
+                Container(
+                  width: 42,
+                  height: 42,
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+                  child: Image.asset(image),
+                ),
+                const SizedBox(width: 14),
+                // Title + subtitle
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600, fontSize: 15),
+                      ),
+                      if (subtitle != null) ...[const SizedBox(height: 3), Text(subtitle, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12.5))],
+                    ],
+                  ),
+                ),
+                if (showChevron) const Icon(Icons.chevron_right, color: AppColors.primaryGray, size: 22),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

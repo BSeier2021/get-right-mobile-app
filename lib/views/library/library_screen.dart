@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -13,226 +13,158 @@ class LibraryScreen extends StatefulWidget {
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProviderStateMixin {
+class _LibraryScreenState extends State<LibraryScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
   String _searchQuery = '';
-  bool _isSearchBarVisible = true;
-  double _lastScrollOffset = 0.0;
 
-  // Icon colors for each muscle group (multiple colors across the library)
-  static const Color _chestColor = Color(0xFF29603C); // green (accent)
-  static const Color _backColor = Color(0xFF1565C0); // blue
-  static const Color _shouldersColor = Color(0xFF7B1FA2); // purple
-  static const Color _quadsColor = Color(0xFFE65100); // deep orange
-  static const Color _hamstringsColor = Color(0xFF00897B); // teal
-  static const Color _tricepsColor = Color(0xFFC62828); // red
-  static const Color _bicepsColor = Color(0xFFF9A825); // amber
-  static const Color _coreColor = Color(0xFF2E7D32); // dark green
-  static const Color _glutesColor = Color(0xFF6A1B9A); // deep purple
-  static const Color _calvesColor = Color(0xFF0277BD); // light blue
-  static const Color _forearmsColor = Color(0xFFD84315); // orange
-
-  // Mock muscle groups data
+  // ─── Muscle‑group data with PNG asset paths ─────────────────────────────
   final List<Map<String, dynamic>> _muscleGroups = [
-    {'id': 'chest', 'name': 'Chest', 'exerciseCount': 25, 'icon': Icons.fitness_center, 'color': _chestColor},
-    {'id': 'back', 'name': 'Back', 'exerciseCount': 25, 'icon': Icons.accessibility_new, 'color': _backColor},
-    {'id': 'shoulders', 'name': 'Shoulders', 'exerciseCount': 25, 'icon': Icons.fitness_center, 'color': _shouldersColor},
-    {'id': 'quads', 'name': 'Quads', 'exerciseCount': 24, 'icon': Icons.directions_walk, 'color': _quadsColor},
-    {'id': 'hamstrings', 'name': 'Hamstrings', 'exerciseCount': 20, 'icon': Icons.directions_run, 'color': _hamstringsColor},
-    {'id': 'triceps', 'name': 'Triceps', 'exerciseCount': 25, 'icon': Icons.fitness_center, 'color': _tricepsColor},
-    {'id': 'biceps', 'name': 'Biceps', 'exerciseCount': 24, 'icon': Icons.fitness_center, 'color': _bicepsColor},
-    {'id': 'core', 'name': 'Core', 'exerciseCount': 30, 'icon': Icons.self_improvement, 'color': _coreColor},
-    {'id': 'glutes', 'name': 'Glutes', 'exerciseCount': 18, 'icon': Icons.fitness_center, 'color': _glutesColor},
-    {'id': 'calves', 'name': 'Calves', 'exerciseCount': 12, 'icon': Icons.directions_walk, 'color': _calvesColor},
-    {'id': 'forearms', 'name': 'Forearms', 'exerciseCount': 15, 'icon': Icons.fitness_center, 'color': _forearmsColor},
+    {'id': 'chest', 'name': 'Chest', 'exerciseCount': 25, 'image': 'assets/images/1. Chest 2.png'},
+    {'id': 'back', 'name': 'Back', 'exerciseCount': 25, 'image': 'assets/images/2. Back 1.png'},
+    {'id': 'shoulders', 'name': 'Shoulders', 'exerciseCount': 25, 'image': 'assets/images/3. Shoulders 1.png'},
+    {'id': 'quads', 'name': 'Quads', 'exerciseCount': 24, 'image': 'assets/images/4. Quads 1.png'},
+    {'id': 'hamstrings', 'name': 'Hamstrings', 'exerciseCount': 20, 'image': 'assets/images/5. Hamstring 1.png'},
+    {'id': 'triceps', 'name': 'Triceps', 'exerciseCount': 25, 'image': 'assets/images/6. Triceps 1.png'},
+    {'id': 'biceps', 'name': 'Biceps', 'exerciseCount': 24, 'image': 'assets/images/7. Biceps 1.png'},
+    {'id': 'core', 'name': 'Core', 'exerciseCount': 30, 'image': 'assets/images/8. core.png'},
+    {'id': 'glutes', 'name': 'Glutes', 'exerciseCount': 18, 'image': 'assets/images/9. Glutes 1.png'},
+    {'id': 'calves', 'name': 'Calves', 'exerciseCount': 12, 'image': 'assets/images/10. Calves 1.png'},
+    {'id': 'forearms', 'name': 'Forearms', 'exerciseCount': 15, 'image': 'assets/images/11. Forearms 1.png'},
   ];
 
   List<Map<String, dynamic>> get _filteredMuscleGroups {
-    if (_searchQuery.isEmpty) {
-      return _muscleGroups;
-    }
-    return _muscleGroups.where((group) {
-      return group['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
-    }).toList();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
+    if (_searchQuery.isEmpty) return _muscleGroups;
+    return _muscleGroups.where((g) => g['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())).toList();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
     super.dispose();
-  }
-
-  void _onScroll() {
-    final currentScrollOffset = _scrollController.offset;
-    final scrollDelta = currentScrollOffset - _lastScrollOffset;
-
-    // Only toggle if scrolled more than 10 pixels to avoid jitter
-    if (scrollDelta.abs() > 10) {
-      if (scrollDelta > 0 && _isSearchBarVisible && currentScrollOffset > 50) {
-        // Scrolling down - hide search bar
-        setState(() {
-          _isSearchBarVisible = false;
-        });
-      } else if (scrollDelta < 0 && !_isSearchBarVisible) {
-        // Scrolling up - show search bar
-        setState(() {
-          _isSearchBarVisible = true;
-        });
-      }
-      _lastScrollOffset = currentScrollOffset;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final filteredGroups = _filteredMuscleGroups;
+    final groups = _filteredMuscleGroups;
 
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.backgroundColor, AppColors.backgroundColor, AppColors.backgroundColor],
+    return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
+      appBar: AppBar(
+        backgroundColor: AppColors.backgroundColor,
+        elevation: 0,
+        centerTitle: true,
+        leading: GestureDetector(
+          onTap: () => Get.back(),
+          child: Container(
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+          ).paddingAll(8),
+        ),
+        title: Text(
+          'Library',
+          style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w900),
         ),
       ),
-      child: Scaffold(
-        backgroundColor: AppColors.backgroundColor,
-        appBar: AppBar(
-          backgroundColor: AppColors.backgroundColor,
-          elevation: 0,
-          leading: GestureDetector(
-            onTap: () => Get.back(),
-            child: Container(
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
-            ).paddingAll(8),
-          ),
-          title: Text(
-            'Library',
-            style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w900),
-          ),
-          centerTitle: true,
-          // actions: [
-          //   IconButton(
-          //     icon: const Icon(Icons.more_vert, color: Color(0xFF000000)),
-          //     onPressed: () {
-          //       // TODO: Show options menu
-          //     },
-          //   ),
-          // ],
-        ),
-        body: Column(
-          children: [
-            // Search Bar with animation
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              height: _isSearchBarVisible ? 80 : 0,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 300),
-                opacity: _isSearchBarVisible ? 1.0 : 0.0,
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  color: Colors.transparent,
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                    style: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF000000)),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: AppColors.white,
-                      hintText: 'Search exercises',
-                      hintStyle: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF404040)),
-                      prefixIcon: const Icon(Icons.search, color: Color(0xFF404040)),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, color: Color(0xFF404040)),
-                              onPressed: () {
-                                setState(() {
-                                  _searchController.clear();
-                                  _searchQuery = '';
-                                });
-                              },
-                            )
-                          : null,
-
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                  ),
+      body: Column(
+        children: [
+          // ── Search bar ────────────────────────────────────────────────
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (v) => setState(() => _searchQuery = v),
+              style: AppTextStyles.bodyMedium.copyWith(color: Colors.black),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: AppColors.white,
+                hintText: 'Search exercise',
+                hintStyle: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF9E9E9E)),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Color(0xFF9E9E9E)),
+                        onPressed: () => setState(() {
+                          _searchController.clear();
+                          _searchQuery = '';
+                        }),
+                      )
+                    : const Icon(Icons.search, color: Color(0xFF9E9E9E)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(50),
+                  borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
                 ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(50),
+                  borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(50),
+                  borderSide: const BorderSide(color: AppColors.accent, width: 1),
+                ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
               ),
             ),
+          ),
 
-            // Muscle Groups List
-            Expanded(
-              child: filteredGroups.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
-                          const SizedBox(height: 16),
-                          Text('No muscle groups found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                      itemCount: filteredGroups.length,
-                      itemBuilder: (context, index) {
-                        return _buildMuscleGroupCard(filteredGroups[index]);
-                      },
+          // ── Grid ──────────────────────────────────────────────────────
+          Expanded(
+            child: groups.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+                        const SizedBox(height: 16),
+                        Text('No muscle groups found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+                      ],
                     ),
-            ),
-          ],
-        ),
+                  )
+                : GridView.builder(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, mainAxisSpacing: 16.h, crossAxisSpacing: 8.w, childAspectRatio: 0.72),
+                    itemCount: groups.length,
+                    itemBuilder: (context, i) => _buildMuscleGroupTile(groups[i]),
+                  ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMuscleGroupCard(Map<String, dynamic> muscleGroup) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, 6))],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        leading: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: muscleGroup['color'].withOpacity(0.15),
-            borderRadius: BorderRadius.circular(18), // squircle-like corner radius
+  // ─── Single grid tile ─────────────────────────────────────────────────
+  Widget _buildMuscleGroupTile(Map<String, dynamic> group) {
+    final imagePath = group['image'] as String;
+
+    return GestureDetector(
+      onTap: () => Get.toNamed(AppRoutes.exerciseList, arguments: group),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Circular image container
+          Container(
+            width: 68.w,
+            height: 68.w,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFE8EFE6)),
+            child: ClipOval(
+              child: Padding(
+                padding: EdgeInsets.all(8.w),
+                child: Image.asset(
+                  imagePath,
+                  fit: BoxFit.contain,
+                  errorBuilder: (c, e, s) => Icon(Icons.fitness_center, color: AppColors.accent, size: 28.w),
+                ),
+              ),
+            ),
           ),
-          child: Icon(muscleGroup['icon'], color: muscleGroup['color'], size: 28),
-        ),
-        title: Text(
-          muscleGroup['name'],
-          style: AppTextStyles.titleMedium.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w900),
-        ),
-        subtitle: Text('${muscleGroup['exerciseCount']} exercises', style: AppTextStyles.bodySmall.copyWith(color: const Color(0xFF404040))),
-        trailing: const Icon(Icons.chevron_right, color: Color(0xFF404040)),
-        onTap: () {
-          Get.toNamed(AppRoutes.exerciseList, arguments: muscleGroup);
-        },
+          SizedBox(height: 8.h),
+          // Label
+          Text(
+            group['name'],
+            style: AppTextStyles.bodySmall.copyWith(color: Colors.black87, fontWeight: FontWeight.w500, fontSize: 11.5.sp),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
