@@ -50,13 +50,14 @@ class SettingsScreen extends StatelessWidget {
             image: 'assets/images/profile00.png',
             title: 'Personal Profile',
             subtitle: 'Manage your personal information',
-            onTap: () => Get.toNamed(AppRoutes.editProfile),
+            showChevron: true,
+            onTap: () => Get.toNamed(AppRoutes.personalProfile),
           ),
 
           // Enable Notifications
           _settingsCard(
             iconBg: const Color(0xFFF5E6C8),
-            image: 'assets/images/notification.png',
+            image: 'assets/images/notification333.png',
             title: 'Enable Notifications',
             subtitle: 'Receive workout reminders and updates',
             onTap: () => controller.toggleNotifications(!controller.notificationsEnabled),
@@ -65,7 +66,7 @@ class SettingsScreen extends StatelessWidget {
           // Change Password
           _settingsCard(
             iconBg: const Color(0xFFD5EAD0),
-            image: 'assets/images/danger.png',
+            image: 'assets/images/lock333.png',
             title: 'Change Password',
             subtitle: 'Update your account password',
             showChevron: true,
@@ -75,7 +76,7 @@ class SettingsScreen extends StatelessWidget {
           // Blocked Users
           _settingsCard(
             iconBg: const Color(0xFFD0E8D8),
-            image: 'assets/images/people22.png',
+            image: 'assets/images/profile-delete.png',
             title: 'Blocked Users',
             subtitle: "Manage people you've blocked",
             showChevron: true,
@@ -85,7 +86,7 @@ class SettingsScreen extends StatelessWidget {
           // Reports
           _settingsCard(
             iconBg: const Color(0xFFE0F0D8),
-            image: 'assets/images/status-up.png',
+            image: 'assets/images/receipt-disscount333.png',
             title: 'Reports',
             subtitle: 'Reported users and posts',
             showChevron: true,
@@ -95,7 +96,7 @@ class SettingsScreen extends StatelessWidget {
           // Transaction History
           _settingsCard(
             iconBg: const Color(0xFFCCDFF3),
-            image: 'assets/images/transiction.png',
+            image: 'assets/images/receipt-item3333.png',
             title: 'Transaction History',
             subtitle: 'View your payment history',
             showChevron: true,
@@ -106,7 +107,7 @@ class SettingsScreen extends StatelessWidget {
           _sectionLabel('Account Actions'),
 
           // Logout
-          _settingsCard(iconBg: const Color(0xFFF5D5D0), image: 'assets/images/logout.png', title: 'Logout', onTap: controller.logout),
+          _settingsCard(iconBg: const Color(0xFFF5D5D0), image: 'assets/images/logout333.png', title: 'Logout', onTap: controller.logout),
 
           // Delete Account
           _settingsCard(

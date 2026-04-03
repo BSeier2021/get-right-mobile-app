@@ -18,49 +18,61 @@ class TransactionDetailScreen extends StatelessWidget {
     }
 
     final isRefund = transaction.type == TransactionType.refund;
-    final color = isRefund ? AppColors.completed : AppColors.accent;
 
     return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
-        
-         leading: GestureDetector(
-            onTap: () {
-              Get.back();
-            },
-            child: Container(
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
-            ).paddingAll(8),
+        backgroundColor: AppColors.backgroundColor,
+        elevation: 0,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.accent.withOpacity(0.15), width: 1),
+            ),
+            child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 20),
           ),
-         backgroundColor: AppColors.backgroundColor, title: Text('Transaction Details', style: AppTextStyles.titleLarge.copyWith()), centerTitle: true),
+          onPressed: () => Get.back(),
+        ),
+        title: Text(
+          'Transaction Details',
+          style: AppTextStyles.titleLarge.copyWith(color: AppColors.black, fontWeight: FontWeight.w700),
+        ),
+        centerTitle: true,
+      ),
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Transaction Header
-            _buildTransactionHeader(transaction, color, isRefund),
-            const SizedBox(height: 24),
+            // ── Header card ───────────────────────────────────
+            _buildHeader(transaction, isRefund),
+            const SizedBox(height: 16),
+            const Divider(color: Color(0xFFE6F0DA), thickness: 1),
+            const SizedBox(height: 16),
 
-            // Transaction Info
+            // ── Transaction Information ───────────────────────
             _buildSectionTitle('Transaction Information'),
             const SizedBox(height: 12),
             _buildInfoCard(transaction, isRefund),
             const SizedBox(height: 24),
 
-            // Program Info (if applicable)
+            // ── Program Information ───────────────────────────
             if (transaction.programTitle != null) ...[
-              _buildSectionTitle('Program Information'),
+              _buildSectionTitle('Transaction Information'),
               const SizedBox(height: 12),
-              _buildProgramInfoCard(transaction),
+              _buildProgramCard(transaction),
               const SizedBox(height: 24),
             ],
 
-            // Refund Info (if applicable and has reason)
+            // ── Refund Information ────────────────────────────
             if (isRefund && transaction.refundReason != null && transaction.refundReason!.isNotEmpty) ...[
               _buildSectionTitle('Refund Information'),
               const SizedBox(height: 12),
-              _buildRefundInfoCard(transaction),
+              _buildRefundCard(transaction),
               const SizedBox(height: 24),
             ],
           ],
@@ -69,46 +81,65 @@ class TransactionDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionHeader(TransactionModel transaction, Color color, bool isRefund) {
+  // ── Header ─────────────────────────────────────────────────
+  Widget _buildHeader(TransactionModel transaction, bool isRefund) {
+    final statusColor = _getStatusColor(transaction.status);
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE6F0DA), width: 1),
       ),
-      child: Column(
+      child: Row(
         children: [
+          // Green circle chevron
           Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
-            child: Icon(isRefund ? Icons.arrow_back : Icons.arrow_forward, color: color, size: 40),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            isRefund ? 'Refund' : 'Purchase',
-            style: AppTextStyles.headlineSmall.copyWith(color: color, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '\$${transaction.amount.toStringAsFixed(2)}',
-            style: AppTextStyles.headlineMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: _getStatusColor(transaction.status).withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-            child: Text(
-              transaction.status.toString().toUpperCase(),
-              style: AppTextStyles.labelSmall.copyWith(color: _getStatusColor(transaction.status), fontWeight: FontWeight.bold),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withOpacity(0.12),
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.accent.withOpacity(0.25), width: 1),
             ),
+            child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 22),
+          ),
+          const SizedBox(width: 14),
+          // Text column
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isRefund ? 'Refund' : 'Purchase',
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600, fontSize: 15),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '\$${transaction.amount.toStringAsFixed(2)}',
+                style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(50),
+                  border: Border.all(color: statusColor.withOpacity(0.3), width: 1),
+                ),
+                child: Text(
+                  transaction.status.toString().toUpperCase(),
+                  style: AppTextStyles.labelSmall.copyWith(color: statusColor, fontWeight: FontWeight.w600, fontSize: 11),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
+  // ── Section title ──────────────────────────────────────────
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
@@ -116,42 +147,47 @@ class TransactionDetailScreen extends StatelessWidget {
     );
   }
 
+  // ── Info card with rows ────────────────────────────────────
   Widget _buildInfoCard(TransactionModel transaction, bool isRefund) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE6F0DA), width: 1),
       ),
       child: Column(
         children: [
           _buildInfoRow('Transaction ID', transaction.transactionReference ?? transaction.id),
-          const Divider(color: AppColors.primaryGray, height: 24),
+          _divider(),
           _buildInfoRow('Type', isRefund ? 'Refund' : 'Purchase'),
-          const Divider(color: AppColors.primaryGray, height: 24),
+          _divider(),
           _buildInfoRow('Amount', '\$${transaction.amount.toStringAsFixed(2)}'),
-          const Divider(color: AppColors.primaryGray, height: 24),
+          _divider(),
           _buildInfoRow('Date', DateFormat('MMM dd, yyyy').format(transaction.transactionDate)),
-          const Divider(color: AppColors.primaryGray, height: 24),
+          _divider(),
           _buildInfoRow('Time', DateFormat('hh:mm a').format(transaction.transactionDate)),
-          if (transaction.paymentMethod != null) ...[const Divider(color: AppColors.primaryGray, height: 24), _buildInfoRow('Payment Method', transaction.paymentMethod!)],
-          const Divider(color: AppColors.primaryGray, height: 24),
+          if (transaction.paymentMethod != null) ...[_divider(), _buildInfoRow('Payment Method', transaction.paymentMethod!)],
+          _divider(),
           _buildInfoRow('Status', transaction.status.toString().toUpperCase()),
         ],
       ),
     );
   }
 
+  Widget _divider() {
+    return const Divider(color: Color(0xFFE6F0DA), height: 24, thickness: 1);
+  }
+
   Widget _buildInfoRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+        Text(label, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.black, fontSize: 14)),
         Flexible(
           child: Text(
             value,
-            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600, fontSize: 14),
             textAlign: TextAlign.right,
           ),
         ),
@@ -159,53 +195,79 @@ class TransactionDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProgramInfoCard(TransactionModel transaction) {
+  // ── Program card (left accent border) ──────────────────────
+  Widget _buildProgramCard(TransactionModel transaction) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE6F0DA), width: 1),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            transaction.programTitle ?? 'Program',
-            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+          // Left green accent stripe
+          Container(
+            width: 4,
+            height: 60,
+            decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(4)),
           ),
-          if (transaction.trainerName != null) ...[
-            const SizedBox(height: 8),
-            Text('by ${transaction.trainerName}', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-          ],
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    transaction.programTitle ?? 'Program',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600, fontSize: 15),
+                  ),
+                  if (transaction.trainerName != null) ...[
+                    const SizedBox(height: 4),
+                    Text('by ${transaction.trainerName}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildRefundInfoCard(TransactionModel transaction) {
+  // ── Refund card (left accent border) ───────────────────────
+  Widget _buildRefundCard(TransactionModel transaction) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.completed.withOpacity(0.3)),
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE6F0DA), width: 1),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(Icons.info_outline, color: AppColors.completed, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Refund Reason',
-                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-              ),
-            ],
+          // Left green accent stripe
+          Container(
+            width: 4,
+            height: 60,
+            decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(4)),
           ),
-          const SizedBox(height: 12),
-          Text(transaction.refundReason ?? 'No reason provided', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Refund Reason',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600, fontSize: 15),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(transaction.refundReason ?? 'No reason provided', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

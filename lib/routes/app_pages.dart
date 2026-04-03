@@ -18,6 +18,7 @@ import 'package:get_right/views/auth/privacy_policy_screen.dart';
 import 'package:get_right/views/home/home_screen.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/views/profile/profile_screen.dart';
+import 'package:get_right/views/profile/personal_profile_screen.dart';
 import 'package:get_right/views/profile/edit_profile_screen.dart';
 import 'package:get_right/views/profile/followers_screen.dart';
 import 'package:get_right/views/profile/following_screen.dart';
@@ -115,6 +116,7 @@ class AppPages {
 
     // Profile Pages
     GetPage(name: AppRoutes.profile, page: () => const ProfileScreen(), transition: Transition.rightToLeft),
+    GetPage(name: AppRoutes.personalProfile, page: () => const PersonalProfileScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.editProfile, page: () => const EditProfileScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.followers, page: () => const FollowersScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.following, page: () => const FollowingScreen(), transition: Transition.rightToLeft),

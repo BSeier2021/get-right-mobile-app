@@ -150,7 +150,10 @@ class SettingsController extends GetxController {
           TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(backgroundColor: isDangerous ? Colors.red : null),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDangerous ? Colors.red : null,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+            ),
             child: Text(confirmText),
           ),
         ],
