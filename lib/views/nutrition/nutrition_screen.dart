@@ -40,7 +40,7 @@ class _NutritionScreenState extends State<NutritionScreen> with SingleTickerProv
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        toolbarHeight: 56,
+        toolbarHeight: 48,
         clipBehavior: Clip.none,
         leading: Obx(() {
           final notificationController = Get.find<NotificationController>();
@@ -60,7 +60,7 @@ class _NutritionScreenState extends State<NutritionScreen> with SingleTickerProv
               if (unreadCount > 0)
                 Positioned(
                   right: 0,
-                  top: 8,
+                  top: 4,
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -140,40 +141,15 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
       child: Column(
         children: [
           // Avatar with camera badge
-          Stack(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 2),
-                ),
-                child: CircleAvatar(
-                  radius: 48,
-                  backgroundColor: const Color(0xFFE0F0D8),
-                  child: Icon(Icons.person, size: 48, color: AppColors.accent),
-                ),
-              ),
-              Positioned(
-                bottom: 2,
-                right: 2,
-                child: GestureDetector(
-                  onTap: () async {
-                    final result = await Get.toNamed(AppRoutes.editProfile);
-                    if (result == true) _loadProfileData();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.backgroundColor, width: 2),
-                    ),
-                    child: const Icon(Icons.camera_alt, size: 14, color: AppColors.onAccent),
-                  ),
-                ),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(4),
+            width: 100.w,
+            height: 100.h,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 2),
+            ),
+            child: CircleAvatar(radius: 48, backgroundColor: const Color(0xFFE0F0D8), child: Image.asset('assets/images/profile00.png', width: 48, height: 48)),
           ),
           const SizedBox(height: 12),
           Text(

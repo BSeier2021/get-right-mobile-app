@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/services/storage_service.dart';
@@ -265,8 +266,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Stack(
         children: [
           Container(
-            width: 120,
-            height: 120,
+            width: 100.w,
+            height: 100.h,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.surface,
@@ -274,7 +275,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 20, spreadRadius: 0, offset: const Offset(0, 8))],
             ),
             child: _profileImagePath == null
-                ? Icon(Icons.add_a_photo_outlined, size: 40, color: AppColors.primaryGray)
+                ? Icon(Icons.add_a_photo_outlined, size: 30, color: AppColors.primaryGray)
                 : ClipOval(
                     child: Image.file(
                       File(_profileImagePath!),
@@ -372,7 +373,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _buildSectionHeader('Personal Information', Icons.person_outline),
                     const SizedBox(height: 16),
 
-                    CustomTextField(controller: _firstNameController, labelText: 'Full Name', hintText: 'Enter your full name', prefixIcon: const Icon(Icons.person_outline)),
+                    CustomTextField(controller: _firstNameController, labelText: 'Full Name', hintText: 'Enter your full name'),
                     const SizedBox(height: 16),
                     _buildSectionHeader('Date of Birth', Icons.cake_outlined),
                     const SizedBox(height: 12),
@@ -395,7 +396,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           controller: _dobController,
                           labelText: 'Date of Birth',
                           hintText: 'Date of Birth',
-                          prefixIcon: const Icon(Icons.cake_outlined),
                           // validator: (value) {
                           //   if (value == null || value.isEmpty) {
                           //     return 'Date of Birth is required';
@@ -416,23 +416,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _buildSectionHeader('Contact Number', Icons.phone_outlined),
                     const SizedBox(height: 12),
                     // Phone Number
-                    CustomTextField(
-                      controller: _phoneController,
-                      labelText: 'Contact Number',
-                      hintText: '+1 234 567 8900',
-                      keyboardType: TextInputType.phone,
-                      prefixIcon: const Icon(Icons.phone_outlined),
-                    ),
+                    CustomTextField(controller: _phoneController, labelText: 'Contact Number', hintText: '+1 234 567 8900', keyboardType: TextInputType.phone),
                     const SizedBox(height: 16),
                     _buildSectionHeader('Bio', Icons.edit_note),
                     const SizedBox(height: 12),
-                    CustomTextField(
-                      controller: _bioController,
-                      labelText: 'Bio (Optional)',
-                      hintText: 'Tell us about yourself...',
-                      maxLines: 3,
-                      prefixIcon: const Icon(Icons.edit_note),
-                    ),
+                    CustomTextField(controller: _bioController, labelText: 'Bio (Optional)', hintText: 'Tell us about yourself...', maxLines: 3),
                     const SizedBox(height: 32),
 
                     // Gender Selection
@@ -478,18 +466,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(16),
+                      width: double.infinity,
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: AppColors.accent.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+                        border: Border.all(color: AppColors.primaryGray.withOpacity(0.18), width: 1),
+                        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 6))],
                       ),
                       child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: 4,
+                        runSpacing: 2,
                         children: ['Lose Weight', 'Build Muscle', 'Stay Healthy', 'Improve Performance', 'Track Progress', 'Build Habits'].map((goal) {
                           final isSelected = _selectedGoals.contains(goal);
                           return FilterChip(
                             label: Text(goal),
+
                             selected: isSelected,
                             onSelected: (selected) {
                               setState(() {
@@ -500,13 +491,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 }
                               });
                             },
-                            selectedColor: AppColors.accent,
-                            labelStyle: TextStyle(color: isSelected ? AppColors.onAccent : AppColors.onBackground, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
-                            backgroundColor: AppColors.background,
-                            checkmarkColor: AppColors.onAccent,
+                            selectedColor: AppColors.accent.withOpacity(0.18),
+                            labelStyle: TextStyle(color: isSelected ? AppColors.onBackground : AppColors.onBackground, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500),
+                            backgroundColor: AppColors.accent.withOpacity(0.08),
+                            checkmarkColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray.withOpacity(0.3), width: isSelected ? 2 : 1),
+                              borderRadius: BorderRadius.circular(50),
+                              side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray.withOpacity(0.25), width: 1),
                             ),
                           );
                         }).toList(),
@@ -555,12 +546,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     // Cancel Button
                     SizedBox(
                       width: double.infinity,
-                      height: 56,
+                      height: 50,
                       child: OutlinedButton(
                         onPressed: () => Get.back(),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: AppColors.primaryGray, width: 2),
                           foregroundColor: AppColors.onBackground,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                         ),
                         child: Text('Cancel', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onBackground)),
                       ),
@@ -576,20 +568,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildDropdownField({required String label, required String? value, required List<String> items, required IconData icon, required ValueChanged<String?> onChanged}) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(50),
         border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
       ),
       child: DropdownButtonFormField<String>(
         value: value,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 16, right: 12),
-            child: Icon(icon, color: AppColors.primaryGray, size: 22),
-          ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 18),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
           filled: false,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -617,11 +604,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, color: AppColors.accent, size: 20),
-        ),
+        // Container(
+        //   padding: const EdgeInsets.all(8),
+        //   decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+        //   child: Icon(icon, color: AppColors.accent, size: 20),
+        // ),
         const SizedBox(width: 12),
         Text(title, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
       ],

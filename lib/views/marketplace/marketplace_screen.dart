@@ -831,7 +831,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(50)),
                           child: const Icon(Icons.filter_list, color: AppColors.accent, size: 20),
                         ),
                         const SizedBox(width: 12),
@@ -855,7 +855,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryVariant,
+                    color: Color(0xFFF8FFE9),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
                   ),
@@ -874,7 +874,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             color: isSelected ? AppColors.accent : AppColors.surface,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(50),
                             border: Border.all(color: isSelected ? AppColors.accent : AppColors.primaryGray, width: isSelected ? 2 : 1),
                           ),
                           child: Text(
@@ -917,7 +917,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             color: isSelected ? AppColors.accent : AppColors.surface,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(50),
                             border: Border.all(color: isSelected ? AppColors.accent : AppColors.primaryGray, width: isSelected ? 2 : 1),
                           ),
                           child: Text(
@@ -960,7 +960,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             color: isSelected ? AppColors.accent : AppColors.surface,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(50),
                             border: Border.all(color: isSelected ? AppColors.accent : AppColors.primaryGray, width: isSelected ? 2 : 1),
                           ),
                           child: Text(
@@ -1003,7 +1003,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             color: isSelected ? AppColors.accent : AppColors.surface,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(50),
                             border: Border.all(color: isSelected ? AppColors.accent : AppColors.primaryGray, width: isSelected ? 2 : 1),
                           ),
                           child: Text(
@@ -1034,7 +1034,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: _showCertifiedOnly ? AppColors.completed.withOpacity(0.2) : AppColors.primaryGray.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(50),
                         ),
                         child: Icon(Icons.verified, color: _showCertifiedOnly ? AppColors.completed : AppColors.primaryGray, size: 20),
                       ),
@@ -1081,7 +1081,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: AppColors.primaryGray, width: 2),
                             foregroundColor: AppColors.onBackground,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                           ),
                           icon: const Icon(Icons.clear_all, size: 20),
                           label: Text('Clear All', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onBackground)),
@@ -1099,10 +1099,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           },
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 0),
-                            backgroundColor: AppColors.accent,
+                            backgroundColor: AppColors.accentVariant,
                             foregroundColor: AppColors.onAccent,
                             elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                           ),
                           icon: const Icon(Icons.check, size: 20),
                           label: Text('Apply Filters', style: AppTextStyles.buttonMedium),
@@ -1122,7 +1122,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget _buildFilterSectionHeader(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, color: AppColors.accent, size: 20),
+        Icon(icon, color: AppColors.accentVariant, size: 20),
         const SizedBox(width: 8),
         Text(title, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
       ],
@@ -1156,8 +1156,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                          child: const Icon(Icons.calendar_today, color: AppColors.accent, size: 20),
+                          decoration: BoxDecoration(color: AppColors.accentVariant.withOpacity(0.2), borderRadius: BorderRadius.circular(50)),
+                          child: const Icon(Icons.calendar_today, color: AppColors.accentVariant, size: 20),
                         ),
                         const SizedBox(width: 12),
                         Text('Add to Calendar', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
@@ -1186,8 +1186,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       Container(
                         width: 60,
                         height: 60,
-                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                        child: Icon(isBundle ? Icons.inventory_2 : Icons.fitness_center, color: AppColors.accent, size: 30),
+                        decoration: BoxDecoration(color: AppColors.accentVariant.withOpacity(0.2), borderRadius: BorderRadius.circular(50)),
+                        child: Icon(isBundle ? Icons.inventory_2 : Icons.fitness_center, color: AppColors.accentVariant, size: 30),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1221,7 +1221,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.primaryVariant,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.accent.withOpacity(0.5), width: 2),
+                    border: Border.all(color: AppColors.accentVariant.withOpacity(0.5), width: 2),
                   ),
                   child: InkWell(
                     onTap: () async {
@@ -1234,7 +1234,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           return Theme(
                             data: Theme.of(context).copyWith(
                               colorScheme: const ColorScheme.dark(
-                                primary: AppColors.accent,
+                                primary: AppColors.accentVariant,
                                 onPrimary: AppColors.onAccent,
                                 surface: AppColors.surface,
                                 onSurface: AppColors.onSurface,
@@ -1252,7 +1252,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     },
                     child: Row(
                       children: [
-                        Icon(Icons.calendar_month, color: AppColors.accent, size: 24),
+                        Icon(Icons.calendar_month, color: AppColors.accentVariant, size: 24),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -1264,7 +1264,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right, color: AppColors.accent),
+                        const Icon(Icons.chevron_right, color: AppColors.accentVariant),
                       ],
                     ),
                   ),
@@ -1275,18 +1275,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.accent.withOpacity(0.1),
+                    color: AppColors.accentVariant.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 1),
+                    border: Border.all(color: AppColors.accentVariant.withOpacity(0.3), width: 1),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.info_outline, color: AppColors.accent, size: 20),
+                          Icon(Icons.info_outline, color: AppColors.accentVariant, size: 20),
                           const SizedBox(width: 8),
-                          Text('Schedule Information', style: AppTextStyles.titleSmall.copyWith(color: AppColors.accent)),
+                          Text('Schedule Information', style: AppTextStyles.titleSmall.copyWith(color: AppColors.accentVariant)),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -1327,7 +1327,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             _addToCalendar(item, selectedDate, isBundle: isBundle);
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.accent,
+                            backgroundColor: AppColors.accentVariant,
                             foregroundColor: AppColors.onAccent,
                             elevation: 0,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1410,7 +1410,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               // Start date info
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(50)),
                 child: Text('Starts: ${startDate.day}/${startDate.month}/${startDate.year}', style: AppTextStyles.titleSmall.copyWith(color: AppColors.accent)),
               ),
               const SizedBox(height: 16),
@@ -1443,7 +1443,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(50)),
                       child: Column(
                         children: [
                           Icon(Icons.calendar_today, color: AppColors.accent, size: 20),
@@ -1461,7 +1461,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: AppColors.completed.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(color: AppColors.completed.withOpacity(0.1), borderRadius: BorderRadius.circular(50)),
                       child: Column(
                         children: [
                           Icon(Icons.library_books, color: AppColors.completed, size: 20),
@@ -1598,14 +1598,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               const SizedBox(height: 12),
               Text(program['description'], style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
               const SizedBox(height: 24),
-              Row(
-                children: [
-                  _buildInfoChip(Icons.schedule, program['duration']),
-                  const SizedBox(width: 12),
-                  _buildInfoChip(Icons.category, program['category']),
-                  const SizedBox(width: 12),
-                  _buildInfoChip(Icons.flag, program['goal']),
-                ],
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [_buildInfoChip(Icons.schedule, program['duration']), _buildInfoChip(Icons.category, program['category']), _buildInfoChip(Icons.flag, program['goal'])],
+                ),
               ),
               const SizedBox(height: 32),
               Text('Program Details', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
@@ -1644,6 +1643,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             backgroundColor: AppColors.accent,
                             foregroundColor: AppColors.onAccent,
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                           ),
                           child: const Text('View Details'),
                         ),
@@ -1661,7 +1661,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: AppColors.accent, width: 2),
                           foregroundColor: AppColors.accent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                         ),
                         icon: const Icon(Icons.calendar_today, size: 20),
                         label: Text('Add to Calendar', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.accent)),
@@ -1732,7 +1732,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           centerTitle: true,
           actions: [
             IconButton(
-              icon: Image.asset('assets/images/search.png', width: 20.w),
+              icon: Image.asset('assets/images/search-normal000.png', width: 20.w),
               onPressed: () {
                 // TODO: Implement search
               },
@@ -1740,12 +1740,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             Stack(
               children: [
                 IconButton(
-                  icon: Image.asset('assets/images/filter1.png', width: 20.w),
+                  icon: Image.asset('assets/images/filter000.png', width: 20.w),
                   onPressed: _showFilterModal,
                 ),
                 if (hasActiveFilters)
                   Positioned(
-                    right: 18,
+                    right: 20,
                     top: 8,
                     child: Container(
                       width: 8,
@@ -1754,7 +1754,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ),
                   ),
               ],
-            ).paddingOnly(right: 10),
+            ).paddingOnly(right: 5),
           ],
         ),
         body: SingleChildScrollView(
@@ -1974,7 +1974,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         ),
         SizedBox(height: 12.h),
         SizedBox(
-          height: 240.h,
+          height: 220.h,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: 16.w),
@@ -1995,7 +1995,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         child: Container(
           width: MediaQuery.of(context).size.width * 0.50,
           margin: EdgeInsets.only(right: 16.w),
-          height: 200.h,
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
@@ -2078,10 +2077,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               // Content section
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+                  padding: EdgeInsets.symmetric(horizontal: 10.w),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Title
                       GestureDetector(
@@ -2144,7 +2143,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                   foregroundColor: AppColors.onAccent,
                                   elevation: 0,
                                   padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.h),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                                 ),
                                 label: Text(
                                   'Add to Calendar',
@@ -2193,7 +2192,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         ),
         SizedBox(height: 12.h),
         SizedBox(
-          height: 235.h,
+          height: 220.h,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: 16.w),
@@ -2253,7 +2252,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.65, crossAxisSpacing: 12.w, mainAxisSpacing: 12.h),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.70, crossAxisSpacing: 12.w, mainAxisSpacing: 12.h),
         itemCount: programs.length,
         itemBuilder: (context, index) {
           return _buildGridProgramCard(programs[index]);
@@ -2350,9 +2349,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               // Content section
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.all(10.w),
+                  padding: EdgeInsets.symmetric(horizontal: 10.w),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Title
                       GestureDetector(
@@ -2487,13 +2487,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   image: DecorationImage(image: AssetImage(bgImage), fit: BoxFit.contain),
                 ),
               ),
-            ),
+            ).paddingOnly(right: 10),
             // Content - Left side
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Top section - Instructor Info with Badges
                     Column(
@@ -2622,12 +2624,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           ),
                         ),
                       ],
-                    ).paddingOnly(left: 16.w, top: 10.h, bottom: 10.h),
+                    ).paddingOnly(left: 16.w),
 
                     // Bottom section - Pricing and Button
                   ],
                 ),
-                Image.asset(personImage, width: 125.w, fit: BoxFit.contain),
+                Image.asset(personImage, width: 110.w, fit: BoxFit.contain).paddingOnly(bottom: 10.h),
               ],
             ),
             // Right side - Person image extending beyond card (above and to the right)
@@ -2645,7 +2647,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       child: Container(
         width: MediaQuery.of(context).size.width * 0.4,
         margin: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(color: AppColors.primaryVariant, borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: AppColors.primaryVariant, borderRadius: BorderRadius.circular(50)),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -2681,7 +2683,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       width: 270.w,
       child: Container(
         margin: EdgeInsets.only(right: 12.w),
-        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(50)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2765,10 +2767,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             // Content section
             Expanded(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+                padding: EdgeInsets.symmetric(horizontal: 10.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Title
                     GestureDetector(
@@ -2865,18 +2867,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget _buildInfoChip(IconData icon, String label) {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 12.w),
-      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.2), borderRadius: BorderRadius.circular(50)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 16.sp, color: AppColors.accent),
           SizedBox(width: 6.w),
-          Flexible(
-            child: Text(
-              label,
-              style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface, fontSize: 12.sp),
-              overflow: TextOverflow.ellipsis,
-            ),
+          Text(
+            label,
+            style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface, fontSize: 12.sp),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

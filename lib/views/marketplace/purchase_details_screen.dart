@@ -46,10 +46,10 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
           child: IconButton(
             onPressed: () => Get.back(),
             icon: Container(
-              width: 28,
-              height: 28,
+              width: 45.w,
+              height: 35.h,
               decoration: BoxDecoration(color: const Color(0xFFE7F1E7), borderRadius: BorderRadius.circular(6)),
-              child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 18),
+              child: Icon(Icons.chevron_left, color: AppColors.accent, size: 20.sp),
             ),
           ),
         ),

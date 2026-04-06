@@ -709,11 +709,12 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           centerTitle: true,
           actions: [
             IconButton(
-              icon: Image.asset('assets/images/search.png', width: 20.w),
+              icon: Image.asset('assets/images/search-normal000.png', width: 20.w),
+
               onPressed: () {
                 _showSearchScreen();
               },
-            ),
+            ).paddingOnly(right: 5),
           ],
           bottom: PreferredSize(preferredSize: const Size.fromHeight(0), child: Container()),
         ),
@@ -768,7 +769,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
   Widget _buildProfilePage() {
     // Return the ProfileScreen widget without AppBar and tabs, showing only Public content
-    return const ProfileScreen(hideAppBar: true, showOnlyPublic: true);
+    return const ProfileScreen(hideAppBar: true);
   }
 
   void _showSearchScreen() {
@@ -896,23 +897,12 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
               children: [
                 // Profile Avatar
                 GestureDetector(
-                  onTap: () => _navigateToCreatorProfile(post),
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.accent, width: 2),
-                    ),
-                    child: CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppColors.white,
-                      child: Text(
-                        post['creatorImage'] ?? 'U',
-                        style: AppTextStyles.titleSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
+                  onTap: () {
+                    // TODO: Handle premium/favorite action
+                  },
+                  child: Image.asset('assets/images/verify.png', width: 35.w),
                 ),
+                const SizedBox(height: 20),
 
                 // Like button (heart turns red on tap)
                 _buildLikeButton(post),
@@ -928,15 +918,8 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
                 // Share button
                 _buildVerticalInteractionSvgButton(assetPath: 'assets/icons/share.svg', count: post['shares'] ?? 0, onTap: () => _showShareOptions(post)),
-                const SizedBox(height: 20),
 
                 // Premium star icon
-                GestureDetector(
-                  onTap: () {
-                    // TODO: Handle premium/favorite action
-                  },
-                  child: Image.asset('assets/images/Frame 1000001604.png', width: 44.w, height: 44.h),
-                ),
               ],
             ),
           ),
@@ -964,11 +947,6 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                           shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
                         ),
                       ),
-                      if (post['isTrainer'])
-                        Padding(
-                          padding: const EdgeInsets.only(left: 6),
-                          child: Icon(Icons.verified, color: AppColors.completed, size: 18),
-                        ),
                     ],
                   ),
                 ),

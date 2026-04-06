@@ -39,7 +39,7 @@ class _CustomButtonState extends State<CustomButton> {
 
     return Container(
       width: widget.isFullWidth ? double.infinity : null,
-      height: widget.height ?? 58,
+      height: widget.height ?? 50,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(50),
         gradient: isGreenButton

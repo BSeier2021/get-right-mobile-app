@@ -13,6 +13,7 @@ import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// Home screen with bottom navigation - 5 tabs
 class HomeScreen extends StatefulWidget {
@@ -145,18 +146,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildProfessionalBottomNav({Key? key}) {
     final navItems = [
-      // {'icon': Icons.home_outlined, 'activeIcon': Icons.home_rounded, 'label': 'Home'},
-      {'icon': 'assets/images/market1.png', 'activeIcon': 'assets/images/marketfill.png', 'label': 'Market'},
-      {'icon': 'assets/images/feed1.png', 'activeIcon': 'assets/images/feedfill.png', 'label': 'Feed'},
+      // Left
+      {'icon': 'assets/icons/shop.svg', 'activeIcon': 'assets/icons/shop.svg', 'label': 'Market'},
+      {'icon': 'assets/icons/feed.svg', 'activeIcon': 'assets/icons/feed.svg', 'label': 'Feed'},
       {'icon': 'assets/images/Vector (4).png', 'activeIcon': 'assets/images/Vector (4).png', 'label': 'Journal'},
-      {'icon': 'assets/images/nutrition1.png', 'activeIcon': 'assets/images/nutritionfill.png', 'label': 'Nutrition'},
-      {'icon': 'assets/images/profile1.png', 'activeIcon': 'assets/images/profilefill.png', 'label': 'Profile'},
+      {'icon': 'assets/icons/nutrition.svg', 'activeIcon': 'assets/icons/nutrition.svg', 'label': 'Nutrition'},
+      {'icon': 'assets/icons/personal.svg', 'activeIcon': 'assets/icons/personal.svg', 'label': 'Profile'},
     ];
 
     return ClipRRect(
       key: key,
+      clipBehavior: Clip.none,
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
         child: Container(
           decoration: BoxDecoration(
             color: AppColors.white,
@@ -166,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: SafeArea(
             top: false,
             child: Container(
-              height: 68,
+              height: 80,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -284,7 +286,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// Modern navigation item
   Widget _buildNavItem({required String icon, required String activeIcon, required String label, required int index, required bool isSelected, bool isCenter = false}) {
-    const greenAccent = Color(0xFF29603C);
+    const greenAccent = Color(0xFF214E31);
     const blackPrimary = Color(0xFF000000);
     const textSecondary = Color(0xFF404040);
 
@@ -305,43 +307,55 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         },
         behavior: HitTestBehavior.opaque,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 2),
+          clipBehavior: Clip.none,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Icon container
               Stack(
+                clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOutCubic,
-                    width: isCenter ? 48 : (isSelected ? 40 : 34),
-                    height: isCenter ? 48 : (isSelected ? 40 : 34),
-                    decoration: BoxDecoration(
-                      color: isCenter
-                          ? greenAccent
-                          : isSelected
-                          ? greenAccent.withOpacity(0.12)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(isCenter ? 26 : 22),
-                      boxShadow: isCenter ? [BoxShadow(color: greenAccent.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 4))] : null,
-                    ),
-                    child: Center(
-                      child: isSelected
-                          ? AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 200),
-                              transitionBuilder: (child, animation) {
-                                return ScaleTransition(scale: animation, child: child);
-                              },
-                              child: isLocked
-                                  ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : greenAccent, size: isCenter ? 24 : 20)
-                                  : Image.asset(activeIcon, key: ValueKey('$index-$isSelected-$isLocked'), width: isCenter ? 24 : 20, height: isCenter ? 24 : 20),
-                            )
-                          : isLocked
-                          ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : textSecondary, size: isCenter ? 24 : 20)
-                          : Image.asset(icon, key: ValueKey('$index-$isSelected-$isLocked'), width: isCenter ? 24 : 20, height: isCenter ? 24 : 20),
+                  Transform.translate(
+                    offset: Offset(0, isCenter ? -18 : 0),
+                    child: AnimatedContainer(
+                      clipBehavior: Clip.none,
+
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutCubic,
+                      width: isCenter ? 65 : (isSelected ? 40 : 34),
+                      height: isCenter ? 65 : (isSelected ? 40 : 34),
+                      decoration: BoxDecoration(
+                        color: isCenter
+                            ? greenAccent
+                            : isSelected
+                            ? greenAccent.withOpacity(0.12)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(isCenter ? 50 : 50),
+                        boxShadow: isCenter ? [BoxShadow(color: greenAccent.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 4))] : null,
+                      ),
+                      child: Center(
+                        child: isSelected
+                            ? AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 200),
+                                transitionBuilder: (child, animation) {
+                                  return ScaleTransition(scale: animation, child: child);
+                                },
+                                child: isLocked
+                                    ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : greenAccent, size: isCenter ? 24 : 20)
+                                    : _buildNavGraphic(
+                                        activeIcon,
+                                        isCenter: isCenter,
+                                        isSelected: true,
+                                        selectedColor: isCenter ? Colors.white : greenAccent,
+                                        unselectedColor: textSecondary,
+                                      ),
+                              )
+                            : isLocked
+                            ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : textSecondary, size: isCenter ? 24 : 20)
+                            : _buildNavGraphic(icon, isCenter: isCenter, isSelected: false, selectedColor: isCenter ? Colors.white : greenAccent, unselectedColor: textSecondary),
+                      ),
                     ),
                   ),
                 ],
@@ -367,6 +381,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ),
     );
+  }
+
+  Widget _buildNavGraphic(String assetPath, {required bool isCenter, required bool isSelected, required Color selectedColor, required Color unselectedColor}) {
+    final targetColor = isSelected ? selectedColor : unselectedColor;
+    final size = isCenter ? 35.0 : 20.0;
+    if (assetPath.toLowerCase().endsWith('.svg')) {
+      return SvgPicture.asset(assetPath, width: size, height: size, colorFilter: ColorFilter.mode(targetColor, BlendMode.srcIn), key: ValueKey('svg-$assetPath-$isSelected'));
+    } else {
+      return Image.asset(assetPath, width: size, height: size, key: ValueKey('img-$assetPath-$isSelected'));
+    }
   }
 
   @override

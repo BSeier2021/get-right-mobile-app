@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/run_model.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -272,6 +274,162 @@ class _PlannerScreenState extends State<PlannerScreen> {
       'nutrition': {'calories': '2350/2200', 'protein': '162g', 'carbs': '248g', 'fats': '78g'},
       'notes': 'End of year challenge!',
     },
+
+    // March 2026 mock data (matching calendar screenshot)
+    DateTime(2026, 3, 3): {
+      'workoutStatus': 'rest',
+      'hasProgressPhoto': false,
+      'workout': null,
+      'run': null,
+      'nutrition': {'calories': '1600/2200', 'protein': '100g', 'carbs': '180g', 'fats': '55g'},
+      'notes': 'Rest day',
+    },
+    DateTime(2026, 3, 4): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': {'duration': '45:00', 'exercises': 5, 'sets': 15, 'calories': 450},
+      'run': null,
+      'nutrition': {'calories': '2100/2200', 'protein': '140g', 'carbs': '220g', 'fats': '65g'},
+      'notes': '',
+    },
+    DateTime(2026, 3, 5): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': {'duration': '50:00', 'exercises': 6, 'sets': 18, 'calories': 520},
+      'run': null,
+      'nutrition': {'calories': '2000/2200', 'protein': '145g', 'carbs': '210g', 'fats': '68g'},
+      'notes': '',
+    },
+    DateTime(2026, 3, 6): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': null,
+      'run': {'distance': '5.00 km', 'time': '26:00', 'pace': '5:12 /km', 'calories': 310},
+      'nutrition': {'calories': '1950/2200', 'protein': '130g', 'carbs': '200g', 'fats': '60g'},
+      'notes': 'Morning run',
+    },
+    DateTime(2026, 3, 7): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': {'duration': '35:00', 'exercises': 4, 'sets': 12, 'calories': 340},
+      'run': null,
+      'nutrition': {'calories': '2050/2200', 'protein': '148g', 'carbs': '215g', 'fats': '66g'},
+      'notes': '',
+    },
+    DateTime(2026, 3, 10): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': {'duration': '40:00', 'exercises': 5, 'sets': 14, 'calories': 400},
+      'run': null,
+      'nutrition': {'calories': '2100/2200', 'protein': '150g', 'carbs': '218g', 'fats': '67g'},
+      'notes': '',
+    },
+    DateTime(2026, 3, 11): {
+      'workoutStatus': 'rest',
+      'hasProgressPhoto': false,
+      'workout': null,
+      'run': null,
+      'nutrition': {'calories': '1650/2200', 'protein': '105g', 'carbs': '185g', 'fats': '56g'},
+      'notes': 'Rest day - recovery',
+    },
+    DateTime(2026, 3, 12): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': {'duration': '55:00', 'exercises': 6, 'sets': 18, 'calories': 550},
+      'run': null,
+      'nutrition': {'calories': '2200/2200', 'protein': '155g', 'carbs': '230g', 'fats': '72g'},
+      'notes': '',
+    },
+    DateTime(2026, 3, 13): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': null,
+      'run': {'distance': '6.50 km', 'time': '34:00', 'pace': '5:14 /km', 'calories': 400},
+      'nutrition': {'calories': '2050/2200', 'protein': '138g', 'carbs': '212g', 'fats': '64g'},
+      'notes': '',
+    },
+    DateTime(2026, 3, 14): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': {'duration': '42:00', 'exercises': 5, 'sets': 15, 'calories': 420},
+      'run': null,
+      'nutrition': {'calories': '2150/2200', 'protein': '152g', 'carbs': '225g', 'fats': '70g'},
+      'notes': '',
+    },
+    DateTime(2026, 3, 17): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': {'duration': '48:00', 'exercises': 6, 'sets': 16, 'calories': 470},
+      'run': null,
+      'nutrition': {'calories': '2100/2200', 'protein': '149g', 'carbs': '220g', 'fats': '69g'},
+      'notes': '',
+    },
+    DateTime(2026, 3, 18): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': {'duration': '38:00', 'exercises': 5, 'sets': 14, 'calories': 380},
+      'run': null,
+      'nutrition': {'calories': '1980/2200', 'protein': '142g', 'carbs': '208g', 'fats': '65g'},
+      'notes': '',
+    },
+    DateTime(2026, 3, 19): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': true,
+      'workout': {'duration': '50:00', 'exercises': 6, 'sets': 18, 'calories': 500},
+      'run': null,
+      'nutrition': {'calories': '2250/2200', 'protein': '160g', 'carbs': '240g', 'fats': '75g'},
+      'notes': 'Great progress!',
+    },
+    DateTime(2026, 3, 20): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': null,
+      'run': {'distance': '8.00 km', 'time': '42:00', 'pace': '5:15 /km', 'calories': 490},
+      'nutrition': {'calories': '2180/2200', 'protein': '136g', 'carbs': '232g', 'fats': '71g'},
+      'notes': '',
+    },
+
+    // April 2026 mock data (current month)
+    DateTime(2026, 4, 1): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': {'duration': '45:00', 'exercises': 5, 'sets': 15, 'calories': 440},
+      'run': null,
+      'nutrition': {'calories': '2100/2200', 'protein': '148g', 'carbs': '218g', 'fats': '67g'},
+      'notes': 'New month, new goals',
+    },
+    DateTime(2026, 4, 2): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': null,
+      'run': {'distance': '5.50 km', 'time': '28:00', 'pace': '5:05 /km', 'calories': 340},
+      'nutrition': {'calories': '2000/2200', 'protein': '135g', 'carbs': '210g', 'fats': '63g'},
+      'notes': '',
+    },
+    DateTime(2026, 4, 3): {
+      'workoutStatus': 'rest',
+      'hasProgressPhoto': false,
+      'workout': null,
+      'run': null,
+      'nutrition': {'calories': '1700/2200', 'protein': '110g', 'carbs': '190g', 'fats': '58g'},
+      'notes': 'Rest day',
+    },
+    DateTime(2026, 4, 4): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': true,
+      'workout': {'duration': '55:00', 'exercises': 7, 'sets': 20, 'calories': 580},
+      'run': null,
+      'nutrition': {'calories': '2200/2200', 'protein': '158g', 'carbs': '228g', 'fats': '73g'},
+      'notes': '',
+    },
+    DateTime(2026, 4, 5): {
+      'workoutStatus': 'completed',
+      'hasProgressPhoto': false,
+      'workout': {'duration': '40:00', 'exercises': 5, 'sets': 14, 'calories': 400},
+      'run': null,
+      'nutrition': {'calories': '2050/2200', 'protein': '146g', 'carbs': '215g', 'fats': '66g'},
+      'notes': '',
+    },
   };
 
   String _formatRunTime(Duration duration) {
@@ -300,10 +458,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
     final status = data['workoutStatus'];
 
-    // Completed workouts: Light green
-    if (status == 'completed') return const Color(0xFF90EE90);
-    // Planned/incomplete workouts: Dark green
-    if (status == 'incomplete') return const Color(0xFF29603C);
+    // Completed workouts: Green
+    if (status == 'completed') return const Color(0xFF6FCF97);
+    // Planned/incomplete workouts: Red
+    if (status == 'incomplete') return const Color(0xFFE74C3C);
     // Rest day: Blue
     if (status == 'rest') return const Color(0xFF4A90E2);
 
@@ -1236,141 +1394,149 @@ class _PlannerScreenState extends State<PlannerScreen> {
         ),
         title: Text('Calendar', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.photo_library_outlined, color: AppColors.green),
-            onPressed: () {
-              _addProgressPhoto();
-            },
-          ),
-        ],
+        actions: const [],
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-
-            // Photo History Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: OutlinedButton.icon(
-                onPressed: _showPhotoHistory,
-                icon: const Icon(Icons.photo_library, size: 20),
-                label: const Text('View Photo History'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.accent,
-                  side: const BorderSide(color: AppColors.accent),
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  minimumSize: const Size(double.infinity, 44),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Calendar Legend
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildLegendItem(const Color(0xFF29603C), 'Incomplete'),
+                  _buildLegendItem(const Color(0xFFE74C3C), 'Incomplete'),
                   const SizedBox(width: 12),
-                  _buildLegendItem(const Color(0xFF90EE90), 'Completed'),
+                  _buildLegendItem(const Color(0xFF6FCF97), 'Completed'),
                   const SizedBox(width: 12),
                   _buildLegendItem(const Color(0xFF4A90E2), 'Rest Day'),
                 ],
               ),
             ),
             const SizedBox(height: 16),
-
-            // Calendar
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.primaryGray, width: 1),
-              ),
-              child: Column(
+            // Top: Year + Search
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
                 children: [
-                  // Month navigation
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.chevron_left, color: AppColors.onSurface),
-                          onPressed: () {
-                            setState(() {
-                              _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
-                            });
-                          },
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, color: AppColors.onSurface),
+                    onPressed: () {
+                      setState(() {
+                        _focusedMonth = DateTime(_focusedMonth.year - 1, _focusedMonth.month);
+                      });
+                    },
+                  ),
+                  Text('${_focusedMonth.year}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right, color: AppColors.onSurface),
+                    onPressed: () {
+                      setState(() {
+                        _focusedMonth = DateTime(_focusedMonth.year + 1, _focusedMonth.month);
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: AppColors.white,
+                        hintText: 'Search exercise',
+                        hintStyle: AppTextStyles.titleSmall.copyWith(color: AppColors.primaryGrayDark.withOpacity(0.6), fontSize: 14.sp),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(50),
+                          borderSide: BorderSide(color: AppColors.primaryGrayDark.withOpacity(0.3)),
                         ),
-                        Text('${_getMonthName(_focusedMonth.month)} ${_focusedMonth.year}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-                        IconButton(
-                          icon: const Icon(Icons.chevron_right, color: AppColors.onSurface),
-                          onPressed: () {
-                            setState(() {
-                              _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
-                            });
-                          },
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(50),
+                          borderSide: BorderSide(color: AppColors.primaryGrayDark.withOpacity(0.3)),
                         ),
-                      ],
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(50),
+                          borderSide: BorderSide(color: AppColors.accent.withOpacity(0.3), width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        suffixIcon: IconButton(
+                          icon: SizedBox(width: 22, height: 22, child: SvgPicture.asset('assets/icons/search-normal.svg', width: 22, height: 22)),
+                          onPressed: () => () {},
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ).paddingOnly(right: 12),
+                      ),
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
                     ),
                   ),
-
-                  // Weekday headers
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-                          .map(
-                            (day) => SizedBox(
-                              width: 40,
-                              child: Center(
-                                child: Text(day, style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Calendar grid
-                  _buildCalendarGrid(),
-                  const SizedBox(height: 16),
-
-                  // Pagination dots below calendar
-                  Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
-                        ),
-                      ],
-                    ),
-                  ).paddingOnly(bottom: 16),
                 ],
               ),
+            ),
+            const SizedBox(height: 12),
+
+            // Calendar
+            Column(
+              children: [
+                // Month label (left-aligned like mock)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _getMonthName(_focusedMonth.month),
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+
+                // Weekday headers
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+                        .map(
+                          (day) => SizedBox(
+                            width: 40,
+                            child: Center(
+                              child: Text(day, style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Calendar grid
+                _buildCalendarGrid(),
+                const SizedBox(height: 16),
+
+                // Pagination dots below calendar
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 4),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 4),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
+                      ),
+                    ],
+                  ),
+                ).paddingOnly(bottom: 16),
+              ],
             ),
             const SizedBox(height: 24),
 
@@ -1413,67 +1579,103 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final firstWeekday = firstDayOfMonth.weekday % 7;
     final daysInMonth = lastDayOfMonth.day;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 1),
-        itemCount: firstWeekday + daysInMonth,
-        itemBuilder: (context, index) {
-          if (index < firstWeekday) return const SizedBox();
+    return GestureDetector(
+      onHorizontalDragEnd: (details) {
+        if (details.primaryVelocity != null) {
+          if (details.primaryVelocity! < 0) {
+            // Swipe left → next month
+            setState(() {
+              _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
+            });
+          } else if (details.primaryVelocity! > 0) {
+            // Swipe right → previous month
+            setState(() {
+              _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
+            });
+          }
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 0.75),
+          itemCount: firstWeekday + daysInMonth,
+          itemBuilder: (context, index) {
+            if (index < firstWeekday) return const SizedBox();
 
-          final day = index - firstWeekday + 1;
-          final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-          final isSelected = _selectedDate.year == date.year && _selectedDate.month == date.month && _selectedDate.day == date.day;
-          final isToday = DateTime.now().year == date.year && DateTime.now().month == date.month && DateTime.now().day == date.day;
-          final dateColor = _getDateColor(date);
-          final hasPhoto = _hasProgressPhoto(date);
+            final day = index - firstWeekday + 1;
+            final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+            final isSelected = _selectedDate.year == date.year && _selectedDate.month == date.month && _selectedDate.day == date.day;
+            final isToday = DateTime.now().year == date.year && DateTime.now().month == date.month && DateTime.now().day == date.day;
+            final dateColor = _getDateColor(date);
+            final hasPhoto = _hasProgressPhoto(date);
 
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedDate = date;
-              });
-            },
-            onLongPress: () {
-              setState(() {
-                _selectedDate = date;
-              });
-              _showAddWorkoutDialog();
-            },
-            child: Container(
-              margin: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.accent : (dateColor != Colors.transparent ? dateColor : Colors.transparent),
-                borderRadius: BorderRadius.circular(8),
-                border: isToday && !isSelected ? Border.all(color: AppColors.accent, width: 2) : null,
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Text(
-                    '$day',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: isSelected ? AppColors.onAccent : (isToday ? AppColors.onBackground : (dateColor != Colors.transparent ? AppColors.onSurface : AppColors.primaryGray)),
-                      fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedDate = date;
+                });
+              },
+              onLongPress: () {
+                setState(() {
+                  _selectedDate = date;
+                });
+                _showAddWorkoutDialog();
+              },
+              child: Builder(
+                builder: (context) {
+                  final int position = index - firstWeekday;
+                  final int rowIndex = position >= 0 ? (position / 7).floor() : 0;
+                  return Container(
+                    // Vertical margin only so horizontal borders join seamlessly
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      border: rowIndex > 0 ? Border(top: BorderSide(color: AppColors.primaryGray.withOpacity(0.3), width: 1)) : null,
                     ),
-                  ),
-                  if (hasPhoto)
-                    Positioned(
-                      top: 2,
-                      right: 2,
-                      child: Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                        // Keep today's outline as before
+                        border: isToday && !isSelected ? Border.all(color: AppColors.accent, width: 1.6) : null,
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Selected day circular highlight
+                          if (isSelected)
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: const BoxDecoration(color: Color(0xFFE74C3C), shape: BoxShape.circle),
+                            ),
+                          Text(
+                            '$day',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: isSelected ? Colors.white : (isToday ? AppColors.onBackground : AppColors.onSurface),
+                              fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          if (dateColor != Colors.transparent)
+                            Positioned(
+                              bottom: 6,
+                              child: Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(color: dateColor, shape: BoxShape.circle),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                ],
+                  );
+                },
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

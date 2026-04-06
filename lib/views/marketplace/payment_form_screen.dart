@@ -127,10 +127,10 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
             child: IconButton(
               onPressed: () => Get.back(),
               icon: Container(
-                width: 28,
-                height: 28,
+                width: 35,
+                height: 35,
                 decoration: BoxDecoration(color: const Color(0xFFE7F1E7), borderRadius: BorderRadius.circular(6)),
-                child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 18),
+                child: Icon(Icons.chevron_left, color: AppColors.accent, size: 22),
               ),
             ),
           ),
@@ -275,7 +275,7 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
             child: ElevatedButton(
               onPressed: _isProcessing ? null : _processPayment,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
+                backgroundColor: AppColors.accentVariant,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                 disabledBackgroundColor: AppColors.primaryGray,

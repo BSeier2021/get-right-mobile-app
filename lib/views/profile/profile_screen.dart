@@ -2,15 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
-import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
-import 'package:get_right/views/chat/chat_list_screen.dart';
 import 'package:intl/intl.dart';
+
+/// Profile screen visual tokens (cream + forest green mockup).
+const Color _kProfileCream = Color(0xFFF9FAF0);
+const Color _kProfileForestGreen = Color(0xFF2D4635);
+const Color _kRecordPink = Color(0xFFF4CCE9);
+const Color _kRecordBlue = Color(0xFFB6D7E8);
+const Color _kStatPostsOrange = Color(0xFFEA580C);
+const Color _kStatFollowersBlue = Color(0xFF2563EB);
+const Color _kStatFollowingGreen = Color(0xFF16A34A);
 
 /// Personal Record model
 class PersonalRecord {
@@ -38,101 +44,37 @@ class PersonalRecord {
 /// Profile screen - Social media style profile
 class ProfileScreen extends StatefulWidget {
   final bool hideAppBar;
-  final bool showOnlyPublic;
 
-  const ProfileScreen({super.key, this.hideAppBar = false, this.showOnlyPublic = false});
+  const ProfileScreen({super.key, this.hideAppBar = false});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final _storageService = Get.find<StorageService>();
+class _ProfileScreenState extends State<ProfileScreen> {
   List<PersonalRecord> _personalRecords = [];
-
-  // Profile data
-  String? _fullName;
-  String? _dateOfBirth;
-  String? _contactNumber;
-  String? _bio;
-  String? _gender;
-  String? _preference;
-  List<String> _goals = [];
-  String? _fitnessLevel;
-  String? _exerciseFrequency;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    // Initialize with default records
     _personalRecords = [
       PersonalRecord(id: '1', liftName: 'Bench Press', value: '315', unit: 'lbs', date: DateTime(2024, 12, 12), displayPublicly: true),
-      PersonalRecord(id: '2', liftName: 'Squat', value: '405', unit: 'lbs', date: DateTime(2024, 12, 10), displayPublicly: true),
+      PersonalRecord(id: '2', liftName: 'Squat', value: '405', unit: 'lbs', date: DateTime(2024, 12, 12), displayPublicly: true),
     ];
-    _loadProfileData();
-  }
-
-  void _loadProfileData() {
-    // Load profile data from StorageService
-    // Note: Some fields like fullName, dateOfBirth, contactNumber, bio might need to be stored separately
-    // For now, we'll load what's available from StorageService
-    setState(() {
-      _gender = _storageService.getString('user_gender');
-      _preference = _storageService.getUserPreference();
-      _goals = _storageService.getUserGoals();
-      _fitnessLevel = _storageService.getFitnessLevel();
-      _exerciseFrequency = _storageService.getExerciseFrequency();
-      _bio = _storageService.getString('user_bio');
-      _fullName = _storageService.getName();
-      _dateOfBirth = _storageService.getString('user_date_of_birth');
-      _contactNumber = _storageService.getString('user_phone');
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final tabBar = Container(
-      color: AppColors.backgroundColor,
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-      child: Container(
-        height: 44,
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(color: Color.fromARGB(162, 240, 252, 216), borderRadius: BorderRadius.circular(14)),
-        child: TabBar(
-          controller: _tabController,
-          indicator: BoxDecoration(
-            gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withOpacity(0.85)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
-          ),
-          indicatorSize: TabBarIndicatorSize.tab,
-          dividerColor: Colors.transparent,
-          labelColor: AppColors.onAccent,
-          unselectedLabelColor: AppColors.onSurface,
-          labelStyle: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.3),
-          unselectedLabelStyle: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w500),
-          tabs: const [
-            Tab(text: 'Public'),
-            Tab(text: 'Personal'),
-          ],
-        ),
-      ),
-    );
-
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
+      backgroundColor: _kProfileCream,
       appBar: widget.hideAppBar
           ? null
           : AppBar(
-              backgroundColor: AppColors.backgroundColor,
+              backgroundColor: _kProfileCream,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              iconTheme: const IconThemeData(color: _kProfileForestGreen),
               leading: Obx(() {
                 final notificationController = Get.find<NotificationController>();
                 final unreadCount = notificationController.unreadCount;
@@ -140,7 +82,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   clipBehavior: Clip.none,
                   children: [
                     IconButton(
-                      icon: Image.asset('assets/images/humburger.png', width: 25.w),
+                      icon: ColorFiltered(
+                        colorFilter: const ColorFilter.mode(_kProfileForestGreen, BlendMode.srcIn),
+                        child: Image.asset('assets/images/humburger.png', width: 25.w),
+                      ),
                       onPressed: () => Scaffold.of(context).openDrawer(),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -163,21 +108,19 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   ],
                 );
               }),
-              title: Text('Profile', style: AppTextStyles.titleLarge.copyWith()),
+              title: Text(
+                'Profile',
+                style: AppTextStyles.titleLarge.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w700),
+              ),
               centerTitle: true,
-              actions: [IconButton(icon: Icon(Icons.settings), onPressed: () => Get.toNamed(AppRoutes.settings))],
-              bottom: PreferredSize(preferredSize: const Size.fromHeight(68), child: tabBar),
-            ),
-      body: widget.showOnlyPublic
-          ? _buildPublicProfile()
-          : Column(
-              children: [
-                if (widget.hideAppBar) tabBar,
-                Expanded(
-                  child: TabBarView(controller: _tabController, children: [_buildPublicProfile(), _buildPersonalProfile()]),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined, color: _kProfileForestGreen),
+                  onPressed: () => Get.toNamed(AppRoutes.settings),
                 ),
               ],
             ),
+      body: _buildPublicProfile(),
     );
   }
 
@@ -185,62 +128,63 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return SingleChildScrollView(
       child: Column(
         children: [
+          const SizedBox(height: 8),
+          // Centered avatar + camera (mockup)
+          Center(
+            child: SizedBox(
+              width: 104,
+              height: 104,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.white,
+                    child: CircleAvatar(
+                      radius: 46,
+                      backgroundColor: _kProfileForestGreen.withOpacity(0.08),
+                      child: Icon(Icons.person, size: 52, color: _kProfileForestGreen.withOpacity(0.45)),
+                    ),
+                  ),
+                  Positioned(
+                    right: -2,
+                    bottom: -2,
+                    child: GestureDetector(
+                      onTap: () => Get.toNamed(AppRoutes.editProfile),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _kProfileForestGreen,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _kProfileCream, width: 3),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 2))],
+                        ),
+                        child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 20),
-          // Profile Header
+          // Stat cards row
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 18),
             child: Row(
               children: [
-                // Profile Picture
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.black, width: 3),
-                      ),
-                      child: CircleAvatar(
-                        radius: 45,
-                        backgroundColor: Color.fromARGB(162, 240, 252, 216),
-                        child: Icon(Icons.person, size: 50, color: AppColors.black),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        final result = await Get.toNamed(AppRoutes.editProfile);
-                        if (result == true) _loadProfileData();
-                      },
-                      icon: const Icon(Icons.edit, size: 10),
-                      label: Text('Edit Info', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontSize: 11)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.accent,
-                        side: const BorderSide(color: AppColors.black, width: 1),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        minimumSize: const Size(0, 24),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 20),
-                // Stats
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStatColumn('6', 'Posts'),
-                      _buildStatColumn('1247', 'Followers', onTap: () => Get.toNamed(AppRoutes.followers)),
-                      _buildStatColumn('342', 'Following', onTap: () => Get.toNamed(AppRoutes.following)),
-                    ],
-                  ).paddingOnly(bottom: 30),
-                ),
+                Expanded(child: _buildStatCard('06', 'Posts', _kStatPostsOrange)),
+                const SizedBox(width: 10),
+                Expanded(child: _buildStatCard('1247', 'Followers', _kStatFollowersBlue, onTap: () => Get.toNamed(AppRoutes.followers))),
+                const SizedBox(width: 10),
+                Expanded(child: _buildStatCard('342', 'Following', _kStatFollowingGreen, onTap: () => Get.toNamed(AppRoutes.following))),
               ],
             ),
           ),
+          const SizedBox(height: 28),
 
-          // Personal Records Section
+          // Nutrition / records section (label matches mockup)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -249,34 +193,32 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Personal Records',
-                      style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                      'Nutrition (per serving)',
+                      style: AppTextStyles.titleMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w700),
                     ),
                     IconButton(
-                      icon: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                        child: const Icon(Icons.edit, color: AppColors.accent, size: 18),
-                      ),
+                      icon: Icon(Icons.edit_note_rounded, color: _kProfileForestGreen, size: 26),
                       onPressed: _showEditPersonalRecordsDialog,
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 8),
                 _personalRecords.isEmpty
                     ? Container(
+                        width: double.infinity,
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 3))],
+                          border: Border.all(color: _kProfileForestGreen.withOpacity(0.08)),
                         ),
                         child: Center(
                           child: Text(
                             'No personal records yet.\nTap edit to add your records.',
-                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+                            style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.55)),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -285,7 +227,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
           // Posts Section
           Padding(
@@ -297,266 +239,69 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   children: [
                     Text(
                       'Posts',
-                      style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                      style: AppTextStyles.titleMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w700),
                     ),
-                    Container(
-                      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                      child: IconButton(
-                        icon: const Icon(Icons.add, color: AppColors.accent, size: 35),
-                        onPressed: _showCreatePostOptions,
-                        padding: const EdgeInsets.all(4),
-                        constraints: const BoxConstraints(),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _showCreatePostOptions,
+                        customBorder: const CircleBorder(),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: _kProfileForestGreen, width: 2),
+                          ),
+                          child: Icon(Icons.add, color: _kProfileForestGreen, size: 24),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 _buildPostsGrid(),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPersonalProfile() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          // Profile Header
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              children: [
-                // Profile Avatar
-                Stack(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.black, width: 3),
-                      ),
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Color.fromARGB(162, 240, 252, 216),
-                        // backgroundColor: AppColors.accent.withOpacity(0.2),
-                        child: Icon(Icons.person, size: 50, color: AppColors.black),
-                      ),
-                    ),
-
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: () async {
-                          final result = await Get.toNamed(AppRoutes.editProfile);
-                          if (result == true) {
-                            // Reload profile data when returning from edit screen
-                            _loadProfileData();
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.accent,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.background, width: 2),
-                          ),
-                          child: const Icon(Icons.edit, size: 16, color: AppColors.onAccent),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(_fullName ?? "User Name", style: AppTextStyles.headlineMedium.copyWith(color: AppColors.onBackground)),
-                const SizedBox(height: 4),
-                Text("user@example.com", style: AppTextStyles.bodyMedium.copyWith(color: AppColors.black)),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: 180,
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      final result = await Get.toNamed(AppRoutes.editProfile);
-                      if (result == true) {
-                        // Reload profile data when returning from edit screen
-                        _loadProfileData();
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.onAccent, elevation: 0),
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Edit Profile'),
-                  ),
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: 24),
-
-          // Personal Information Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Personal Information", style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 255, 255, 255),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryGray, width: 1),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildInfoRow('Full Name', _fullName ?? 'Not set', Icons.person_outline),
-                      const Divider(height: 24, color: AppColors.primaryGray),
-
-                      _buildInfoRow('Date of Birth', _dateOfBirth ?? 'Not set', Icons.cake_outlined),
-                      const Divider(height: 24, color: AppColors.primaryGray),
-                      _buildInfoRow('Contact Number', _contactNumber ?? '52165168', Icons.phone_outlined),
-                      const Divider(height: 24, color: AppColors.primaryGray),
-                      _buildInfoRow('Gender', _gender ?? 'Male', Icons.wc),
-                      const Divider(height: 24, color: AppColors.primaryGray),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Bio Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 255, 255, 255),
-
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryGray, width: 1),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.edit_note, color: AppColors.accent, size: 20),
-                          const SizedBox(width: 8),
-                          Text('Bio', style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _bio ?? 'No bio added yet.',
-                        style: AppTextStyles.bodyMedium.copyWith(color: _bio != null && _bio!.isNotEmpty ? AppColors.onSurface : AppColors.primaryGray),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Onboarding Preferences Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryGray, width: 1),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.quiz_outlined, color: AppColors.accent, size: 20),
-                          const SizedBox(width: 8),
-                          Text('Onboarding Preferences', style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      ...[_buildPreferenceInfoRow('Preference', _preference ?? 'Not set', Icons.fitness_center), const SizedBox(height: 12)],
-                      ...[
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.flag_outlined, color: AppColors.accent, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Goals', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                                  const SizedBox(height: 8),
-                                  Wrap(spacing: 8, runSpacing: 8, children: _goals.map((goal) => _buildPreferenceChip(goal)).toList()),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      ...[_buildPreferenceInfoRow('Fitness Level', _fitnessLevel ?? 'Not set', Icons.trending_up), const SizedBox(height: 12)],
-                      _buildPreferenceInfoRow('Exercise Frequency', _exerciseFrequency ?? 'Not set', Icons.calendar_today),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // Menu Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                Text("Menu", style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
-                const SizedBox(height: 12),
-                _buildMenuCard(icon: Icons.favorite_outline, title: 'Favorites', subtitle: 'View your favorite posts and users', onTap: () => Get.toNamed(AppRoutes.favorites)),
-                const SizedBox(height: 12),
-                _buildMenuCard(icon: Icons.bookmark_outline, title: 'Saved Posts', subtitle: 'Access your saved posts', onTap: () => Get.toNamed(AppRoutes.savedPosts)),
-                const SizedBox(height: 12),
-                _buildMenuCard(icon: Icons.chat_bubble_outline, title: 'Chat', subtitle: 'View your conversations', onTap: () => Get.to(() => const ChatListScreen())),
-                const SizedBox(height: 12),
-                _buildMenuCard(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'Transaction History',
-                  subtitle: 'View your payment history',
-                  onTap: () => Get.toNamed(AppRoutes.transactionHistory),
-                ),
-                const SizedBox(height: 24),
-                _buildLogoutCard(),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatColumn(String count, String label, {VoidCallback? onTap}) {
-    final widget = Column(
-      children: [
-        Text(
-          count,
-          style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: AppTextStyles.bodySmall.copyWith(color: AppColors.black)),
-      ],
+  Widget _buildStatCard(String count, String label, Color countColor, {VoidCallback? onTap}) {
+    final card = Container(
+      padding: const EdgeInsets.symmetric(vertical: 25, horizontal: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 10, offset: const Offset(0, 3))],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            count,
+            style: AppTextStyles.titleLarge.copyWith(color: countColor, fontWeight: FontWeight.w800, fontSize: 20),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: AppTextStyles.labelSmall.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w600, fontSize: 12),
+          ),
+        ],
+      ),
     );
 
     if (onTap != null) {
-      return GestureDetector(onTap: onTap, child: widget);
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(14), child: card),
+      );
     }
-
-    return widget;
+    return card;
   }
 
   Widget _buildPersonalRecordsGrid() {
@@ -585,31 +330,41 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     );
   }
 
+  Color _recordCardTint(PersonalRecord record) {
+    final n = record.liftName.toLowerCase();
+    if (n.contains('bench')) return _kRecordPink;
+    if (n.contains('squat')) return _kRecordBlue;
+    return _kRecordPink;
+  }
+
   Widget _buildPersonalRecordCard(PersonalRecord record) {
     final dateFormat = DateFormat('MMM d, yyyy');
     final displayValue = record.displayPublicly ? '${record.value} ${record.unit}' : 'Hidden';
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: record.liftName == 'Bench Press' ? Color(0xffF2CAEC) : Color(0xffB9DDEA),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
-      ),
+      decoration: BoxDecoration(color: _recordCardTint(record), borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             record.liftName,
-            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+            style: AppTextStyles.titleSmall.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
             displayValue,
-            style: AppTextStyles.headlineSmall.copyWith(color: record.displayPublicly ? AppColors.black : AppColors.primaryGray, fontWeight: FontWeight.bold),
+            style: AppTextStyles.headlineSmall.copyWith(
+              color: record.displayPublicly ? _kProfileForestGreen : _kProfileForestGreen.withOpacity(0.4),
+              fontWeight: FontWeight.w800,
+              fontSize: 20,
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(dateFormat.format(record.date), style: AppTextStyles.labelSmall.copyWith(color: AppColors.black)),
+          const SizedBox(height: 6),
+          Text(
+            dateFormat.format(record.date),
+            style: AppTextStyles.labelSmall.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w500),
+          ),
         ],
       ),
     );
@@ -704,7 +459,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 4, mainAxisSpacing: 4, childAspectRatio: 1),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 6, mainAxisSpacing: 6, childAspectRatio: 1),
       itemCount: posts.length,
       itemBuilder: (context, index) {
         final post = posts[index];
@@ -715,34 +470,31 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             children: [
               // Post Image/Thumbnail
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 child: Image.network(
                   post['thumbnail'] as String,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)]),
-                      borderRadius: BorderRadius.circular(8),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [_kProfileForestGreen.withOpacity(0.35), _kProfileForestGreen.withOpacity(0.15)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
               ),
-              // Gradient overlay for better icon visibility
+              // Gradient overlay for engagement row
               Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.3)]),
-                  borderRadius: BorderRadius.circular(8),
+                  gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.35)]),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              // Video play icon
-              if (post['isVideo'] as bool)
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
-                    child: Icon(Icons.play_arrow, color: Colors.white.withOpacity(0.9), size: 28),
-                  ),
-                ),
+              // Video play icon (white, mockup)
+              if (post['isVideo'] as bool) Padding(padding: const EdgeInsets.all(40.0), child: Image.asset('assets/images/playbutton.png')),
               // Engagement stats overlay
               Positioned(
                 bottom: 4,
@@ -788,157 +540,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     // Add creator info to post data
     final postWithCreator = {...post, 'creator': 'brogan seier', 'creatorInitials': 'BS', 'isLiked': false, 'isSaved': false};
     Get.toNamed(AppRoutes.postDetail, arguments: postWithCreator);
-  }
-
-  Widget _buildInfoRow(String label, String value, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.accent, size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-              const SizedBox(height: 4),
-              Text(value, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPreferenceInfoRow(String label, String value, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.accent, size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPreferenceChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.accent, width: 1),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  Widget _buildMenuCard({required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: AppColors.accent, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
-                  const SizedBox(height: 2),
-                  Text(subtitle, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: AppColors.primaryGray, size: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLogoutCard() {
-    return GestureDetector(
-      onTap: () {
-        Get.dialog(
-          AlertDialog(
-            backgroundColor: AppColors.surface,
-            title: Text('Logout', style: AppTextStyles.titleLarge.copyWith()),
-            content: Text('Are you sure you want to logout?', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-            actions: [
-              TextButton(
-                onPressed: () => Get.back(),
-                child: Text('Cancel', style: TextStyle(color: AppColors.primaryGray)),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Get.back();
-                  final authController = Get.find<AuthController>();
-                  authController.logout();
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.onError),
-                child: const Text('Logout'),
-              ),
-            ],
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.error, width: 2),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(color: AppColors.error.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.logout, color: AppColors.error, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Logout', style: AppTextStyles.titleSmall.copyWith(color: AppColors.error)),
-                  const SizedBox(height: 2),
-                  Text('Sign out of your account', style: AppTextStyles.labelSmall.copyWith(color: AppColors.error.withOpacity(0.8))),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: AppColors.error, size: 24),
-          ],
-        ),
-      ),
-    );
   }
 
   void _showCreatePostOptions() {
@@ -1052,7 +653,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [BoxShadow(color: gradient.colors.first.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
                   ),
-                  child: Icon(icon, color: Colors.white, size: 28),
+                  child: Icon(icon, color: Color(0xFFF8FFE9), size: 28),
                 ),
                 const SizedBox(width: 16),
                 Expanded(

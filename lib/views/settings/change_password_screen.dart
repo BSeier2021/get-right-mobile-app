@@ -116,54 +116,36 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: AppColors.surface,
-                      border: Border.all(color: AppColors.primaryGray.withOpacity(0.15), width: 1),
-                      boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 6))],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                              child: const Icon(Icons.lock_outline_rounded, color: AppColors.accent, size: 26),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Text(
-                                'Keep your account secure by updating your password regularly.',
-                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.7)),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        PasswordTextField(controller: _currentPasswordController, labelText: 'Current Password', hintText: 'Enter current password'),
-                        const SizedBox(height: 16),
-                        PasswordTextField(controller: _newPasswordController, labelText: 'New Password', hintText: 'Enter new password'),
-                        const SizedBox(height: 16),
-                        PasswordTextField(controller: _confirmPasswordController, labelText: 'Confirm New Password', hintText: 'Re-enter new password'),
-                        const SizedBox(height: 20),
-                        _buildHints(),
-                        const SizedBox(height: 24),
-                        GetBuilder<AuthController>(
-                          builder: (controller) {
-                            return CustomButton(
-                              text: 'Update Password',
-                              onPressed: _handleChangePassword,
-                              isLoading: controller.isLoading,
-                              icon: const Icon(Icons.check_circle_outline_rounded),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                  // Current Password
+                  Text('Current Password', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  PasswordTextField(controller: _currentPasswordController, labelText: null, hintText: 'Enter your current password'),
+                  const SizedBox(height: 20),
+
+                  // New Password
+                  Text('New Password', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  PasswordTextField(controller: _newPasswordController, labelText: null, hintText: 'Enter new password'),
+                  const SizedBox(height: 20),
+
+                  // Re-Enter New Password
+                  Text('Re–Enter New Password', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  PasswordTextField(controller: _confirmPasswordController, labelText: null, hintText: 'Re–enter new password'),
+                  const SizedBox(height: 24),
+
+                  _buildHints(),
+                  const SizedBox(height: 24),
+
+                  GetBuilder<AuthController>(
+                    builder: (controller) {
+                      return CustomButton(
+                        text: 'Update Password',
+                        onPressed: _handleChangePassword,
+                        isLoading: controller.isLoading,
+                        icon: const Icon(Icons.check_circle_outline_rounded),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -180,9 +162,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: AppColors.surface.withOpacity(0.5),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.15), width: 1),
+        borderRadius: BorderRadius.circular(14),
+        color: AppColors.accent.withOpacity(0.07),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.12), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,7 +174,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
               Icon(Icons.info_outline_rounded, size: 18, color: AppColors.accent),
               const SizedBox(width: 8),
               Text(
-                'Password requirements',
+                'Password Requirements',
                 style: AppTextStyles.labelMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
               ),
             ],
@@ -210,7 +192,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(hint, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.65))),
+                    child: Text(hint, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.7))),
                   ),
                 ],
               ),
