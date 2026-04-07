@@ -5,31 +5,19 @@ import 'package:get_right/theme/text_styles.dart';
 
 class AddNotesScreen extends StatefulWidget {
   const AddNotesScreen({super.key});
+
   @override
   State<AddNotesScreen> createState() => _AddNotesScreenState();
 }
 
 class _AddNotesScreenState extends State<AddNotesScreen> {
   final TextEditingController _notesController = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    final args = Get.arguments as Map<String, dynamic>?;
-    if (args != null) {
-      _notesController.text = args['existingNotes'] ?? '';
-    }
-  }
 
   @override
   void dispose() {
     _notesController.dispose();
-    _focusNode.dispose();
     super.dispose();
   }
-
-  void _onSave() => Get.back(result: {'notes': _notesController.text.trim()});
 
   @override
   Widget build(BuildContext context) {
@@ -54,36 +42,27 @@ class _AddNotesScreenState extends State<AddNotesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Notes',
-                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-              ),
+              Text('Notes', style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextField(
                 controller: _notesController,
-                focusNode: _focusNode,
                 maxLines: 6,
                 decoration: InputDecoration(
                   hintText: 'Add notes for this day...',
                   filled: true,
                   fillColor: AppColors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.4)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.accent.withOpacity(0.6)),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.4))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.accent.withOpacity(0.6))),
                 ),
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
               ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _onSave,
+                  onPressed: () {
+                    Get.back(result: _notesController.text.trim());
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.accentVariant,
                     foregroundColor: AppColors.onAccent,
@@ -114,3 +93,4 @@ class _AddNotesScreenState extends State<AddNotesScreen> {
     );
   }
 }
+

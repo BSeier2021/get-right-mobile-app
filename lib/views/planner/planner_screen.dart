@@ -7,6 +7,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/journal/add_workout_screen.dart';
+import 'package:get_right/views/planner/add_date_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -21,6 +22,7 @@ class PlannerScreen extends StatefulWidget {
 class _PlannerScreenState extends State<PlannerScreen> {
   DateTime _selectedDate = DateTime.now();
   DateTime _focusedMonth = DateTime.now();
+  bool _isCalendarCollapsed = false;
   final ImagePicker _imagePicker = ImagePicker();
 
   // Mock workout data for calendar (status: completed, incomplete, rest)
@@ -571,103 +573,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _showAddWorkoutDialog() {
-    // Check if date is in the past or future for different options
-    final now = DateTime.now();
-    final selectedDateOnly = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-    final nowDateOnly = DateTime(now.year, now.month, now.day);
-
-    final isFuture = selectedDateOnly.isAfter(nowDateOnly);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [BoxShadow(color: AppColors.blackOverlay, blurRadius: 20, offset: Offset(0, -4))],
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  isFuture ? 'Plan for ${_formatDate(_selectedDate)}' : 'Add to ${_formatDate(_selectedDate)}',
-                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(isFuture ? 'Schedule an activity' : 'Log something for this day', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-                const SizedBox(height: 24),
-                _buildShareOptionTile(
-                  icon: Icons.fitness_center,
-                  title: 'Add Workout',
-                  subtitle: 'Log a gym or home workout',
-                  onTap: () {
-                    Get.back();
-                    Get.to(AddWorkoutScreen());
-                  },
-                ),
-                const SizedBox(height: 12),
-                _buildShareOptionTile(
-                  icon: Icons.directions_run,
-                  title: 'Add Run',
-                  subtitle: 'Log a run or outdoor activity',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Get.toNamed(AppRoutes.logRun, arguments: {'selectedDate': _selectedDate});
-                  },
-                ),
-                if (!isFuture) ...[
-                  const SizedBox(height: 12),
-                  _buildShareOptionTile(
-                    icon: Icons.camera_alt,
-                    title: 'Add Progress Photo',
-                    subtitle: 'Front or side progress photo',
-                    onTap: () {
-                      Navigator.pop(context);
-                      _addProgressPhoto();
-                    },
-                  ),
-                ],
-                const SizedBox(height: 12),
-                _buildShareOptionTile(
-                  icon: Icons.note_alt_rounded,
-                  title: 'Add Notes',
-                  subtitle: 'Add notes for this day',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showNotesDialog();
-                  },
-                ),
-                if (isFuture) ...[
-                  const SizedBox(height: 12),
-                  _buildShareOptionTile(
-                    icon: Icons.bedtime_rounded,
-                    title: 'Mark as Rest Day',
-                    subtitle: 'No workout planned',
-                    onTap: () {
-                      Navigator.pop(context);
-                      _markAsRestDay();
-                    },
-                  ),
-                ],
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+    Get.to(() => AddDateScreen(selectedDate: _selectedDate, onAddProgressPhoto: _addProgressPhoto, onAddNotes: _showNotesDialog));
   }
 
   void _showNotesDialog() {
@@ -950,76 +856,66 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _showShareOptions() {
-    final data = _getDataForDate(_selectedDate);
-    if (data == null || (data['workout'] == null && data['run'] == null)) {
-      Get.snackbar('No Data', 'No workout or run data to share for this date', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
-      return;
-    }
-
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [BoxShadow(color: AppColors.blackOverlay, blurRadius: 20, offset: Offset(0, -4))],
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Share Options',
-                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text('Choose how you want to share your activity', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-                const SizedBox(height: 24),
-                if (data['workout'] != null) ...[
-                  _buildShareOptionTile(
-                    icon: Icons.article_outlined,
-                    title: 'Share Summary',
-                    subtitle: 'Share workout summary to social media',
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showSharePreview('summary');
-                    },
+      barrierColor: Colors.black45,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Title row with close button
+              Row(
+                children: [
+                  const Spacer(),
+                  Text(
+                    'Share Options',
+                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 12),
-                  _buildShareOptionTile(
-                    icon: Icons.download_for_offline_outlined,
-                    title: 'Share Workout Download',
-                    subtitle: 'Share workout details with a friend',
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showSharePreview('download');
-                    },
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.red.shade300, width: 1.5),
+                      ),
+                      child: Icon(Icons.close, size: 16, color: Colors.red.shade400),
+                    ),
                   ),
-                  if (data['run'] != null) const SizedBox(height: 12),
                 ],
-                if (data['run'] != null)
-                  _buildShareOptionTile(
-                    icon: Icons.directions_run,
-                    title: 'Share Run Summary',
-                    subtitle: 'Share run summary to social media',
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showSharePreview('run');
-                    },
-                  ),
-                const SizedBox(height: 8),
-              ],
-            ),
+              ),
+              const SizedBox(height: 6),
+              Text('Choose how you want to share your activity', style: AppTextStyles.bodySmall.copyWith(color: AppColors.black)),
+              const SizedBox(height: 20),
+              // Share Summary tile
+              _buildShareOptionTile(
+                icon: Icons.assignment_outlined,
+                title: 'Share Summary',
+                subtitle: 'Share workout summary to\nsocial media',
+                onTap: () {
+                  Navigator.pop(context);
+                  _showSharePreview('summary');
+                },
+              ),
+              const SizedBox(height: 12),
+              // Share Workout Details tile
+              _buildShareOptionTile(
+                icon: Icons.download_for_offline_outlined,
+                title: 'Share Workout Details',
+                subtitle: 'Share workout details with\na friend',
+                onTap: () {
+                  Navigator.pop(context);
+                  _showSharePreview('download');
+                },
+              ),
+            ],
           ),
         ),
       ),
@@ -1035,34 +931,33 @@ class _PlannerScreenState extends State<PlannerScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.background,
+            color: const Color(0xFFF0F7E4),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
-            boxShadow: [BoxShadow(color: AppColors.blackOverlay.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+            border: Border.all(color: AppColors.primaryGray.withOpacity(0.25)),
           ),
           child: Row(
             children: [
               Container(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), shape: BoxShape.circle),
                 child: Icon(icon, color: AppColors.accent, size: 24),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 2),
                     Text(subtitle, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: AppColors.primaryGray, size: 22),
+              const Icon(Icons.chevron_right, color: AppColors.primaryGray, size: 22),
             ],
           ),
         ),
@@ -1073,96 +968,83 @@ class _PlannerScreenState extends State<PlannerScreen> {
   void _showSharePreview(String type) {
     final data = _getDataForDate(_selectedDate);
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [BoxShadow(color: AppColors.blackOverlay, blurRadius: 24, offset: Offset(0, -4))],
-        ),
-        child: Column(
-          children: [
-            // Handle + Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
-              child: Column(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
-                          child: const Icon(Icons.close, color: AppColors.onBackground, size: 20),
+      barrierColor: Colors.black45,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Row(
+                  children: [
+                    const Spacer(),
+                    Text(
+                      'Share Preview',
+                      style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.red.shade300, width: 1.5),
                         ),
-                        onPressed: () => Navigator.pop(context),
+                        child: Icon(Icons.close, size: 16, color: Colors.red.shade400),
                       ),
-                      Expanded(
-                        child: Text(
-                          type == 'download' ? 'Workout Download Preview' : 'Share Preview',
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(width: 56),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            // Preview Content
-            Expanded(
-              child: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 20), child: _buildSharePreviewContent(type, data)),
-            ),
-            // Share Button
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                boxShadow: [BoxShadow(color: AppColors.blackOverlay.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, -2))],
+              const SizedBox(height: 16),
+              // Content
+              Flexible(
+                child: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(20, 0, 20, 0), child: _buildSharePreviewContent(type, data)),
               ),
-              child: SafeArea(
-                top: false,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    // TODO: Implement actual sharing functionality
-                    Navigator.pop(context);
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (!Get.isSnackbarOpen) {
-                        Get.snackbar(
-                          'Shared',
-                          'Content shared successfully',
-                          backgroundColor: AppColors.completed,
-                          colorText: AppColors.onError,
-                          snackPosition: SnackPosition.BOTTOM,
-                        );
-                      }
-                    });
-                  },
-                  icon: const Icon(Icons.share_rounded, size: 22),
-                  label: Text(type == 'download' ? 'Share Workout Download' : 'Share'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.onAccent,
-                    elevation: 0,
-                    minimumSize: const Size(double.infinity, 52),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              // Share Button
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!Get.isSnackbarOpen) {
+                          Get.snackbar(
+                            'Shared',
+                            'Content shared successfully',
+                            backgroundColor: AppColors.completed,
+                            colorText: AppColors.onError,
+                            snackPosition: SnackPosition.BOTTOM,
+                          );
+                        }
+                      });
+                    },
+                    icon: const Icon(Icons.share_rounded, size: 20),
+                    label: const Text('Share'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentVariant,
+                      foregroundColor: AppColors.onAccent,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1170,160 +1052,250 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   Widget _buildSharePreviewContent(String type, Map<String, dynamic>? data) {
     if (type == 'download') {
-      // Workout Download Preview
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: AppColors.blackOverlay, blurRadius: 10, offset: const Offset(0, 4))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.fitness_center, color: AppColors.accent, size: 28),
-                const SizedBox(width: 12),
-                Text(
-                  'Workout',
-                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(_formatDate(_selectedDate), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-            const SizedBox(height: 24),
-            // Mock exercise details
-            _buildExerciseDetail('Overhead Press', 'Set 1: Reps: 10 - Weight: 165'),
-            _buildExerciseDetail('', 'Set 2: Reps: 12 - Weight: 165'),
-            _buildExerciseDetail('', 'Set 3: Reps: 14 - Weight: 165'),
-            const SizedBox(height: 16),
-            const Divider(color: AppColors.primaryGray),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Icon(Icons.timer, color: AppColors.accent, size: 20),
-                const SizedBox(width: 8),
-                Text('Duration: ${data?['workout']?['duration'] ?? 'N/A'}', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.local_fire_department, color: AppColors.accent, size: 20),
-                const SizedBox(width: 8),
-                Text('Calories: ${data?['workout']?['calories'] ?? 'N/A'}', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.accent),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, color: AppColors.accent, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text('Recipients can import this workout into their calendar', style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface)),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    } else if (type == 'run') {
-      // Run Summary Preview
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: AppColors.blackOverlay, blurRadius: 10, offset: const Offset(0, 4))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.directions_run, color: AppColors.accent, size: 28),
-                const SizedBox(width: 12),
-                Text(
-                  'Running Summary',
-                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(_formatDate(_selectedDate), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-            const SizedBox(height: 24),
-            _buildRunStat(Icons.route, 'Distance', data?['run']?['distance'] ?? 'N/A'),
-            const SizedBox(height: 16),
-            _buildRunStat(Icons.timer, 'Time', data?['run']?['time'] ?? 'N/A'),
-            const SizedBox(height: 16),
-            _buildRunStat(Icons.speed, 'Pace', data?['run']?['pace'] ?? 'N/A'),
-            const SizedBox(height: 16),
-            _buildRunStat(Icons.local_fire_department, 'Calories', data?['run']?['calories'].toString() ?? 'N/A'),
-          ],
-        ),
-      );
+      return _buildDownloadPreviewCard(data);
     } else {
-      // Workout Summary Preview
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: AppColors.blackOverlay, blurRadius: 10, offset: const Offset(0, 4))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.fitness_center, color: AppColors.accent, size: 28),
-                const SizedBox(width: 12),
-                Text(
-                  'Workout',
-                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(_formatDate(_selectedDate), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-            const SizedBox(height: 24),
-            _buildWorkoutStat('Duration', data?['workout']?['duration'] ?? 'N/A'),
-            const SizedBox(height: 16),
-            _buildWorkoutStat('Exercises', data?['workout']?['exercises'].toString() ?? 'N/A'),
-            const SizedBox(height: 16),
-            _buildWorkoutStat('Sets', data?['workout']?['sets'].toString() ?? 'N/A'),
-            const SizedBox(height: 16),
-            _buildWorkoutStat('Calories', data?['workout']?['calories'].toString() ?? 'N/A'),
-          ],
-        ),
-      );
+      return _buildSummaryPreviewCard(data);
     }
   }
 
-  Widget _buildExerciseDetail(String name, String detail) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
+  /// Screenshot 1 – Workout Summary card
+  Widget _buildSummaryPreviewCard(Map<String, dynamic>? data) {
+    final workout = data?['workout'] as Map<String, dynamic>?;
+    final duration = workout?['duration'] ?? 'N/A';
+    final exercises = workout?['exercises']?.toString() ?? '0';
+    final sets = workout?['sets']?.toString() ?? '0';
+    final calories = workout?['calories']?.toString() ?? '0';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (name.isNotEmpty) const Icon(Icons.fiber_manual_record, size: 8, color: AppColors.accent),
-          if (name.isNotEmpty) const SizedBox(width: 8),
-          if (name.isEmpty) const SizedBox(width: 16),
-          Expanded(
+          Text(
+            'Workout Summary',
+            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          // Duration row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Duration', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+              Text(
+                duration,
+                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Stat boxes row
+          Row(
+            children: [
+              Expanded(child: _buildPreviewStatCircle('assets/images/Vector.png', exercises, 'Exercises')),
+              const SizedBox(width: 10),
+              Expanded(child: _buildPreviewStatCircle('assets/images/sets111.png', sets, 'Sets')),
+              const SizedBox(width: 10),
+              Expanded(child: _buildPreviewStatCircle('assets/images/Subtract (2).png', calories, 'Calories')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewStatCircle(String imagePath, String value, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Image.asset(imagePath, width: 22, height: 22, color: AppColors.primaryGray),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+          ),
+          Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 10)),
+        ],
+      ),
+    );
+  }
+
+  /// Screenshot 2 – Workout Download / Details card
+  Widget _buildDownloadPreviewCard(Map<String, dynamic>? data) {
+    final workout = data?['workout'] as Map<String, dynamic>?;
+    final duration = workout?['duration'] ?? '55:00';
+    final calories = workout?['calories']?.toString() ?? '450';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title row
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), shape: BoxShape.circle),
+                child: const Icon(Icons.fitness_center, color: AppColors.accent, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Shoulder',
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                    ),
+                    Text(_formatDate(_selectedDate), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.more_horiz, color: AppColors.primaryGray, size: 22),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Exercise name
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.10), shape: BoxShape.circle),
+                child: const Icon(Icons.fitness_center, color: AppColors.accent, size: 14),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Overhead Press',
+                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Exercise table
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (name.isNotEmpty) Text(name, style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
-                Text(detail, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                // Table header
+                Row(
+                  children: [
+                    const SizedBox(width: 30),
+                    Expanded(
+                      child: Text(
+                        'Sets',
+                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Reps',
+                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Weight',
+                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 16),
+                _buildSetRow('01', '10', '165'),
+                const SizedBox(height: 6),
+                _buildSetRow('02', '12', '165'),
+                const SizedBox(height: 6),
+                _buildSetRow('03', '14', '165'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Duration & Calories
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.timer_outlined, color: AppColors.primaryGray, size: 22),
+                      const SizedBox(height: 4),
+                      Text(
+                        duration,
+                        style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                      ),
+                      Text('Duration', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 10)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.local_fire_department_outlined, color: AppColors.primaryGray, size: 22),
+                      const SizedBox(height: 4),
+                      Text(
+                        calories,
+                        style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                      ),
+                      Text('Calories', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 10)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Info banner
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.06), borderRadius: BorderRadius.circular(10)),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: AppColors.primaryGray, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Recipients can import this workout into their calendar', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11)),
+                ),
               ],
             ),
           ),
@@ -1332,46 +1304,29 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
-  Widget _buildRunStat(IconData icon, String label, String value) {
+  Widget _buildSetRow(String set, String reps, String weight) {
     return Row(
       children: [
-        Icon(icon, color: AppColors.accent, size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-              Text(value, style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
-            ],
+        SizedBox(
+          width: 30,
+          child: Text(
+            set,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+            textAlign: TextAlign.center,
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildWorkoutStat(String label, String value) {
-    return Row(
-      children: [
-        Icon(
-          label == 'Duration'
-              ? Icons.timer
-              : label == 'Exercises'
-              ? Icons.fitness_center
-              : label == 'Sets'
-              ? Icons.repeat
-              : Icons.local_fire_department,
-          color: AppColors.accent,
-          size: 20,
-        ),
-        const SizedBox(width: 12),
         Expanded(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-              Text(value, style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
-            ],
+          child: Text(
+            reps,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            weight,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface),
+            textAlign: TextAlign.center,
           ),
         ),
       ],
@@ -1401,20 +1356,22 @@ class _PlannerScreenState extends State<PlannerScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildLegendItem(const Color(0xFFE74C3C), 'Incomplete'),
-                  const SizedBox(width: 12),
-                  _buildLegendItem(const Color(0xFF6FCF97), 'Completed'),
-                  const SizedBox(width: 12),
-                  _buildLegendItem(const Color(0xFF4A90E2), 'Rest Day'),
-                ],
+            if (!_isCalendarCollapsed) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildLegendItem(const Color(0xFFE74C3C), 'Incomplete'),
+                    const SizedBox(width: 12),
+                    _buildLegendItem(const Color(0xFF6FCF97), 'Completed'),
+                    const SizedBox(width: 12),
+                    _buildLegendItem(const Color(0xFF4A90E2), 'Rest Day'),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
             // Top: Year + Search
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1476,14 +1433,24 @@ class _PlannerScreenState extends State<PlannerScreen> {
             // Calendar
             Column(
               children: [
-                // Month label (left-aligned like mock)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      _getMonthName(_focusedMonth.month),
-                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                // Month label (tap to expand/collapse)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isCalendarCollapsed = !_isCalendarCollapsed;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Row(
+                      children: [
+                        Text(
+                          _getMonthName(_focusedMonth.month),
+                          style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(_isCalendarCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, color: AppColors.primaryGray, size: 20),
+                      ],
                     ),
                   ),
                 ),
@@ -1511,48 +1478,38 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 _buildCalendarGrid(),
                 const SizedBox(height: 16),
 
-                // Pagination dots below calendar
-                Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
-                      ),
-                      const SizedBox(width: 4),
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-                      ),
-                      const SizedBox(width: 4),
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
-                      ),
-                    ],
-                  ),
-                ).paddingOnly(bottom: 16),
+                // Pagination dots below calendar (hidden when collapsed)
+                if (!_isCalendarCollapsed)
+                  Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 4),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 4),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
+                        ),
+                      ],
+                    ),
+                  ).paddingOnly(bottom: 16),
               ],
             ),
             const SizedBox(height: 24),
 
-            // Selected date header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                _formatDate(_selectedDate),
-                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Day detail view
-            _buildDayDetailView(),
-            const SizedBox(height: 80),
+            // Day detail view (only shown when calendar is collapsed / date selected)
+            if (_isCalendarCollapsed) ...[_buildDayDetailView(), const SizedBox(height: 80)],
           ],
         ),
       ),
@@ -1578,6 +1535,20 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final lastDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
     final firstWeekday = firstDayOfMonth.weekday % 7;
     final daysInMonth = lastDayOfMonth.day;
+    final totalItems = firstWeekday + daysInMonth;
+
+    // Determine if we should show collapsed (single week) view
+    final bool isCollapsed = _isCalendarCollapsed && _selectedDate.month == _focusedMonth.month && _selectedDate.year == _focusedMonth.year;
+
+    // Calculate the row that contains the selected date
+    int collapsedRowStart = 0;
+    if (isCollapsed) {
+      final selectedGridIndex = firstWeekday + _selectedDate.day - 1;
+      final selectedRow = selectedGridIndex ~/ 7;
+      collapsedRowStart = selectedRow * 7;
+    }
+
+    final int displayItemCount = isCollapsed ? 7 : totalItems;
 
     return GestureDetector(
       onHorizontalDragEnd: (details) {
@@ -1586,95 +1557,105 @@ class _PlannerScreenState extends State<PlannerScreen> {
             // Swipe left → next month
             setState(() {
               _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
+              _isCalendarCollapsed = false;
             });
           } else if (details.primaryVelocity! > 0) {
             // Swipe right → previous month
             setState(() {
               _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
+              _isCalendarCollapsed = false;
             });
           }
         }
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 0.75),
-          itemCount: firstWeekday + daysInMonth,
-          itemBuilder: (context, index) {
-            if (index < firstWeekday) return const SizedBox();
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: isCollapsed ? 1.0 : 0.75),
+            itemCount: displayItemCount,
+            itemBuilder: (context, index) {
+              // Map builder index to actual grid index
+              final actualIndex = isCollapsed ? (collapsedRowStart + index) : index;
 
-            final day = index - firstWeekday + 1;
-            final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-            final isSelected = _selectedDate.year == date.year && _selectedDate.month == date.month && _selectedDate.day == date.day;
-            final isToday = DateTime.now().year == date.year && DateTime.now().month == date.month && DateTime.now().day == date.day;
-            final dateColor = _getDateColor(date);
-            final hasPhoto = _hasProgressPhoto(date);
+              // Empty cell for leading blanks or trailing overflow
+              if (actualIndex < firstWeekday || actualIndex >= totalItems) {
+                return const SizedBox();
+              }
 
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedDate = date;
-                });
-              },
-              onLongPress: () {
-                setState(() {
-                  _selectedDate = date;
-                });
-                _showAddWorkoutDialog();
-              },
-              child: Builder(
-                builder: (context) {
-                  final int position = index - firstWeekday;
-                  final int rowIndex = position >= 0 ? (position / 7).floor() : 0;
-                  return Container(
-                    // Vertical margin only so horizontal borders join seamlessly
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    decoration: BoxDecoration(
-                      border: rowIndex > 0 ? Border(top: BorderSide(color: AppColors.primaryGray.withOpacity(0.3), width: 1)) : null,
-                    ),
-                    child: Container(
+              final day = actualIndex - firstWeekday + 1;
+              final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+              final isSelected = _selectedDate.year == date.year && _selectedDate.month == date.month && _selectedDate.day == date.day;
+              final isToday = DateTime.now().year == date.year && DateTime.now().month == date.month && DateTime.now().day == date.day;
+              final dateColor = _getDateColor(date);
+
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedDate = date;
+                    _isCalendarCollapsed = true;
+                  });
+                },
+                onLongPress: () {
+                  setState(() {
+                    _selectedDate = date;
+                    _isCalendarCollapsed = true;
+                  });
+                  _showAddWorkoutDialog();
+                },
+                child: Builder(
+                  builder: (context) {
+                    final int position = actualIndex - firstWeekday;
+                    final int rowIndex = position >= 0 ? (position / 7).floor() : 0;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
-                        // Keep today's outline as before
-                        border: isToday && !isSelected ? Border.all(color: AppColors.accent, width: 1.6) : null,
+                        border: !isCollapsed && rowIndex > 0 ? Border(top: BorderSide(color: AppColors.primaryGray.withOpacity(0.3), width: 1)) : null,
                       ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Selected day circular highlight
-                          if (isSelected)
-                            Container(
-                              width: 28,
-                              height: 28,
-                              decoration: const BoxDecoration(color: Color(0xFFE74C3C), shape: BoxShape.circle),
-                            ),
-                          Text(
-                            '$day',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: isSelected ? Colors.white : (isToday ? AppColors.onBackground : AppColors.onSurface),
-                              fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
-                          if (dateColor != Colors.transparent)
-                            Positioned(
-                              bottom: 6,
-                              child: Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(color: dateColor, shape: BoxShape.circle),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: isToday && !isSelected ? Border.all(color: AppColors.accent, width: 1.6) : null,
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            if (isSelected)
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: const BoxDecoration(color: Color(0xFFE74C3C), shape: BoxShape.circle),
+                              ),
+                            Text(
+                              '$day',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: isSelected ? Colors.white : (isToday ? AppColors.onBackground : AppColors.onSurface),
+                                fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
                               ),
                             ),
-                        ],
+                            if (dateColor != Colors.transparent)
+                              Positioned(
+                                bottom: 6,
+                                child: Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(color: dateColor, shape: BoxShape.circle),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            );
-          },
+                    );
+                  },
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -1783,7 +1764,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     foregroundColor: AppColors.accent,
                     side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                   ),
                 ),
               ),
@@ -1798,7 +1779,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     foregroundColor: AppColors.onAccent,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                   ),
                 ),
               ),
@@ -1905,55 +1886,85 @@ class _PlannerScreenState extends State<PlannerScreen> {
   Widget _buildWorkoutSummarySection(Map<String, dynamic> workout) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accent.withOpacity(0.4)),
-        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 2))],
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Title row
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.fitness_center, color: AppColors.accent, size: 22),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Workout Summary',
-                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 17),
                 ),
               ),
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _showShareOptions(),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Icon(Icons.share_rounded, color: AppColors.accent, size: 22),
-                  ),
-                ),
+              GestureDetector(
+                onTap: () => _showShareOptions(),
+                child: Icon(Icons.share, color: AppColors.primaryGray, size: 20),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Duration row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Duration', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+              Text(
+                workout['duration'] ?? 'N/A',
+                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          _buildDetailRow(Icons.timer, 'Duration', workout['duration'] ?? 'N/A'),
-          const SizedBox(height: 14),
+          // Stat boxes row
           Row(
             children: [
-              Expanded(child: _buildStatItem(Icons.fitness_center, 'Exercises', workout['exercises'].toString())),
-              const SizedBox(width: 5),
-              Expanded(child: _buildStatItem(Icons.repeat, 'Sets', workout['sets'].toString())),
-              const SizedBox(width: 5),
-              Expanded(child: _buildStatItem(Icons.local_fire_department, 'Calories', workout['calories'].toString())),
+              Expanded(child: _buildWorkoutStatBox('assets/icons/nutrition.svg', workout['exercises'].toString(), 'Exercises')),
+              const SizedBox(width: 10),
+              Expanded(child: _buildWorkoutStatBox('assets/icons/nutrition.svg', workout['sets'].toString(), 'Sets')),
+              const SizedBox(width: 10),
+              Expanded(child: _buildWorkoutStatBox('assets/icons/nutrition.svg', workout['calories'].toString(), 'Calories')),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWorkoutStatBox(String iconPath, String value, String label) {
+    String imagePath;
+    if (label == 'Exercises') {
+      imagePath = 'assets/images/Vector.png';
+    } else if (label == 'Sets') {
+      imagePath = 'assets/images/sets111.png';
+    } else {
+      imagePath = 'assets/images/Subtract (2).png';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Image.asset(imagePath, width: 24, height: 24, color: AppColors.primaryGray),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11)),
         ],
       ),
     );
@@ -2098,40 +2109,84 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Widget _buildNutritionSummarySection(Map<String, dynamic> nutrition) {
+    // Parse numeric values from nutrition strings
+    String caloriesVal = nutrition['calories']?.toString().split('/').first ?? '0';
+    String proteinVal = nutrition['protein']?.toString().replaceAll('g', '') ?? '0';
+    String carbsVal = nutrition['carbs']?.toString().replaceAll('g', '') ?? '0';
+    String fatsVal = nutrition['fats']?.toString().replaceAll('g', '') ?? '0';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.upcoming.withOpacity(0.4)),
-        boxShadow: [BoxShadow(color: AppColors.upcoming.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 2))],
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Title row with serving controls
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.upcoming.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.restaurant_rounded, color: AppColors.upcoming, size: 22),
+              Expanded(
+                child: Text(
+                  'Nutrition (per serving)',
+                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 17),
+                ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                'Nutrition',
-                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+              GestureDetector(
+                onTap: () {},
+                child: Icon(Icons.remove_circle_outline, color: AppColors.primaryGray, size: 22),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  '1.0',
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {},
+                child: Icon(Icons.add_circle_outline, color: AppColors.primaryGray, size: 22),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          _buildDetailRow(Icons.local_fire_department, 'Calories', nutrition['calories']),
-          const SizedBox(height: 8),
-          _buildDetailRow(Icons.fitness_center, 'Protein', nutrition['protein']),
-          const SizedBox(height: 8),
-          _buildDetailRow(Icons.rice_bowl, 'Carbs', nutrition['carbs']),
-          const SizedBox(height: 8),
-          _buildDetailRow(Icons.water_drop, 'Fats', nutrition['fats']),
+          // Top row: Calories + Protein
+          Row(
+            children: [
+              Expanded(child: _buildNutritionBox(caloriesVal, 'Calories kcal', const Color(0xFFE8F5E0), AppColors.onSurface)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildNutritionBox(proteinVal, 'Protein g', const Color(0xFFE8F5E0), AppColors.onSurface)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Bottom row: Carbs + Fats
+          Row(
+            children: [
+              Expanded(child: _buildNutritionBox(carbsVal, 'Carbs g', const Color(0xFFE8F5E0), AppColors.onSurface)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildNutritionBox(fatsVal, 'Fats g', const Color(0xFFFCDDD5), const Color(0xFFD94E2A))),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNutritionBox(String value, String label, Color bgColor, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: AppTextStyles.titleLarge.copyWith(color: textColor, fontWeight: FontWeight.bold, fontSize: 28),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: AppTextStyles.labelSmall.copyWith(color: textColor.withOpacity(0.7), fontSize: 12)),
         ],
       ),
     );
@@ -2178,29 +2233,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ),
           const SizedBox(height: 10),
           Text(notes, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(IconData icon, String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.25)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: AppColors.accent, size: 20),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 2),
-          Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
         ],
       ),
     );

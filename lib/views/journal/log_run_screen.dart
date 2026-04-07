@@ -54,7 +54,11 @@ class _LogRunScreenState extends State<LogRunScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.backgroundColor,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: AppColors.onPrimary),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+          ),
           onPressed: () => Get.back(),
         ),
         title: Text('Log Run', style: AppTextStyles.titleLarge.copyWith()),
@@ -69,28 +73,32 @@ class _LogRunScreenState extends State<LogRunScreen> {
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [AppColors.completed.withOpacity(0.15), AppColors.surface], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.completed.withOpacity(0.3)),
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primaryGray.withOpacity(0.6)),
+                  boxShadow: [BoxShadow(color: AppColors.blackOverlay.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 60,
-                      height: 60,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(color: AppColors.completed.withOpacity(0.2), shape: BoxShape.circle),
-                      child: const Icon(Icons.directions_run, color: AppColors.completed, size: 32),
+                      child: const Icon(Icons.directions_run, color: AppColors.completed, size: 24),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Manual Run Entry', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+                          Text(
+                            'Manual Run Entry',
+                            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                          ),
                           const SizedBox(height: 4),
-                          Text('Log a run you completed', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                          Text('Log a run you commented', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                         ],
                       ),
                     ),
@@ -108,10 +116,10 @@ class _LogRunScreenState extends State<LogRunScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _buildDateTimeCard(
-                      icon: Icons.calendar_today,
+                    child: _buildPillSelector(
                       label: 'Date',
                       value: DateFormat('MMM dd, yyyy').format(_selectedDate),
+                      hint: 'Select date',
                       onTap: () async {
                         final date = await showDatePicker(context: context, initialDate: _selectedDate, firstDate: DateTime(2020), lastDate: DateTime.now());
                         if (date != null) {
@@ -122,10 +130,10 @@ class _LogRunScreenState extends State<LogRunScreen> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _buildDateTimeCard(
-                      icon: Icons.access_time,
+                    child: _buildPillSelector(
                       label: 'Time',
                       value: _selectedTime.format(context),
+                      hint: 'Select time',
                       onTap: () async {
                         final time = await showTimePicker(context: context, initialTime: _selectedTime);
                         if (time != null) {
@@ -150,12 +158,12 @@ class _LogRunScreenState extends State<LogRunScreen> {
                 decoration: InputDecoration(
                   hintText: 'Enter distance',
                   suffixText: 'km',
-                  prefixIcon: const Icon(Icons.straighten, color: AppColors.accent),
                   filled: true,
-                  fillColor: AppColors.surface,
+                  fillColor: AppColors.white,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                    borderRadius: BorderRadius.circular(50),
+
+                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.4)),
                   ),
                 ),
                 validator: (value) {
@@ -179,14 +187,14 @@ class _LogRunScreenState extends State<LogRunScreen> {
               TextFormField(
                 controller: _durationController,
                 keyboardType: TextInputType.text,
+
                 decoration: InputDecoration(
-                  hintText: 'e.g., 30:15 (minutes:seconds)',
-                  prefixIcon: const Icon(Icons.timer, color: AppColors.accent),
+                  hintText: 'Enter duration',
                   filled: true,
-                  fillColor: AppColors.surface,
+                  fillColor: AppColors.white,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                    borderRadius: BorderRadius.circular(50),
+                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.4)),
                   ),
                 ),
                 validator: (value) {
@@ -216,7 +224,8 @@ class _LogRunScreenState extends State<LogRunScreen> {
                       setState(() => _selectedIntensity = intensity);
                     },
                     selectedColor: AppColors.accent,
-                    backgroundColor: AppColors.surface,
+                    backgroundColor: AppColors.white,
+                    shape: StadiumBorder(side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray.withOpacity(0.4))),
                     labelStyle: AppTextStyles.labelMedium.copyWith(
                       color: isSelected ? AppColors.onAccent : AppColors.onSurface,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -238,10 +247,10 @@ class _LogRunScreenState extends State<LogRunScreen> {
                 decoration: InputDecoration(
                   hintText: 'How did you feel? Any observations?',
                   filled: true,
-                  fillColor: AppColors.surface,
+                  fillColor: AppColors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.4)),
                   ),
                 ),
               ),
@@ -255,18 +264,10 @@ class _LogRunScreenState extends State<LogRunScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     foregroundColor: AppColors.onAccent,
-                    elevation: 4,
-                    shadowColor: AppColors.accent.withOpacity(0.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.check_circle, size: 24),
-                      const SizedBox(width: 8),
-                      Text('Save Run', style: AppTextStyles.buttonLarge),
-                    ],
-                  ),
+                  child: Text('Save Run', style: AppTextStyles.buttonLarge),
                 ),
               ),
             ],
@@ -276,31 +277,26 @@ class _LogRunScreenState extends State<LogRunScreen> {
     );
   }
 
-  Widget _buildDateTimeCard({required IconData icon, required String label, required String value, required VoidCallback onTap}) {
+  Widget _buildPillSelector({required String label, required String value, required String hint, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
-        ),
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(icon, size: 16, color: AppColors.accent),
-                const SizedBox(width: 6),
-                Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-              ],
-            ),
+            Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
             const SizedBox(height: 8),
-            Text(
-              value,
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(50),
+                border: Border.all(color: AppColors.primaryGray.withOpacity(0.4)),
+              ),
+              child: Text(value.isEmpty ? hint : value, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
             ),
           ],
         ),

@@ -1,4 +1,4 @@
-import 'dart:io';
+// import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,9 +10,9 @@ import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/validators.dart';
-import 'package:get_right/widgets/common/custom_button.dart';
+// import 'package:get_right/widgets/common/custom_button.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
-import 'package:image_picker/image_picker.dart';
+// import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 /// Add workout screen - Redesigned to match app theme
@@ -30,7 +30,7 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
   final _repsController = TextEditingController();
   final _weightController = TextEditingController();
   final _notesController = TextEditingController();
-  final ImagePicker _imagePicker = ImagePicker();
+  // final ImagePicker _imagePicker = ImagePicker();
 
   String? _progressPhotoPath;
   final List<String> _selectedTags = [];
@@ -300,78 +300,9 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
   }
   */
 
-  void _showPhotoOptions() {
-    // Prevent the Notes field (or any other field) from re-opening the keyboard.
-    FocusManager.instance.primaryFocus?.unfocus();
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Add Progress Photo', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
-            const SizedBox(height: 24),
-            ListTile(
-              leading: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.camera_alt, color: AppColors.accent),
-              ),
-              title: Text('Take Photo', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-              onTap: () async {
-                FocusManager.instance.primaryFocus?.unfocus();
-                Get.back();
-                // Small delay to allow the bottom sheet to close cleanly.
-                await Future.delayed(const Duration(milliseconds: 150));
-                await _pickProgressPhoto(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(color: AppColors.completed.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.photo_library, color: AppColors.completed),
-              ),
-              title: Text('Choose from Gallery', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-              onTap: () async {
-                FocusManager.instance.primaryFocus?.unfocus();
-                Get.back();
-                await Future.delayed(const Duration(milliseconds: 150));
-                await _pickProgressPhoto(ImageSource.gallery);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // (Photo options removed in this design to match the video walkthrough card)
 
-  Future<void> _pickProgressPhoto(ImageSource source) async {
-    try {
-      final XFile? picked = await _imagePicker.pickImage(source: source, imageQuality: 85, maxWidth: 2048);
-
-      if (picked == null) return;
-
-      setState(() {
-        _progressPhotoPath = picked.path;
-      });
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Could not access ${source == ImageSource.camera ? 'camera' : 'gallery'}. Please check permissions.',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-        margin: const EdgeInsets.all(16),
-      );
-    }
-  }
+  // Removed photo picking to match simplified design
 
   @override
   Widget build(BuildContext context) {
@@ -454,48 +385,14 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Date Section
-              _buildSectionHeader('Date & Time', Icons.calendar_today),
+              // Featured Workouts (Date Card)
+              _buildSectionHeader('Featured Workouts', Icons.star_border_rounded),
               const SizedBox(height: 12),
-              GestureDetector(
-                onTap: _selectDate,
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.accent, width: 2),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
-                        child: const Icon(Icons.calendar_today, color: AppColors.accent, size: 24),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Workout Date', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${_selectedDate.day} ${_getMonthName(_selectedDate.month)} ${_selectedDate.year}',
-                              style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.edit, color: AppColors.accent, size: 20),
-                    ],
-                  ),
-                ),
-              ),
+              _buildDateCard(),
               const SizedBox(height: 24),
 
               // Tags Section
-              _buildSectionHeader('Tags', Icons.label_outline),
+              _buildSectionHeader('Featured Workouts', Icons.label_outline),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -523,7 +420,7 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
                           color: isSelected ? AppColors.accent : AppColors.primaryVariant,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(50),
                           border: Border.all(color: isSelected ? AppColors.accent : AppColors.primaryGray, width: isSelected ? 2 : 1),
                         ),
                         child: Text(
@@ -543,75 +440,44 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
               // Notes Section
               _buildSectionHeader('Notes', Icons.edit_note),
               const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primaryGray, width: 1),
-                ),
-                child: TextFormField(
-                  controller: _notesController,
-                  keyboardType: TextInputType.multiline,
-                  textInputAction: TextInputAction.done,
-                  maxLines: 4,
-                  onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
-                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 15, fontWeight: FontWeight.w500),
-                  decoration: const InputDecoration(
-                    labelText: 'Additional Notes',
-                    hintText: 'How did it feel? Any observations?',
-                    prefixIcon: Icon(Icons.notes),
-                    border: InputBorder.none,
-                  ),
+              TextFormField(
+                controller: _notesController,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.done,
+                maxLines: 4,
+                onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 15, fontWeight: FontWeight.w500),
+                decoration: InputDecoration(
+                  hintText: 'Additional notes',
+                  border: InputBorder.none,
+                  // No label, no icon, only hint
+                  filled: true,
+                  fillColor: AppColors.white,
                 ),
               ),
               const SizedBox(height: 24),
 
-              // Progress Photo Section
-              _buildSectionHeader('Progress Photo', Icons.photo_camera),
+              // Video Walkthrough Section
+              _buildSectionHeader('Progress Photo', Icons.play_circle_outline),
               const SizedBox(height: 12),
-              GestureDetector(
-                onTap: () {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                  _showPhotoOptions();
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryGray, width: 1, style: BorderStyle.solid),
-                  ),
-                  child: Column(
-                    children: [
-                      if (_progressPhotoPath == null)
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), shape: BoxShape.circle),
-                          child: const Icon(Icons.add_a_photo, color: AppColors.accent, size: 36),
-                        )
-                      else
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Image.file(File(_progressPhotoPath!), width: 120, height: 120, fit: BoxFit.cover),
-                        ),
-                      const SizedBox(height: 16),
-                      Text(_progressPhotoPath == null ? 'Add Progress Photo' : 'Change Progress Photo', style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
-                      const SizedBox(height: 4),
-                      Text(
-                        _progressPhotoPath == null ? 'Optional - Track your progress visually' : 'Tap to replace',
-                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              _buildVideoWalkthroughCard(),
               const SizedBox(height: 40),
 
               // Action Buttons
-              CustomButton(text: _isLoading ? 'Saving...' : (_isEditMode ? 'Update Workout' : 'Save Workout'), onPressed: _isLoading ? null : _saveWorkout),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _saveWorkout,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accentVariant,
+                    foregroundColor: AppColors.onAccent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    elevation: 0,
+                  ),
+                  child: Text(_isLoading ? 'Saving...' : (_isEditMode ? 'Update Workout' : 'Save Workout'), style: AppTextStyles.buttonLarge),
+                ),
+              ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -621,6 +487,7 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.primaryGray, width: 2),
                     foregroundColor: AppColors.onBackground,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                   ),
                   child: Text('Cancel', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onBackground)),
                 ),
@@ -633,14 +500,83 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
     );
   }
 
+  Widget _buildDateCard() {
+    return GestureDetector(
+      onTap: _selectDate,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.primaryGray.withOpacity(0.6)),
+          boxShadow: [BoxShadow(color: AppColors.blackOverlay.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.calendar_today, color: AppColors.accent, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Workout Date', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                  const SizedBox(height: 4),
+                  Text('${_selectedDate.day} ${_getMonthName(_selectedDate.month)} ${_selectedDate.year}', style: AppTextStyles.bodyMedium),
+                ],
+              ),
+            ),
+            const Icon(Icons.edit, color: AppColors.accent, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoWalkthroughCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryGray),
+      ),
+      child: Column(
+        children: [
+          Image.asset('assets/images/playbutton.png', width: 56),
+          const SizedBox(height: 12),
+          Text(
+            'Video Walkthrough',
+            style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text('Watch step-by-step instructions', style: AppTextStyles.labelSmall.copyWith(color: AppColors.black)),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: () {},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accentVariant,
+                foregroundColor: AppColors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                elevation: 0,
+              ),
+              child: const Text('Watch Video Tutorial'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, color: AppColors.accent, size: 20),
-        ),
         const SizedBox(width: 12),
         Text(title, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
       ],
