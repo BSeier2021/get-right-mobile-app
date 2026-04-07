@@ -50,7 +50,7 @@ class AppTextStyles {
   static TextStyle titleLarge = TextStyle(
     fontFamily: secondaryFont,
     fontSize: 22.sp,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.w600,
     height: 1.4,
     letterSpacing: 0,
     color: AppColors.black, // Black
@@ -59,7 +59,7 @@ class AppTextStyles {
   static TextStyle titleMedium = TextStyle(
     fontFamily: primaryFont,
     fontSize: 18.sp,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.w600,
     height: 1.4,
     letterSpacing: 0.15,
     color: AppColors.secondary, // Black
@@ -158,9 +158,23 @@ class AppTextStyles {
   );
 
   // Specialized Styles
-  static TextStyle caption = TextStyle(fontFamily: primaryFont, fontSize: 12, fontWeight: FontWeight.normal, height: 1.3, letterSpacing: 0.4, color: AppColors.darkGray);
+  static TextStyle caption = TextStyle(
+    fontFamily: primaryFont,
+    fontSize: 12,
+    fontWeight: FontWeight.normal,
+    height: 1.3,
+    letterSpacing: 0.4,
+    color: AppColors.darkGray,
+  );
 
-  static TextStyle overline = TextStyle(fontFamily: primaryFont, fontSize: 10, fontWeight: FontWeight.w500, height: 1.6, letterSpacing: 1.5, color: AppColors.darkGray);
+  static TextStyle overline = TextStyle(
+    fontFamily: primaryFont,
+    fontSize: 10,
+    fontWeight: FontWeight.w500,
+    height: 1.6,
+    letterSpacing: 1.5,
+    color: AppColors.darkGray,
+  );
 
   // Workout-specific Styles
   static TextStyle statNumber = TextStyle(
@@ -172,5 +186,12 @@ class AppTextStyles {
     color: AppColors.accent, // Green for stats
   );
 
-  static const TextStyle statLabel = TextStyle(fontFamily: primaryFont, fontSize: 12, fontWeight: FontWeight.normal, height: 1.3, letterSpacing: 0.5, color: AppColors.darkGray);
+  static const TextStyle statLabel = TextStyle(
+    fontFamily: primaryFont,
+    fontSize: 12,
+    fontWeight: FontWeight.normal,
+    height: 1.3,
+    letterSpacing: 0.5,
+    color: AppColors.darkGray,
+  );
 }
