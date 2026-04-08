@@ -164,6 +164,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
                 Expanded(
                   flex: 1,
                   child: Container(
+                    margin: EdgeInsets.only(right: 10),
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
                     child: Row(
@@ -171,18 +172,24 @@ class _ExerciseCardState extends State<ExerciseCard> {
                       children: [
                         Image.asset('assets/images/sets.png', width: 17.w),
                         const SizedBox(width: 4),
-                        Text(
-                          'Set',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Set',
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ).paddingOnly(right: 10),
+                ),
                 Expanded(
                   flex: 1,
                   child: Container(
+                    margin: EdgeInsets.symmetric(horizontal: 10),
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
                     child: Row(
@@ -190,18 +197,24 @@ class _ExerciseCardState extends State<ExerciseCard> {
                       children: [
                         Image.asset('assets/images/reps.png', width: 17.w),
                         const SizedBox(width: 4),
-                        Text(
-                          widget.exercise.hasTimedSets ? 'Time' : 'Reps',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              widget.exercise.hasTimedSets ? 'Time' : 'Reps',
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ).paddingOnly(left: 10, right: 10),
+                ),
                 Expanded(
                   flex: 1,
                   child: Container(
+                    margin: EdgeInsets.symmetric(horizontal: 10),
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
                     child: Row(
@@ -209,15 +222,20 @@ class _ExerciseCardState extends State<ExerciseCard> {
                       children: [
                         Image.asset('assets/images/weight.png', width: 17.w),
                         const SizedBox(width: 4),
-                        Text(
-                          'Weight',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Weight',
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ).paddingSymmetric(horizontal: 10),
+                ),
               ],
             ),
           ),
