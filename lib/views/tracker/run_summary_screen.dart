@@ -385,8 +385,8 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
             height: 56,
             child: OutlinedButton(
               onPressed: () {
-                Get.close(3);
-                Get.find<HomeNavigationController>().changeTab(2, journalTab: 1);
+                Get.close(2);
+                Get.put(HomeNavigationController()).changeTab(2, journalTab: 1);
               },
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 2),
