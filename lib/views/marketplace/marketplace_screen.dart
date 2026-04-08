@@ -2481,13 +2481,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           children: [
             // Background with wavy pattern effect
             Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  image: DecorationImage(image: AssetImage(bgImage), fit: BoxFit.contain),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    image: DecorationImage(image: AssetImage(bgImage), fit: BoxFit.contain),
+                  ),
                 ),
               ),
-            ).paddingOnly(right: 10),
+            ),
             // Content - Left side
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,

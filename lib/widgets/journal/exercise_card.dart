@@ -21,30 +21,45 @@ class ExerciseCard extends StatefulWidget {
 class _ExerciseCardState extends State<ExerciseCard> {
   bool _isNotesExpanded = true;
 
-  // Get icon and color for exercise based on exercise name
-  Map<String, dynamic> _getExerciseIconAndColor(String exerciseName) {
+  // Get image asset and color for exercise based on exercise name
+  Map<String, dynamic> _getExerciseAssetAndColor(String exerciseName) {
     final name = exerciseName.toLowerCase();
 
-    if (name.contains('chest') || name.contains('bench') || name.contains('press') && !name.contains('overhead') && !name.contains('shoulder')) {
-      return {'icon': Icons.fitness_center, 'color': AppColors.accent};
-    } else if (name.contains('back') || name.contains('pull') || name.contains('row') || name.contains('lat')) {
-      return {'icon': Icons.rowing, 'color': AppColors.completed};
-    } else if (name.contains('squat') || name.contains('leg') || name.contains('quad') || name.contains('lunge')) {
-      return {'icon': Icons.directions_run, 'color': AppColors.upcoming};
-    } else if (name.contains('shoulder') || name.contains('overhead') || name.contains('press') && (name.contains('overhead') || name.contains('shoulder'))) {
-      return {'icon': Icons.sports_mma, 'color': AppColors.accent};
-    } else if (name.contains('core') || name.contains('plank') || name.contains('ab') || name.contains('crunch')) {
-      return {'icon': Icons.self_improvement, 'color': AppColors.primaryGray};
-    } else if (name.contains('bicep') || name.contains('curl')) {
-      return {'icon': Icons.emoji_events, 'color': AppColors.upcoming};
-    } else if (name.contains('tricep') || name.contains('extension') || name.contains('pushdown')) {
-      return {'icon': Icons.local_fire_department, 'color': AppColors.error};
-    } else if (name.contains('glute') || name.contains('hamstring') || name.contains('deadlift')) {
-      return {'icon': Icons.directions_walk, 'color': AppColors.upcoming};
-    } else {
-      // Default icon and color
-      return {'icon': Icons.fitness_center, 'color': AppColors.accent};
+    if (name.contains('chest') || (name.contains('bench') && !name.contains('overhead'))) {
+      return {'asset': 'assets/images/1. Chest 2.png', 'color': AppColors.accent};
     }
+    if (name.contains('back') || name.contains('lat') || name.contains('row') || name.contains('pull')) {
+      return {'asset': 'assets/images/2. Back 1.png', 'color': AppColors.completed};
+    }
+    if (name.contains('shoulder') || name.contains('overhead')) {
+      return {'asset': 'assets/images/3. Shoulders 1.png', 'color': AppColors.accent};
+    }
+    if (name.contains('quad') || name.contains('squat') || (name.contains('leg') && !name.contains('ham'))) {
+      return {'asset': 'assets/images/4. Quads 1.png', 'color': AppColors.upcoming};
+    }
+    if (name.contains('hamstring') || name.contains('deadlift')) {
+      return {'asset': 'assets/images/5. Hamstring 1.png', 'color': AppColors.upcoming};
+    }
+    if (name.contains('tricep') || name.contains('pushdown') || name.contains('extension')) {
+      return {'asset': 'assets/images/6. Triceps 1.png', 'color': AppColors.error};
+    }
+    if (name.contains('bicep') || name.contains('curl')) {
+      return {'asset': 'assets/images/7. Biceps 1.png', 'color': AppColors.upcoming};
+    }
+    if (name.contains('core') || name.contains('abs') || name.contains('plank') || name.contains('crunch')) {
+      return {'asset': 'assets/images/8. core.png', 'color': AppColors.primaryGray};
+    }
+    if (name.contains('glute')) {
+      return {'asset': 'assets/images/9. Glutes 1.png', 'color': AppColors.upcoming};
+    }
+    if (name.contains('calf') || name.contains('calves')) {
+      return {'asset': 'assets/images/10. Calves 1.png', 'color': AppColors.upcoming};
+    }
+    if (name.contains('forearm')) {
+      return {'asset': 'assets/images/11. Forearms 1.png', 'color': AppColors.primaryGray};
+    }
+    // Default
+    return {'asset': 'assets/images/1. Chest 2.png', 'color': AppColors.accent};
   }
 
   @override
@@ -65,9 +80,9 @@ class _ExerciseCardState extends State<ExerciseCard> {
               children: [
                 Builder(
                   builder: (context) {
-                    final iconData = _getExerciseIconAndColor(widget.exercise.exerciseName);
-                    final icon = iconData['icon'] as IconData;
-                    final color = iconData['color'] as Color;
+                    final data = _getExerciseAssetAndColor(widget.exercise.exerciseName);
+                    final String asset = data['asset'] as String;
+                    final Color color = data['color'] as Color;
                     return Container(
                       width: 40.w,
                       height: 40.h,
@@ -77,7 +92,9 @@ class _ExerciseCardState extends State<ExerciseCard> {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: color.withOpacity(0.25), width: 1),
                       ),
-                      child: Center(child: Icon(icon, color: color, size: 22)),
+                      child: Center(
+                        child: Image.asset(asset, width: 26.w, fit: BoxFit.contain),
+                      ),
                     );
                   },
                 ),

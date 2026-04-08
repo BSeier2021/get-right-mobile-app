@@ -34,11 +34,11 @@ class ProgressScreen extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _statCard(asset: 'assets/images/Vector.png', iconBg: const Color(0xFFE8F5E9), value: '47', valueColor: const Color(0xFF2E7D32), label: 'Total Workouts'),
+                child: _statCard(asset: 'assets/images/Vector.png', iconBg: const Color(0xFFFFF3E0), value: '47', valueColor: const Color(0xFFF57C00), label: 'Total Workouts'),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _statCard(asset: 'assets/images/calendar-222.png', iconBg: const Color(0xFFE0F2F1), value: '05', valueColor: const Color(0xFF00796B), label: 'This Week'),
+                child: _statCard(asset: 'assets/images/calendar-222.png', iconBg: const Color(0xFFE3F2FD), value: '05', valueColor: const Color(0xFF1976D2), label: 'This Week'),
               ),
             ],
           ),
@@ -48,11 +48,11 @@ class ProgressScreen extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _statCard(asset: 'assets/images/runing.png', iconBg: const Color(0xFFFFF8E1), value: '125 km', valueColor: const Color(0xFFE65100), label: 'Total Distance'),
+                child: _statCard(asset: 'assets/images/runing.png', iconBg: const Color(0xFFE8F5E9), value: '125 km', valueColor: const Color(0xFF2E7D32), label: 'Total Distance'),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _statCard(asset: 'assets/images/Subtract (2).png', iconBg: const Color(0xFFE8F5E9), value: '32', valueColor: const Color(0xFF2E7D32), label: 'Active Days'),
+                child: _statCard(asset: 'assets/images/Subtract (2).png', iconBg: const Color(0xFFFCE4EC), value: '32', valueColor: const Color(0xFF8E24AA), label: 'Active Days'),
               ),
             ],
           ),

@@ -249,12 +249,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
     return List<String>.from(fallback);
   }
 
-  IconData _exerciseLeadIcon(String name) {
+  String _exerciseLeadAsset(String name) {
     final n = name.toLowerCase();
-    if (n.contains('squat') || n.contains('leg')) return Icons.directions_run_rounded;
-    if (n.contains('bench') || n.contains('chest') || n.contains('press')) return Icons.fitness_center_rounded;
-    if (n.contains('dead')) return Icons.sports_mma_rounded;
-    return Icons.sports_gymnastics_rounded;
+    if (n.contains('squat') || n.contains('leg')) return 'assets/images/4. Quads 1.png';
+    if (n.contains('bench') || n.contains('chest') || n.contains('press')) return 'assets/images/1. Chest 2.png';
+    if (n.contains('dead')) return 'assets/images/Vector.png';
+    return 'assets/images/Vector.png';
   }
 
   Widget _buildExerciseFavoriteCard(Map<String, dynamic> item) {
@@ -285,7 +285,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                   shape: BoxShape.circle,
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
                 ),
-                child: Icon(_exerciseLeadIcon(name), color: _kFavoritesForestGreen, size: 24),
+                child: Center(child: Image.asset(_exerciseLeadAsset(name), width: 35, height: 30)),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -294,19 +294,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                   style: AppTextStyles.titleMedium.copyWith(color: _kFavoritesForestGreen, fontWeight: FontWeight.w800, fontSize: 17),
                 ),
               ),
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_horiz_rounded, color: _kFavoritesForestGreen.withValues(alpha: 0.85)),
-                padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                onSelected: (value) {
-                  if (value == 'remove' && !isDemo) _removeFavorite(id);
-                  if (value == 'open') _navigateToDetails(item);
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'open', child: Text('View details')),
-                  if (!isDemo) const PopupMenuItem(value: 'remove', child: Text('Remove from favorites')),
-                ],
-              ),
+              Icon(Icons.more_horiz_rounded, color: _kFavoritesForestGreen.withValues(alpha: 0.85)),
             ],
           ),
           const SizedBox(height: 14),
@@ -340,6 +328,19 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
 
   Widget _exerciseStatColumn({required IconData icon, required String label, required List<String> values}) {
     final rows = values.length >= 3 ? values.sublist(0, 3) : [...values, ...List.filled(3 - values.length, '—')];
+    String _iconAssetForLabel() {
+      switch (label) {
+        case 'Sets':
+          return 'assets/images/sets.png';
+        case 'Reps':
+          return 'assets/images/reps.png';
+        case 'Weight':
+          return 'assets/images/weight.png';
+        default:
+          return 'assets/images/Vector.png';
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -350,7 +351,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 14, color: _kCertifiedGreen),
+              Image.asset(_iconAssetForLabel(), width: 14, height: 14),
               const SizedBox(width: 4),
               Text(
                 label,
@@ -495,6 +496,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
+                      // NOTE: Expanded must be a direct child of Row (no Padding wrapper)
                       Expanded(
                         child: SizedBox(
                           height: 34,

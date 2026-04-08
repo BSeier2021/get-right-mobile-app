@@ -46,7 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
     ),
     OnboardingPage(
       width: 550,
-      imagePath: 'assets/images/dumbles.png',
+      imagePath: 'assets/images/girlrun.png',
 
       title: 'Run & Conquer',
       subtitle: 'Your Fitness Journey',
@@ -54,7 +54,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
     ),
     OnboardingPage(
       width: 550,
-      imagePath: 'assets/images/girlrun.png',
+      imagePath: 'assets/images/dumbles.png',
       title: 'Get Right',
       subtitle: 'Your Fitness Journey',
       description: 'Join thousands achieving their fitness goals. Your transformation starts now.',

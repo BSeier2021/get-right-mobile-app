@@ -609,7 +609,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         //   decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
         //   child: Icon(icon, color: AppColors.accent, size: 20),
         // ),
-        const SizedBox(width: 12),
         Text(title, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
       ],
     );

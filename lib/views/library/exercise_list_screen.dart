@@ -247,7 +247,7 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
                   )
                 : GridView.builder(
                     padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14.h, crossAxisSpacing: 12.w, childAspectRatio: 0.78),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14.h, crossAxisSpacing: 12.w, childAspectRatio: 0.74),
                     itemCount: exercises.length,
                     itemBuilder: (context, i) => _buildExerciseCard(exercises[i]),
                   ),
@@ -275,7 +275,7 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
           children: [
             // ── Image with play overlay ────────────────────────────────
             Stack(
-              alignment: Alignment.center,
+              alignment: Alignment.topRight,
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),

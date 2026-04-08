@@ -204,10 +204,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
             SizedBox(height: 24.h),
 
             // ── Difficulty Level ──────────────────────────────────────────
-            Text(
-              'Difficulty Level',
-              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
-            ),
+            Text('Difficulty Level', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
             SizedBox(height: 12.h),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -238,20 +235,14 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
             SizedBox(height: 28.h),
 
             // ── Why? ─────────────────────────────────────────────────────
-            Text(
-              'Why?',
-              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
-            ),
+            Text('Why?', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
             SizedBox(height: 10.h),
             Text(details['why'], style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, height: 1.6)),
 
             SizedBox(height: 28.h),
 
             // ── Recommended Programming ───────────────────────────────────
-            Text(
-              'Recommended Programming',
-              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
-            ),
+            Text('Recommended Programming', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
             SizedBox(height: 14.h),
             Row(
               children: [
@@ -266,20 +257,14 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
             SizedBox(height: 28.h),
 
             // ── Key Form Cues ────────────────────────────────────────────
-            Text(
-              'Key Form Cues',
-              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
-            ),
+            Text('Key Form Cues', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
             SizedBox(height: 10.h),
             ...(details['cues'] as List).cast<String>().map((cue) => _buildCueItem(cue)),
 
             SizedBox(height: 24.h),
 
             // ── Targeted Muscles ─────────────────────────────────────────
-            Text(
-              'Targeted Muscles',
-              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
-            ),
+            Text('Targeted Muscles', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
             SizedBox(height: 12.h),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -319,10 +304,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
             SizedBox(height: 28.h),
 
             // ── Pro Tips ─────────────────────────────────────────────────
-            Text(
-              'Pro Tips',
-              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
-            ),
+            Text('Pro Tips', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
             SizedBox(height: 10.h),
             ...(details['tips'] as List).cast<String>().asMap().entries.map((e) => _buildTipItem(e.key + 1, e.value)),
 
