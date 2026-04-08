@@ -276,11 +276,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
       child: RichText(
         text: TextSpan(
           text: label,
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 15.sp, fontWeight: FontWeight.w600),
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 14.sp, fontWeight: FontWeight.w600),
           children: [
             TextSpan(
               text: ' (Optional)',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.65), fontSize: 14.sp, fontWeight: FontWeight.w400),
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.65), fontSize: 13.sp, fontWeight: FontWeight.w400),
             ),
           ],
         ),
