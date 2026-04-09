@@ -22,7 +22,7 @@ class AppColors {
   static const Color onPrimary = black; // Text/icons on light grey
 
   // Primary Accent: Green - used for buttons, icons, active states, progress indicators
-  static const Color accent = green; // Green accent for motion, progress, readiness
+  static const Color accent = Color(0xFF214E31); // Green accent for motion, progress, readiness
   static const Color accentVariant = Color(0xFF214E31); // Darker green variant
   static const Color onAccent = white; // Text/icons on green
 

@@ -205,8 +205,8 @@ class AppDrawer extends StatelessWidget {
               child: asset != null
                   ? Image.asset(
                       asset,
-                      width: 22,
-                      height: 22,
+                      width: 20,
+                      height: 20,
                       color: AppColors.accent,
                       errorBuilder: (c, e, s) => Icon(fallbackIcon, color: AppColors.accent, size: 22),
                     )
@@ -240,7 +240,7 @@ class AppDrawer extends StatelessWidget {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Icon(fallbackIcon, color: AppColors.accent, size: 22),
+                  Image.asset('assets/images/notification (1).png', width: 20, height: 20),
                   if (unreadCount > 0)
                     Positioned(
                       right: -6,

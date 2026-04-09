@@ -21,12 +21,12 @@ class AddFoodGatewayScreen extends StatelessWidget {
         elevation: 0,
         title: Text('Add Food', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.w600)),
         leading: IconButton(
-          onPressed: () => Get.back(),
           icon: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 16),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 18),
           ),
+          onPressed: () => Get.back(),
         ),
       ),
       body: ListView(
@@ -103,8 +103,8 @@ class AddFoodGatewayScreen extends StatelessWidget {
 
   // Pastel circle background behind icon
   Color _iconBg(MealType type) => switch (type) {
-    MealType.breakfast => const Color(0xFFFFF0D8),
-    MealType.lunch => const Color(0xFFFFE7D5),
+    MealType.breakfast => const Color.fromARGB(61, 76, 175, 79),
+    MealType.lunch => const Color(0xFFFFEACC),
     MealType.dinner => const Color(0xFFF3E6FF),
     MealType.snacks => const Color(0xFFE0F3FF),
   };

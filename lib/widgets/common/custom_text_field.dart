@@ -66,8 +66,13 @@ class _CustomTextFieldState extends State<CustomTextField> with SingleTickerProv
   }
 
   void _onFocusChange() {
-    setState(() {
-      _isFocused = _focusNode.hasFocus;
+    // Defer rebuild to after the focus transition so decoration updates do not
+    // run in the same frame as focus moves (reduces blink when tapping another field).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final hasFocus = _focusNode.hasFocus;
+      if (hasFocus == _isFocused) return;
+      setState(() => _isFocused = hasFocus);
     });
   }
 
@@ -77,21 +82,14 @@ class _CustomTextFieldState extends State<CustomTextField> with SingleTickerProv
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
           height: 56, // Fixed height for all text fields
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(50),
-            color: _isFocused ? Color(0x19523A21) : Colors.white,
-            border: Border.all(
-              color: _hasError
-                  ? AppColors.error
-                  : _isFocused
-                  ? Color(0x1A523A21)
-                  : const Color(0x1A523A21), // Dark gray border
-              width: _isFocused ? 2 : 1.5,
-            ),
-            // boxShadow: _isFocused ? [BoxShadow(color: Color(0x19523A21).withOpacity(0.15), blurRadius: 12, spreadRadius: 0, offset: const Offset(0, 4))] : null,
+            color: _isFocused ? const Color(0x19523A21) : Colors.white,
+            // Keep border width constant — animating 1.5↔2 caused layout reflow and visible blink on focus change.
+            border: Border.all(color: _hasError ? AppColors.error : const Color(0x1A523A21), width: 2),
           ),
           child: TextFormField(
             controller: widget.controller,

@@ -7,6 +7,17 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 
+/// Exercise list palette (creamy cards + cycling pastel icon circles).
+const Color _kExerciseCardBg = Color(0xFFF8FAF0);
+const Color _kExerciseNameColor = Color(0xFF1C1C1C);
+const Color _kMuscleSubtitleColor = Color(0xFF4A4A4A);
+const List<Color> _kIconPastels = [
+  Color(0xFFE2F0D9), // pale green
+  Color(0xFFFDE7D2), // pale peach
+  Color(0xFFF9E2F8), // pale pink / lavender
+  Color(0xFFD9EBF1), // pale blue / teal
+];
+
 class ExerciseSelectionScreen extends StatefulWidget {
   const ExerciseSelectionScreen({super.key});
   @override
@@ -125,29 +136,17 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
     return '';
   }
 
-  // Soft tint color based on primary muscle
-  Color _getMuscleTint(ExerciseLibraryModel exercise) {
-    final muscle = exercise.primaryMuscle.toLowerCase();
-    if (muscle.contains('chest')) return AppColors.accent;
-    if (muscle.contains('back')) return AppColors.completed;
-    if (muscle.contains('quadriceps') || muscle.contains('leg')) return AppColors.upcoming;
-    if (muscle.contains('shoulder')) return AppColors.accent;
-    if (muscle.contains('core')) return AppColors.primaryGray;
-    if (muscle.contains('bicep')) return AppColors.upcoming;
-    if (muscle.contains('tricep')) return AppColors.error;
-    if (muscle.contains('glute') || muscle.contains('hamstring')) return AppColors.upcoming;
-    return AppColors.accent;
-  }
+  Color _iconBackgroundForIndex(int index) => _kIconPastels[index % _kIconPastels.length];
 
   @override
   Widget build(BuildContext context) {
     final showButtons = (!_isSuperset && _selected.isNotEmpty) || (_isSuperset && _selected.length == 2);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
+      backgroundColor: _kExerciseCardBg,
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        backgroundColor: AppColors.backgroundColor,
+        backgroundColor: _kExerciseCardBg,
         elevation: 0,
         leading: GestureDetector(
           onTap: () => Get.back(),
@@ -158,7 +157,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
         ),
-        title: Text('Select Exercise', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
+        title: Text('Select Exercise', style: AppTextStyles.titleMedium.copyWith(color: _kExerciseNameColor)),
         centerTitle: true,
       ),
       body: Stack(
@@ -202,23 +201,16 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                     final ex = _filtered[i];
                     final sel = _selected.contains(ex);
                     final asset = _getExerciseAsset(ex);
-                    final baseTint = _getMuscleTint(ex);
-                    // Slightly stronger tint when selected
-                    final Color color = sel ? baseTint : baseTint.withOpacity(0.9);
+                    final iconBg = _iconBackgroundForIndex(i);
 
                     return Card(
                       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 7.h),
                       elevation: sel ? 4 : 1,
-                      // Add a 1 width border with proper color for clarity between cards. Using a light gray as border color.
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: const Color(0xFFE0E0E0), width: 1),
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(color: sel ? AppColors.accent.withOpacity(0.35) : const Color(0xFFE8EBDC), width: sel ? 2 : 1),
                       ),
-                      // shape: RoundedRectangleBorder(
-                      //   borderRadius: BorderRadius.circular(12),
-                      //   side: BorderSide(color: sel ? AppColors.accent.withOpacity(0.2) : Colors.transparent, width: 2),
-                      // ),
-                      color: AppColors.surface,
+                      color: _kExerciseCardBg,
                       child: InkWell(
                         onTap: () {
                           _toggleSelect(ex);
@@ -231,9 +223,8 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                                 width: 44,
                                 height: 44,
                                 decoration: BoxDecoration(
-                                  color: color.withOpacity(0.18),
+                                  color: iconBg,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: color.withOpacity(0.45), width: 1),
                                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
                                 ),
                                 clipBehavior: Clip.antiAlias,
@@ -242,7 +233,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                                         padding: const EdgeInsets.all(6),
                                         child: Image.asset(asset, fit: BoxFit.contain),
                                       )
-                                    : Center(child: Icon(Icons.fitness_center, color: color, size: 20)),
+                                    : Center(child: Icon(Icons.fitness_center, color: _kExerciseNameColor.withOpacity(0.55), size: 20)),
                               ),
                               SizedBox(width: 12.w),
                               if (sel)
@@ -259,10 +250,10 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                                   children: [
                                     Text(
                                       ex.name,
-                                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                                      style: AppTextStyles.titleSmall.copyWith(color: _kExerciseNameColor, fontWeight: FontWeight.bold),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text(ex.primaryMuscle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark)),
+                                    Text(ex.primaryMuscle, style: AppTextStyles.bodySmall.copyWith(color: _kMuscleSubtitleColor)),
                                   ],
                                 ),
                               ),
@@ -288,7 +279,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
               right: 0,
               bottom: 0,
               child: Container(
-                color: AppColors.background,
+                color: _kExerciseCardBg,
                 padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom, left: 16, right: 16, top: 16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

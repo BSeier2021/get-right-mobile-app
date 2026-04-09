@@ -191,13 +191,20 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
             SizedBox(height: 20.h),
 
-            // ── Info tags row (column layout per tag) ─────────────────────
+            // ── Info stat cards (mint tiles: icon + label) ────────────────
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildInfoColumn(Icons.all_inclusive, '12 Weeks'),
-                _buildInfoColumn(Icons.sports_martial_arts, exercise['muscleGroup'] ?? 'Muscle'),
-                _buildInfoColumn(Icons.signal_cellular_alt, exercise['difficulty'] ?? 'Level'),
+                Expanded(
+                  child: _buildInfoStatCard(image: 'assets/images/Vector.png', label: '12 Weeks'),
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: _buildInfoStatCard(image: 'assets/images/1. bench press.png', label: '${exercise['muscleGroup'] ?? 'Muscle'}'),
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: _buildInfoStatCard(image: 'assets/images/intermidiate.png', label: '${exercise['difficulty'] ?? 'Level'}', accentIcon: true),
+                ),
               ],
             ),
 
@@ -326,22 +333,32 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  /// Column info tag (icon on top → label below)
-  Widget _buildInfoColumn(IconData icon, String label) {
-    return Column(
-      children: [
-        Container(
-          width: 44.w,
-          height: 44.w,
-          decoration: BoxDecoration(color: const Color(0xFFEFF5EE), shape: BoxShape.circle),
-          child: Icon(icon, color: AppColors.accent, size: 22.w),
-        ),
-        SizedBox(height: 6.h),
-        Text(
-          label,
-          style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w500, fontSize: 11.5.sp),
-        ),
-      ],
+  static const Color _kInfoCardText = Color(0xFF3D3D3D);
+
+  /// Rounded mint card: centered icon + bold label (matches library detail mock).
+  Widget _buildInfoStatCard({required String image, required String label, bool accentIcon = false}) {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 18.h, horizontal: 6.w),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(image, fit: BoxFit.contain, width: 30.w, height: 30.h),
+          SizedBox(height: 10.h),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w800, fontSize: 12.sp, color: _kInfoCardText, height: 1.2),
+          ),
+        ],
+      ),
     );
   }
 

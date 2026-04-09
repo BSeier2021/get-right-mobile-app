@@ -62,7 +62,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
         title: Text(
           'Library',
-          style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w900),
+          style: AppTextStyles.titleLarge.copyWith(color: AppColors.black, fontWeight: FontWeight.w900),
         ),
       ),
       body: Column(

@@ -1347,7 +1347,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ),
           onPressed: () => Get.back(),
         ),
-        title: Text('Calendar', style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent)),
+        title: Text('Calendar', style: AppTextStyles.titleLarge.copyWith(color: AppColors.black)),
         centerTitle: true,
         actions: const [],
       ),

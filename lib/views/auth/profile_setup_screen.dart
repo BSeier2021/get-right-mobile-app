@@ -139,21 +139,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        const SizedBox(width: 18),
-                        Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(color: const Color(0xFFE9F3E9), borderRadius: BorderRadius.circular(7)),
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: const Icon(Icons.arrow_back_ios_new, size: 14, color: AppColors.accent),
-                            onPressed: () => Get.close(1),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 16.w, top: 8),
+                        child: IconButton(
+                          icon: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
                           ),
+                          onPressed: () => Get.back(),
                         ),
-                      ],
+                      ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -276,11 +274,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
       child: RichText(
         text: TextSpan(
           text: label,
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 14.sp, fontWeight: FontWeight.w600),
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 13.sp, fontWeight: FontWeight.w600),
           children: [
             TextSpan(
               text: ' (Optional)',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.65), fontSize: 13.sp, fontWeight: FontWeight.w400),
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.65), fontSize: 12.sp, fontWeight: FontWeight.w400),
             ),
           ],
         ),

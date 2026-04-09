@@ -32,20 +32,21 @@ class _ExerciseFrequencySelectionScreenState extends State<ExerciseFrequencySele
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 15),
               child: Column(
                 children: [
                   const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        width: 35.w,
-                        height: 35.h,
-                        decoration: BoxDecoration(color: const Color(0xFFE7F1E7), borderRadius: BorderRadius.circular(5)),
+                      Align(
+                        alignment: Alignment.centerLeft,
                         child: IconButton(
-                          padding: EdgeInsets.zero,
-                          icon: Icon(Icons.chevron_left, color: AppColors.accent, size: 20.sp),
+                          icon: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+                          ),
                           onPressed: () => Get.back(),
                         ),
                       ),

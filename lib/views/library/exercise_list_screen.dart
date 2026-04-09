@@ -5,6 +5,11 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 
+/// Library list — screen + card chrome (matches exercise detail cards in design).
+const Color _kLibraryListBg = Color(0xFFF8FAF0);
+const Color _kLibraryCardBorder = Color(0xFFE8EBDC);
+const Color _kLibraryTagBg = Color(0xFFE8F4E0);
+
 /// Exercise list screen - shows exercises for a specific muscle group
 class ExerciseListScreen extends StatefulWidget {
   const ExerciseListScreen({super.key});
@@ -175,9 +180,9 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
     final exercises = _filteredExercises;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
+      backgroundColor: _kLibraryListBg,
       appBar: AppBar(
-        backgroundColor: AppColors.backgroundColor,
+        backgroundColor: _kLibraryListBg,
         elevation: 0,
         centerTitle: true,
         leading: GestureDetector(
@@ -247,7 +252,7 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
                   )
                 : GridView.builder(
                     padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14.h, crossAxisSpacing: 12.w, childAspectRatio: 0.74),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14.h, crossAxisSpacing: 12.w, childAspectRatio: 0.70),
                     itemCount: exercises.length,
                     itemBuilder: (context, i) => _buildExerciseCard(exercises[i]),
                   ),
@@ -260,71 +265,69 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
   // ─── Exercise card ────────────────────────────────────────────────────
   Widget _buildExerciseCard(Map<String, dynamic> exercise) {
     final imageUrl = exercise['image'] as String? ?? '';
+    const double cardRadius = 18;
 
     return GestureDetector(
       onTap: () => Get.toNamed(AppRoutes.exerciseDetail, arguments: exercise),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE8E8E8), width: 0.8),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+          borderRadius: BorderRadius.circular(cardRadius),
+          border: Border.all(color: _kLibraryCardBorder, width: 1),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Image with play overlay ────────────────────────────────
-            Stack(
-              alignment: Alignment.topRight,
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: Image.network(
-                    imageUrl,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, progress) {
-                      if (progress == null) return child;
-                      return Container(
-                        color: AppColors.accent.withOpacity(0.06),
-                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
-                      );
-                    },
-                    errorBuilder: (c, e, s) => Container(
-                      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1)),
-                      child: const Center(child: Icon(Icons.fitness_center, color: AppColors.accent, size: 32)),
-                    ),
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(cardRadius), bottom: Radius.circular(14)),
+                    child: imageUrl.isEmpty
+                        ? ColoredBox(
+                            color: AppColors.accent.withOpacity(0.08),
+                            child: const Center(child: Icon(Icons.fitness_center, color: AppColors.accent, size: 36)),
+                          )
+                        : Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return ColoredBox(
+                                color: AppColors.accent.withOpacity(0.06),
+                                child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+                              );
+                            },
+                            errorBuilder: (c, e, s) => ColoredBox(
+                              color: AppColors.accent.withOpacity(0.1),
+                              child: const Center(child: Icon(Icons.fitness_center, color: AppColors.accent, size: 32)),
+                            ),
+                          ),
                   ),
-                ),
-                // Centered play button
-                Container(
-                  width: 36.w,
-                  height: 36.w,
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), shape: BoxShape.circle),
-                  child: Icon(Icons.play_arrow_rounded, color: AppColors.accent, size: 22.w),
-                ),
-              ],
+                  Center(child: _libraryPlayButton()),
+                ],
+              ),
             ),
-
-            // ── Info section ──────────────────────────────────────────
             Padding(
-              padding: EdgeInsets.fromLTRB(10.w, 10.h, 10.w, 12.h),
+              padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 14.h),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Name
                   Text(
                     exercise['name'] ?? '',
-                    style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w700, color: Colors.black87, fontSize: 13.sp),
+                    style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w800, color: AppColors.black, fontSize: 13.5.sp, height: 1.25),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: 8.h),
-                  // Equipment pill
-                  _tagPill(exercise['equipment'] ?? '', const Color(0xFFF0F0F0), Colors.black54),
-                  SizedBox(height: 5.h),
-                  // Difficulty pill
-                  _tagPill(exercise['difficulty'] ?? '', const Color(0xFFE8F5E3), AppColors.accent),
+                  SizedBox(height: 10.h),
+                  _libraryTagPill(exercise['equipment'] ?? ''),
+                  SizedBox(height: 6.h),
+                  _libraryTagPill(exercise['difficulty'] ?? ''),
                 ],
               ),
             ),
@@ -334,14 +337,22 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
     );
   }
 
-  // ─── Small tag pill ───────────────────────────────────────────────────
-  Widget _tagPill(String text, Color bg, Color textColor) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(50)),
-      child: Text(
-        text,
-        style: AppTextStyles.bodySmall.copyWith(color: textColor, fontSize: 10.5.sp, fontWeight: FontWeight.w500),
+  Widget _libraryPlayButton() {
+    final size = 44.w;
+    return Image.asset('assets/images/playbutton.png', width: size, height: size, fit: BoxFit.contain);
+  }
+
+  Widget _libraryTagPill(String text) {
+    if (text.isEmpty) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 5.h),
+        decoration: BoxDecoration(color: _kLibraryTagBg, borderRadius: BorderRadius.circular(50)),
+        child: Text(
+          text,
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent, fontSize: 11.sp, fontWeight: FontWeight.w500),
+        ),
       ),
     );
   }

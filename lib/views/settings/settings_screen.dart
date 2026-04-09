@@ -21,13 +21,13 @@ class SettingsScreen extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: AppColors.accent.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.accent.withOpacity(0.15), width: 1),
             ),
-            child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 20),
+            child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 25),
           ),
           onPressed: () => Get.back(),
         ),

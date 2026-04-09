@@ -89,12 +89,12 @@ class _ExerciseCardState extends State<ExerciseCard> {
                       margin: const EdgeInsets.only(right: 12),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(colors: [color.withOpacity(0.25), color.withOpacity(0.1)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(50),
                         border: Border.all(color: color.withOpacity(0.25), width: 1),
                       ),
                       child: Center(
                         child: Image.asset(asset, width: 26.w, fit: BoxFit.contain),
-                      ),
+                      ).paddingSymmetric(horizontal: 4, vertical: 4),
                     );
                   },
                 ),
@@ -170,7 +170,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Image.asset('assets/images/sets.png', width: 17.w),
+                        Image.asset('assets/images/sets.png', width: 15.w),
                         const SizedBox(width: 4),
                         Flexible(
                           child: FittedBox(
@@ -178,7 +178,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
                             child: Text(
                               'Set',
                               textAlign: TextAlign.center,
-                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.black, fontSize: 13.sp),
                             ),
                           ),
                         ),
@@ -189,13 +189,12 @@ class _ExerciseCardState extends State<ExerciseCard> {
                 Expanded(
                   flex: 1,
                   child: Container(
-                    margin: EdgeInsets.symmetric(horizontal: 10),
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Image.asset('assets/images/reps.png', width: 17.w),
+                        Image.asset('assets/images/reps.png', width: 15.w),
                         const SizedBox(width: 4),
                         Flexible(
                           child: FittedBox(
@@ -203,7 +202,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
                             child: Text(
                               widget.exercise.hasTimedSets ? 'Time' : 'Reps',
                               textAlign: TextAlign.center,
-                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.black, fontSize: 13.sp),
                             ),
                           ),
                         ),
@@ -220,7 +219,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Image.asset('assets/images/weight.png', width: 17.w),
+                        Image.asset('assets/images/weight.png', width: 13.w),
                         const SizedBox(width: 4),
                         Flexible(
                           child: FittedBox(
@@ -228,7 +227,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
                             child: Text(
                               'Weight',
                               textAlign: TextAlign.center,
-                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 13.sp),
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.black, fontSize: 13.sp),
                             ),
                           ),
                         ),
