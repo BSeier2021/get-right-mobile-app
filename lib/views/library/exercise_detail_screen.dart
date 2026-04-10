@@ -183,7 +183,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                     width: 48.w,
                     height: 48.w,
                     decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), shape: BoxShape.circle),
-                    child: Icon(Icons.play_arrow_rounded, color: AppColors.accent, size: 30.w),
+                    child: Image.asset('assets/images/playbutton.png', width: 24.w, height: 24.h),
                   ),
                 ],
               ),
@@ -263,10 +263,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
             SizedBox(height: 28.h),
 
-            // ── Key Form Cues ────────────────────────────────────────────
-            Text('Key Form Cues', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
-            SizedBox(height: 10.h),
-            ...(details['cues'] as List).cast<String>().map((cue) => _buildCueItem(cue)),
+            // ── Key Form Cues (pale mint card, matches design mock) ──────
+            _buildKeyFormCuesCard((details['cues'] as List).cast<String>()),
 
             SizedBox(height: 24.h),
 
@@ -397,23 +395,39 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  /// Bullet cue item
-  Widget _buildCueItem(String cue) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 10.h),
-      child: Row(
+  static const Color _kFormCuesBg = Color(0xFFF8FFE9);
+  static const Color _kFormCuesBorder = Color(0xFFE2ECD8);
+  static const Color _kFormCuesTitle = Color(0xFF0D1B2A);
+  static const Color _kFormCuesBody = Color(0xFF2D3436);
+
+  Widget _buildKeyFormCuesCard(List<String> cues) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(22.w, 22.h, 22.w, 20.h),
+      decoration: BoxDecoration(
+        color: _kFormCuesBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kFormCuesBorder, width: 1),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            margin: EdgeInsets.only(top: 6.h),
-            width: 6.w,
-            height: 6.w,
-            decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+          Text(
+            'Key Form Cues',
+            style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800, fontSize: 19.sp, color: _kFormCuesTitle, height: 1.2),
           ),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: Text(cue, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, height: 1.5)),
-          ),
+          SizedBox(height: 14.h),
+          ...cues.asMap().entries.map((e) {
+            final isLast = e.key == cues.length - 1;
+            return Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 14.h),
+              child: Text(
+                e.value,
+                style: AppTextStyles.bodyMedium.copyWith(color: _kFormCuesBody, fontSize: 15.sp, fontWeight: FontWeight.w400, height: 1.5),
+              ),
+            );
+          }),
         ],
       ),
     );

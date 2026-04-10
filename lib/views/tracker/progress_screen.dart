@@ -48,7 +48,13 @@ class ProgressScreen extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _statCard(asset: 'assets/images/runing.png', iconBg: const Color(0xFFE8F5E9), value: '125 km', valueColor: const Color(0xFF2E7D32), label: 'Total Distance'),
+                child: _statCard(
+                  asset: 'assets/images/running.png',
+                  iconBg: const Color.fromARGB(43, 46, 125, 50),
+                  value: '125 km',
+                  valueColor: const Color(0xFF4CAF50),
+                  label: 'Total Distance',
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(

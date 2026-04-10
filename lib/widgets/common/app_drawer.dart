@@ -210,7 +210,7 @@ class AppDrawer extends StatelessWidget {
                       color: AppColors.accent,
                       errorBuilder: (c, e, s) => Icon(fallbackIcon, color: AppColors.accent, size: 22),
                     )
-                  : Icon(fallbackIcon, color: AppColors.accent, size: 22),
+                  : Icon(fallbackIcon, color: AppColors.accent, size: 24),
             ),
             const SizedBox(width: 16),
             // Title
@@ -240,7 +240,7 @@ class AppDrawer extends StatelessWidget {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Image.asset('assets/images/notification (1).png', width: 20, height: 20),
+                  Image.asset('assets/images/notification (1).png', width: 22, height: 22),
                   if (unreadCount > 0)
                     Positioned(
                       right: -6,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/constants/app_constants.dart';
@@ -84,9 +85,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Ticker
       backgroundColor: AppColors.background,
 
       body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(center: Alignment.topCenter, radius: 1.0, colors: [AppColors.accent.withOpacity(0.05), AppColors.background]),
-        ),
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
@@ -98,20 +96,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Ticker
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    SizedBox(height: 24.h),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        IconButton(
-                          icon: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
-                            ),
-                            child: const Icon(Icons.arrow_back_rounded, size: 20),
+                        GestureDetector(
+                          onTap: () => Get.back(),
+                          child: Container(
+                            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18).paddingAll(8),
                           ),
-                          onPressed: () => Get.back(),
                         ),
                       ],
                     ),
@@ -120,25 +114,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Ticker
                     // Icon
                     ScaleTransition(
                       scale: _iconScaleAnimation,
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(colors: [AppColors.surface, AppColors.surface.withOpacity(0.8)]),
-                          border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1.5),
-                          boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.2), blurRadius: 30, spreadRadius: 5)],
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withOpacity(0.8)]),
-                            ),
-                            child: Icon(_showResetForm ? Icons.lock_reset_rounded : Icons.email_rounded, size: 30, color: AppColors.onAccent),
+                      child: Center(
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withOpacity(0.8)]),
                           ),
+                          child: Icon(_showResetForm ? Icons.lock_reset_rounded : Icons.email_rounded, size: 40, color: AppColors.onAccent),
                         ),
                       ),
                     ),

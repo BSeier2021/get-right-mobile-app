@@ -46,7 +46,7 @@ class SettingsScreen extends StatelessWidget {
 
           // Personal Profile
           _settingsCard(
-            iconBg: const Color(0xFFE8D5F5),
+            iconBg: const Color(0xFFEBD9E6),
             image: 'assets/images/profile00.png',
             title: 'Personal Profile',
             subtitle: 'Manage your personal information',
@@ -56,7 +56,7 @@ class SettingsScreen extends StatelessWidget {
 
           // Enable Notifications
           _settingsCard(
-            iconBg: const Color(0xFFF5E6C8),
+            iconBg: const Color(0xFFF9E9C3),
             image: 'assets/images/notification333.png',
             title: 'Enable Notifications',
             subtitle: 'Receive workout reminders and updates',
@@ -65,7 +65,7 @@ class SettingsScreen extends StatelessWidget {
 
           // Change Password
           _settingsCard(
-            iconBg: const Color(0xFFD5EAD0),
+            iconBg: const Color(0xFFD5EBEB),
             image: 'assets/images/lock333.png',
             title: 'Change Password',
             subtitle: 'Update your account password',
@@ -75,7 +75,7 @@ class SettingsScreen extends StatelessWidget {
 
           // Blocked Users
           _settingsCard(
-            iconBg: const Color(0xFFD0E8D8),
+            iconBg: const Color(0xFFD9EBD3),
             image: 'assets/images/profile-delete.png',
             title: 'Blocked Users',
             subtitle: "Manage people you've blocked",
@@ -85,7 +85,7 @@ class SettingsScreen extends StatelessWidget {
 
           // Reports
           _settingsCard(
-            iconBg: const Color(0xFFE0F0D8),
+            iconBg: const Color(0xFFEBD9E6),
             image: 'assets/images/receipt-disscount333.png',
             title: 'Reports',
             subtitle: 'Reported users and posts',
@@ -95,7 +95,7 @@ class SettingsScreen extends StatelessWidget {
 
           // Transaction History
           _settingsCard(
-            iconBg: const Color(0xFFCCDFF3),
+            iconBg: const Color(0xFFF9E9C3),
             image: 'assets/images/receipt-item3333.png',
             title: 'Transaction History',
             subtitle: 'View your payment history',
@@ -148,7 +148,7 @@ class SettingsScreen extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FFE9),
+              color: const Color(0xFFF7FCEB),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: const Color(0xFFE6F0DA), width: 1),
             ),
