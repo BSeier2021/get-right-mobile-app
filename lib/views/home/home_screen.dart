@@ -28,13 +28,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool? _hasSubscriptionCache;
 
-  final List<Widget> _screens = const [
-    MarketplaceScreen(), // Marketplace
-    FeedScreen(), // Community Feed
-    CombinedJournalScreen(), // Journal (Center - Workout Journal + Runner Log)
-    NutritionScreen(), // Home
-    ProfileScreen(), // Library
-  ];
+  final List<Widget> _screens = const [MarketplaceScreen(), FeedScreen(), CombinedJournalScreen(), NutritionScreen(), ProfileScreen()];
 
   @override
   void initState() {

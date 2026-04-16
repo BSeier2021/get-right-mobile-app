@@ -87,14 +87,14 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
             style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700),
           ),
           leading: Padding(
-            padding: const EdgeInsets.only(left: 5),
+            padding: const EdgeInsets.only(left: 8),
             child: IconButton(
               onPressed: () => Get.back(),
               icon: Container(
-                width: 40.w,
+                width: 45.w,
                 height: 35.h,
-                decoration: BoxDecoration(color: const Color(0xFFE7F1E7), borderRadius: BorderRadius.circular(6)),
-                child: Icon(Icons.chevron_left, size: 20.sp, color: AppColors.accent),
+                decoration: BoxDecoration(color: const Color(0xFFE7F1E7), borderRadius: BorderRadius.circular(8)),
+                child: Icon(Icons.chevron_left, size: 30.sp, color: AppColors.accent),
               ),
             ),
           ),

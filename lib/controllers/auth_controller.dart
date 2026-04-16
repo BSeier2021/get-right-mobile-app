@@ -1,23 +1,53 @@
 import 'dart:io';
+import 'dart:math';
+
 import 'package:get/get.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:get_right/repo/auth_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
+import 'package:get_right/network/network_services.dart';
 
-/// Auth Controller - STATIC/DEMO VERSION (No API Integration)
-///
-/// This controller handles authentication flow for the ALPHA version.
-/// All actions are mocked - no real backend calls are made.
-/// Data is stored locally only for demo purposes.
+/// Auth controller: signup, OTP, and login flows (signup uses live API).
 class AuthController extends GetxController {
+  static const _deviceTokenStorageKey = 'app_install_device_token';
+
   final StorageService _storageService;
+  final AuthRepository _authRepo = AuthRepository();
 
   AuthController(this._storageService);
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  String? _tempEmail; // Temporarily store email for OTP flow
+  String? _tempEmail;
+  String? _pendingSignupUserId;
+
+  /// Set after successful signup; pass to OTP route for verify-OTP API.
+  String? get pendingSignupUserId => _pendingSignupUserId;
+
+  String _deviceTypeLabel() {
+    if (Platform.isAndroid) return 'Android';
+    if (Platform.isIOS) return 'iOS';
+    if (Platform.isMacOS) return 'macOS';
+    if (Platform.isWindows) return 'Windows';
+    if (Platform.isLinux) return 'Linux';
+    return 'Unknown';
+  }
+
+  Future<String> _ensureDeviceToken() async {
+    var token = _storageService.getString(_deviceTokenStorageKey);
+    if (token == null || token.isEmpty) {
+      token = 'getright-${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(0x7fffffff)}';
+      await _storageService.saveString(_deviceTokenStorageKey, token);
+    }
+    return token;
+  }
+
+  void _snackError(String title, Object e) {
+    final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
+    Get.snackbar(title, msg, snackPosition: SnackPosition.BOTTOM);
+  }
 
   // Note: Removed onInit auto-navigation - Splash screen handles initial routing
 
@@ -36,7 +66,7 @@ class AuthController extends GetxController {
     return _storageService.isLoggedIn();
   }
 
-  /// Login - DEMO VERSION (No API call)
+  /// Login (demo / local — replace with API when ready)
   Future<void> login({required String email, required String password}) async {
     try {
       _isLoading = true;
@@ -60,18 +90,71 @@ class AuthController extends GetxController {
     }
   }
 
-  /// Signup - DEMO VERSION (No API call)
-  Future<void> signup({required String email, required String password, required String firstName, required String lastName}) async {
+  /// Signup via `/user/auth/signup`. On success, OTP is sent to email; stores user id for verify-OTP.
+  Future<bool> signup({
+    required String email,
+    required String password,
+    String role = 'Customer',
+  }) async {
     try {
       _isLoading = true;
       update();
 
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
+      final deviceToken = await _ensureDeviceToken();
+      final response = await _authRepo.signUp(
+        email: email,
+        password: password,
+        deviceType: _deviceTypeLabel(),
+        deviceToken: deviceToken,
+        role: role,
+      );
 
-      // Save email temporarily for OTP verification
+      if (response is! Map<String, dynamic>) {
+        _snackError('Sign up', 'Unexpected response from server');
+        return false;
+      }
+
+      final success = response['success'] == true;
+      if (!success) {
+        final message = response['message']?.toString() ?? 'Sign up failed';
+        _snackError('Sign up', message);
+        return false;
+      }
+
+      final data = response['data'];
+      final user = data is Map<String, dynamic> ? data['user'] : null;
+      final userId = user is Map<String, dynamic> ? user['_id']?.toString() : null;
+
       _tempEmail = email;
+      _pendingSignupUserId = userId;
+
+      final message = response['message']?.toString();
+      if (message != null && message.isNotEmpty) {
+        Get.snackbar('Success', message, snackPosition: SnackPosition.BOTTOM);
+      }
+
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Sign up', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Sign up', e.message);
+      return false;
+    } on ConflictException catch (e) {
+      _snackError('Sign up', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('No connection', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Sign up', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Sign up', e.message);
+      return false;
     } catch (e) {
+      _snackError('Sign up', e);
+      return false;
     } finally {
       _isLoading = false;
       update();
@@ -108,7 +191,7 @@ class AuthController extends GetxController {
     }
   }
 
-  /// Resend OTP - DEMO VERSION
+  /// Resend OTP email (uses `/user/auth/send-otp`).
   Future<void> resendOTP() async {
     try {
       _isLoading = true;
@@ -119,9 +202,17 @@ class AuthController extends GetxController {
         return;
       }
 
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
+      final response = await _authRepo.resendOTPRepo(email: _tempEmail!);
+      if (response is Map<String, dynamic> && response['success'] == true) {
+        final message = response['message']?.toString() ?? 'OTP sent';
+        Get.snackbar('Success', message, snackPosition: SnackPosition.BOTTOM);
+      }
+    } on BadRequestException catch (e) {
+      _snackError('Resend OTP', e.message);
+    } on NoInternetException catch (e) {
+      _snackError('No connection', e.message);
     } catch (e) {
+      _snackError('Resend OTP', e);
     } finally {
       _isLoading = false;
       update();

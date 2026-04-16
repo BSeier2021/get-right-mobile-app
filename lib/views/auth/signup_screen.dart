@@ -51,18 +51,29 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  void _signup() {
-    final authController = Get.find<AuthController>();
-    authController.signup(email: _emailController.text.trim(), password: _passwordController.text, firstName: '', lastName: '');
+  Future<void> _signup() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirm = _confirmPasswordController.text;
 
-    // Navigate to OTP verification after signup
-    Get.toNamed(
-      AppRoutes.otp,
-      arguments: {
-        'email': _emailController.text.trim(),
-        'fromSignup': true, // Flag to indicate this is from signup
-      },
-    );
+    if (email.isEmpty || !email.contains('@')) {
+      Get.snackbar('Invalid email', 'Please enter a valid email address', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (password.length < 8) {
+      Get.snackbar('Password', 'Password must be at least 8 characters', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (password != confirm) {
+      Get.snackbar('Password', 'Passwords do not match', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    final authController = Get.find<AuthController>();
+    final ok = await authController.signup(email: email, password: password);
+    if (!ok || !mounted) return;
+
+    Get.toNamed(AppRoutes.otp, arguments: {'email': email, 'fromSignup': true, 'userId': authController.pendingSignupUserId});
   }
 
   @override

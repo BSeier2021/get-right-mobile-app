@@ -2192,7 +2192,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         ),
         SizedBox(height: 12.h),
         SizedBox(
-          height: 220.h,
+          height: 230.h,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: 16.w),
@@ -2252,7 +2252,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.70, crossAxisSpacing: 12.w, mainAxisSpacing: 12.h),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.65, crossAxisSpacing: 12.w, mainAxisSpacing: 12.h),
         itemCount: programs.length,
         itemBuilder: (context, index) {
           return _buildGridProgramCard(programs[index]);
