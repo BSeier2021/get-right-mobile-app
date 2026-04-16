@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 
@@ -39,7 +40,7 @@ class _CustomButtonState extends State<CustomButton> {
 
     return Container(
       width: widget.isFullWidth ? double.infinity : null,
-      height: widget.height ?? 50,
+      height: widget.height ?? 46.h,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(50),
         gradient: isGreenButton

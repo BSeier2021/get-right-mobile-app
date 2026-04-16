@@ -6,13 +6,7 @@ import 'package:get_right/network/network_services.dart';
 class AuthRepository {
   final _network = NetworkApiService();
 
-  Future<dynamic> signUp({
-    required String email,
-    required String password,
-    required String deviceType,
-    required String deviceToken,
-    String role = 'Customer',
-  }) async {
+  Future<dynamic> signUp({required String email, required String password, required String deviceType, required String deviceToken, String role = 'Customer'}) async {
     final response = await _network.post(
       AppUrl.signUp,
       {"email": email, "password": password, "deviceType": deviceType, "deviceToken": deviceToken, "role": role},
@@ -21,41 +15,31 @@ class AuthRepository {
     return response;
   }
 
-  Future<dynamic> verifyOTPRepo({required String otp, required String userId}) async {
-    final response = await _network.post(
-      AppUrl.verifyOTP,
-      {"otp": otp, "userId": userId},
-      headers: {"Authorization": "yNaHwJpGFSquIkXP"},
-    );
+  Future<dynamic> verifyOTPRepo({required String userId, required String otp}) async {
+    final response = await _network.post(AppUrl.verifyOTP, {"userId": userId, "otp": otp}, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
     return response;
   }
 
-  Future<dynamic> resendOTPRepo({required String email}) async {
-    final response = await _network.post(
-      AppUrl.resedOTP,
-      {"email": email},
-      headers: {"Authorization": "yNaHwJpGFSquIkXP"},
-    );
+  /// `POST /user/auth/send-otp` with `{ "email": "user@example.com" }`.
+  Future<dynamic> sendOtpRepo({required String email}) async {
+    final response = await _network.post(AppUrl.sendOtp, {"email": email.trim()}, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
     return response;
   }
 
-  Future<dynamic> createProfileRepo({required String fullName, required String dob, required String gender, String? phone}) async {
-    // API expects phoneNumber (required) and dateofbirth (not dob)
-    final Map<String, dynamic> body = {
-      "fullName": fullName,
-      "dateofbirth": dob, // API expects "dateofbirth" not "dob"
-      "gender": gender,
-      "phoneNumber": phone?.trim() ?? "", // API expects "phoneNumber" and it's required
-    };
-
-    final response = await _network.post(AppUrl.createAccount, body);
-    return response;
+  /// `POST /customer/profile/create` — multipart form: fullName, dateofbirth, gender, phoneNumber, optional profilePicture (file).
+  Future<dynamic> createProfileRepo({required String fullName, required String dateofbirth, required String gender, required String phoneNumber, File? profilePicture}) async {
+    final fields = <String, dynamic>{'fullName': fullName.trim(), 'dateofbirth': dateofbirth, 'gender': gender, 'phoneNumber': phoneNumber.trim()};
+    final files = <String, List<File>>{};
+    if (profilePicture != null && profilePicture.path.isNotEmpty && await profilePicture.exists()) {
+      files['profilePicture'] = [profilePicture];
+    }
+    return _network.postMultipart(url: AppUrl.createProfile, fields: fields, files: files);
   }
 
-  Future<dynamic> loginRepo({required String email, required String password, required String deviceId, required String deviceToken}) async {
+  Future<dynamic> loginRepo({required String email, required String password, required String deviceType, required String deviceToken}) async {
     final response = await _network.post(
       AppUrl.signIn,
-      {"email": email, "password": password, "deviceType": deviceId, "deviceToken": deviceToken},
+      {"email": email.trim(), "password": password, "deviceType": deviceType, "deviceToken": deviceToken},
       headers: {"Authorization": "yNaHwJpGFSquIkXP"},
     );
     return response;

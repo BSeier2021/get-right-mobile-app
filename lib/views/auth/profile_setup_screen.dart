@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/controllers/auth_controller.dart';
-import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/common/custom_button.dart';
@@ -76,9 +75,35 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
     }
   }
 
-  void _continue() {
-    // Navigate to preference selection screen
-    Get.toNamed(AppRoutes.preferenceSelection);
+  Future<void> _continue() async {
+    final name = _fullNameController.text.trim();
+    if (name.isEmpty) {
+      Get.snackbar('Profile', 'Please enter your full name', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (_dateOfBirth == null) {
+      Get.snackbar('Profile', 'Please select your date of birth', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (_selectedGender == null || _selectedGender!.trim().isEmpty) {
+      Get.snackbar('Profile', 'Please select your gender', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    final phone = _phoneController.text.trim();
+    if (phone.isEmpty) {
+      Get.snackbar('Profile', 'Please enter your phone number', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    final dob = DateFormat('yyyy-MM-dd').format(_dateOfBirth!);
+    final authController = Get.find<AuthController>();
+    await authController.createProfile(
+      fullName: name,
+      dateofbirth: dob,
+      gender: _selectedGender!,
+      phoneNumber: phone,
+      profilePicture: _profileImageFile,
+    );
   }
 
   Future<void> _showImageSourceDialog() async {
@@ -184,7 +209,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                           const SizedBox(height: 8),
                           _buildDateOfBirthField(),
                           const SizedBox(height: 12),
-                          _buildLabelWithOptional('Phone Number'),
+                          _buildSimpleLabel('Phone Number'),
                           const SizedBox(height: 8),
                           CustomTextField(
                             controller: _phoneController,
@@ -206,13 +231,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.check_circle, size: 18, color: AppColors.accent),
+                              Icon(Icons.check_circle, size: 18.sp, color: AppColors.accent),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text.rich(
                                   TextSpan(
                                     text: 'By continuing, you agree to GetRight\'s ',
-                                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.75), fontSize: 13, fontWeight: FontWeight.w400),
+                                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.75), fontSize: 13.sp, fontWeight: FontWeight.w400),
                                     children: const [
                                       TextSpan(
                                         text: 'Terms &\nConditions',
@@ -264,24 +289,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
       child: Text(
         label,
         style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 15.sp, fontWeight: FontWeight.w600),
-      ),
-    ).paddingSymmetric(horizontal: 20.w);
-  }
-
-  Widget _buildLabelWithOptional(String label) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: RichText(
-        text: TextSpan(
-          text: label,
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 13.sp, fontWeight: FontWeight.w600),
-          children: [
-            TextSpan(
-              text: ' (Optional)',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.65), fontSize: 12.sp, fontWeight: FontWeight.w400),
-            ),
-          ],
-        ),
       ),
     ).paddingSymmetric(horizontal: 20.w);
   }

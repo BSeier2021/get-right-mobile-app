@@ -6,7 +6,6 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
-import 'package:get_right/widgets/common/app_logo.dart';
 import 'package:get_right/widgets/common/custom_button.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
 
@@ -51,9 +50,19 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     super.dispose();
   }
 
-  void _login() {
+  Future<void> _login() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || !email.contains('@')) {
+      Get.snackbar('Login', 'Please enter a valid email address', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (password.isEmpty) {
+      Get.snackbar('Login', 'Please enter your password', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
     final authController = Get.find<AuthController>();
-    authController.login(email: _emailController.text.trim(), password: _passwordController.text);
+    await authController.login(email: email, password: password);
   }
 
   @override

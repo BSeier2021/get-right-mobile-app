@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 
@@ -84,72 +85,78 @@ class _CustomTextFieldState extends State<CustomTextField> with SingleTickerProv
         AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
-          height: 56, // Fixed height for all text fields
+          height: 48.h, // Fixed height for all text fields
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(50),
             color: _isFocused ? const Color(0x19523A21) : Colors.white,
             // Keep border width constant — animating 1.5↔2 caused layout reflow and visible blink on focus change.
             border: Border.all(color: _hasError ? AppColors.error : const Color(0x1A523A21), width: 2),
           ),
-          child: TextFormField(
-            controller: widget.controller,
-            focusNode: _focusNode,
-            obscureText: widget.obscureText,
-            keyboardType: widget.keyboardType,
-            validator: (value) {
-              final error = widget.validator?.call(value);
-              setState(() {
-                _hasError = error != null;
-              });
-              return error;
-            },
-            onChanged: widget.onChanged,
-            maxLines: widget.maxLines,
-            maxLength: widget.maxLength,
-            enabled: widget.enabled,
-            readOnly: widget.readOnly,
-            onTap: widget.onTap,
-            inputFormatters: widget.inputFormatters,
-            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 15, fontWeight: FontWeight.w500),
-            decoration: InputDecoration(
-              hintText: widget.hintText,
-              errorText: widget.errorText,
-              prefixIcon: widget.prefixIcon != null
-                  ? Padding(
-                      padding: const EdgeInsets.only(left: 16, right: 12),
-                      child: IconTheme(
-                        data: IconThemeData(
-                          color: _isFocused
-                              ? AppColors.accent
-                              : _hasError
-                              ? AppColors.error
-                              : AppColors.black,
-                          size: 22,
+          child: Center(
+            child: TextFormField(
+              controller: widget.controller,
+              focusNode: _focusNode,
+              textAlignVertical: (widget.maxLines ?? 1) > 1 ? TextAlignVertical.top : TextAlignVertical.center,
+              obscureText: widget.obscureText,
+              keyboardType: widget.keyboardType,
+              validator: (value) {
+                final error = widget.validator?.call(value);
+                setState(() {
+                  _hasError = error != null;
+                });
+                return error;
+              },
+              onChanged: widget.onChanged,
+              maxLines: widget.maxLines,
+              maxLength: widget.maxLength,
+              enabled: widget.enabled,
+              readOnly: widget.readOnly,
+              onTap: widget.onTap,
+              inputFormatters: widget.inputFormatters,
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 15, fontWeight: FontWeight.w500),
+              decoration: InputDecoration(
+                hintText: widget.hintText,
+                errorText: widget.errorText,
+                prefixIcon: widget.prefixIcon != null
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: 16, right: 12),
+                        child: IconTheme(
+                          data: IconThemeData(
+                            color: _isFocused
+                                ? AppColors.accent
+                                : _hasError
+                                ? AppColors.error
+                                : AppColors.black,
+                            size: 22,
+                          ),
+                          child: widget.prefixIcon!,
                         ),
-                        child: widget.prefixIcon!,
-                      ),
-                    )
-                  : null,
-              suffixIcon: widget.suffixIcon != null ? Padding(padding: const EdgeInsets.only(right: 12), child: widget.suffixIcon) : null,
-              prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-              suffixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-              filled: false,
-              contentPadding: EdgeInsets.symmetric(horizontal: widget.prefixIcon != null ? 0 : 18, vertical: 16),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              errorBorder: InputBorder.none,
-              focusedErrorBorder: InputBorder.none,
-              disabledBorder: InputBorder.none,
-              labelStyle: AppTextStyles.bodyMedium.copyWith(color: _isFocused ? AppColors.accent : AppColors.primaryGray, fontSize: 15, fontWeight: FontWeight.w500),
-              floatingLabelStyle: AppTextStyles.labelMedium.copyWith(color: _isFocused ? AppColors.accent : AppColors.primaryGray, fontSize: 13, fontWeight: FontWeight.w600),
-              hintStyle: AppTextStyles.bodyMedium.copyWith(
-                color: const Color.fromARGB(255, 31, 30, 30), // Consistent light grey hint text color
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
+                      )
+                    : null,
+                suffixIcon: widget.suffixIcon != null ? Padding(padding: const EdgeInsets.only(right: 12), child: widget.suffixIcon) : null,
+                prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                suffixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                filled: false,
+                isDense: true,
+                contentPadding: (widget.maxLines ?? 1) > 1
+                    ? EdgeInsets.fromLTRB(widget.prefixIcon != null ? 0 : 18, 12, 12, 12)
+                    : EdgeInsets.only(left: widget.prefixIcon != null ? 0 : 18, right: 12, top: 0, bottom: 0),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                labelStyle: AppTextStyles.bodyMedium.copyWith(color: _isFocused ? AppColors.accent : AppColors.primaryGray, fontSize: 15, fontWeight: FontWeight.w500),
+                floatingLabelStyle: AppTextStyles.labelMedium.copyWith(color: _isFocused ? AppColors.accent : AppColors.primaryGray, fontSize: 13, fontWeight: FontWeight.w600),
+                hintStyle: AppTextStyles.bodyMedium.copyWith(
+                  color: const Color.fromARGB(255, 31, 30, 30), // Consistent light grey hint text color
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                ),
+                errorStyle: const TextStyle(height: 0.01, color: Colors.transparent),
+                counterText: '',
               ),
-              errorStyle: const TextStyle(height: 0.01, color: Colors.transparent),
-              counterText: '',
             ),
           ),
         ),

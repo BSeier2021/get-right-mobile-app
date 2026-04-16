@@ -6,8 +6,13 @@ class AppUrl {
 
   static String signUp = '$baseUrl/user/auth/signup';
   static String verifyOTP = '$baseUrl/user/auth/verify-otp';
-  static String resedOTP = '$baseUrl/user/auth/send-otp';
-  static String createAccount = '$baseUrl/customer/profile/create';
+
+  /// POST body: `{ "email": "..." }` — resend signup / verification OTP.
+  static String sendOtp = '$baseUrl/user/auth/send-otp';
+
+  /// `POST` multipart — fields: fullName, dateofbirth, gender, phoneNumber; file: profilePicture.
+  static String createProfile = '$baseUrl/customer/profile/create';
+  /// `POST /user/auth/login` — body: email, password, deviceType, deviceToken.
   static String signIn = '$baseUrl/user/auth/login';
   static String forgotPassword = '$baseUrl/user/auth/resend-otp';
   static String resetPassword = '$baseUrl/user/auth/forgot-passowrd-reset';

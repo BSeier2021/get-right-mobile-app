@@ -5,7 +5,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/constants/app_constants.dart';
-import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 
@@ -61,10 +60,33 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
 
   void _resendOTP() {
     if (_remainingSeconds > 0) return;
+    final args = Get.arguments as Map<String, dynamic>?;
+    final email = args?['email'] as String?;
     final authController = Get.find<AuthController>();
-    authController.resendOTP();
+    authController.resendOTP(email: email);
+    _timer?.cancel();
     setState(() => _remainingSeconds = AppConstants.otpResendTimeSeconds);
     _startTimer();
+  }
+
+  String _otpCode() => _controllers.map((c) => c.text).join();
+
+  Future<void> _submitOtp() async {
+    final args = Get.arguments as Map<String, dynamic>?;
+    final userId = args?['userId'] as String? ?? Get.find<AuthController>().pendingSignupUserId;
+    final code = _otpCode();
+
+    if (userId == null || userId.isEmpty) {
+      Get.snackbar('Verification', 'Missing user id. Go back and sign up again.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (code.length != 6) {
+      Get.snackbar('Verification', 'Enter the 6-digit code', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    final authController = Get.find<AuthController>();
+    await authController.verifyOTP(userId: userId, otp: code);
   }
 
   @override
@@ -132,22 +154,33 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                       ),
                       SizedBox(height: 36.h),
 
-                      // Create Account button
+                      // Verify & continue
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 32.w),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: ElevatedButton(
-                            onPressed: () => Get.toNamed(AppRoutes.profileSetup),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accentVariant,
-                              foregroundColor: AppColors.onAccent,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                            ),
-                            child: Text('Create Account', style: AppTextStyles.buttonLarge.copyWith(fontSize: 16.sp)),
-                          ),
+                        child: GetBuilder<AuthController>(
+                          builder: (auth) {
+                            return SizedBox(
+                              width: double.infinity,
+                              height: 54,
+                              child: ElevatedButton(
+                                onPressed: auth.isLoading ? null : _submitOtp,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.accentVariant,
+                                  foregroundColor: AppColors.onAccent,
+                                  elevation: 0,
+                                  disabledBackgroundColor: AppColors.accentVariant.withOpacity(0.6),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                                ),
+                                child: auth.isLoading
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : Text('Verify & continue', style: AppTextStyles.buttonLarge.copyWith(fontSize: 16.sp)),
+                              ),
+                            );
+                          },
                         ),
                       ),
                       SizedBox(height: 24.h),
