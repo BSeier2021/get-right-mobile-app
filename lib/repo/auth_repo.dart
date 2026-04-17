@@ -85,106 +85,75 @@ class AuthRepository {
   //   return response;
   // }
 
+  /// `POST /customer/profile/update` — JSON or multipart when [profilePicturePath] is set.
+  /// Field names match backend: `dateofbirth`, `phoneNumber`, `primaryFocus`, `mainGoals`, `fitnessLevel`, `exerciseFrequency`.
   Future<dynamic> updateProfileRepo({
     String? fullName,
-    String? dob,
+    String? dateofbirth,
     String? gender,
-    String? phone,
+    String? phoneNumber,
     String? bio,
-    String? preferenceId,
-    List<String>? goalIds,
-    String? fitnessLevelId,
-    String? exercisePlanId,
-    String? avatar,
+    String? primaryFocus,
+    List<String>? mainGoals,
+    String? fitnessLevel,
+    String? exerciseFrequency,
+    String? profilePicturePath,
   }) async {
-    // Create a clean Map<String, dynamic> to ensure proper JSON encoding
-    final Map<String, dynamic> fields = {};
+    final fields = <String, dynamic>{};
 
-    // Add personal information fields
     if (fullName != null && fullName.trim().isNotEmpty) {
       fields['fullName'] = fullName.trim();
     }
-
-    if (dob != null && dob.trim().isNotEmpty) {
-      fields['dob'] = dob.trim();
+    if (dateofbirth != null && dateofbirth.trim().isNotEmpty) {
+      fields['dateofbirth'] = dateofbirth.trim();
     }
-
     if (gender != null && gender.trim().isNotEmpty) {
       fields['gender'] = gender.trim();
     }
-
-    if (phone != null && phone.trim().isNotEmpty) {
-      fields['phone'] = phone.trim();
+    if (phoneNumber != null && phoneNumber.trim().isNotEmpty) {
+      fields['phoneNumber'] = phoneNumber.trim();
     }
-
     if (bio != null && bio.trim().isNotEmpty) {
       fields['bio'] = bio.trim();
     }
-
-    // Add onboarding preference fields
-    if (preferenceId != null && preferenceId.trim().isNotEmpty) {
-      fields['preferences'] = preferenceId.trim(); // Note: API uses typo "prefernce"
+    if (primaryFocus != null && primaryFocus.trim().isNotEmpty) {
+      fields['primaryFocus'] = primaryFocus.trim();
     }
-
-    if (goalIds != null && goalIds.isNotEmpty) {
-      // API expects goals as an array
-      // Filter out any empty strings
-      final validGoalIds = goalIds.where((id) => id.trim().isNotEmpty).map((id) => id.trim()).toList();
-      if (validGoalIds.isNotEmpty) {
-        fields['goals'] = validGoalIds; // Keep as array, API expects array
+    if (mainGoals != null && mainGoals.isNotEmpty) {
+      final ids = mainGoals.map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      if (ids.isNotEmpty) {
+        fields['mainGoals'] = ids;
       }
     }
-
-    if (fitnessLevelId != null && fitnessLevelId.trim().isNotEmpty) {
-      fields['fitnessLevel'] = fitnessLevelId.trim();
+    if (fitnessLevel != null && fitnessLevel.trim().isNotEmpty) {
+      fields['fitnessLevel'] = fitnessLevel.trim();
+    }
+    if (exerciseFrequency != null && exerciseFrequency.trim().isNotEmpty) {
+      fields['exerciseFrequency'] = exerciseFrequency.trim();
     }
 
-    if (exercisePlanId != null && exercisePlanId.trim().isNotEmpty) {
-      fields['exerciseFrequency'] = exercisePlanId.trim(); // Note: API uses typo "excercisePlan"
-    }
-
-    // Ensure body is not empty before making the request
-    if (fields.isEmpty && avatar == null) {
+    if (fields.isEmpty && (profilePicturePath == null || profilePicturePath.trim().isEmpty)) {
       throw Exception('No valid data to update');
     }
 
-    // If avatar is provided, use multipart request
-    if (avatar != null && avatar.trim().isNotEmpty) {
-      final file = File(avatar);
-      if (await file.exists()) {
-        // Prepare multipart fields - convert goals array to goals[] format for proper expansion
-        final multipartFields = <String, dynamic>{};
-        fields.forEach((key, value) {
-          if (key == 'goals' && value is List) {
-            // Use goals[] format so network service expands it as goals[0], goals[1], etc.
-            multipartFields['goals[]'] = value;
-          } else {
-            multipartFields[key] = value;
-          }
-        });
-
-        final files = <String, List<File>>{
-          'avatar': [file],
-        };
-
-        // Log the final request body for debugging
-        print('Final Update Profile Request (Multipart) - Fields: $multipartFields');
-        print('Avatar file: ${file.path}');
-
-        final response = await _network.postMultipart(url: AppUrl.updateProfile, fields: multipartFields, files: files);
-        return response;
-      } else {
-        throw Exception('Avatar file does not exist');
+    if (profilePicturePath != null && profilePicturePath.trim().isNotEmpty) {
+      final file = File(profilePicturePath.trim());
+      if (!await file.exists()) {
+        throw Exception('Profile picture file does not exist');
       }
+      final multipartFields = <String, dynamic>{};
+      fields.forEach((key, value) {
+        if (key == 'mainGoals' && value is List) {
+          multipartFields['mainGoals[]'] = value;
+        } else {
+          multipartFields[key] = value;
+        }
+      });
+      final files = <String, List<File>>{'profilePicture': [file]};
+      return _network.postMultipart(url: AppUrl.updateProfile, fields: multipartFields, files: files);
     }
 
-    // Log the final request body for debugging
-    print('Final Update Profile Request Body: $fields');
-    print('Goals type: ${fields['goals']?.runtimeType}');
-    print('Goals value: ${fields['goals']}');
-
-    final response = await _network.post(AppUrl.updateProfile, fields);
-    return response;
+    return _network.post(AppUrl.updateProfile, fields);
   }
 
   Future<dynamic> getProfileRepo() async {

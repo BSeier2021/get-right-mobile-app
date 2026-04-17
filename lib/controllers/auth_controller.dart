@@ -12,6 +12,7 @@ import 'package:get_right/repo/auth_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/network/network_services.dart';
+import 'package:get_right/utils/customer_profile_enums.dart';
 
 /// Auth controller: signup, OTP, and login flows (signup uses live API).
 class AuthController extends GetxController {
@@ -779,12 +780,152 @@ class AuthController extends GetxController {
         }
       }
 
+      await _storageService.saveName(fullName.trim());
+      await _storageService.saveString('user_date_of_birth', dateofbirth);
+      await _storageService.saveString('user_gender', gender);
+      await _storageService.saveString('user_phone', phoneNumber.trim());
+
       final message = response['message']?.toString();
       if (message != null && message.isNotEmpty) {
         Get.snackbar('Success', message, snackPosition: SnackPosition.BOTTOM);
       }
 
       Get.offNamed(AppRoutes.preferenceSelection);
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Profile', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Profile', e.message);
+      return false;
+    } on ForbiddenException catch (e) {
+      _snackError('Profile', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('No connection', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Profile', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Profile', e.message);
+      return false;
+    } catch (e) {
+      _snackError('Profile', e);
+      return false;
+    } finally {
+      _isLoading = false;
+      update();
+    }
+  }
+
+  /// `POST /customer/profile/update` — merges locally stored profile fields with onboarding [routeArgs]
+  /// (`primaryFocus` slug, `mainGoals` slugs, `fitnessLevel`, optional [exerciseFrequency]).
+  Future<bool> updateCustomerOnboardingProfile({Map<String, dynamic>? routeArgs, String? exerciseFrequency}) async {
+    try {
+      _isLoading = true;
+      update();
+      _syncNetworkBearerFromStorage();
+
+      final args = routeArgs ?? <String, dynamic>{};
+
+      String? primaryFocus = CustomerProfileEnums.normalizePrimaryFocus(args['primaryFocus']?.toString());
+      if (!CustomerProfileEnums.isValidPrimaryFocus(primaryFocus)) {
+        primaryFocus = null;
+      }
+      if (primaryFocus == null) {
+        final pid = args['preferenceId']?.toString();
+        if (pid != null && pid.isNotEmpty) {
+          for (final p in _preferences) {
+            if (p.id == pid) {
+              primaryFocus = CustomerProfileEnums.normalizePrimaryFocus(p.value);
+              break;
+            }
+          }
+        }
+      }
+      if (!CustomerProfileEnums.isValidPrimaryFocus(primaryFocus)) {
+        primaryFocus = CustomerProfileEnums.primaryFocusFromDisplayName(args['preference']?.toString());
+      }
+      if (!CustomerProfileEnums.isValidPrimaryFocus(primaryFocus)) {
+        primaryFocus = null;
+      }
+
+      List<String>? mainGoals;
+      final rawMain = args['mainGoals'];
+      if (rawMain is List && rawMain.isNotEmpty) {
+        mainGoals = CustomerProfileEnums.filterMainGoals(rawMain.map((e) => e.toString()));
+        if (mainGoals.isEmpty) mainGoals = null;
+      }
+      if (mainGoals == null || mainGoals.isEmpty) {
+        final rawIds = args['goalIds'];
+        if (rawIds is List && rawIds.isNotEmpty) {
+          final resolved = <String>[];
+          for (final id in rawIds) {
+            final sid = id.toString();
+            for (final g in _goals) {
+              if (g.id == sid) {
+                final v = CustomerProfileEnums.normalizeMainGoal(g.value);
+                if (v != null) resolved.add(v);
+                break;
+              }
+            }
+          }
+          mainGoals = CustomerProfileEnums.filterMainGoals(resolved);
+          if (mainGoals.isEmpty) mainGoals = null;
+        }
+      }
+      if (mainGoals == null || mainGoals.isEmpty) {
+        final rawNames = args['goals'];
+        if (rawNames is List && rawNames.isNotEmpty) {
+          mainGoals = CustomerProfileEnums.filterMainGoals(rawNames.map((e) => CustomerProfileEnums.mainGoalFromDisplayName(e.toString())));
+          if (mainGoals.isEmpty) mainGoals = null;
+        }
+      }
+
+      final fitnessLevelRaw = args['fitnessLevel']?.toString();
+      final fitnessLevel = (fitnessLevelRaw != null && fitnessLevelRaw.trim().isNotEmpty) ? fitnessLevelRaw.trim() : null;
+
+      final freqRaw = exerciseFrequency?.trim();
+      final freq = (freqRaw != null && freqRaw.isNotEmpty) ? freqRaw : null;
+
+      final response = await _authRepo.updateProfileRepo(
+        fullName: _storageService.getName(),
+        dateofbirth: _storageService.getString('user_date_of_birth'),
+        gender: _storageService.getString('user_gender'),
+        phoneNumber: _storageService.getString('user_phone'),
+        bio: _storageService.getString('user_bio'),
+        primaryFocus: primaryFocus,
+        mainGoals: mainGoals,
+        fitnessLevel: fitnessLevel,
+        exerciseFrequency: freq,
+      );
+
+      if (response is! Map<String, dynamic>) {
+        _snackError('Profile', 'Unexpected response from server');
+        return false;
+      }
+      if (response['success'] != true) {
+        final message = response['message']?.toString() ?? 'Could not update profile';
+        _snackError('Profile', message);
+        return false;
+      }
+
+      final prefName = args['preference']?.toString();
+      if (prefName != null && prefName.trim().isNotEmpty) {
+        await _storageService.saveUserPreference(prefName.trim());
+      }
+      final goalNames = args['goals'];
+      if (goalNames is List && goalNames.isNotEmpty) {
+        await _storageService.saveUserGoals(goalNames.map((e) => e.toString()).where((e) => e.trim().isNotEmpty).toList());
+      }
+      if (fitnessLevel != null) {
+        await _storageService.saveFitnessLevel(fitnessLevel);
+      }
+      if (freq != null) {
+        await _storageService.saveExerciseFrequency(freq);
+      }
+
       return true;
     } on BadRequestException catch (e) {
       _snackError('Profile', e.message);

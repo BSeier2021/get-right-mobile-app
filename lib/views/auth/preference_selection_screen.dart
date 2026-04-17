@@ -46,7 +46,25 @@ class _PreferenceSelectionScreenState extends State<PreferenceSelectionScreen> {
       }
     }
     if (selected == null) return;
-    Get.toNamed(AppRoutes.goalSelection, arguments: {'preference': selected.name, 'preferenceId': selected.id});
+    Get.toNamed(AppRoutes.goalSelection, arguments: {
+      'preference': selected.name,
+      'preferenceId': selected.id,
+      'primaryFocus': selected.value,
+    });
+  }
+
+  Map<String, dynamic> _routeArgs() {
+    final raw = Get.arguments;
+    if (raw is! Map) return <String, dynamic>{};
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<void> _onSkip(AuthController auth) async {
+    final ok = await auth.updateCustomerOnboardingProfile(routeArgs: _routeArgs());
+    if (!mounted) return;
+    if (!ok) return;
+    await auth.completeOnboarding();
+    Get.offAllNamed(AppRoutes.home);
   }
 
   @override
@@ -92,11 +110,13 @@ class _PreferenceSelectionScreenState extends State<PreferenceSelectionScreen> {
                           );
                         }),
                       ),
-                      TextButton(
-                        onPressed: () => Get.offAllNamed(AppRoutes.home),
-                        child: Text(
-                          'Skip',
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 16, fontWeight: FontWeight.w500),
+                      GetBuilder<AuthController>(
+                        builder: (auth) => TextButton(
+                          onPressed: auth.isLoading ? null : () => _onSkip(auth),
+                          child: Text(
+                            'Skip',
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
                         ),
                       ),
                     ],

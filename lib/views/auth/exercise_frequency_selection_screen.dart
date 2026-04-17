@@ -31,7 +31,21 @@ class _ExerciseFrequencySelectionScreenState extends State<ExerciseFrequencySele
     setState(() {});
   }
 
-  void _getStarted(AuthController auth) {
+  Map<String, dynamic> _routeArgs() {
+    final raw = Get.arguments;
+    if (raw is! Map) return <String, dynamic>{};
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<void> _onSkip(AuthController auth) async {
+    final ok = await auth.updateCustomerOnboardingProfile(routeArgs: _routeArgs());
+    if (!mounted) return;
+    if (!ok) return;
+    await auth.completeOnboarding();
+    Get.offAllNamed(AppRoutes.home);
+  }
+
+  Future<void> _getStarted(AuthController auth) async {
     final value = _selectedValue;
     if (value == null) return;
     ExercisePlanOption? plan;
@@ -41,7 +55,11 @@ class _ExerciseFrequencySelectionScreenState extends State<ExerciseFrequencySele
         break;
       }
     }
-    final prev = Get.arguments as Map<String, dynamic>? ?? {};
+    final prev = _routeArgs();
+    final ok = await auth.updateCustomerOnboardingProfile(routeArgs: prev, exerciseFrequency: value);
+    if (!mounted) return;
+    if (!ok) return;
+    await auth.completeOnboarding();
     Get.offAllNamed(AppRoutes.home, arguments: {...prev, 'exercisePlan': value, if (plan != null) 'exercisePlanTitle': plan.title});
   }
 
@@ -88,11 +106,13 @@ class _ExerciseFrequencySelectionScreenState extends State<ExerciseFrequencySele
                           );
                         }),
                       ),
-                      TextButton(
-                        onPressed: () => Get.offAllNamed(AppRoutes.home),
-                        child: Text(
-                          'Skip',
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 16, fontWeight: FontWeight.w500),
+                      GetBuilder<AuthController>(
+                        builder: (auth) => TextButton(
+                          onPressed: auth.isLoading ? null : () => _onSkip(auth),
+                          child: Text(
+                            'Skip',
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
                         ),
                       ),
                     ],
@@ -167,7 +187,7 @@ class _ExerciseFrequencySelectionScreenState extends State<ExerciseFrequencySele
                                       constraints: BoxConstraints(maxWidth: 250.w),
                                       child: CustomButton(
                                         text: 'Get Started',
-                                        onPressed: _selectedValue != null ? () => _getStarted(auth) : null,
+                                        onPressed: (_selectedValue != null && !auth.isLoading) ? () => _getStarted(auth) : null,
                                         backgroundColor: _selectedValue != null ? AppColors.accent : const Color.fromARGB(195, 41, 96, 60),
                                         textColor: Colors.white,
                                       ),

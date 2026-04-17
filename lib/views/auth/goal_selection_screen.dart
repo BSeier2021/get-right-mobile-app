@@ -36,11 +36,27 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
     final ordered = auth.goals.where((g) => _selectedGoalIds.contains(g.id)).toList();
     final goalIds = ordered.map((g) => g.id).toList();
     final goalNames = ordered.map((g) => g.name).toList();
+    final mainGoals = ordered.map((g) => g.value).toList();
     Get.toNamed(AppRoutes.fitnessLevelSelection, arguments: {
       ...?prev,
       'goalIds': goalIds,
       'goals': goalNames,
+      'mainGoals': mainGoals,
     });
+  }
+
+  Map<String, dynamic> _routeArgs() {
+    final raw = Get.arguments;
+    if (raw is! Map) return <String, dynamic>{};
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<void> _onSkip(AuthController auth) async {
+    final ok = await auth.updateCustomerOnboardingProfile(routeArgs: _routeArgs());
+    if (!mounted) return;
+    if (!ok) return;
+    await auth.completeOnboarding();
+    Get.offAllNamed(AppRoutes.home);
   }
 
   @override
@@ -86,11 +102,13 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
                           );
                         }),
                       ),
-                      TextButton(
-                        onPressed: () => Get.offAllNamed(AppRoutes.home),
-                        child: Text(
-                          'Skip',
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 16, fontWeight: FontWeight.w500),
+                      GetBuilder<AuthController>(
+                        builder: (auth) => TextButton(
+                          onPressed: auth.isLoading ? null : () => _onSkip(auth),
+                          child: Text(
+                            'Skip',
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
                         ),
                       ),
                     ],
