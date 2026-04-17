@@ -101,6 +101,16 @@ class AuthController extends GetxController {
     Get.snackbar(title, msg, snackPosition: SnackPosition.BOTTOM);
   }
 
+  /// Login / profile flags: only [bool] false or string "false"/"0" count as false; null or missing → not false.
+  bool _isExplicitlyFalse(dynamic v) {
+    if (v == false) return true;
+    if (v is String) {
+      final s = v.trim().toLowerCase();
+      return s == 'false' || s == '0';
+    }
+    return false;
+  }
+
   /// SharedPreferences + GetStorage token so [NetworkApiService] sends `Bearer` on API calls.
   Future<void> _persistAccessToken(String token) async {
     await _storageService.saveToken(token);
@@ -451,6 +461,8 @@ class AuthController extends GetxController {
 
       final data = response['data'];
       String? emailToStore;
+      var needsEmailVerification = false;
+      var needsProfileSetup = false;
       if (data is Map<String, dynamic>) {
         final user = data['user'];
         if (user is Map<String, dynamic>) {
@@ -468,6 +480,14 @@ class AuthController extends GetxController {
               await _storageService.saveName(name);
             }
           }
+
+          needsEmailVerification = _isExplicitlyFalse(user['isVerified']) || _isExplicitlyFalse(user['is_verified']);
+          if (!needsEmailVerification) {
+            needsProfileSetup = _isExplicitlyFalse(user['isProfileCompleted']) || _isExplicitlyFalse(user['is_profile_completed']);
+            if (profile is Map<String, dynamic>) {
+              needsProfileSetup = needsProfileSetup || _isExplicitlyFalse(profile['isProfileCompleted']) || _isExplicitlyFalse(profile['is_profile_completed']);
+            }
+          }
         }
       }
       final resolvedEmail = emailToStore?.trim();
@@ -478,6 +498,23 @@ class AuthController extends GetxController {
         Get.snackbar('Welcome', message, snackPosition: SnackPosition.BOTTOM);
       }
 
+      if (needsEmailVerification) {
+        final uid = _storageService.getUserId();
+        if (uid == null || uid.isEmpty) {
+          _snackError('Login', 'This account needs email verification, but user id is missing. Please try again.');
+          Get.offAllNamed(AppRoutes.home);
+          return;
+        }
+        final em = (resolvedEmail != null && resolvedEmail.isNotEmpty) ? resolvedEmail : email.trim();
+        _tempEmail = em;
+        _pendingSignupUserId = uid;
+        Get.offAllNamed(AppRoutes.otp, arguments: {'email': em, 'userId': uid, 'fromSignup': false});
+        return;
+      }
+      if (needsProfileSetup) {
+        Get.offAllNamed(AppRoutes.profileSetup);
+        return;
+      }
       Get.offAllNamed(AppRoutes.home);
     } on BadRequestException catch (e) {
       _snackError('Login', e.message);
