@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
-import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/common/custom_button.dart';
@@ -52,26 +51,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
     super.dispose();
   }
 
-  void _resetPassword() {
+  Future<void> _resetPassword() async {
+    final newPass = _newPasswordController.text;
+    final confirm = _confirmPasswordController.text;
+    if (newPass != confirm) {
+      Get.snackbar('Reset password', 'Passwords do not match', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
     final authController = Get.find<AuthController>();
-    // TODO: Pass OTP from previous screen via Get.arguments
-    authController.resetPassword(otp: Get.arguments?['otp'] ?? '', newPassword: _newPasswordController.text);
-
-    // Show success and navigate to login
-    Get.snackbar(
-      'Success',
-      'Password reset successfully!',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: AppColors.accent,
-      colorText: AppColors.onAccent,
-      margin: const EdgeInsets.all(16),
-      borderRadius: 12,
-      duration: const Duration(seconds: 2),
-    );
-
-    Future.delayed(const Duration(seconds: 2), () {
-      Get.offAllNamed(AppRoutes.login);
-    });
+    await authController.resetPassword(newPassword: newPass);
   }
 
   @override
@@ -89,15 +78,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
             ),
-            child: const Icon(Icons.arrow_back_rounded, size: 20),
+            child: const Icon(Icons.chevron_left, size: 25),
           ),
           onPressed: () => Get.back(),
         ),
       ),
       body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(center: Alignment.topCenter, radius: 1.0, colors: [AppColors.accent.withOpacity(0.05), AppColors.background]),
-        ),
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),

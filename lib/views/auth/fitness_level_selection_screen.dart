@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
+import 'package:get_right/models/fitness_level_option.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -14,13 +16,20 @@ class FitnessLevelSelectionScreen extends StatefulWidget {
 }
 
 class _FitnessLevelSelectionScreenState extends State<FitnessLevelSelectionScreen> {
-  String? _selectedLevel;
+  String? _selectedValue;
 
-  final List<Map<String, String>> _levels = [
-    {'title': 'Beginner', 'description': 'New to fitness or getting back into it'},
-    {'title': 'Intermediate', 'description': 'Regular exercise, comfortable with basics'},
-    {'title': 'Advanced', 'description': 'Experienced athlete or fitness enthusiast'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadLevels());
+  }
+
+  Future<void> _loadLevels() async {
+    final auth = Get.find<AuthController>();
+    await auth.fetchFitnessLevels();
+    if (!mounted) return;
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,64 +85,93 @@ class _FitnessLevelSelectionScreenState extends State<FitnessLevelSelectionScree
                   ),
                   const SizedBox(height: 8),
                   const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'What\'s Your\nFitness Level?',
-                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 35.sp, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'We\'ll adjust recommendations\nbased on your experience',
-                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 15.sp, fontWeight: FontWeight.w400, height: 1.35),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: 250.w),
-                          child: Column(
-                            children: [
-                              ..._levels.map(
-                                (level) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: _buildLevelCard(
-                                    title: level['title']!,
-                                    description: level['description']!,
-                                    isSelected: _selectedLevel == level['title'],
-                                    onTap: () => setState(() => _selectedLevel = level['title']),
+                  Expanded(
+                    child: GetBuilder<AuthController>(
+                      builder: (auth) {
+                        if (auth.fitnessLevelsLoading && auth.fitnessLevels.isEmpty) {
+                          return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+                        }
+
+                        if (auth.fitnessLevelsError != null && auth.fitnessLevels.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    auth.fitnessLevelsError!,
+                                    textAlign: TextAlign.center,
+                                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75)),
                                   ),
+                                  const SizedBox(height: 16),
+                                  TextButton(
+                                    onPressed: _loadLevels,
+                                    child: Text('Retry', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        return SingleChildScrollView(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'What\'s Your\nFitness Level?',
+                                      style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 35.sp, fontWeight: FontWeight.w700),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'We\'ll adjust recommendations\nbased on your experience',
+                                      style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 15.sp, fontWeight: FontWeight.w400, height: 1.35),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    ...auth.fitnessLevels.map(
+                                      (level) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 10),
+                                        child: _buildLevelCard(
+                                          level: level,
+                                          isSelected: _selectedValue == level.value,
+                                          onTap: () => setState(() => _selectedValue = level.value),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    ConstrainedBox(
+                                      constraints: BoxConstraints(maxWidth: 250.w),
+                                      child: CustomButton(
+                                        text: 'Continue',
+                                        onPressed: _selectedValue != null
+                                            ? () {
+                                                final existingArgs = Get.arguments as Map<String, dynamic>?;
+                                                final args = <String, dynamic>{
+                                                  ...?existingArgs,
+                                                  'index': 3,
+                                                  'fitnessLevel': _selectedValue,
+                                                };
+                                                Get.toNamed(AppRoutes.exerciseFrequencySelection, arguments: args);
+                                              }
+                                            : null,
+                                        backgroundColor: _selectedValue != null ? AppColors.accent : const Color.fromARGB(195, 41, 96, 60),
+                                        textColor: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 6),
-                              CustomButton(
-                                text: 'Continue',
-                                onPressed: _selectedLevel != null
-                                    ? () {
-                                        final existingArgs = Get.arguments as Map<String, dynamic>?;
-                                        final args = <String, dynamic>{...?existingArgs, 'index': 3};
-                                        Get.toNamed(AppRoutes.exerciseFrequencySelection, arguments: args);
-                                      }
-                                    : null,
-                                backgroundColor: _selectedLevel != null ? AppColors.accent : const Color.fromARGB(195, 41, 96, 60),
-                                textColor: Colors.white,
-                              ),
-                              const SizedBox(height: 16),
                             ],
                           ),
-                        ),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -144,7 +182,7 @@ class _FitnessLevelSelectionScreenState extends State<FitnessLevelSelectionScree
     );
   }
 
-  Widget _buildLevelCard({required String title, required String description, required bool isSelected, required VoidCallback onTap}) {
+  Widget _buildLevelCard({required FitnessLevelOption level, required bool isSelected, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
@@ -160,14 +198,16 @@ class _FitnessLevelSelectionScreenState extends State<FitnessLevelSelectionScree
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              title,
+              level.title,
               style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 18, fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 4),
-            Text(
-              description,
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 13.5, fontWeight: FontWeight.w400, height: 1.25),
-            ),
+            if (level.description.trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                level.description,
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 13.5, fontWeight: FontWeight.w400, height: 1.25),
+              ),
+            ],
           ],
         ),
       ),

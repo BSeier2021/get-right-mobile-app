@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
+import 'package:get_right/models/exercise_plan_option.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -14,9 +16,34 @@ class ExerciseFrequencySelectionScreen extends StatefulWidget {
 }
 
 class _ExerciseFrequencySelectionScreenState extends State<ExerciseFrequencySelectionScreen> {
-  String? _selectedFrequency;
+  String? _selectedValue;
 
-  final List<String> _frequencies = ['Daily (7x/week)', '5 times per week', '3 times per week', '2 times per week', 'Once per week'];
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPlans());
+  }
+
+  Future<void> _loadPlans() async {
+    final auth = Get.find<AuthController>();
+    await auth.fetchExercisePlans();
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  void _getStarted(AuthController auth) {
+    final value = _selectedValue;
+    if (value == null) return;
+    ExercisePlanOption? plan;
+    for (final p in auth.exercisePlans) {
+      if (p.value == value) {
+        plan = p;
+        break;
+      }
+    }
+    final prev = Get.arguments as Map<String, dynamic>? ?? {};
+    Get.offAllNamed(AppRoutes.home, arguments: {...prev, 'exercisePlan': value, if (plan != null) 'exercisePlanTitle': plan.title});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,55 +99,88 @@ class _ExerciseFrequencySelectionScreenState extends State<ExerciseFrequencySele
                   ),
                   const SizedBox(height: 8),
                   const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            textAlign: TextAlign.left,
-                            'How Often Do\nYou Plan To\nExercise?',
-                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 35.sp, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'This helps us create realistic\ngoals for you',
-                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 15.sp, fontWeight: FontWeight.w400, height: 1.35),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: 250.w),
-                          child: Column(
-                            children: [
-                              ..._frequencies.map((frequency) => Padding(padding: const EdgeInsets.only(bottom: 10), child: _buildFrequencyButton(frequency))),
-                              const SizedBox(height: 6),
-                              CustomButton(
-                                text: 'Get Started',
-                                onPressed: _selectedFrequency != null
-                                    ? () {
-                                        final args = Get.arguments as Map<String, dynamic>?;
-                                        final preference = args?['preference'] as String?;
-                                        Get.offAllNamed(AppRoutes.home, arguments: {'preference': preference});
-                                      }
-                                    : null,
-                                backgroundColor: _selectedFrequency != null ? AppColors.accent : const Color.fromARGB(195, 41, 96, 60),
-                                textColor: Colors.white,
+                  Expanded(
+                    child: GetBuilder<AuthController>(
+                      builder: (auth) {
+                        if (auth.exercisePlansLoading && auth.exercisePlans.isEmpty) {
+                          return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+                        }
+
+                        if (auth.exercisePlansError != null && auth.exercisePlans.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    auth.exercisePlansError!,
+                                    textAlign: TextAlign.center,
+                                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75)),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  TextButton(
+                                    onPressed: _loadPlans,
+                                    child: Text(
+                                      'Retry',
+                                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 16),
+                            ),
+                          );
+                        }
+
+                        return SingleChildScrollView(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      textAlign: TextAlign.left,
+                                      'How Often Do\nYou Plan To\nExercise?',
+                                      style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 35.sp, fontWeight: FontWeight.w700),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'This helps us create realistic\ngoals for you',
+                                      style: AppTextStyles.bodyLarge.copyWith(
+                                        color: AppColors.onBackground.withOpacity(0.8),
+                                        fontSize: 15.sp,
+                                        fontWeight: FontWeight.w400,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    ...auth.exercisePlans.map(
+                                      (plan) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 10),
+                                        child: _buildPlanCard(plan: plan, isSelected: _selectedValue == plan.value, onTap: () => setState(() => _selectedValue = plan.value)),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    ConstrainedBox(
+                                      constraints: BoxConstraints(maxWidth: 250.w),
+                                      child: CustomButton(
+                                        text: 'Get Started',
+                                        onPressed: _selectedValue != null ? () => _getStarted(auth) : null,
+                                        backgroundColor: _selectedValue != null ? AppColors.accent : const Color.fromARGB(195, 41, 96, 60),
+                                        textColor: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
-                        ),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -131,10 +191,9 @@ class _ExerciseFrequencySelectionScreenState extends State<ExerciseFrequencySele
     );
   }
 
-  Widget _buildFrequencyButton(String frequency) {
-    final isSelected = _selectedFrequency == frequency;
+  Widget _buildPlanCard({required ExercisePlanOption plan, required bool isSelected, required VoidCallback onTap}) {
     return InkWell(
-      onTap: () => setState(() => _selectedFrequency = frequency),
+      onTap: onTap,
       borderRadius: BorderRadius.circular(24),
       child: Container(
         width: double.infinity,
@@ -144,9 +203,21 @@ class _ExerciseFrequencySelectionScreenState extends State<ExerciseFrequencySele
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: isSelected ? AppColors.accent : const Color(0xFFD8DDD8), width: 1.2),
         ),
-        child: Text(
-          frequency,
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 18, fontWeight: FontWeight.w700),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              plan.title,
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            if (plan.description.trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                plan.description,
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 13.5, fontWeight: FontWeight.w400, height: 1.25),
+              ),
+            ],
+          ],
         ),
       ),
     );

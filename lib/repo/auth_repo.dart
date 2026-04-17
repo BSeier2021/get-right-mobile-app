@@ -45,30 +45,40 @@ class AuthRepository {
     return response;
   }
 
+  /// `POST /user/auth/forget` with `{ "email": "..." }`.
   Future<dynamic> forgotPasswordRepo({required String email}) async {
-    final response = await _network.post(AppUrl.forgotPassword, {"email": email});
+    final response = await _network.post(AppUrl.forgotPassword, {"email": email.trim()}, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
     return response;
   }
 
-  Future<dynamic> resetPasswordRepo({required String password, required String userId}) async {
-    final response = await _network.post(AppUrl.resetPassword, {"password": password, "userId": userId});
+  /// `POST /user/auth/forget-password` — body: `{ "password": "..." }`. Uses Bearer from [NetworkApiService].
+  Future<dynamic> resetPasswordRepo({required String password}) async {
+    final response = await _network.post(AppUrl.resetPassword, {"password": password.trim()});
     return response;
   }
 
   Future<dynamic> getPreferencesRepo() async {
-    final response = await _network.get(headers: {"Authorization": "yNaHwJpGFSquIkXP"}, AppUrl.preference);
+    final response = await _network.get(AppUrl.preference, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
     return response;
   }
 
+  /// `GET /user/goals` — Bearer from [NetworkApiService] (same as preferences).
   Future<dynamic> getGoalsRepo() async {
-    final response = await _network.get(headers: {"Authorization": "yNaHwJpGFSquIkXP"}, AppUrl.goals);
+    final response = await _network.get(AppUrl.goals, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
     return response;
   }
 
-  // Future<dynamic> getFitnessLevelsRepo() async {
-  //   final response = await _network.get(AppUrl.fitnessLevels);
-  //   return response;
-  // }
+  /// `GET /user/fitness-level` → `data.fitnessLevels`.
+  Future<dynamic> getFitnessLevelsRepo() async {
+    final response = await _network.get(AppUrl.fitnessLevels, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
+    return response;
+  }
+
+  /// `GET /user/exercise-plan` → `data.exercisePlans`.
+  Future<dynamic> getExercisePlansRepo() async {
+    final response = await _network.get(AppUrl.exercisePlans, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
+    return response;
+  }
 
   // Future<dynamic> getAllPlansRepo() async {
   //   final response = await _network.get(AppUrl.AllPlans);
@@ -182,8 +192,12 @@ class AuthRepository {
     return response;
   }
 
+  /// `POST /user/auth/change-password` — body: `{ "oldPassword": "...", "newPassword": "..." }` (Bearer).
   Future<dynamic> changePasswordRepo({required String oldPassword, required String newPassword}) async {
-    final response = await _network.post(AppUrl.changePassword, {"oldPassword": oldPassword, "newPassword": newPassword});
+    final response = await _network.post(
+      AppUrl.changePassword,
+      {"oldPassword": oldPassword.trim(), "newPassword": newPassword.trim()},
+    );
     return response;
   }
 

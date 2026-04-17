@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get_right/theme/app_theme.dart';
 import 'package:get_right/routes/app_pages.dart';
@@ -53,6 +54,8 @@ void main() async {
 
 /// Initialize all required services
 Future<void> initServices() async {
+  await GetStorage.init();
+
   // Initialize StorageService
   final storageService = await StorageService.getInstance();
   Get.put(storageService);

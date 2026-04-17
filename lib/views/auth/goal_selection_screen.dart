@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
+import 'package:get_right/models/user_goal_option.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -14,14 +16,35 @@ class GoalSelectionScreen extends StatefulWidget {
 }
 
 class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
-  final List<String> _selectedGoals = [];
+  final Set<String> _selectedGoalIds = <String>{};
 
-  final List<String> _goals = ['Lose Weight', 'Build Muscle', 'Stay Healthy', 'Improve Performance', 'Track Progress', 'Build Habits'];
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadGoals());
+  }
+
+  Future<void> _loadGoals() async {
+    final auth = Get.find<AuthController>();
+    await auth.fetchGoals();
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  void _continue(AuthController auth) {
+    final prev = Get.arguments as Map<String, dynamic>?;
+    final ordered = auth.goals.where((g) => _selectedGoalIds.contains(g.id)).toList();
+    final goalIds = ordered.map((g) => g.id).toList();
+    final goalNames = ordered.map((g) => g.name).toList();
+    Get.toNamed(AppRoutes.fitnessLevelSelection, arguments: {
+      ...?prev,
+      'goalIds': goalIds,
+      'goals': goalNames,
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final double contentMaxWidth = MediaQuery.of(context).size.width * 0.72;
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -73,56 +96,75 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-
                   const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'What\'s Your\nMain Goal?',
-                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 35.sp, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'This helps us\nrecommend the best\nfeatures for you select\nall that apply',
-                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 15.sp, fontWeight: FontWeight.w400, height: 1.35),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
+                  Expanded(
+                    child: GetBuilder<AuthController>(
+                      builder: (auth) {
+                        if (auth.goalsLoading && auth.goals.isEmpty) {
+                          return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+                        }
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: 250.w),
-                          child: Column(
-                            children: [
-                              ..._goals.map((goal) => Padding(padding: const EdgeInsets.only(bottom: 10), child: _buildGoalButton(goal))),
-                              const SizedBox(height: 6),
-                              CustomButton(
-                                text: 'Continue',
-                                onPressed: _selectedGoals.isNotEmpty
-                                    ? () {
-                                        final args = Get.arguments as Map<String, dynamic>?;
-                                        Get.toNamed(AppRoutes.fitnessLevelSelection, arguments: args);
-                                      }
-                                    : null,
-                                backgroundColor: _selectedGoals.isNotEmpty ? AppColors.accent : const Color.fromARGB(195, 41, 96, 60),
-                                textColor: Colors.white,
+                        if (auth.goalsError != null && auth.goals.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    auth.goalsError!,
+                                    textAlign: TextAlign.center,
+                                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75)),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  TextButton(
+                                    onPressed: _loadGoals,
+                                    child: Text('Retry', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600)),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 16),
+                            ),
+                          );
+                        }
+
+                        return SingleChildScrollView(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'What\'s Your\nMain Goal?',
+                                      style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 35.sp, fontWeight: FontWeight.w700),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'This helps us\nrecommend the best\nfeatures for you select\nall that apply',
+                                      style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 15.sp, fontWeight: FontWeight.w400, height: 1.35),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    ...auth.goals.map((g) => Padding(padding: const EdgeInsets.only(bottom: 10), child: _buildGoalButton(g))),
+                                    const SizedBox(height: 6),
+                                    ConstrainedBox(
+                                      constraints: BoxConstraints(maxWidth: 250.w),
+                                      child: CustomButton(
+                                        text: 'Continue',
+                                        onPressed: _selectedGoalIds.isNotEmpty ? () => _continue(auth) : null,
+                                        backgroundColor: _selectedGoalIds.isNotEmpty ? AppColors.accent : const Color.fromARGB(195, 41, 96, 60),
+                                        textColor: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
-                        ),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -133,15 +175,15 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
     );
   }
 
-  Widget _buildGoalButton(String goal) {
-    final isSelected = _selectedGoals.contains(goal);
+  Widget _buildGoalButton(UserGoalOption goal) {
+    final isSelected = _selectedGoalIds.contains(goal.id);
     return InkWell(
       onTap: () {
         setState(() {
           if (isSelected) {
-            _selectedGoals.remove(goal);
+            _selectedGoalIds.remove(goal.id);
           } else {
-            _selectedGoals.add(goal);
+            _selectedGoalIds.add(goal.id);
           }
         });
       },
@@ -155,7 +197,7 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
           border: Border.all(color: isSelected ? AppColors.accent : const Color(0xFFD8DDD8), width: 1.2),
         ),
         child: Text(
-          goal,
+          goal.name,
           style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ),

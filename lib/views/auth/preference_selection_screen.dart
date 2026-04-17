@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
+import 'package:get_right/models/user_preference_option.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -14,12 +16,41 @@ class PreferenceSelectionScreen extends StatefulWidget {
 }
 
 class _PreferenceSelectionScreenState extends State<PreferenceSelectionScreen> {
-  String? _selectedPreference = 'Running & Cardio';
+  String? _selectedPreferenceId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPreferences());
+  }
+
+  Future<void> _loadPreferences() async {
+    final auth = Get.find<AuthController>();
+    await auth.fetchPreferences();
+    if (!mounted) return;
+    setState(() {
+      if (_selectedPreferenceId == null && auth.preferences.isNotEmpty) {
+        _selectedPreferenceId = auth.preferences.first.id;
+      }
+    });
+  }
+
+  void _continue(AuthController auth) {
+    final id = _selectedPreferenceId;
+    if (id == null) return;
+    UserPreferenceOption? selected;
+    for (final p in auth.preferences) {
+      if (p.id == id) {
+        selected = p;
+        break;
+      }
+    }
+    if (selected == null) return;
+    Get.toNamed(AppRoutes.goalSelection, arguments: {'preference': selected.name, 'preferenceId': selected.id});
+  }
 
   @override
   Widget build(BuildContext context) {
-    final double contentMaxWidth = MediaQuery.of(context).size.width * 0.68;
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -71,53 +102,94 @@ class _PreferenceSelectionScreenState extends State<PreferenceSelectionScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-
                   const SizedBox(height: 22),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Whats Your\nPreference?',
-                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 35.sp, fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Choose your primary\nfocus to personalize\nyour experience',
-                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 15.sp, fontWeight: FontWeight.w400, height: 1.35),
-                          ),
-                          const SizedBox(height: 18),
-                          _buildOptionCard(
-                            title: 'Strength Training',
-                            description: 'I love lifting weights and\nbuilding strength',
-                            isSelected: _selectedPreference == 'Strength Training',
-                            onTap: () => setState(() => _selectedPreference = 'Strength Training'),
-                          ),
-                          const SizedBox(height: 12),
-                          _buildOptionCard(
-                            title: 'Running & Cardio',
-                            description: 'I prefer running, jogging, and\ncardio activities',
-                            isSelected: _selectedPreference == 'Running & Cardio',
-                            onTap: () => setState(() => _selectedPreference = 'Running & Cardio'),
-                          ),
-                          const SizedBox(height: 20),
+                  Expanded(
+                    child: GetBuilder<AuthController>(
+                      builder: (auth) {
+                        if (auth.preferencesLoading && auth.preferences.isEmpty) {
+                          return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+                        }
 
-                          ConstrainedBox(
-                            constraints: BoxConstraints(maxWidth: 230.w),
-                            child: CustomButton(
-                              text: 'Continue',
-                              onPressed: _selectedPreference != null ? () => Get.toNamed(AppRoutes.goalSelection, arguments: {'preference': _selectedPreference}) : null,
-                              backgroundColor: AppColors.accent,
-                              textColor: Colors.white,
+                        if (auth.preferencesError != null && auth.preferences.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    auth.preferencesError!,
+                                    textAlign: TextAlign.center,
+                                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75)),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  TextButton(
+                                    onPressed: _loadPreferences,
+                                    child: Text(
+                                      'Retry',
+                                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                          );
+                        }
+
+                        return SingleChildScrollView(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Whats Your\nPreference?',
+                                      style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 35.sp, fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Choose your primary\nfocus to personalize\nyour experience',
+                                      style: AppTextStyles.bodyLarge.copyWith(
+                                        color: AppColors.onBackground.withOpacity(0.8),
+                                        fontSize: 15.sp,
+                                        fontWeight: FontWeight.w400,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 18),
+                                    ...auth.preferences.map(
+                                      (p) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 12),
+                                        child: _buildOptionCard(
+                                          title: p.name,
+                                          description: p.description,
+                                          isSelected: _selectedPreferenceId == p.id,
+                                          onTap: () => setState(() => _selectedPreferenceId = p.id),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ConstrainedBox(
+                                      constraints: BoxConstraints(maxWidth: 230.w),
+                                      child: CustomButton(
+                                        text: 'Continue',
+                                        onPressed: (_selectedPreferenceId != null && auth.preferences.isNotEmpty) ? () => _continue(auth) : null,
+                                        backgroundColor: AppColors.accent,
+                                        textColor: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ],
-                  ).paddingSymmetric(horizontal: 5.w),
+                        );
+                      },
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -127,7 +199,7 @@ class _PreferenceSelectionScreenState extends State<PreferenceSelectionScreen> {
     );
   }
 
-  Widget _buildOptionCard({required String title, required String description, required bool isSelected, required VoidCallback onTap}) {
+  Widget _buildOptionCard({required String title, String? description, required bool isSelected, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(30.r),
@@ -147,11 +219,13 @@ class _PreferenceSelectionScreenState extends State<PreferenceSelectionScreen> {
               title,
               style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontSize: 20, fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 2),
-            Text(
-              description,
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.85), fontSize: 15, fontWeight: FontWeight.w400, height: 1.25),
-            ),
+            if (description != null && description.trim().isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                description.trim(),
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.85), fontSize: 15, fontWeight: FontWeight.w400, height: 1.25),
+              ),
+            ],
           ],
         ),
       ),

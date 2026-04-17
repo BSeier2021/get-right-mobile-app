@@ -73,17 +73,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
     }
 
     final authController = Get.find<AuthController>();
-    await authController.changePassword(currentPassword: _currentPasswordController.text.trim(), newPassword: newPassword);
-
-    Get.snackbar(
-      'Success',
-      'Password updated successfully',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: AppColors.accent,
-      colorText: AppColors.onAccent,
-      margin: const EdgeInsets.all(16),
-      borderRadius: 12,
-    );
+    final ok = await authController.changePassword(currentPassword: _currentPasswordController.text.trim(), newPassword: newPassword);
+    if (!mounted || !ok) return;
 
     Get.back(result: true);
   }

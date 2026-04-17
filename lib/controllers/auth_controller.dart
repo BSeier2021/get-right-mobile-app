@@ -4,6 +4,10 @@ import 'dart:math';
 import 'package:get/get.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:get_right/Local%20Storage/local_storage.dart';
+import 'package:get_right/models/exercise_plan_option.dart';
+import 'package:get_right/models/fitness_level_option.dart';
+import 'package:get_right/models/user_goal_option.dart';
+import 'package:get_right/models/user_preference_option.dart';
 import 'package:get_right/repo/auth_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
@@ -18,11 +22,57 @@ class AuthController extends GetxController {
 
   AuthController(this._storageService);
 
+  @override
+  void onInit() {
+    super.onInit();
+    _syncNetworkBearerFromStorage();
+  }
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  List<UserPreferenceOption> _preferences = [];
+  List<UserPreferenceOption> get preferences => List.unmodifiable(_preferences);
+
+  bool _preferencesLoading = false;
+  bool get preferencesLoading => _preferencesLoading;
+
+  String? _preferencesError;
+  String? get preferencesError => _preferencesError;
+
+  List<UserGoalOption> _goals = [];
+  List<UserGoalOption> get goals => List.unmodifiable(_goals);
+
+  bool _goalsLoading = false;
+  bool get goalsLoading => _goalsLoading;
+
+  String? _goalsError;
+  String? get goalsError => _goalsError;
+
+  List<FitnessLevelOption> _fitnessLevels = [];
+  List<FitnessLevelOption> get fitnessLevels => List.unmodifiable(_fitnessLevels);
+
+  bool _fitnessLevelsLoading = false;
+  bool get fitnessLevelsLoading => _fitnessLevelsLoading;
+
+  String? _fitnessLevelsError;
+  String? get fitnessLevelsError => _fitnessLevelsError;
+
+  List<ExercisePlanOption> _exercisePlans = [];
+  List<ExercisePlanOption> get exercisePlans => List.unmodifiable(_exercisePlans);
+
+  bool _exercisePlansLoading = false;
+  bool get exercisePlansLoading => _exercisePlansLoading;
+
+  String? _exercisePlansError;
+  String? get exercisePlansError => _exercisePlansError;
+
   String? _tempEmail;
   String? _pendingSignupUserId;
+
+  /// Set after successful forgot-password API; used when navigating to OTP / reset.
+  String? _forgotPasswordUserId;
+  String? get forgotPasswordUserId => _forgotPasswordUserId;
 
   /// Set after successful signup; pass to OTP route for verify-OTP API.
   String? get pendingSignupUserId => _pendingSignupUserId;
@@ -54,7 +104,16 @@ class AuthController extends GetxController {
   Future<void> _persistAccessToken(String token) async {
     await _storageService.saveToken(token);
     await _storageService.saveLoginStatus(true);
-    Get.put(LocalStorage()).saveAccessToken(token);
+    final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
+    ls.saveAccessToken(token);
+  }
+
+  /// [NetworkApiService] reads JWT from [LocalStorage]; [StorageService] also stores it. Sync avoids 410 when GetStorage was empty or stale.
+  void _syncNetworkBearerFromStorage() {
+    final t = _storageService.getToken();
+    if (t == null || t.isEmpty) return;
+    final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
+    ls.saveAccessToken(t);
   }
 
   // Note: Removed onInit auto-navigation - Splash screen handles initial routing
@@ -74,6 +133,294 @@ class AuthController extends GetxController {
     return _storageService.isLoggedIn();
   }
 
+  /// Loads `GET /user/preferences` → `data.preferences` for onboarding preference step.
+  Future<void> fetchPreferences() async {
+    try {
+      _preferencesLoading = true;
+      _preferencesError = null;
+      update();
+
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getPreferencesRepo();
+
+      if (response is! Map<String, dynamic>) {
+        _preferences = [];
+        _preferencesError = 'Unexpected response from server';
+        return;
+      }
+
+      if (response['success'] != true) {
+        _preferences = [];
+        _preferencesError = response['message']?.toString() ?? 'Could not load preferences';
+        return;
+      }
+
+      final data = response['data'];
+      final raw = data is Map<String, dynamic> ? data['preferences'] : null;
+      final list = <UserPreferenceOption>[];
+      if (raw is List) {
+        for (final e in raw) {
+          if (e is Map<String, dynamic>) {
+            final p = UserPreferenceOption.fromJson(e);
+            if (p.id.isNotEmpty && p.name.isNotEmpty) {
+              list.add(p);
+            }
+          } else if (e is Map) {
+            final p = UserPreferenceOption.fromJson(Map<String, dynamic>.from(e));
+            if (p.id.isNotEmpty && p.name.isNotEmpty) {
+              list.add(p);
+            }
+          }
+        }
+      }
+
+      _preferences = list;
+      if (list.isEmpty) {
+        _preferencesError = 'No preferences available';
+      }
+    } on BadRequestException catch (e) {
+      _preferences = [];
+      _preferencesError = e.message;
+    } on UnauthorizedException catch (e) {
+      _preferences = [];
+      _preferencesError = e.message;
+    } on ForbiddenException catch (e) {
+      _preferences = [];
+      _preferencesError = e.message;
+    } on NoInternetException catch (e) {
+      _preferences = [];
+      _preferencesError = e.message;
+    } on RequestTimeoutException catch (e) {
+      _preferences = [];
+      _preferencesError = e.message;
+    } on ServerException catch (e) {
+      _preferences = [];
+      _preferencesError = e.message;
+    } catch (e) {
+      _preferences = [];
+      _preferencesError = e.toString();
+    } finally {
+      _preferencesLoading = false;
+      update();
+    }
+  }
+
+  /// Loads `GET /user/goals` → `data.goals` for onboarding goal step.
+  Future<void> fetchGoals() async {
+    try {
+      _goalsLoading = true;
+      _goalsError = null;
+      update();
+
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getGoalsRepo();
+
+      if (response is! Map<String, dynamic>) {
+        _goals = [];
+        _goalsError = 'Unexpected response from server';
+        return;
+      }
+
+      if (response['success'] != true) {
+        _goals = [];
+        _goalsError = response['message']?.toString() ?? 'Could not load goals';
+        return;
+      }
+
+      final data = response['data'];
+      final raw = data is Map<String, dynamic> ? data['goals'] : null;
+      final list = <UserGoalOption>[];
+      if (raw is List) {
+        for (final e in raw) {
+          if (e is Map<String, dynamic>) {
+            final g = UserGoalOption.fromJson(e);
+            if (g.id.isNotEmpty && g.name.isNotEmpty) {
+              list.add(g);
+            }
+          } else if (e is Map) {
+            final g = UserGoalOption.fromJson(Map<String, dynamic>.from(e));
+            if (g.id.isNotEmpty && g.name.isNotEmpty) {
+              list.add(g);
+            }
+          }
+        }
+      }
+
+      _goals = list;
+      if (list.isEmpty) {
+        _goalsError = 'No goals available';
+      }
+    } on BadRequestException catch (e) {
+      _goals = [];
+      _goalsError = e.message;
+    } on UnauthorizedException catch (e) {
+      _goals = [];
+      _goalsError = e.message;
+    } on ForbiddenException catch (e) {
+      _goals = [];
+      _goalsError = e.message;
+    } on NoInternetException catch (e) {
+      _goals = [];
+      _goalsError = e.message;
+    } on RequestTimeoutException catch (e) {
+      _goals = [];
+      _goalsError = e.message;
+    } on ServerException catch (e) {
+      _goals = [];
+      _goalsError = e.message;
+    } catch (e) {
+      _goals = [];
+      _goalsError = e.toString();
+    } finally {
+      _goalsLoading = false;
+      update();
+    }
+  }
+
+  /// Loads `GET /user/fitness-level` → `data.fitnessLevels` for onboarding.
+  Future<void> fetchFitnessLevels() async {
+    try {
+      _fitnessLevelsLoading = true;
+      _fitnessLevelsError = null;
+      update();
+
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getFitnessLevelsRepo();
+
+      if (response is! Map<String, dynamic>) {
+        _fitnessLevels = [];
+        _fitnessLevelsError = 'Unexpected response from server';
+        return;
+      }
+
+      if (response['success'] != true) {
+        _fitnessLevels = [];
+        _fitnessLevelsError = response['message']?.toString() ?? 'Could not load fitness levels';
+        return;
+      }
+
+      final data = response['data'];
+      final raw = data is Map<String, dynamic> ? data['fitnessLevels'] : null;
+      final list = <FitnessLevelOption>[];
+      if (raw is List) {
+        for (final e in raw) {
+          if (e is Map<String, dynamic>) {
+            final f = FitnessLevelOption.fromJson(e);
+            if (f.value.isNotEmpty) {
+              list.add(f);
+            }
+          } else if (e is Map) {
+            final f = FitnessLevelOption.fromJson(Map<String, dynamic>.from(e));
+            if (f.value.isNotEmpty) {
+              list.add(f);
+            }
+          }
+        }
+      }
+
+      _fitnessLevels = list;
+      if (list.isEmpty) {
+        _fitnessLevelsError = 'No fitness levels available';
+      }
+    } on BadRequestException catch (e) {
+      _fitnessLevels = [];
+      _fitnessLevelsError = e.message;
+    } on UnauthorizedException catch (e) {
+      _fitnessLevels = [];
+      _fitnessLevelsError = e.message;
+    } on ForbiddenException catch (e) {
+      _fitnessLevels = [];
+      _fitnessLevelsError = e.message;
+    } on NoInternetException catch (e) {
+      _fitnessLevels = [];
+      _fitnessLevelsError = e.message;
+    } on RequestTimeoutException catch (e) {
+      _fitnessLevels = [];
+      _fitnessLevelsError = e.message;
+    } on ServerException catch (e) {
+      _fitnessLevels = [];
+      _fitnessLevelsError = e.message;
+    } catch (e) {
+      _fitnessLevels = [];
+      _fitnessLevelsError = e.toString();
+    } finally {
+      _fitnessLevelsLoading = false;
+      update();
+    }
+  }
+
+  /// Loads `GET /user/exercise-plan` → `data.exercisePlans` for onboarding.
+  Future<void> fetchExercisePlans() async {
+    try {
+      _exercisePlansLoading = true;
+      _exercisePlansError = null;
+      update();
+
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getExercisePlansRepo();
+
+      if (response is! Map<String, dynamic>) {
+        _exercisePlans = [];
+        _exercisePlansError = 'Unexpected response from server';
+        return;
+      }
+
+      if (response['success'] != true) {
+        _exercisePlans = [];
+        _exercisePlansError = response['message']?.toString() ?? 'Could not load exercise plans';
+        return;
+      }
+
+      final data = response['data'];
+      final raw = data is Map<String, dynamic> ? data['exercisePlans'] : null;
+      final list = <ExercisePlanOption>[];
+      if (raw is List) {
+        for (final e in raw) {
+          if (e is Map<String, dynamic>) {
+            final p = ExercisePlanOption.fromJson(e);
+            if (p.value.isNotEmpty) {
+              list.add(p);
+            }
+          } else if (e is Map) {
+            final p = ExercisePlanOption.fromJson(Map<String, dynamic>.from(e));
+            if (p.value.isNotEmpty) {
+              list.add(p);
+            }
+          }
+        }
+      }
+
+      _exercisePlans = list;
+      if (list.isEmpty) {
+        _exercisePlansError = 'No exercise plans available';
+      }
+    } on BadRequestException catch (e) {
+      _exercisePlans = [];
+      _exercisePlansError = e.message;
+    } on UnauthorizedException catch (e) {
+      _exercisePlans = [];
+      _exercisePlansError = e.message;
+    } on ForbiddenException catch (e) {
+      _exercisePlans = [];
+      _exercisePlansError = e.message;
+    } on NoInternetException catch (e) {
+      _exercisePlans = [];
+      _exercisePlansError = e.message;
+    } on RequestTimeoutException catch (e) {
+      _exercisePlans = [];
+      _exercisePlansError = e.message;
+    } on ServerException catch (e) {
+      _exercisePlans = [];
+      _exercisePlansError = e.message;
+    } catch (e) {
+      _exercisePlans = [];
+      _exercisePlansError = e.toString();
+    } finally {
+      _exercisePlansLoading = false;
+      update();
+    }
+  }
+
   /// Login via `POST /user/auth/login` with email, password, deviceType, deviceToken.
   Future<void> login({required String email, required String password}) async {
     try {
@@ -81,12 +428,7 @@ class AuthController extends GetxController {
       update();
 
       final deviceToken = await _ensureDeviceToken();
-      final response = await _authRepo.loginRepo(
-        email: email,
-        password: password,
-        deviceType: _deviceTypeLabel(),
-        deviceToken: deviceToken,
-      );
+      final response = await _authRepo.loginRepo(email: email, password: password, deviceType: _deviceTypeLabel(), deviceToken: deviceToken);
 
       if (response is! Map<String, dynamic>) {
         _snackError('Login', 'Unexpected response from server');
@@ -114,7 +456,8 @@ class AuthController extends GetxController {
           final id = user['_id']?.toString();
           if (id != null && id.isNotEmpty) {
             await _storageService.saveUserId(id);
-            Get.put(LocalStorage()).saveuserid(id);
+            final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
+            ls.saveuserid(id);
           }
           emailToStore = user['email']?.toString();
           final profile = user['profile'];
@@ -238,8 +581,10 @@ class AuthController extends GetxController {
     return null;
   }
 
-  /// Verify OTP via `/user/auth/verify-otp` with `userId` + `otp`. On success, persists token/user id when present, then opens profile setup.
-  Future<bool> verifyOTP({required String userId, required String otp}) async {
+  /// Verify OTP via `/user/auth/verify-otp` with `userId` + `otp`.
+  /// Signup: persists token when present, then [AppRoutes.profileSetup].
+  /// Forgot password ([forgotPasswordFlow]): persists token when present (for `POST /user/auth/forget-password` Bearer), then [AppRoutes.resetPassword].
+  Future<bool> verifyOTP({required String userId, required String otp, bool forgotPasswordFlow = false}) async {
     try {
       _isLoading = true;
       update();
@@ -256,6 +601,22 @@ class AuthController extends GetxController {
         final message = response['message']?.toString() ?? 'Verification failed';
         _snackError('Verification', message);
         return false;
+      }
+
+      final message = response['message']?.toString();
+
+      if (forgotPasswordFlow) {
+        final token = _tokenFromVerifyResponse(response);
+        if (token != null && token.isNotEmpty) {
+          await _persistAccessToken(token);
+        }
+        if (message != null && message.isNotEmpty) {
+          Get.snackbar('Verified', message, snackPosition: SnackPosition.BOTTOM);
+        }
+        _tempEmail = null;
+        _forgotPasswordUserId = null;
+        Get.offNamed(AppRoutes.resetPassword);
+        return true;
       }
 
       final token = _tokenFromVerifyResponse(response);
@@ -281,7 +642,6 @@ class AuthController extends GetxController {
         }
       }
 
-      final message = response['message']?.toString();
       if (message != null && message.isNotEmpty) {
         Get.snackbar('Verified', message, snackPosition: SnackPosition.BOTTOM);
       }
@@ -318,21 +678,29 @@ class AuthController extends GetxController {
     }
   }
 
-  /// Resend OTP via `POST /user/auth/send-otp` with `{ "email": "..." }`.
+  /// Resend OTP — signup: `POST /user/auth/send-otp`. Forgot password: `POST /user/auth/forget` again.
   /// Pass [email] from the OTP screen when available; otherwise uses email from signup (`_tempEmail`).
-  Future<void> resendOTP({String? email}) async {
+  Future<void> resendOTP({String? email, bool forgotPasswordFlow = false}) async {
     try {
       _isLoading = true;
       update();
 
       final resolved = (email != null && email.trim().isNotEmpty) ? email.trim() : _tempEmail;
       if (resolved == null || resolved.isEmpty) {
-        Get.snackbar('Resend OTP', 'No email found. Go back and sign up again.', snackPosition: SnackPosition.BOTTOM);
-        Get.offAllNamed(AppRoutes.signup);
+        Get.snackbar(
+          'Resend OTP',
+          forgotPasswordFlow ? 'No email found. Go back and try again.' : 'No email found. Go back and sign up again.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        if (forgotPasswordFlow) {
+          Get.back();
+        } else {
+          Get.offAllNamed(AppRoutes.signup);
+        }
         return;
       }
 
-      final response = await _authRepo.sendOtpRepo(email: resolved);
+      final response = forgotPasswordFlow ? await _authRepo.forgotPasswordRepo(email: resolved) : await _authRepo.sendOtpRepo(email: resolved);
       if (response is! Map<String, dynamic>) {
         _snackError('Resend OTP', 'Unexpected response from server');
         return;
@@ -366,24 +734,12 @@ class AuthController extends GetxController {
   }
 
   /// Create customer profile — `POST /customer/profile/create` (multipart). Saves returned token and user ids.
-  Future<bool> createProfile({
-    required String fullName,
-    required String dateofbirth,
-    required String gender,
-    required String phoneNumber,
-    File? profilePicture,
-  }) async {
+  Future<bool> createProfile({required String fullName, required String dateofbirth, required String gender, required String phoneNumber, File? profilePicture}) async {
     try {
       _isLoading = true;
       update();
 
-      final response = await _authRepo.createProfileRepo(
-        fullName: fullName,
-        dateofbirth: dateofbirth,
-        gender: gender,
-        phoneNumber: phoneNumber,
-        profilePicture: profilePicture,
-      );
+      final response = await _authRepo.createProfileRepo(fullName: fullName, dateofbirth: dateofbirth, gender: gender, phoneNumber: phoneNumber, profilePicture: profilePicture);
 
       if (response is! Map<String, dynamic>) {
         _snackError('Profile', 'Unexpected response from server');
@@ -396,13 +752,13 @@ class AuthController extends GetxController {
         return false;
       }
 
+      final token = _tokenFromVerifyResponse(response);
+      if (token != null && token.isNotEmpty) {
+        await _persistAccessToken(token);
+      }
+
       final data = response['data'];
       if (data is Map<String, dynamic>) {
-        final token = data['token']?.toString();
-        if (token != null && token.isNotEmpty) {
-          await _persistAccessToken(token);
-        }
-
         final user = data['user'];
         if (user is Map<String, dynamic>) {
           final id = user['_id']?.toString();
@@ -457,55 +813,202 @@ class AuthController extends GetxController {
     }
   }
 
-  /// Forgot password - send reset code - DEMO VERSION
-  Future<void> forgotPassword(String email) async {
-    try {
-      _isLoading = true;
-      update();
-
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      _tempEmail = email; // Store email for reset password step
-    } catch (e) {
-    } finally {
-      _isLoading = false;
-      update();
+  /// Forgot password — `POST /user/auth/forget` with `{ "email": "..." }`. Stores user id for reset when present.
+  Future<bool> forgotPassword(String email) async {
+    final trimmed = email.trim();
+    if (trimmed.isEmpty) {
+      Get.snackbar('Forgot password', 'Please enter your email', snackPosition: SnackPosition.BOTTOM);
+      return false;
     }
-  }
 
-  /// Reset password - DEMO VERSION
-  Future<void> resetPassword({required String otp, required String newPassword}) async {
     try {
       _isLoading = true;
       update();
 
-      if (_tempEmail == null) {
-        Get.offAllNamed(AppRoutes.forgotPassword);
-        return;
+      final response = await _authRepo.forgotPasswordRepo(email: trimmed);
+
+      if (response is! Map<String, dynamic>) {
+        _snackError('Forgot password', 'Unexpected response from server');
+        return false;
       }
 
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
+      if (response['success'] != true) {
+        final message = response['message']?.toString() ?? 'Could not send reset code';
+        _snackError('Forgot password', message);
+        return false;
+      }
 
-      _tempEmail = null; // Clear temp email
-      Get.offAllNamed(AppRoutes.login);
+      _tempEmail = trimmed;
+      _forgotPasswordUserId = null;
+      final data = response['data'];
+      final user = data is Map<String, dynamic> ? data['user'] : null;
+      if (user is Map<String, dynamic>) {
+        final id = user['_id']?.toString();
+        if (id != null && id.isNotEmpty) {
+          _forgotPasswordUserId = id;
+        }
+      }
+
+      final message = response['message']?.toString();
+      if (message != null && message.isNotEmpty) {
+        Get.snackbar('Success', message, snackPosition: SnackPosition.BOTTOM);
+      }
+
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Forgot password', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Forgot password', e.message);
+      return false;
+    } on ConflictException catch (e) {
+      _snackError('Forgot password', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('No connection', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Forgot password', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Forgot password', e.message);
+      return false;
     } catch (e) {
+      _snackError('Forgot password', e);
+      return false;
     } finally {
       _isLoading = false;
       update();
     }
   }
 
-  /// Change password from settings - DEMO VERSION
-  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+  /// Reset password — `POST /user/auth/forget-password` with `{ "password": "..." }` (Bearer from verify-otp).
+  Future<bool> resetPassword({required String newPassword}) async {
+    final trimmed = newPassword.trim();
+    if (trimmed.isEmpty) {
+      Get.snackbar('Reset password', 'Please enter a new password', snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+
+    final session = _storageService.getToken();
+    if (session == null || session.isEmpty) {
+      _snackError('Reset password', 'Session expired. Start again from forgot password.');
+      Get.offAllNamed(AppRoutes.forgotPassword);
+      return false;
+    }
+
     try {
       _isLoading = true;
       update();
 
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.resetPasswordRepo(password: trimmed);
+
+      if (response is! Map<String, dynamic>) {
+        _snackError('Reset password', 'Unexpected response from server');
+        return false;
+      }
+
+      if (response['success'] != true) {
+        final msg = response['message']?.toString() ?? 'Could not reset password';
+        _snackError('Reset password', msg);
+        return false;
+      }
+
+      final message = response['message']?.toString();
+      if (message != null && message.isNotEmpty) {
+        Get.snackbar('Success', message, snackPosition: SnackPosition.BOTTOM);
+      } else {
+        Get.snackbar('Success', 'Password updated. Please sign in.', snackPosition: SnackPosition.BOTTOM);
+      }
+
+      await _storageService.logout();
+      if (Get.isRegistered<LocalStorage>()) {
+        Get.find<LocalStorage>().deleteAccessToken();
+      }
+
+      Get.offAllNamed(AppRoutes.login);
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Reset password', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Reset password', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('No connection', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Reset password', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Reset password', e.message);
+      return false;
     } catch (e) {
+      _snackError('Reset password', e);
+      return false;
+    } finally {
+      _isLoading = false;
+      update();
+    }
+  }
+
+  /// Change password — `POST /user/auth/change-password` with old + new password (authenticated).
+  Future<bool> changePassword({required String currentPassword, required String newPassword}) async {
+    final oldPw = currentPassword.trim();
+    final newPw = newPassword.trim();
+    if (oldPw.isEmpty || newPw.isEmpty) {
+      Get.snackbar('Change password', 'Please fill in all fields', snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+
+    try {
+      _isLoading = true;
+      update();
+
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.changePasswordRepo(oldPassword: oldPw, newPassword: newPw);
+
+      if (response is! Map<String, dynamic>) {
+        _snackError('Change password', 'Unexpected response from server');
+        return false;
+      }
+
+      if (response['success'] != true) {
+        final msg = response['message']?.toString() ?? 'Could not update password';
+        _snackError('Change password', msg);
+        return false;
+      }
+
+      final message = response['message']?.toString();
+      if (message != null && message.isNotEmpty) {
+        Get.snackbar('Success', message, snackPosition: SnackPosition.BOTTOM);
+      } else {
+        Get.snackbar('Success', 'Password updated successfully', snackPosition: SnackPosition.BOTTOM);
+      }
+
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Change password', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Change password', e.message);
+      return false;
+    } on ForbiddenException catch (e) {
+      _snackError('Change password', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('No connection', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Change password', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Change password', e.message);
+      return false;
+    } catch (e) {
+      _snackError('Change password', e);
+      return false;
     } finally {
       _isLoading = false;
       update();

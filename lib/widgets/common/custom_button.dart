@@ -120,7 +120,7 @@ class _CustomOutlineButtonState extends State<CustomOutlineButton> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: widget.isFullWidth ? double.infinity : null,
-        height: widget.height ?? 58,
+        height: widget.height ?? 46.h,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(50),
           border: Border.all(color: _isHovered ? AppColors.accent : const Color.fromARGB(255, 7, 7, 8), width: 2),

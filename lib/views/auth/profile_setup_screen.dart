@@ -97,13 +97,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
 
     final dob = DateFormat('yyyy-MM-dd').format(_dateOfBirth!);
     final authController = Get.find<AuthController>();
-    await authController.createProfile(
-      fullName: name,
-      dateofbirth: dob,
-      gender: _selectedGender!,
-      phoneNumber: phone,
-      profilePicture: _profileImageFile,
-    );
+    await authController.createProfile(fullName: name, dateofbirth: dob, gender: _selectedGender!, phoneNumber: phone, profilePicture: _profileImageFile);
   }
 
   Future<void> _showImageSourceDialog() async {

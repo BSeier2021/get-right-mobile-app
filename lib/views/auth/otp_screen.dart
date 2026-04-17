@@ -58,12 +58,15 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
     });
   }
 
+  static const String _flowForgotPassword = 'forgot_password';
+
   void _resendOTP() {
     if (_remainingSeconds > 0) return;
     final args = Get.arguments as Map<String, dynamic>?;
     final email = args?['email'] as String?;
+    final forgot = args?['flow'] == _flowForgotPassword;
     final authController = Get.find<AuthController>();
-    authController.resendOTP(email: email);
+    authController.resendOTP(email: email, forgotPasswordFlow: forgot);
     _timer?.cancel();
     setState(() => _remainingSeconds = AppConstants.otpResendTimeSeconds);
     _startTimer();
@@ -73,11 +76,12 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
 
   Future<void> _submitOtp() async {
     final args = Get.arguments as Map<String, dynamic>?;
-    final userId = args?['userId'] as String? ?? Get.find<AuthController>().pendingSignupUserId;
+    final forgot = args?['flow'] == _flowForgotPassword;
+    final userId = args?['userId'] as String? ?? (forgot ? null : Get.find<AuthController>().pendingSignupUserId);
     final code = _otpCode();
 
     if (userId == null || userId.isEmpty) {
-      Get.snackbar('Verification', 'Missing user id. Go back and sign up again.', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Verification', forgot ? 'Missing user id. Go back and try again.' : 'Missing user id. Go back and sign up again.', snackPosition: SnackPosition.BOTTOM);
       return;
     }
     if (code.length != 6) {
@@ -86,7 +90,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
     }
 
     final authController = Get.find<AuthController>();
-    await authController.verifyOTP(userId: userId, otp: code);
+    await authController.verifyOTP(userId: userId, otp: code, forgotPasswordFlow: forgot);
   }
 
   @override
