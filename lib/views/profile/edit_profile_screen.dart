@@ -41,16 +41,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   // Default to metric
   String? _profileImagePath;
 
-  // Onboarding questionnaire fields
-  String? _selectedPreference; // Question 1: What's your preference?
-  List<String> _selectedGoals = []; // Question 2: What's your main goal? (multi-select)
-  String? _selectedFitnessLevel; // Question 3: What's your fitness level?
-  String? _selectedExerciseFrequency; // Question 4: How often do you plan to exercise?
+  /// `GET /user/preferences` → [UserPreferenceOption.value] for `primaryFocus`.
+  String? _primaryFocusValue;
+
+  /// `GET /user/goals` → [UserGoalOption.value] slugs for `mainGoals`.
+  final Set<String> _mainGoalSlugs = {};
+
+  /// `GET /user/fitness-level` → [FitnessLevelOption.value].
+  String? _fitnessLevelValue;
+
+  /// `GET /user/exercise-plan` → [ExercisePlanOption.value].
+  String? _exercisePlanValue;
 
   /// Remote avatar when no new local file is selected.
   String? _existingPhotoUrl;
-
-  final List<String> _exerciseFrequencyOptions = CustomerProfileEnums.exerciseFrequencyDisplayToApi.keys.toList();
 
   bool _isLoading = true;
 
@@ -66,11 +70,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _loadSavedPreferences() async {
     setState(() => _isLoading = true);
 
-    if (Get.isRegistered<AuthController>()) {
-      await Get.find<AuthController>().fetchCustomerProfile();
+    final auth = Get.isRegistered<AuthController>() ? Get.find<AuthController>() : null;
+    if (auth != null) {
+      await Future.wait([auth.fetchCustomerProfile(), auth.fetchPreferences(), auth.fetchGoals(), auth.fetchFitnessLevels(), auth.fetchExercisePlans()]);
     }
 
-    final p = Get.isRegistered<AuthController>() ? Get.find<AuthController>().customerProfile : null;
+    final p = auth?.customerProfile;
 
     final name = (p?.fullName != null && p!.fullName!.trim().isNotEmpty) ? p.fullName!.trim() : (_storageService.getName() ?? '');
     _firstNameController.text = name;
@@ -86,48 +91,69 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     _selectedGender = p?.gender?.trim().isNotEmpty == true ? p!.gender!.trim() : _storageService.getString('user_gender');
 
+    _primaryFocusValue = null;
     if (p?.primaryFocus != null && p!.primaryFocus!.trim().isNotEmpty) {
-      final disp = CustomerProfileEnums.primaryFocusDisplayForSlug(p.primaryFocus!.trim());
-      _selectedPreference = CustomerProfileEnums.primaryFocusDisplayOptions.contains(disp) ? disp : null;
-    } else {
-      _selectedPreference = _storageService.getUserPreference();
-    }
-    if (_selectedPreference != null && !CustomerProfileEnums.primaryFocusDisplayOptions.contains(_selectedPreference)) {
-      final mapped = CustomerProfileEnums.primaryFocusDisplayForSlug(
-        CustomerProfileEnums.normalizePrimaryFocus(_selectedPreference) ?? '',
-      );
-      _selectedPreference = CustomerProfileEnums.primaryFocusDisplayOptions.contains(mapped) ? mapped : null;
-    }
-
-    if (p != null && p.mainGoals.isNotEmpty) {
-      _selectedGoals = p.mainGoals.map(CustomerProfileEnums.mainGoalDisplayForSlug).toList();
-    } else {
-      _selectedGoals = List<String>.from(_storageService.getUserGoals());
-    }
-
-    _selectedFitnessLevel = (p?.fitnessLevel != null && p!.fitnessLevel!.trim().isNotEmpty)
-        ? p.fitnessLevel!.trim()
-        : _storageService.getFitnessLevel();
-
-    final freqApi = p?.exerciseFrequency?.trim();
-    if (freqApi != null && freqApi.isNotEmpty) {
-      final label = CustomerProfileEnums.exerciseFrequencyDisplayFromApi(freqApi);
-      _selectedExerciseFrequency = _exerciseFrequencyOptions.contains(label) ? label : freqApi;
-    } else {
-      final stored = _storageService.getExerciseFrequency();
-      if (stored != null && stored.trim().isNotEmpty) {
-        final label = CustomerProfileEnums.exerciseFrequencyDisplayFromApi(stored.trim());
-        _selectedExerciseFrequency = _exerciseFrequencyOptions.contains(label) ? label : stored.trim();
+      final slug = p.primaryFocus!.trim();
+      if (auth != null && auth.preferences.any((e) => e.value == slug)) {
+        _primaryFocusValue = slug;
+      } else if (CustomerProfileEnums.isValidPrimaryFocus(slug)) {
+        _primaryFocusValue = slug;
       }
     }
-    if (_selectedExerciseFrequency != null && !_exerciseFrequencyOptions.contains(_selectedExerciseFrequency)) {
-      final label = CustomerProfileEnums.exerciseFrequencyDisplayFromApi(_selectedExerciseFrequency!);
-      _selectedExerciseFrequency = _exerciseFrequencyOptions.contains(label) ? label : null;
+    if (_primaryFocusValue == null && auth != null) {
+      final stored = _storageService.getUserPreference();
+      if (stored != null && stored.trim().isNotEmpty) {
+        final s = CustomerProfileEnums.normalizePrimaryFocus(stored.trim());
+        if (s != null && auth.preferences.any((e) => e.value == s)) {
+          _primaryFocusValue = s;
+        }
+      }
+    }
+
+    _mainGoalSlugs.clear();
+    if (p != null && p.mainGoals.isNotEmpty) {
+      for (final raw in p.mainGoals) {
+        final slug = raw.toString().trim();
+        if (slug.isEmpty) continue;
+        if (auth != null && auth.goals.any((g) => g.value == slug)) {
+          _mainGoalSlugs.add(slug);
+        } else if (CustomerProfileEnums.isValidMainGoal(slug)) {
+          _mainGoalSlugs.add(slug);
+        }
+      }
+    }
+    if (_mainGoalSlugs.isEmpty && auth != null) {
+      for (final name in _storageService.getUserGoals()) {
+        final s = CustomerProfileEnums.normalizeMainGoal(name);
+        if (s != null && auth.goals.any((g) => g.value == s)) {
+          _mainGoalSlugs.add(s);
+        }
+      }
+    }
+
+    _fitnessLevelValue = p?.fitnessLevel?.trim();
+    if (_fitnessLevelValue != null && _fitnessLevelValue!.isNotEmpty && auth != null && !auth.fitnessLevels.any((e) => e.value == _fitnessLevelValue)) {
+      _fitnessLevelValue = null;
+    }
+    _fitnessLevelValue ??= _storageService.getFitnessLevel();
+
+    _exercisePlanValue = p?.exerciseFrequency?.trim();
+    if (_exercisePlanValue != null && _exercisePlanValue!.isNotEmpty && auth != null && !auth.exercisePlans.any((e) => e.value == _exercisePlanValue)) {
+      _exercisePlanValue = null;
+    }
+    if ((_exercisePlanValue == null || _exercisePlanValue!.isEmpty) && auth != null) {
+      final stored = _storageService.getExerciseFrequency();
+      if (stored != null && stored.trim().isNotEmpty) {
+        final t = stored.trim();
+        if (auth.exercisePlans.any((e) => e.value == t)) {
+          _exercisePlanValue = t;
+        }
+      }
     }
 
     _existingPhotoUrl = p?.profilePictureUrl?.trim().isNotEmpty == true ? p!.profilePictureUrl!.trim() : null;
 
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
   @override
@@ -158,9 +184,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    final primarySlug = CustomerProfileEnums.normalizePrimaryFocus(_selectedPreference);
-    final mainSlugs = CustomerProfileEnums.filterMainGoals(_selectedGoals);
-    final freqApi = CustomerProfileEnums.exerciseFrequencyApiFromDisplay(_selectedExerciseFrequency);
+    final mainSlugs = CustomerProfileEnums.filterMainGoals(_mainGoalSlugs);
 
     final ok = await auth.updateCustomerProfileFromEdit(
       fullName: fullName,
@@ -168,10 +192,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       gender: _selectedGender,
       phoneNumber: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
       bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
-      primaryFocus: CustomerProfileEnums.isValidPrimaryFocus(primarySlug) ? primarySlug : null,
+      primaryFocus: CustomerProfileEnums.isValidPrimaryFocus(_primaryFocusValue) ? _primaryFocusValue : null,
       mainGoals: mainSlugs.isEmpty ? null : mainSlugs,
-      fitnessLevel: _selectedFitnessLevel,
-      exerciseFrequency: freqApi,
+      fitnessLevel: _fitnessLevelValue,
+      exerciseFrequency: _exercisePlanValue,
       profilePicturePath: _profileImagePath,
     );
 
@@ -332,16 +356,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                   )
                 : (_existingPhotoUrl != null && _existingPhotoUrl!.isNotEmpty)
-                    ? ClipOval(
-                        child: Image.network(
-                          _existingPhotoUrl!,
-                          fit: BoxFit.cover,
-                          width: 100.w,
-                          height: 100.h,
-                          errorBuilder: (_, __, ___) => Icon(Icons.add_a_photo_outlined, size: 30, color: AppColors.primaryGray),
-                        ),
-                      )
-                    : Icon(Icons.add_a_photo_outlined, size: 30, color: AppColors.primaryGray),
+                ? ClipOval(
+                    child: Image.network(
+                      _existingPhotoUrl!,
+                      fit: BoxFit.cover,
+                      width: 100.w,
+                      height: 100.h,
+                      errorBuilder: (_, __, ___) => Icon(Icons.add_a_photo_outlined, size: 30, color: AppColors.primaryGray),
+                    ),
+                  )
+                : Icon(Icons.add_a_photo_outlined, size: 30, color: AppColors.primaryGray),
           ),
           Positioned(
             bottom: 0,
@@ -492,117 +516,62 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Onboarding Questionnaire Section
+                    // Onboarding Questionnaire — data from GET /user/preferences, /user/goals, /user/fitness-level, /user/exercise-plan
                     _buildSectionHeader('Onboarding Preferences', Icons.quiz_outlined),
                     const SizedBox(height: 16),
-
-                    // Question 1: What's your preference?
-                    Text(
-                      'What\'s your preference?',
-                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text('Choose your primary focus to personalize your experience', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                    const SizedBox(height: 12),
-                    _buildDropdownField(
-                      label: 'Preference',
-                      value: _selectedPreference,
-                      items: CustomerProfileEnums.primaryFocusDisplayOptions,
-                      icon: Icons.fitness_center,
-                      onChanged: (value) => setState(() => _selectedPreference = value),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Question 2: What's your main goal? (Multi-select)
-                    Text(
-                      'What\'s your main goal?',
-                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text('This helps us recommend the best features for you. Select all that apply', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: AppColors.accent.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primaryGray.withOpacity(0.18), width: 1),
-                        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 6))],
-                      ),
-                      child: Wrap(
-                        spacing: 4,
-                        runSpacing: 2,
-                        children: ['Lose Weight', 'Build Muscle', 'Stay Healthy', 'Improve Performance', 'Track Progress', 'Build Habits'].map((goal) {
-                          final isSelected = _selectedGoals.contains(goal);
-                          return FilterChip(
-                            label: Text(goal),
-
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() {
-                                if (selected) {
-                                  _selectedGoals.add(goal);
-                                } else {
-                                  _selectedGoals.remove(goal);
-                                }
-                              });
-                            },
-                            selectedColor: AppColors.accent.withOpacity(0.18),
-                            labelStyle: TextStyle(color: isSelected ? AppColors.onBackground : AppColors.onBackground, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500),
-                            backgroundColor: AppColors.accent.withOpacity(0.08),
-                            checkmarkColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(50),
-                              side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray.withOpacity(0.25), width: 1),
-                            ),
+                    if (Get.isRegistered<AuthController>())
+                      GetBuilder<AuthController>(
+                        builder: (auth) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'What\'s your preference?',
+                                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text('Choose your primary focus to personalize your experience', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                              const SizedBox(height: 12),
+                              _buildPreferenceDropdown(auth),
+                              const SizedBox(height: 24),
+                              Text(
+                                'What\'s your main goal?',
+                                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'This helps us recommend the best features for you. Select all that apply',
+                                style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
+                              ),
+                              const SizedBox(height: 12),
+                              _buildGoalsChips(auth),
+                              const SizedBox(height: 24),
+                              Text(
+                                'What\'s your fitness level?',
+                                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text('We\'ll adjust recommendations based on your experience', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                              const SizedBox(height: 12),
+                              _buildFitnessDropdown(auth),
+                              const SizedBox(height: 24),
+                              Text(
+                                'How often do you plan to exercise?',
+                                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text('This helps us create realistic goals for you', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                              const SizedBox(height: 12),
+                              _buildExercisePlanDropdown(auth),
+                            ],
                           );
-                        }).toList(),
+                        },
                       ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Question 3: What's your fitness level?
-                    Text(
-                      'What\'s your fitness level?',
-                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text('We\'ll adjust recommendations based on your experience', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                    const SizedBox(height: 12),
-                    _buildDropdownField(
-                      label: 'Fitness Level',
-                      value: _selectedFitnessLevel,
-                      items: const ['Beginner', 'Intermediate', 'Advanced'],
-                      icon: Icons.trending_up,
-                      onChanged: (value) => setState(() => _selectedFitnessLevel = value),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Question 4: How often do you plan to exercise?
-                    Text(
-                      'How often do you plan to exercise?',
-                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text('This helps us create realistic goals for you', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                    const SizedBox(height: 12),
-                    _buildDropdownField(
-                      label: 'Exercise Frequency',
-                      value: _selectedExerciseFrequency,
-                      items: _exerciseFrequencyOptions,
-                      icon: Icons.calendar_today,
-                      onChanged: (value) => setState(() => _selectedExerciseFrequency = value),
-                    ),
                     const SizedBox(height: 32),
 
                     // Save Button
                     GetBuilder<AuthController>(
-                      builder: (auth) => CustomButton(
-                        text: 'Save Changes',
-                        isLoading: auth.isLoading,
-                        onPressed: _saveProfile,
-                      ),
+                      builder: (auth) => CustomButton(text: 'Save Changes', isLoading: auth.isLoading, onPressed: _saveProfile),
                     ),
                     const SizedBox(height: 16),
 
@@ -626,6 +595,215 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
     );
+  }
+
+  String? _dropdownValueIfInList(String? value, List<DropdownMenuItem<String>> items) {
+    if (value == null) return null;
+    return items.any((e) => e.value == value) ? value : null;
+  }
+
+  Widget _buildValueDropdown({required String label, required String? value, required List<DropdownMenuItem<String>> items, required ValueChanged<String?> onChanged}) {
+    if (items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text('No options available', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+      );
+    }
+    final effective = _dropdownValueIfInList(value, items);
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: effective,
+        decoration: InputDecoration(
+          labelText: label,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+          filled: false,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          labelStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, fontSize: 15, fontWeight: FontWeight.w500),
+          floatingLabelStyle: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 15, fontWeight: FontWeight.w500),
+        dropdownColor: AppColors.surface,
+        icon: Padding(
+          padding: const EdgeInsets.only(right: 16),
+          child: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryGray),
+        ),
+        items: items,
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _buildPreferenceDropdown(AuthController auth) {
+    if (auth.preferencesLoading && auth.preferences.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+        ),
+      );
+    }
+    if (auth.preferencesError != null && auth.preferences.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(auth.preferencesError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+          TextButton(
+            onPressed: () async {
+              await auth.fetchPreferences();
+              if (mounted) setState(() {});
+            },
+            child: Text(
+              'Retry',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      );
+    }
+    final items = auth.preferences.map((e) => DropdownMenuItem<String>(value: e.value, child: Text(e.name))).toList();
+    return _buildValueDropdown(label: 'Preference', value: _primaryFocusValue, items: items, onChanged: (v) => setState(() => _primaryFocusValue = v));
+  }
+
+  Widget _buildGoalsChips(AuthController auth) {
+    if (auth.goalsLoading && auth.goals.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+        ),
+      );
+    }
+    if (auth.goalsError != null && auth.goals.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(auth.goalsError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+          TextButton(
+            onPressed: () async {
+              await auth.fetchGoals();
+              if (mounted) setState(() {});
+            },
+            child: Text(
+              'Retry',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      );
+    }
+    if (auth.goals.isEmpty) {
+      return Text('No goals available', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray));
+    }
+    return Container(
+      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.accent.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.18), width: 1),
+        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 6))],
+      ),
+      child: Wrap(
+        spacing: 4,
+        runSpacing: 2,
+        children: auth.goals.map((g) {
+          final isSelected = _mainGoalSlugs.contains(g.value);
+          return FilterChip(
+            label: Text(g.name),
+            selected: isSelected,
+            onSelected: (selected) {
+              setState(() {
+                if (selected) {
+                  _mainGoalSlugs.add(g.value);
+                } else {
+                  _mainGoalSlugs.remove(g.value);
+                }
+              });
+            },
+            selectedColor: AppColors.accent.withOpacity(0.18),
+            labelStyle: TextStyle(color: AppColors.onBackground, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500),
+            backgroundColor: AppColors.accent.withOpacity(0.08),
+            checkmarkColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(50),
+              side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray.withOpacity(0.25), width: 1),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildFitnessDropdown(AuthController auth) {
+    if (auth.fitnessLevelsLoading && auth.fitnessLevels.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+        ),
+      );
+    }
+    if (auth.fitnessLevelsError != null && auth.fitnessLevels.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(auth.fitnessLevelsError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+          TextButton(
+            onPressed: () async {
+              await auth.fetchFitnessLevels();
+              if (mounted) setState(() {});
+            },
+            child: Text(
+              'Retry',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      );
+    }
+    final items = auth.fitnessLevels.map((e) => DropdownMenuItem<String>(value: e.value, child: Text(e.title))).toList();
+    return _buildValueDropdown(label: 'Fitness Level', value: _fitnessLevelValue, items: items, onChanged: (v) => setState(() => _fitnessLevelValue = v));
+  }
+
+  Widget _buildExercisePlanDropdown(AuthController auth) {
+    if (auth.exercisePlansLoading && auth.exercisePlans.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+        ),
+      );
+    }
+    if (auth.exercisePlansError != null && auth.exercisePlans.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(auth.exercisePlansError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+          TextButton(
+            onPressed: () async {
+              await auth.fetchExercisePlans();
+              if (mounted) setState(() {});
+            },
+            child: Text(
+              'Retry',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      );
+    }
+    final items = auth.exercisePlans.map((e) => DropdownMenuItem<String>(value: e.value, child: Text(e.title))).toList();
+    return _buildValueDropdown(label: 'Exercise Frequency', value: _exercisePlanValue, items: items, onChanged: (v) => setState(() => _exercisePlanValue = v));
   }
 
   Widget _buildDropdownField({required String label, required String? value, required List<String> items, required IconData icon, required ValueChanged<String?> onChanged}) {

@@ -1,7 +1,7 @@
 class AppUrl {
   // development url
-  static const String baseUrl = 'http://getright.prodservers.com:9965/api/v1';
-  static const String imnageUrl = 'http://getright.prodservers.com:9965/api/v1';
+  static const String baseUrl = 'https://rampantly-proemial-antonietta.ngrok-free.dev/api/v1';
+  static const String imnageUrl = 'https://rampantly-proemial-antonietta.ngrok-free.dev/api/v1';
   // static const String socketUrl = 'http://getright.prodservers.com:9965/';
 
   static String signUp = '$baseUrl/user/auth/signup';

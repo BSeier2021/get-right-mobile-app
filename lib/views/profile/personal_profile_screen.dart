@@ -82,6 +82,13 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
   }
 
   String _displayPreference(CustomerProfileDto? p) {
+    final prefName = p?.preferencesName?.trim();
+    final prefDesc = p?.preferencesDescription?.trim();
+    if (prefName != null && prefName.isNotEmpty) {
+      if (prefDesc != null && prefDesc.isNotEmpty) return '$prefName\n$prefDesc';
+      return prefName;
+    }
+    if (prefDesc != null && prefDesc.isNotEmpty) return prefDesc;
     final pf = p?.primaryFocus?.trim();
     if (pf != null && pf.isNotEmpty) return _formatSlugLabel(pf);
     return _storageService.getUserPreference() ?? 'Not Set';
@@ -89,7 +96,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
 
   String _displayGoals(CustomerProfileDto? p) {
     if (p != null && p.mainGoals.isNotEmpty) {
-      return p.mainGoals.map(_formatSlugLabel).join(', ');
+      return p.mainGoals.map((g) => _formatSlugLabel(g)).join(', ');
     }
     final local = _storageService.getUserGoals();
     if (local.isNotEmpty) return local.join(', ');
@@ -104,7 +111,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
 
   String _displayExerciseFreq(CustomerProfileDto? p) {
     final x = p?.exerciseFrequency?.trim();
-    if (x != null && x.isNotEmpty) return _formatSlugLabel(x);
+    if (x != null && x.isNotEmpty) return x;
     return _storageService.getExerciseFrequency() ?? 'Not Set';
   }
 
@@ -191,10 +198,10 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                   _sectionLabel('Onboarding Preferences'),
                   const SizedBox(height: 12),
                   _infoCard([
-                    _infoRow('assets/images/Vector.png', 'Preference', _displayPreference(p)),
-                    _infoRow('assets/images/flag.png', 'Goals', _displayGoals(p)),
-                    _infoRow('assets/images/diagram.png', 'Fitness Level', _displayFitness(p)),
-                    _infoRow('assets/images/calendar-222.png', 'Exercise Frequency', _displayExerciseFreq(p)),
+                    _infoRow('assets/images/Vector.png', 'Preferences', _displayPreference(p)),
+                    _infoRow('assets/images/flag.png', 'Main goals', _displayGoals(p)),
+                    _infoRow('assets/images/diagram.png', 'Fitness level', _displayFitness(p)),
+                    _infoRow('assets/images/calendar-222.png', 'Exercise frequency', _displayExerciseFreq(p)),
                   ]),
                   const SizedBox(height: 24),
                   _sectionLabel('Menu'),

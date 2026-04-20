@@ -12,8 +12,13 @@ class CustomerProfileDto {
   final String? profilePictureUrl;
   final String? bio;
   final String? primaryFocus;
+  /// Human-readable name from nested `profile.preferences` when API returns an object.
+  final String? preferencesName;
+  final String? preferencesDescription;
   final List<String> mainGoals;
+  /// Display string (e.g. `title` from nested `profile.fitnessLevel`).
   final String? fitnessLevel;
+  /// Display string (e.g. `title` from nested `profile.exerciseFrequency`).
   final String? exerciseFrequency;
 
   const CustomerProfileDto({
@@ -28,6 +33,8 @@ class CustomerProfileDto {
     this.profilePictureUrl,
     this.bio,
     this.primaryFocus,
+    this.preferencesName,
+    this.preferencesDescription,
     this.mainGoals = const [],
     this.fitnessLevel,
     this.exerciseFrequency,
@@ -55,35 +62,146 @@ class CustomerProfileDto {
     return s;
   }
 
-  static List<String> _stringListField(Map<String, dynamic>? p, String key) {
-    if (p == null) return const [];
-    final raw = p[key];
-    if (raw is! List) return const [];
-    return raw.map((e) => e.toString()).where((e) => e.trim().isNotEmpty).map((e) => e.trim()).toList();
+  /// Nested `{ title, value, name }` or plain string (API variants).
+  static String? _displayFromNestedOrString(dynamic v) {
+    if (v == null) return null;
+    if (v is String) {
+      final s = v.trim();
+      return s.isEmpty ? null : s;
+    }
+    if (v is Map) {
+      final m = Map<String, dynamic>.from(v);
+      for (final key in ['title', 'name', 'value', 'label']) {
+        final s = m[key]?.toString().trim();
+        if (s != null && s.isNotEmpty) return s;
+      }
+    }
+    return null;
   }
 
-  static List<String> _mainGoalsFrom(Map<String, dynamic>? p) {
-    final fromMain = _stringListField(p, 'mainGoals');
-    if (fromMain.isNotEmpty) return fromMain;
-    return _stringListField(p, 'goals');
+  static Map<String, dynamic>? _asStringKeyedMap(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  static Map<String, dynamic>? _preferencesMap(Map<String, dynamic> p) {
+    final raw = p['preferences'] ?? p['preference'];
+    return _asStringKeyedMap(raw);
+  }
+
+  static bool _isMissing(dynamic v) {
+    if (v == null) return true;
+    if (v is String) return v.trim().isEmpty;
+    if (v is List) return v.isEmpty;
+    return false;
+  }
+
+  static List<String> _mainGoalsFrom(Map<String, dynamic> p) {
+    final rawMain = p['mainGoals'] ?? p['main_goals'];
+    if (rawMain is List && rawMain.isNotEmpty) {
+      return rawMain.map((e) {
+        if (e is String) {
+          final s = e.trim();
+          return s.isEmpty ? null : s;
+        }
+        if (e is Map) {
+          final m = Map<String, dynamic>.from(e);
+          final v = m['value']?.toString().trim();
+          if (v != null && v.isNotEmpty) return v;
+          final slug = m['slug']?.toString().trim();
+          if (slug != null && slug.isNotEmpty) return slug;
+          final n = m['name']?.toString().trim();
+          if (n != null && n.isNotEmpty) return n;
+        }
+        return null;
+      }).whereType<String>().toList();
+    }
+
+    final rawGoals = p['goals'] ?? p['userGoals'];
+    if (rawGoals is! List || rawGoals.isEmpty) return const [];
+    return rawGoals.map((e) {
+      if (e is Map) {
+        final m = Map<String, dynamic>.from(e);
+        final v = m['value']?.toString().trim();
+        if (v != null && v.isNotEmpty) return v;
+        final n = m['name']?.toString().trim();
+        if (n != null && n.isNotEmpty) return n;
+      }
+      if (e is String) {
+        final s = e.trim();
+        if (s.isNotEmpty) return s;
+      }
+      return '';
+    }).where((s) => s.isNotEmpty).toList();
+  }
+
+  /// Merges `user.profile`, optional sibling `data.profile`, and onboarding fields that some APIs put on `user` root.
+  static Map<String, dynamic> _mergedProfileMap(Map<String, dynamic> data, Map<String, dynamic> user) {
+    final merged = <String, dynamic>{};
+    final nested = _asStringKeyedMap(user['profile']);
+    if (nested != null) merged.addAll(nested);
+    final dataProfile = _asStringKeyedMap(data['profile']);
+    if (dataProfile != null) {
+      for (final e in dataProfile.entries) {
+        if (!merged.containsKey(e.key) || _isMissing(merged[e.key])) merged[e.key] = e.value;
+      }
+    }
+    void copyUserField(List<String> keys, String intoKey) {
+      if (!_isMissing(merged[intoKey])) return;
+      for (final k in keys) {
+        final v = user[k];
+        if (!_isMissing(v)) {
+          merged[intoKey] = v;
+          return;
+        }
+      }
+    }
+
+    copyUserField(const ['primaryFocus', 'primary_focus'], 'primaryFocus');
+    copyUserField(const ['mainGoals', 'main_goals'], 'mainGoals');
+    copyUserField(const ['goals', 'userGoals'], 'goals');
+    copyUserField(const ['fitnessLevel', 'fitness_level'], 'fitnessLevel');
+    copyUserField(const ['exerciseFrequency', 'exercise_frequency', 'exercisePlan', 'exercise_plan'], 'exerciseFrequency');
+    copyUserField(const ['preferences', 'preference'], 'preferences');
+    copyUserField(const ['fullName', 'full_name'], 'fullName');
+    copyUserField(const ['phoneNumber', 'phone_number'], 'phoneNumber');
+    copyUserField(const ['gender'], 'gender');
+    copyUserField(const ['bio'], 'bio');
+    copyUserField(const ['dateofbirth', 'date_of_birth'], 'dateofbirth');
+    return merged;
+  }
+
+  static bool _isSuccessfulPayload(Map<String, dynamic> root) {
+    final s = root['success'];
+    if (s == true || s == 1) return true;
+    if (s is String && s.toLowerCase() == 'true') return true;
+    final st = root['status'];
+    if (st == 200 || st == '200') return true;
+    return false;
   }
 
   /// Returns null if [response] is not a successful profile payload.
   static CustomerProfileDto? tryParse(dynamic response) {
-    if (response is! Map<String, dynamic>) return null;
-    if (response['success'] != true) return null;
-    final data = response['data'];
-    if (data is! Map<String, dynamic>) return null;
-    final user = data['user'];
-    if (user is! Map<String, dynamic>) return null;
+    if (response is! Map) return null;
+    final root = Map<String, dynamic>.from(response);
+    if (!_isSuccessfulPayload(root)) return null;
+    final dataRaw = root['data'];
+    if (dataRaw is! Map) return null;
+    final data = Map<String, dynamic>.from(dataRaw);
 
-    Map<String, dynamic>? profile;
-    final pr = user['profile'];
-    if (pr is Map<String, dynamic>) {
-      profile = pr;
-    } else if (pr is Map) {
-      profile = Map<String, dynamic>.from(pr);
+    Map<String, dynamic> user;
+    final userRaw = data['user'];
+    if (userRaw is Map) {
+      user = Map<String, dynamic>.from(userRaw);
+    } else if (data['_id'] != null || data['email'] != null) {
+      user = Map<String, dynamic>.from(data);
+    } else {
+      return null;
     }
+
+    final profile = _mergedProfileMap(data, user);
 
     bool flag(dynamic v, {bool defaultValue = false}) {
       if (v == true) return true;
@@ -99,21 +217,27 @@ class CustomerProfileDto {
     final uid = user['_id']?.toString() ?? '';
     if (uid.isEmpty) return null;
 
+    final prefMap = _preferencesMap(profile);
+
     return CustomerProfileDto(
       userId: uid,
       email: user['email']?.toString() ?? '',
       isVerified: flag(user['isVerified'], defaultValue: false) || flag(user['is_verified'], defaultValue: false),
       isProfileCompleted: flag(user['isProfileCompleted'], defaultValue: false) || flag(user['is_profile_completed'], defaultValue: false),
-      fullName: profile?['fullName']?.toString(),
-      gender: profile?['gender']?.toString(),
-      phoneNumber: profile?['phoneNumber']?.toString(),
-      dateofbirth: _normalizeDob(profile?['dateofbirth']),
+      fullName: profile['fullName']?.toString() ?? profile['full_name']?.toString(),
+      gender: profile['gender']?.toString(),
+      phoneNumber: profile['phoneNumber']?.toString() ?? profile['phone_number']?.toString(),
+      dateofbirth: _normalizeDob(profile['dateofbirth'] ?? profile['date_of_birth']),
       profilePictureUrl: _profilePictureUrlFrom(profile),
-      bio: profile?['bio']?.toString(),
-      primaryFocus: profile?['primaryFocus']?.toString(),
+      bio: profile['bio']?.toString(),
+      primaryFocus: profile['primaryFocus']?.toString() ?? profile['primary_focus']?.toString(),
+      preferencesName: prefMap?['name']?.toString().trim(),
+      preferencesDescription: prefMap?['description']?.toString().trim(),
       mainGoals: _mainGoalsFrom(profile),
-      fitnessLevel: profile?['fitnessLevel']?.toString(),
-      exerciseFrequency: profile?['exerciseFrequency']?.toString(),
+      fitnessLevel: _displayFromNestedOrString(profile['fitnessLevel'] ?? profile['fitness_level']),
+      exerciseFrequency: _displayFromNestedOrString(
+        profile['exerciseFrequency'] ?? profile['exercise_frequency'] ?? profile['exercisePlan'] ?? profile['exercise_plan'],
+      ),
     );
   }
 }
