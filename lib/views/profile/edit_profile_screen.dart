@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/constants/app_constants.dart';
+import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/services/storage_service.dart';
+import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/common/custom_button.dart';
@@ -45,41 +47,85 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String? _selectedFitnessLevel; // Question 3: What's your fitness level?
   String? _selectedExerciseFrequency; // Question 4: How often do you plan to exercise?
 
+  /// Remote avatar when no new local file is selected.
+  String? _existingPhotoUrl;
+
+  final List<String> _exerciseFrequencyOptions = CustomerProfileEnums.exerciseFrequencyDisplayToApi.keys.toList();
+
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadSavedPreferences();
+    // Defer load: [fetchCustomerProfile] calls `AuthController.update()` which must not run during this route's first build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadSavedPreferences();
+    });
   }
 
   Future<void> _loadSavedPreferences() async {
     setState(() => _isLoading = true);
 
-    // Load personal information
-    final savedName = _storageService.getName();
-    if (savedName != null) {
-      _firstNameController.text = savedName;
+    if (Get.isRegistered<AuthController>()) {
+      await Get.find<AuthController>().fetchCustomerProfile();
     }
-    final savedDob = _storageService.getString('user_date_of_birth');
-    if (savedDob != null) {
-      _dobController.text = savedDob;
-    }
-    final savedPhone = _storageService.getString('user_phone');
-    if (savedPhone != null) {
-      _phoneController.text = savedPhone;
-    }
-    final savedBio = _storageService.getString('user_bio');
-    if (savedBio != null) {
-      _bioController.text = savedBio;
-    }
-    _selectedGender = _storageService.getString('user_gender');
 
-    // Load onboarding preferences from StorageService
-    _selectedPreference = _storageService.getUserPreference();
-    _selectedGoals = _storageService.getUserGoals();
-    _selectedFitnessLevel = _storageService.getFitnessLevel();
-    _selectedExerciseFrequency = _storageService.getExerciseFrequency();
+    final p = Get.isRegistered<AuthController>() ? Get.find<AuthController>().customerProfile : null;
+
+    final name = (p?.fullName != null && p!.fullName!.trim().isNotEmpty) ? p.fullName!.trim() : (_storageService.getName() ?? '');
+    _firstNameController.text = name;
+
+    final dob = p?.dateofbirth?.trim();
+    _dobController.text = (dob != null && dob.isNotEmpty) ? dob : (_storageService.getString('user_date_of_birth') ?? '');
+
+    final phone = p?.phoneNumber?.trim();
+    _phoneController.text = (phone != null && phone.isNotEmpty) ? phone : (_storageService.getString('user_phone') ?? '');
+
+    final bio = p?.bio?.trim();
+    _bioController.text = (bio != null && bio.isNotEmpty) ? bio : (_storageService.getString('user_bio') ?? '');
+
+    _selectedGender = p?.gender?.trim().isNotEmpty == true ? p!.gender!.trim() : _storageService.getString('user_gender');
+
+    if (p?.primaryFocus != null && p!.primaryFocus!.trim().isNotEmpty) {
+      final disp = CustomerProfileEnums.primaryFocusDisplayForSlug(p.primaryFocus!.trim());
+      _selectedPreference = CustomerProfileEnums.primaryFocusDisplayOptions.contains(disp) ? disp : null;
+    } else {
+      _selectedPreference = _storageService.getUserPreference();
+    }
+    if (_selectedPreference != null && !CustomerProfileEnums.primaryFocusDisplayOptions.contains(_selectedPreference)) {
+      final mapped = CustomerProfileEnums.primaryFocusDisplayForSlug(
+        CustomerProfileEnums.normalizePrimaryFocus(_selectedPreference) ?? '',
+      );
+      _selectedPreference = CustomerProfileEnums.primaryFocusDisplayOptions.contains(mapped) ? mapped : null;
+    }
+
+    if (p != null && p.mainGoals.isNotEmpty) {
+      _selectedGoals = p.mainGoals.map(CustomerProfileEnums.mainGoalDisplayForSlug).toList();
+    } else {
+      _selectedGoals = List<String>.from(_storageService.getUserGoals());
+    }
+
+    _selectedFitnessLevel = (p?.fitnessLevel != null && p!.fitnessLevel!.trim().isNotEmpty)
+        ? p.fitnessLevel!.trim()
+        : _storageService.getFitnessLevel();
+
+    final freqApi = p?.exerciseFrequency?.trim();
+    if (freqApi != null && freqApi.isNotEmpty) {
+      final label = CustomerProfileEnums.exerciseFrequencyDisplayFromApi(freqApi);
+      _selectedExerciseFrequency = _exerciseFrequencyOptions.contains(label) ? label : freqApi;
+    } else {
+      final stored = _storageService.getExerciseFrequency();
+      if (stored != null && stored.trim().isNotEmpty) {
+        final label = CustomerProfileEnums.exerciseFrequencyDisplayFromApi(stored.trim());
+        _selectedExerciseFrequency = _exerciseFrequencyOptions.contains(label) ? label : stored.trim();
+      }
+    }
+    if (_selectedExerciseFrequency != null && !_exerciseFrequencyOptions.contains(_selectedExerciseFrequency)) {
+      final label = CustomerProfileEnums.exerciseFrequencyDisplayFromApi(_selectedExerciseFrequency!);
+      _selectedExerciseFrequency = _exerciseFrequencyOptions.contains(label) ? label : null;
+    }
+
+    _existingPhotoUrl = p?.profilePictureUrl?.trim().isNotEmpty == true ? p!.profilePictureUrl!.trim() : null;
 
     setState(() => _isLoading = false);
   }
@@ -102,49 +148,50 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (_formKey.currentState!.validate()) {
-      // Save personal information
-      if (_firstNameController.text.trim().isNotEmpty) {
-        await _storageService.saveName(_firstNameController.text.trim());
-      }
-      if (_dobController.text.trim().isNotEmpty) {
-        await _storageService.saveString('user_date_of_birth', _dobController.text.trim());
-      }
-      if (_phoneController.text.trim().isNotEmpty) {
-        await _storageService.saveString('user_phone', _phoneController.text.trim());
-      }
-      if (_bioController.text.trim().isNotEmpty) {
-        await _storageService.saveString('user_bio', _bioController.text.trim());
-      }
-      if (_selectedGender != null) {
-        await _storageService.saveString('user_gender', _selectedGender!);
-      }
+    if (!_formKey.currentState!.validate()) return;
+    if (!Get.isRegistered<AuthController>()) return;
 
-      // Save onboarding preferences
-      if (_selectedPreference != null) {
-        await _storageService.saveUserPreference(_selectedPreference!);
-      }
-      if (_selectedGoals.isNotEmpty) {
-        await _storageService.saveUserGoals(_selectedGoals);
-      }
-      if (_selectedFitnessLevel != null) {
-        await _storageService.saveFitnessLevel(_selectedFitnessLevel!);
-      }
-      if (_selectedExerciseFrequency != null) {
-        await _storageService.saveExerciseFrequency(_selectedExerciseFrequency!);
-      }
-
-      // TODO: Save profile to API
-      Get.snackbar(
-        'Success',
-        'Profile updated successfully!',
-        backgroundColor: AppColors.accent,
-        colorText: AppColors.onAccent,
-        snackPosition: SnackPosition.BOTTOM,
-        margin: const EdgeInsets.all(16),
-      );
-      Get.back(result: true); // Return true to indicate data was saved
+    final auth = Get.find<AuthController>();
+    final fullName = _firstNameController.text.trim();
+    if (fullName.isEmpty) {
+      Get.snackbar('Profile', 'Please enter your full name', snackPosition: SnackPosition.BOTTOM);
+      return;
     }
+
+    final primarySlug = CustomerProfileEnums.normalizePrimaryFocus(_selectedPreference);
+    final mainSlugs = CustomerProfileEnums.filterMainGoals(_selectedGoals);
+    final freqApi = CustomerProfileEnums.exerciseFrequencyApiFromDisplay(_selectedExerciseFrequency);
+
+    final ok = await auth.updateCustomerProfileFromEdit(
+      fullName: fullName,
+      dateofbirth: _dobController.text.trim().isEmpty ? null : _dobController.text.trim(),
+      gender: _selectedGender,
+      phoneNumber: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+      bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
+      primaryFocus: CustomerProfileEnums.isValidPrimaryFocus(primarySlug) ? primarySlug : null,
+      mainGoals: mainSlugs.isEmpty ? null : mainSlugs,
+      fitnessLevel: _selectedFitnessLevel,
+      exerciseFrequency: freqApi,
+      profilePicturePath: _profileImagePath,
+    );
+
+    if (!mounted) return;
+    if (!ok) return;
+
+    setState(() {
+      _profileImagePath = null;
+      _existingPhotoUrl = auth.customerProfile?.profilePictureUrl?.trim();
+    });
+
+    Get.snackbar(
+      'Success',
+      'Profile updated successfully!',
+      backgroundColor: AppColors.accent,
+      colorText: AppColors.onAccent,
+      snackPosition: SnackPosition.BOTTOM,
+      margin: const EdgeInsets.all(16),
+    );
+    Get.back(result: true);
   }
 
   void _pickProfileImage() {
@@ -274,9 +321,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 2),
               boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 20, spreadRadius: 0, offset: const Offset(0, 8))],
             ),
-            child: _profileImagePath == null
-                ? Icon(Icons.add_a_photo_outlined, size: 30, color: AppColors.primaryGray)
-                : ClipOval(
+            child: _profileImagePath != null
+                ? ClipOval(
                     child: Image.file(
                       File(_profileImagePath!),
                       fit: BoxFit.cover,
@@ -284,7 +330,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         return Icon(Icons.person_outline_rounded, size: 50, color: AppColors.primaryGray);
                       },
                     ),
-                  ),
+                  )
+                : (_existingPhotoUrl != null && _existingPhotoUrl!.isNotEmpty)
+                    ? ClipOval(
+                        child: Image.network(
+                          _existingPhotoUrl!,
+                          fit: BoxFit.cover,
+                          width: 100.w,
+                          height: 100.h,
+                          errorBuilder: (_, __, ___) => Icon(Icons.add_a_photo_outlined, size: 30, color: AppColors.primaryGray),
+                        ),
+                      )
+                    : Icon(Icons.add_a_photo_outlined, size: 30, color: AppColors.primaryGray),
           ),
           Positioned(
             bottom: 0,
@@ -450,7 +507,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _buildDropdownField(
                       label: 'Preference',
                       value: _selectedPreference,
-                      items: const ['Strength Training', 'Running & Cardio'],
+                      items: CustomerProfileEnums.primaryFocusDisplayOptions,
                       icon: Icons.fitness_center,
                       onChanged: (value) => setState(() => _selectedPreference = value),
                     ),
@@ -533,14 +590,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _buildDropdownField(
                       label: 'Exercise Frequency',
                       value: _selectedExerciseFrequency,
-                      items: const ['Daily (7x/week)', '5 times per week', '3 times per week', '2 times per week', 'Once per week'],
+                      items: _exerciseFrequencyOptions,
                       icon: Icons.calendar_today,
                       onChanged: (value) => setState(() => _selectedExerciseFrequency = value),
                     ),
                     const SizedBox(height: 32),
 
                     // Save Button
-                    CustomButton(text: 'Save Changes', onPressed: _saveProfile),
+                    GetBuilder<AuthController>(
+                      builder: (auth) => CustomButton(
+                        text: 'Save Changes',
+                        isLoading: auth.isLoading,
+                        onPressed: _saveProfile,
+                      ),
+                    ),
                     const SizedBox(height: 16),
 
                     // Cancel Button

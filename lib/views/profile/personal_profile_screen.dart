@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
+import 'package:get_right/models/customer_profile_dto.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/chat/chat_list_screen.dart';
 
-/// Personal Profile screen – matches the screenshot design
+/// Personal Profile screen – loads `GET /customer/profile` via [AuthController.fetchCustomerProfile].
 class PersonalProfileScreen extends StatefulWidget {
   const PersonalProfileScreen({super.key});
 
@@ -19,35 +20,92 @@ class PersonalProfileScreen extends StatefulWidget {
 class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
   final _storageService = Get.find<StorageService>();
 
-  // Profile data
-  String? _fullName;
-  String? _dateOfBirth;
-  String? _contactNumber;
-  String? _bio;
-  String? _gender;
-  String? _preference;
-  List<String> _goals = [];
-  String? _fitnessLevel;
-  String? _exerciseFrequency;
-
   @override
   void initState() {
     super.initState();
-    _loadProfileData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.isRegistered<AuthController>()) {
+        Get.find<AuthController>().fetchCustomerProfile();
+      }
+    });
   }
 
-  void _loadProfileData() {
-    setState(() {
-      _fullName = _storageService.getName();
-      _dateOfBirth = _storageService.getString('user_date_of_birth');
-      _contactNumber = _storageService.getString('user_phone');
-      _bio = _storageService.getString('user_bio');
-      _gender = _storageService.getString('user_gender');
-      _preference = _storageService.getUserPreference();
-      _goals = _storageService.getUserGoals();
-      _fitnessLevel = _storageService.getFitnessLevel();
-      _exerciseFrequency = _storageService.getExerciseFrequency();
-    });
+  String _formatSlugLabel(String slug) {
+    final t = slug.trim();
+    if (t.isEmpty) return '';
+    if (!t.contains('_')) {
+      return t.replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}');
+    }
+    return t.split('_').where((s) => s.isNotEmpty).map((s) => '${s[0].toUpperCase()}${s.length > 1 ? s.substring(1).toLowerCase() : ''}').join(' ');
+  }
+
+  String _displayName(CustomerProfileDto? p) {
+    final n = p?.fullName?.trim();
+    if (n != null && n.isNotEmpty) return n;
+    final local = _storageService.getName();
+    if (local != null && local.trim().isNotEmpty) return local.trim();
+    return 'Demo User';
+  }
+
+  String _displayEmail(CustomerProfileDto? p) {
+    if (p != null) {
+      final e = p.email.trim();
+      if (e.isNotEmpty) return e;
+    }
+    return _storageService.getEmail()?.trim() ?? '';
+  }
+
+  String _displayDob(CustomerProfileDto? p) {
+    final d = p?.dateofbirth?.trim();
+    if (d != null && d.isNotEmpty) return d;
+    return _storageService.getString('user_date_of_birth') ?? 'Not Set';
+  }
+
+  String _displayPhone(CustomerProfileDto? p) {
+    final ph = p?.phoneNumber?.trim();
+    if (ph != null && ph.isNotEmpty) return ph;
+    return _storageService.getString('user_phone') ?? '+1234 567 8900';
+  }
+
+  String _displayGender(CustomerProfileDto? p) {
+    final g = p?.gender?.trim();
+    if (g != null && g.isNotEmpty) return g;
+    return _storageService.getString('user_gender') ?? 'Male';
+  }
+
+  String _displayBio(CustomerProfileDto? p) {
+    final b = p?.bio?.trim();
+    if (b != null && b.isNotEmpty) return b;
+    final local = _storageService.getString('user_bio');
+    if (local != null && local.trim().isNotEmpty) return local.trim();
+    return 'No Bio Added Yet';
+  }
+
+  String _displayPreference(CustomerProfileDto? p) {
+    final pf = p?.primaryFocus?.trim();
+    if (pf != null && pf.isNotEmpty) return _formatSlugLabel(pf);
+    return _storageService.getUserPreference() ?? 'Not Set';
+  }
+
+  String _displayGoals(CustomerProfileDto? p) {
+    if (p != null && p.mainGoals.isNotEmpty) {
+      return p.mainGoals.map(_formatSlugLabel).join(', ');
+    }
+    final local = _storageService.getUserGoals();
+    if (local.isNotEmpty) return local.join(', ');
+    return 'Not Set';
+  }
+
+  String _displayFitness(CustomerProfileDto? p) {
+    final f = p?.fitnessLevel?.trim();
+    if (f != null && f.isNotEmpty) return f;
+    return _storageService.getFitnessLevel() ?? 'Not Set';
+  }
+
+  String _displayExerciseFreq(CustomerProfileDto? p) {
+    final x = p?.exerciseFrequency?.trim();
+    if (x != null && x.isNotEmpty) return _formatSlugLabel(x);
+    return _storageService.getExerciseFrequency() ?? 'Not Set';
   }
 
   @override
@@ -75,72 +133,100 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
+      body: GetBuilder<AuthController>(
+        builder: (auth) {
+          if (auth.customerProfileLoading && auth.customerProfile == null) {
+            return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+          }
+          if (auth.customerProfileError != null && auth.customerProfile == null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      auth.customerProfileError!,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.85)),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () => auth.fetchCustomerProfile(),
+                      child: Text(
+                        'Retry',
+                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
 
-            // ── Profile Header ──────────────────────────────────
-            _buildProfileHeader(),
-            const SizedBox(height: 28),
+          final p = auth.customerProfile;
 
-            // ── Personal Information ────────────────────────────
-            _sectionLabel('Personal Information'),
-            const SizedBox(height: 12),
-            _infoCard([
-              _infoRow('assets/images/profile00.png', 'Full Name', _fullName ?? 'Demo User'),
-              _infoRow('assets/images/calendar-222.png', 'Date of Birth', _dateOfBirth ?? 'Not Set'),
-              _infoRow('assets/images/call.png', 'Contact Number', _contactNumber ?? '+1234 567 8900'),
-              _infoRow('assets/images/people22.png', 'Gender', _gender ?? 'Male'),
-              _infoRow('assets/images/clipboard-text.png', 'Bio', _bio != null && _bio!.isNotEmpty ? _bio! : 'No Bio Added Yet'),
-            ]),
-            const SizedBox(height: 24),
-
-            // ── Onboarding Preferences ──────────────────────────
-            _sectionLabel('Onboarding Preferences'),
-            const SizedBox(height: 12),
-            _infoCard([
-              _infoRow('assets/images/Vector.png', 'Preference', _preference ?? 'Not Set'),
-              _infoRow('assets/images/flag.png', 'Goals', _goals.isNotEmpty ? _goals.join(', ') : 'Not Set'),
-              _infoRow('assets/images/diagram.png', 'Fitness Level', _fitnessLevel ?? 'Not Set'),
-              _infoRow('assets/images/calendar-222.png', 'Exercise Frequency', _exerciseFrequency ?? 'Not Set'),
-            ]),
-            const SizedBox(height: 24),
-
-            // ── Menu ─────────────────────────────────────────────
-            _sectionLabel('Menu'),
-            const SizedBox(height: 12),
-            _menuRow(icon: Icons.favorite_outline, title: 'Favorites', subtitle: 'View your favorite posts and users', onTap: () => Get.toNamed(AppRoutes.favorites)),
-            _menuRow(icon: Icons.bookmark_outline, title: 'Saved Posts', subtitle: 'Access your saved posts', onTap: () => Get.toNamed(AppRoutes.savedPosts)),
-            _menuRow(icon: Icons.chat_bubble_outline, title: 'Chat', subtitle: 'View your conversations', onTap: () => Get.to(() => const ChatListScreen())),
-            _menuRow(
-              icon: Icons.receipt_long_outlined,
-              title: 'Transaction History',
-              subtitle: 'View your payment history',
-              onTap: () => Get.toNamed(AppRoutes.transactionHistory),
+          return RefreshIndicator(
+            color: AppColors.accent,
+            onRefresh: () => auth.fetchCustomerProfile(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  _buildProfileHeader(p),
+                  const SizedBox(height: 28),
+                  _sectionLabel('Personal Information'),
+                  const SizedBox(height: 12),
+                  _infoCard([
+                    _infoRow('assets/images/profile00.png', 'Full Name', _displayName(p)),
+                    _infoRow('assets/images/calendar-222.png', 'Date of Birth', _displayDob(p)),
+                    _infoRow('assets/images/call.png', 'Contact Number', _displayPhone(p)),
+                    _infoRow('assets/images/people22.png', 'Gender', _displayGender(p)),
+                    _infoRow('assets/images/clipboard-text.png', 'Bio', _displayBio(p)),
+                  ]),
+                  const SizedBox(height: 24),
+                  _sectionLabel('Onboarding Preferences'),
+                  const SizedBox(height: 12),
+                  _infoCard([
+                    _infoRow('assets/images/Vector.png', 'Preference', _displayPreference(p)),
+                    _infoRow('assets/images/flag.png', 'Goals', _displayGoals(p)),
+                    _infoRow('assets/images/diagram.png', 'Fitness Level', _displayFitness(p)),
+                    _infoRow('assets/images/calendar-222.png', 'Exercise Frequency', _displayExerciseFreq(p)),
+                  ]),
+                  const SizedBox(height: 24),
+                  _sectionLabel('Menu'),
+                  const SizedBox(height: 12),
+                  _menuRow(icon: Icons.favorite_outline, title: 'Favorites', subtitle: 'View your favorite posts and users', onTap: () => Get.toNamed(AppRoutes.favorites)),
+                  _menuRow(icon: Icons.bookmark_outline, title: 'Saved Posts', subtitle: 'Access your saved posts', onTap: () => Get.toNamed(AppRoutes.savedPosts)),
+                  _menuRow(icon: Icons.chat_bubble_outline, title: 'Chat', subtitle: 'View your conversations', onTap: () => Get.to(() => const ChatListScreen())),
+                  _menuRow(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'Transaction History',
+                    subtitle: 'View your payment history',
+                    onTap: () => Get.toNamed(AppRoutes.transactionHistory),
+                  ),
+                  const SizedBox(height: 8),
+                  _logoutRow(),
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-
-            // ── Logout ────────────────────────────────────────────
-            _logoutRow(),
-            const SizedBox(height: 32),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // Profile Header: avatar + name + email + Edit Profile button
-  // ────────────────────────────────────────────────────────────────
-  Widget _buildProfileHeader() {
+  Widget _buildProfileHeader(CustomerProfileDto? p) {
+    final url = p?.profilePictureUrl?.trim();
+    final email = _displayEmail(p);
+
     return Center(
       child: Column(
         children: [
-          // Avatar with camera badge
           Container(
             padding: const EdgeInsets.all(4),
             width: 100.w,
@@ -149,23 +235,28 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 2),
             ),
-            child: CircleAvatar(radius: 48, backgroundColor: const Color(0xFFE0F0D8), child: Image.asset('assets/images/profile00.png', width: 48, height: 48)),
+            child: ClipOval(
+              child: url != null && url.isNotEmpty
+                  ? Image.network(url, width: 92, height: 92, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Image.asset('assets/images/profile00.png', width: 48, height: 48))
+                  : Image.asset('assets/images/profile00.png', width: 48, height: 48),
+            ),
           ),
           const SizedBox(height: 12),
           Text(
-            _fullName ?? 'Billy Kane',
+            _displayName(p),
             style: AppTextStyles.titleMedium.copyWith(color: AppColors.black, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
-          Text('billykane@domain.com', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+          Text(email.isNotEmpty ? email : '—', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
           const SizedBox(height: 16),
-          // Edit Profile pill button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () async {
                 final result = await Get.toNamed(AppRoutes.editProfile);
-                if (result == true) _loadProfileData();
+                if (result == true && Get.isRegistered<AuthController>()) {
+                  await Get.find<AuthController>().fetchCustomerProfile();
+                }
               },
               icon: const Icon(Icons.edit, size: 16),
               label: const Text('Edit Profile'),
@@ -184,9 +275,6 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
     );
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // Section label
-  // ────────────────────────────────────────────────────────────────
   Widget _sectionLabel(String text) {
     return Text(
       text,
@@ -194,9 +282,6 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
     );
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // Info card – groups rows inside a rounded container
-  // ────────────────────────────────────────────────────────────────
   Widget _infoCard(List<Widget> rows) {
     return Container(
       width: double.infinity,
@@ -210,9 +295,6 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
     );
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // Info row (image + label + value) — used inside _infoCard
-  // ────────────────────────────────────────────────────────────────
   Widget _infoRow(String image, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -245,9 +327,6 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
     );
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // Menu row (icon + title + subtitle + chevron)
-  // ────────────────────────────────────────────────────────────────
   Widget _menuRow({required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -291,9 +370,6 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
     );
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // Logout row
-  // ────────────────────────────────────────────────────────────────
   Widget _logoutRow() {
     return InkWell(
       borderRadius: BorderRadius.circular(14),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
+import 'package:get_right/models/customer_profile_dto.dart';
 import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -57,6 +59,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.isRegistered<AuthController>()) {
+        Get.find<AuthController>().fetchCustomerProfile();
+      }
+    });
     _personalRecords = [
       PersonalRecord(id: '1', liftName: 'Bench Press', value: '315', unit: 'lbs', date: DateTime(2024, 12, 12), displayPublicly: true),
       PersonalRecord(id: '2', liftName: 'Squat', value: '405', unit: 'lbs', date: DateTime(2024, 12, 12), displayPublicly: true),
@@ -120,15 +127,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
             ),
-      body: _buildPublicProfile(),
+      body: GetBuilder<AuthController>(
+        builder: (auth) {
+          if (auth.customerProfileLoading && auth.customerProfile == null) {
+            return const Center(child: CircularProgressIndicator(color: _kProfileForestGreen));
+          }
+          if (auth.customerProfileError != null && auth.customerProfile == null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      auth.customerProfileError!,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.85)),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () => auth.fetchCustomerProfile(),
+                      child: Text(
+                        'Retry',
+                        style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          return RefreshIndicator(
+            color: _kProfileForestGreen,
+            onRefresh: () => auth.fetchCustomerProfile(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: _buildPublicProfile(auth),
+            ),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildPublicProfile() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          const SizedBox(height: 8),
+  String _formatSlugLabel(String slug) {
+    final t = slug.trim();
+    if (t.isEmpty) return '';
+    if (!t.contains('_')) return t;
+    return t
+        .split('_')
+        .where((s) => s.isNotEmpty)
+        .map((s) => '${s[0].toUpperCase()}${s.length > 1 ? s.substring(1).toLowerCase() : ''}')
+        .join(' ');
+  }
+
+  Widget _buildPublicProfile(AuthController auth) {
+    final p = auth.customerProfile;
+    var displayName = 'Your profile';
+    var email = '';
+    String? photoUrl;
+    if (p != null) {
+      email = p.email;
+      photoUrl = p.profilePictureUrl;
+      final n = p.fullName?.trim();
+      if (n != null && n.isNotEmpty) {
+        displayName = n;
+      } else if (p.email.isNotEmpty) {
+        displayName = p.email.split('@').first;
+      }
+    }
+    var bioLine = p?.bio?.trim();
+    if (bioLine != null && bioLine.isEmpty) bioLine = null;
+
+    return Column(
+      children: [
+        if (auth.customerProfileLoading && auth.customerProfile != null)
+          const LinearProgressIndicator(minHeight: 2, color: _kProfileForestGreen),
+        const SizedBox(height: 8),
           // Centered avatar + camera (mockup)
           Center(
             child: SizedBox(
@@ -144,7 +219,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: CircleAvatar(
                       radius: 46,
                       backgroundColor: _kProfileForestGreen.withOpacity(0.08),
-                      child: Icon(Icons.person, size: 52, color: _kProfileForestGreen.withOpacity(0.45)),
+                      child: photoUrl != null && photoUrl.isNotEmpty
+                          ? ClipOval(
+                              child: Image.network(
+                                photoUrl,
+                                width: 92,
+                                height: 92,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(Icons.person, size: 52, color: _kProfileForestGreen.withOpacity(0.45)),
+                              ),
+                            )
+                          : Icon(Icons.person, size: 52, color: _kProfileForestGreen.withOpacity(0.45)),
                     ),
                   ),
                   Positioned(
@@ -166,6 +251,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              children: [
+                Text(
+                  displayName,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.headlineSmall.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w800, fontSize: 22),
+                ),
+                if (email.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    email,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.65), fontSize: 14),
+                  ),
+                ],
+                if (bioLine != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    bioLine,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.8), height: 1.35),
+                  ),
+                ],
+                if (_profileMetaLine(p).isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    _profileMetaLine(p),
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.labelSmall.copyWith(color: _kProfileForestGreen.withOpacity(0.75), fontWeight: FontWeight.w600, height: 1.4),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 20),
@@ -266,9 +388,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 24),
-        ],
-      ),
+      ],
     );
+  }
+
+  String _profileMetaLine(CustomerProfileDto? profile) {
+    if (profile == null) return '';
+    final parts = <String>[];
+    final pf = profile.primaryFocus?.trim();
+    if (pf != null && pf.isNotEmpty) parts.add(_formatSlugLabel(pf));
+    final fl = profile.fitnessLevel?.trim();
+    if (fl != null && fl.isNotEmpty) parts.add(fl);
+    final ex = profile.exerciseFrequency?.trim();
+    if (ex != null && ex.isNotEmpty) parts.add(ex);
+    if (profile.mainGoals.isNotEmpty) {
+      parts.add(profile.mainGoals.map(_formatSlugLabel).join(' · '));
+    }
+    return parts.join(' · ');
   }
 
   Widget _buildStatCard(String count, String label, Color countColor, {VoidCallback? onTap}) {

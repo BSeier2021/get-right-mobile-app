@@ -85,8 +85,8 @@ class AuthRepository {
   //   return response;
   // }
 
-  /// `POST /customer/profile/update` — JSON or multipart when [profilePicturePath] is set.
-  /// Field names match backend: `dateofbirth`, `phoneNumber`, `primaryFocus`, `mainGoals`, `fitnessLevel`, `exerciseFrequency`.
+  /// `POST /customer/profile/update` — JSON, or multipart when [profilePicturePath] is set (field `profilePicture` + form fields).
+  /// Send API slugs for `primaryFocus` / `mainGoals` (e.g. `strength_training`, `lose_weight`) and plan-style `exerciseFrequency` (e.g. `FiveTimesaWeek`).
   Future<dynamic> updateProfileRepo({
     String? fullName,
     String? dateofbirth,
@@ -149,24 +149,23 @@ class AuthRepository {
           multipartFields[key] = value;
         }
       });
-      final files = <String, List<File>>{'profilePicture': [file]};
+      final files = <String, List<File>>{
+        'profilePicture': [file],
+      };
       return _network.postMultipart(url: AppUrl.updateProfile, fields: multipartFields, files: files);
     }
 
     return _network.post(AppUrl.updateProfile, fields);
   }
 
+  /// `GET /customer/profile` — Bearer; returns `data.user` with nested `profile`.
   Future<dynamic> getProfileRepo() async {
-    final response = await _network.get(AppUrl.getProfile);
-    return response;
+    return _network.get(AppUrl.getProfile);
   }
 
   /// `POST /user/auth/change-password` — body: `{ "oldPassword": "...", "newPassword": "..." }` (Bearer).
   Future<dynamic> changePasswordRepo({required String oldPassword, required String newPassword}) async {
-    final response = await _network.post(
-      AppUrl.changePassword,
-      {"oldPassword": oldPassword.trim(), "newPassword": newPassword.trim()},
-    );
+    final response = await _network.post(AppUrl.changePassword, {"oldPassword": oldPassword.trim(), "newPassword": newPassword.trim()});
     return response;
   }
 

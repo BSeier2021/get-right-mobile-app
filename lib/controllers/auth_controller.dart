@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:get/get.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:get_right/Local%20Storage/local_storage.dart';
+import 'package:get_right/models/customer_profile_dto.dart';
 import 'package:get_right/models/exercise_plan_option.dart';
 import 'package:get_right/models/fitness_level_option.dart';
 import 'package:get_right/models/user_goal_option.dart';
@@ -67,6 +68,15 @@ class AuthController extends GetxController {
 
   String? _exercisePlansError;
   String? get exercisePlansError => _exercisePlansError;
+
+  CustomerProfileDto? _customerProfile;
+  CustomerProfileDto? get customerProfile => _customerProfile;
+
+  bool _customerProfileLoading = false;
+  bool get customerProfileLoading => _customerProfileLoading;
+
+  String? _customerProfileError;
+  String? get customerProfileError => _customerProfileError;
 
   String? _tempEmail;
   String? _pendingSignupUserId;
@@ -428,6 +438,104 @@ class AuthController extends GetxController {
       _exercisePlansError = e.toString();
     } finally {
       _exercisePlansLoading = false;
+      update();
+    }
+  }
+
+  String _slugToReadable(String slug) {
+    return slug
+        .split('_')
+        .where((s) => s.isNotEmpty)
+        .map((s) => '${s[0].toUpperCase()}${s.length > 1 ? s.substring(1).toLowerCase() : ''}')
+        .join(' ');
+  }
+
+  Future<void> _persistCustomerProfileLocal(CustomerProfileDto dto) async {
+    if (dto.fullName != null && dto.fullName!.trim().isNotEmpty) {
+      await _storageService.saveName(dto.fullName!.trim());
+    }
+    if (dto.email.trim().isNotEmpty) {
+      await _storageService.saveEmail(dto.email.trim());
+    }
+    await _storageService.saveUserId(dto.userId);
+    final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
+    ls.saveuserid(dto.userId);
+
+    if (dto.dateofbirth != null && dto.dateofbirth!.trim().isNotEmpty) {
+      await _storageService.saveString('user_date_of_birth', dto.dateofbirth!.trim());
+    }
+    if (dto.gender != null && dto.gender!.trim().isNotEmpty) {
+      await _storageService.saveString('user_gender', dto.gender!.trim());
+    }
+    if (dto.phoneNumber != null && dto.phoneNumber!.trim().isNotEmpty) {
+      await _storageService.saveString('user_phone', dto.phoneNumber!.trim());
+    }
+    if (dto.bio != null && dto.bio!.trim().isNotEmpty) {
+      await _storageService.saveString('user_bio', dto.bio!.trim());
+    }
+    if (dto.primaryFocus != null && dto.primaryFocus!.trim().isNotEmpty) {
+      await _storageService.saveUserPreference(_slugToReadable(dto.primaryFocus!.trim()));
+    }
+    if (dto.mainGoals.isNotEmpty) {
+      await _storageService.saveUserGoals(dto.mainGoals.map(_slugToReadable).toList());
+    }
+    if (dto.fitnessLevel != null && dto.fitnessLevel!.trim().isNotEmpty) {
+      await _storageService.saveFitnessLevel(dto.fitnessLevel!.trim());
+    }
+    if (dto.exerciseFrequency != null && dto.exerciseFrequency!.trim().isNotEmpty) {
+      await _storageService.saveExerciseFrequency(dto.exerciseFrequency!.trim());
+    }
+  }
+
+  /// Loads `GET /customer/profile` and parses into [customerProfile]; syncs key fields to [StorageService].
+  Future<void> fetchCustomerProfile() async {
+    try {
+      _customerProfileLoading = true;
+      _customerProfileError = null;
+      update();
+
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getProfileRepo();
+
+      if (response is! Map<String, dynamic>) {
+        _customerProfileError = 'Unexpected response from server';
+        return;
+      }
+
+      if (response['success'] != true) {
+        final msg = response['message'];
+        if (msg is List && msg.isNotEmpty) {
+          _customerProfileError = msg.map((e) => e is Map ? (e['message'] ?? e).toString() : e.toString()).join('; ');
+        } else {
+          _customerProfileError = msg?.toString() ?? 'Could not load profile';
+        }
+        return;
+      }
+
+      final dto = CustomerProfileDto.tryParse(response);
+      if (dto == null) {
+        _customerProfileError = 'Invalid profile data';
+        return;
+      }
+
+      _customerProfile = dto;
+      await _persistCustomerProfileLocal(dto);
+    } on BadRequestException catch (e) {
+      _customerProfileError = e.message;
+    } on UnauthorizedException catch (e) {
+      _customerProfileError = e.message;
+    } on ForbiddenException catch (e) {
+      _customerProfileError = e.message;
+    } on NoInternetException catch (e) {
+      _customerProfileError = e.message;
+    } on RequestTimeoutException catch (e) {
+      _customerProfileError = e.message;
+    } on ServerException catch (e) {
+      _customerProfileError = e.message;
+    } catch (e) {
+      _customerProfileError = e.toString();
+    } finally {
+      _customerProfileLoading = false;
       update();
     }
   }
@@ -963,6 +1071,80 @@ class AuthController extends GetxController {
         await _storageService.saveExerciseFrequency(freq);
       }
 
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Profile', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Profile', e.message);
+      return false;
+    } on ForbiddenException catch (e) {
+      _snackError('Profile', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('No connection', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Profile', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Profile', e.message);
+      return false;
+    } catch (e) {
+      _snackError('Profile', e);
+      return false;
+    } finally {
+      _isLoading = false;
+      update();
+    }
+  }
+
+  /// `POST /customer/profile/update` from the edit-profile form (JSON, or multipart when [profilePicturePath] is set).
+  /// Refreshes [customerProfile] via [fetchCustomerProfile] on success.
+  Future<bool> updateCustomerProfileFromEdit({
+    required String fullName,
+    String? dateofbirth,
+    String? gender,
+    String? phoneNumber,
+    String? bio,
+    String? primaryFocus,
+    List<String>? mainGoals,
+    String? fitnessLevel,
+    String? exerciseFrequency,
+    String? profilePicturePath,
+  }) async {
+    try {
+      _isLoading = true;
+      update();
+      _syncNetworkBearerFromStorage();
+
+      final response = await _authRepo.updateProfileRepo(
+        fullName: fullName.trim(),
+        dateofbirth: (dateofbirth != null && dateofbirth.trim().isNotEmpty) ? dateofbirth.trim() : null,
+        gender: (gender != null && gender.trim().isNotEmpty) ? gender.trim() : null,
+        phoneNumber: (phoneNumber != null && phoneNumber.trim().isNotEmpty) ? phoneNumber.trim() : null,
+        bio: (bio != null && bio.trim().isNotEmpty) ? bio.trim() : null,
+        primaryFocus: (primaryFocus != null && primaryFocus.trim().isNotEmpty) ? primaryFocus.trim() : null,
+        mainGoals: mainGoals,
+        fitnessLevel: (fitnessLevel != null && fitnessLevel.trim().isNotEmpty) ? fitnessLevel.trim() : null,
+        exerciseFrequency: (exerciseFrequency != null && exerciseFrequency.trim().isNotEmpty) ? exerciseFrequency.trim() : null,
+        profilePicturePath: (profilePicturePath != null && profilePicturePath.trim().isNotEmpty) ? profilePicturePath.trim() : null,
+      );
+
+      if (response is! Map<String, dynamic>) {
+        _snackError('Profile', 'Unexpected response from server');
+        return false;
+      }
+      if (response['success'] != true) {
+        final msg = response['message'];
+        final message = msg is List && msg.isNotEmpty
+            ? msg.map((e) => e is Map ? (e['message'] ?? e).toString() : e.toString()).join('; ')
+            : (msg?.toString() ?? 'Could not update profile');
+        _snackError('Profile', message);
+        return false;
+      }
+
+      await fetchCustomerProfile();
       return true;
     } on BadRequestException catch (e) {
       _snackError('Profile', e.message);

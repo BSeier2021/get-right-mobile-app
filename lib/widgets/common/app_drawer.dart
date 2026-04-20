@@ -6,23 +6,55 @@ import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/notification_controller.dart';
+import 'package:get_right/models/customer_profile_dto.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/views/library/library_screen.dart';
 
-class AppDrawer extends StatelessWidget {
+class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    String userName = 'Demo User';
-    String userEmail = 'demo@getright.com';
-    String? userPhoto;
-    final NotificationController notificationController = Get.put(NotificationController());
+  State<AppDrawer> createState() => _AppDrawerState();
+}
 
+class _AppDrawerState extends State<AppDrawer> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!Get.isRegistered<AuthController>()) return;
+      final auth = Get.find<AuthController>();
+      if (auth.customerProfile == null && !auth.customerProfileLoading) {
+        auth.fetchCustomerProfile();
+      }
+    });
+  }
+
+  String _displayName(CustomerProfileDto? p, StorageService storage) {
+    final n = p?.fullName?.trim();
+    if (n != null && n.isNotEmpty) return n;
+    return storage.getName()?.trim().isNotEmpty == true ? storage.getName()!.trim() : 'Demo User';
+  }
+
+  String _displayEmail(CustomerProfileDto? p, StorageService storage) {
+    if (p != null) {
+      final e = p.email.trim();
+      if (e.isNotEmpty) return e;
+    }
+    return storage.getEmail()?.trim().isNotEmpty == true ? storage.getEmail()!.trim() : 'demo@getright.com';
+  }
+
+  String? _photoUrl(CustomerProfileDto? p) {
+    final u = p?.profilePictureUrl?.trim();
+    return (u != null && u.isNotEmpty) ? u : null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final NotificationController notificationController = Get.put(NotificationController());
+    StorageService? storage;
     try {
-      final storageService = Get.find<StorageService>();
-      userName = storageService.getName() ?? 'Demo User';
-      userEmail = storageService.getEmail() ?? 'demo@getright.com';
+      storage = Get.find<StorageService>();
     } catch (e) {
       debugPrint('StorageService not found: $e');
     }
@@ -32,10 +64,16 @@ class AppDrawer extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            // ── User header ──────────────────────────────
-            _buildUserHeader(userName, userEmail, userPhoto),
+            GetBuilder<AuthController>(
+              builder: (auth) {
+                final p = auth.customerProfile;
+                final name = storage != null ? _displayName(p, storage) : (p?.fullName?.trim().isNotEmpty == true ? p!.fullName!.trim() : 'Demo User');
+                final email = storage != null ? _displayEmail(p, storage) : (p?.email.trim().isNotEmpty == true ? p!.email.trim() : 'demo@getright.com');
+                final photo = _photoUrl(p);
+                return _buildUserHeader(name, email, photo, auth.customerProfileLoading && p == null);
+              },
+            ),
 
-            // ── Menu items ───────────────────────────────
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
@@ -43,7 +81,6 @@ class AppDrawer extends StatelessWidget {
                 children: [
                   const SizedBox(height: 20),
 
-                  // FITNESS
                   _sectionLabel('FITNESS'),
                   const SizedBox(height: 4),
                   _drawerItem(
@@ -76,7 +113,6 @@ class AppDrawer extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // COMMUNITY
                   _sectionLabel('COMMUNITY'),
                   const SizedBox(height: 4),
                   Obx(
@@ -93,7 +129,6 @@ class AppDrawer extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // HELP & SUPPORT
                   _sectionLabel('HELP & SUPPORT'),
                   const SizedBox(height: 4),
                   _drawerItem(
@@ -135,7 +170,6 @@ class AppDrawer extends StatelessWidget {
               ),
             ),
 
-            // ── Logout button ────────────────────────────
             _buildLogoutButton(context),
           ],
         ),
@@ -143,43 +177,70 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  // ─── User header ──────────────────────────────────────────────────────
-  Widget _buildUserHeader(String name, String email, String? photoUrl) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Avatar
-            Image.asset('assets/images/Ellipse 8.png', width: 70.w),
-
-            const SizedBox(height: 14),
-
-            // Name
-            Text(
-              "Billy Kane",
-              style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onPrimary, fontSize: 20.sp),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-
-            const SizedBox(height: 2),
-
-            // Email
-            Text(
-              "billykane@domain.com",
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontSize: 13.sp),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ],
-    ).paddingOnly(left: 24, top: 24, right: 24, bottom: 24);
+  Widget _buildUserHeader(String name, String email, String? photoUrl, bool loadingProfile) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 70.w,
+                height: 70.w,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ClipOval(
+                      child: photoUrl != null
+                          ? Image.network(
+                              photoUrl,
+                              width: 70.w,
+                              height: 70.w,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Image.asset('assets/images/Ellipse 8.png', width: 70.w, fit: BoxFit.cover),
+                            )
+                          : Image.asset('assets/images/Ellipse 8.png', width: 70.w, fit: BoxFit.cover),
+                    ),
+                    if (loadingProfile)
+                      Positioned.fill(
+                        child: ClipOval(
+                          child: Container(
+                            color: Colors.black26,
+                            alignment: Alignment.center,
+                            child: SizedBox(
+                              width: 22.w,
+                              height: 22.w,
+                              child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                name,
+                style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onPrimary, fontSize: 20.sp),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                email,
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontSize: 13.sp),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
-  // ─── Section label ────────────────────────────────────────────────────
   Widget _sectionLabel(String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -190,7 +251,6 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  // ─── Drawer item ──────────────────────────────────────────────────────
   Widget _drawerItem({String? asset, required IconData fallbackIcon, required String title, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
@@ -198,7 +258,6 @@ class AppDrawer extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
         child: Row(
           children: [
-            // Icon
             SizedBox(
               width: 24,
               height: 24,
@@ -213,7 +272,6 @@ class AppDrawer extends StatelessWidget {
                   : Icon(fallbackIcon, color: AppColors.accent, size: 24),
             ),
             const SizedBox(width: 16),
-            // Title
             Expanded(
               child: Text(
                 title,
@@ -226,7 +284,6 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  // ─── Drawer item with notification badge ──────────────────────────────
   Widget _drawerItemWithBadge({required IconData fallbackIcon, required String title, required int unreadCount, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
@@ -272,7 +329,6 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  // ─── Logout button ────────────────────────────────────────────────────
   Widget _buildLogoutButton(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
@@ -297,7 +353,6 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  // ─── Logout dialog ────────────────────────────────────────────────────
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,

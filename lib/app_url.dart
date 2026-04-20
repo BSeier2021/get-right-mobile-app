@@ -18,15 +18,12 @@ class AppUrl {
 
   /// `POST /user/auth/forget` — body: `{ "email": "..." }`; OTP sent to registered email.
   static String forgotPassword = '$baseUrl/user/auth/forget';
+
   /// `POST /user/auth/forget-password` — body: `{ "password": "..." }` (Bearer after verify-otp in forgot flow).
   static String resetPassword = '$baseUrl/user/auth/forget-password';
   static String preference = '$baseUrl/user/preferences';
   static String goals = '$baseUrl/user/goals';
-
-  /// `GET /user/fitness-level` — returns `data.fitnessLevels`.
   static String fitnessLevels = '$baseUrl/user/fitness-level';
-
-  /// `GET /user/exercise-plan` — returns `data.exercisePlans`.
   static String exercisePlans = '$baseUrl/user/exercise-plan';
   static String updateProfile = '$baseUrl/customer/profile/update';
   static String getProfile = '$baseUrl/customer/profile';
