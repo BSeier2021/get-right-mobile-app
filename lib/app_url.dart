@@ -64,4 +64,7 @@ class AppUrl {
     final q = Uri(queryParameters: {'date': date}).query;
     return '$baseUrl/nutrition/tracker?$q';
   }
+
+  /// `GET /nutrition/meal-types` → `data.mealTypes`.
+  static String get nutritionMealTypes => '$baseUrl/nutrition/meal-types';
 }

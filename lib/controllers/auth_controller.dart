@@ -9,6 +9,7 @@ import 'package:get_right/models/exercise_plan_option.dart';
 import 'package:get_right/models/fitness_level_option.dart';
 import 'package:get_right/models/user_goal_option.dart';
 import 'package:get_right/models/user_preference_option.dart';
+import 'package:get_right/models/nutrition_meal_type_option.dart';
 import 'package:get_right/repo/auth_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
@@ -77,6 +78,15 @@ class AuthController extends GetxController {
 
   String? _customerProfileError;
   String? get customerProfileError => _customerProfileError;
+
+  List<NutritionMealTypeOption> _nutritionMealTypes = [];
+  List<NutritionMealTypeOption> get nutritionMealTypes => List.unmodifiable(_nutritionMealTypes);
+
+  bool _nutritionMealTypesLoading = false;
+  bool get nutritionMealTypesLoading => _nutritionMealTypesLoading;
+
+  String? _nutritionMealTypesError;
+  String? get nutritionMealTypesError => _nutritionMealTypesError;
 
   String? _tempEmail;
   String? _pendingSignupUserId;
@@ -1470,6 +1480,71 @@ class AuthController extends GetxController {
       return null;
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Loads `GET /nutrition/meal-types` → `data.mealTypes` for [AddFoodGatewayScreen].
+  Future<void> fetchNutritionMealTypes() async {
+    try {
+      _nutritionMealTypesLoading = true;
+      _nutritionMealTypesError = null;
+      update();
+
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getNutritionMealTypesRepo();
+
+      if (response is! Map<String, dynamic>) {
+        _nutritionMealTypes = [];
+        _nutritionMealTypesError = 'Unexpected response from server';
+        return;
+      }
+
+      if (response['success'] != true) {
+        _nutritionMealTypes = [];
+        _nutritionMealTypesError = response['message']?.toString() ?? 'Could not load meal types';
+        return;
+      }
+
+      final data = response['data'];
+      final raw = data is Map<String, dynamic> ? data['mealTypes'] : null;
+      final list = <NutritionMealTypeOption>[];
+      if (raw is List) {
+        for (final e in raw) {
+          if (e is Map<String, dynamic>) {
+            final o = NutritionMealTypeOption.fromJson(e);
+            if (o.value.isNotEmpty) list.add(o);
+          } else if (e is Map) {
+            final o = NutritionMealTypeOption.fromJson(Map<String, dynamic>.from(e));
+            if (o.value.isNotEmpty) list.add(o);
+          }
+        }
+      }
+
+      _nutritionMealTypes = list;
+    } on BadRequestException catch (e) {
+      _nutritionMealTypes = [];
+      _nutritionMealTypesError = e.message;
+    } on UnauthorizedException catch (e) {
+      _nutritionMealTypes = [];
+      _nutritionMealTypesError = e.message;
+    } on ForbiddenException catch (e) {
+      _nutritionMealTypes = [];
+      _nutritionMealTypesError = e.message;
+    } on NoInternetException catch (e) {
+      _nutritionMealTypes = [];
+      _nutritionMealTypesError = e.message;
+    } on RequestTimeoutException catch (e) {
+      _nutritionMealTypes = [];
+      _nutritionMealTypesError = e.message;
+    } on ServerException catch (e) {
+      _nutritionMealTypes = [];
+      _nutritionMealTypesError = e.message;
+    } catch (e) {
+      _nutritionMealTypes = [];
+      _nutritionMealTypesError = e.toString();
+    } finally {
+      _nutritionMealTypesLoading = false;
+      update();
     }
   }
 }

@@ -193,4 +193,9 @@ class AuthRepository {
   Future<dynamic> getNutritionTrackerRepo({String? date}) async {
     return _network.get(AppUrl.nutritionTracker(date: date));
   }
+
+  /// `GET /nutrition/meal-types` — Bearer from [NetworkApiService].
+  Future<dynamic> getNutritionMealTypesRepo() async {
+    return _network.get(AppUrl.nutritionMealTypes);
+  }
 }

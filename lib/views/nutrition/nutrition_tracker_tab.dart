@@ -82,7 +82,7 @@ class NutritionTrackerTab extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 16, bottom: 16),
                 child: FloatingActionButton.extended(
                   onPressed: () {
-                    Get.to(() => AddFoodGatewayScreen());
+                    Get.to(() => const AddFoodGatewayScreen());
                   },
                   backgroundColor: AppColors.accent,
                   elevation: 6,
