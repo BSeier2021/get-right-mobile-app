@@ -188,4 +188,9 @@ class AuthRepository {
     final response = await _network.get(headers: {"Authorization": "yNaHwJpGFSquIkXP"}, AppUrl.exerciseCategory(categoryId));
     return response;
   }
+
+  /// `GET /nutrition/tracker` — Bearer from [NetworkApiService]; optional [date] `YYYY-MM-DD`.
+  Future<dynamic> getNutritionTrackerRepo({String? date}) async {
+    return _network.get(AppUrl.nutritionTracker(date: date));
+  }
 }

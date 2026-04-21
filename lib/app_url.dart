@@ -57,4 +57,11 @@ class AppUrl {
     final q = Uri(queryParameters: {'page': '$page', 'per_page': '$perPage'}).query;
     return '$baseUrl/marketplace/bundles?$q';
   }
+
+  /// `GET /nutrition/tracker` — optional `date` (`YYYY-MM-DD`).
+  static String nutritionTracker({String? date}) {
+    if (date == null || date.isEmpty) return '$baseUrl/nutrition/tracker';
+    final q = Uri(queryParameters: {'date': date}).query;
+    return '$baseUrl/nutrition/tracker?$q';
+  }
 }

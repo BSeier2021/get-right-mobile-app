@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/nutrition_controller.dart';
 import 'package:get_right/models/meal_entry.dart';
+import 'package:get_right/models/nutrition_day.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -27,26 +28,29 @@ class NutritionTrackerTab extends StatelessWidget {
         return Stack(
           children: [
             // Scrollable Content
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Calories Overview Card
-                  _buildCaloriesCard(currentDay.totalCalories, currentDay.calorieGoal, currentDay.calorieProgress),
+            RefreshIndicator(
+              onRefresh: () => controller.fetchNutritionTracker(),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Calories Overview Card
+                    _buildCaloriesCard(currentDay.totalCalories, currentDay.calorieGoal, currentDay.calorieProgress),
 
-                  // Macros Overview
-                  const SizedBox(height: 24),
+                    // Macros Overview
+                    const SizedBox(height: 24),
 
-                  // Daily Progress Section (Donut + macros like screenshot)
-                  Text(
-                    'Daily Progress',
-                    style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDailyProgressSection(currentDay),
+                    // Daily Progress Section (Donut + macros like screenshot)
+                    Text(
+                      'Daily Progress',
+                      style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildDailyProgressSection(controller, currentDay),
 
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
                   // Food Log Section Header
                   Text(
@@ -65,8 +69,9 @@ class NutritionTrackerTab extends StatelessWidget {
                   const SizedBox(height: 12),
                   _buildMealSection(context, controller, MealType.snacks),
 
-                  const SizedBox(height: 80), // Extra padding for FAB
-                ],
+                    const SizedBox(height: 80), // Extra padding for FAB
+                  ],
+                ),
               ),
             ),
 
@@ -90,14 +95,26 @@ class NutritionTrackerTab extends StatelessWidget {
                 ),
               ),
             ),
+            Obx(() {
+              if (!controller.isLoading.value) return const SizedBox.shrink();
+              return Positioned.fill(
+                child: AbsorbPointer(
+                  child: Container(
+                    color: Colors.black.withOpacity(0.08),
+                    alignment: Alignment.center,
+                    child: const SizedBox(width: 40, height: 40, child: CircularProgressIndicator(strokeWidth: 3)),
+                  ),
+                ),
+              );
+            }),
           ],
         );
       },
     );
   }
 
-  Widget _buildDailyProgressSection(dynamic currentDay) {
-    final consumed = currentDay.totalCalories;
+  Widget _buildDailyProgressSection(NutritionController controller, NutritionDay currentDay) {
+    final consumed = controller.trackerCenterCalories ?? currentDay.totalCalories;
     final carbsG = currentDay.totalCarbs;
     final fatsG = currentDay.totalFats;
     final proteinG = currentDay.totalProtein;
@@ -108,9 +125,18 @@ class NutritionTrackerTab extends StatelessWidget {
     final proteinCal = proteinG * 4.0;
     final totalMacroCal = (carbsCal + fatsCal + proteinCal).clamp(0.0, double.infinity);
 
-    final carbsPct = totalMacroCal == 0 ? 0.0 : (carbsCal / totalMacroCal) * 100.0;
-    final fatsPct = totalMacroCal == 0 ? 0.0 : (fatsCal / totalMacroCal) * 100.0;
-    final proteinPct = totalMacroCal == 0 ? 0.0 : (proteinCal / totalMacroCal) * 100.0;
+    double carbsPct = totalMacroCal == 0 ? 0.0 : (carbsCal / totalMacroCal) * 100.0;
+    double fatsPct = totalMacroCal == 0 ? 0.0 : (fatsCal / totalMacroCal) * 100.0;
+    double proteinPct = totalMacroCal == 0 ? 0.0 : (proteinCal / totalMacroCal) * 100.0;
+
+    final apiPercents = controller.trackerMacroPercentsFromApi;
+    if (apiPercents != null && apiPercents.length == 3) {
+      carbsPct = apiPercents[0];
+      fatsPct = apiPercents[1];
+      proteinPct = apiPercents[2];
+    }
+
+    final colors = controller.trackerDonutColors;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -127,11 +153,7 @@ class NutritionTrackerTab extends StatelessWidget {
                   size: const Size(72, 72),
                   painter: _SegmentedDonutPainter(
                     percents: [carbsPct, fatsPct, proteinPct],
-                    colors: const [
-                      Color(0xFFFFA726), // Carbs - orange
-                      Color(0xFF9C27B0), // Fat - purple
-                      Color(0xFF4A90E2), // Proteins - blue
-                    ],
+                    colors: colors.length >= 3 ? colors : const [Color(0xFFFFA726), Color(0xFF9C27B0), Color(0xFF4A90E2)],
                     trackColor: AppColors.lightGray,
                     thickness: 12,
                     gapDegrees: 2,
@@ -156,9 +178,9 @@ class NutritionTrackerTab extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _macroStat(color: const Color(0xFFFFA726), percent: carbsPct, grams: carbsG, label: 'Carbs'),
-                _macroStat(color: const Color(0xFF9C27B0), percent: fatsPct, grams: fatsG, label: 'Fat'),
-                _macroStat(color: const Color(0xFF4A90E2), percent: proteinPct, grams: proteinG, label: 'Proteins'),
+                _macroStat(color: colors.isNotEmpty ? colors[0] : const Color(0xFFFFA726), percent: carbsPct, grams: carbsG, label: 'Carbs'),
+                _macroStat(color: colors.length > 1 ? colors[1] : const Color(0xFF9C27B0), percent: fatsPct, grams: fatsG, label: 'Fat'),
+                _macroStat(color: colors.length > 2 ? colors[2] : const Color(0xFF4A90E2), percent: proteinPct, grams: proteinG, label: 'Proteins'),
               ],
             ),
           ),

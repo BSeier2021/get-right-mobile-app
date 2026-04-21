@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/models/food_item.dart';
 import 'package:get_right/models/meal_entry.dart';
 import 'package:get_right/models/nutrition_day.dart';
@@ -34,6 +36,15 @@ class NutritionController extends GetxController {
   // Loading states
   final RxBool isLoading = false.obs;
 
+  /// Donut segment colors from tracker `dailyProgress.legend` (carbs, fat, protein).
+  List<Color> trackerDonutColors = const [Color(0xFFFFA726), Color(0xFF9C27B0), Color(0xFF4A90E2)];
+
+  /// Center label calories from `dailyProgress.centerCalories` when the last tracker fetch applied to [selectedDate].
+  double? trackerCenterCalories;
+
+  /// Macro ring percents from API `[carbs, fat, protein]` when any percent is non-zero.
+  List<double>? trackerMacroPercentsFromApi;
+
   // Recipe filters
   final Rx<RecipeCategory?> selectedCategory = Rx<RecipeCategory?>(null);
   final RxString searchQuery = ''.obs;
@@ -54,6 +65,9 @@ class NutritionController extends GetxController {
       hasSubscription.value = false;
     }
     update();
+    if (hasSubscription.value) {
+      fetchNutritionTracker();
+    }
   }
 
   // Get or create nutrition day for a specific date
@@ -73,7 +87,8 @@ class NutritionController extends GetxController {
     final dateKey = _getDateKey(entry.timestamp);
     final day = getNutritionDay(entry.timestamp);
     final updatedMeals = List<MealEntry>.from(day.meals)..add(entry);
-    nutritionDays[dateKey] = day.copyWith(meals: updatedMeals);
+    nutritionDays[dateKey] = day.copyWith(meals: updatedMeals, clearConsumedOverrides: true);
+    _clearTrackerDisplayFields();
     update();
   }
 
@@ -82,7 +97,8 @@ class NutritionController extends GetxController {
     final dateKey = _getDateKey(selectedDate.value);
     final day = currentDay;
     final updatedMeals = day.meals.where((meal) => meal.id != entryId).toList();
-    nutritionDays[dateKey] = day.copyWith(meals: updatedMeals);
+    nutritionDays[dateKey] = day.copyWith(meals: updatedMeals, clearConsumedOverrides: true);
+    _clearTrackerDisplayFields();
     update();
   }
 
@@ -91,8 +107,14 @@ class NutritionController extends GetxController {
     final dateKey = _getDateKey(entry.timestamp);
     final day = getNutritionDay(entry.timestamp);
     final updatedMeals = day.meals.map((meal) => meal.id == entry.id ? entry : meal).toList();
-    nutritionDays[dateKey] = day.copyWith(meals: updatedMeals);
+    nutritionDays[dateKey] = day.copyWith(meals: updatedMeals, clearConsumedOverrides: true);
+    _clearTrackerDisplayFields();
     update();
+  }
+
+  void _clearTrackerDisplayFields() {
+    trackerCenterCalories = null;
+    trackerMacroPercentsFromApi = null;
   }
 
   // Add food item to saved items
@@ -157,6 +179,177 @@ class NutritionController extends GetxController {
   void changeDate(DateTime date) {
     selectedDate.value = date;
     update();
+    if (hasSubscription.value) {
+      fetchNutritionTracker();
+    }
+  }
+
+  /// Loads `GET /nutrition/tracker` for [selectedDate] via [AuthController].
+  Future<void> fetchNutritionTracker() async {
+    if (!hasSubscription.value) return;
+    if (!Get.isRegistered<AuthController>()) return;
+
+    isLoading.value = true;
+    update();
+
+    try {
+      final dateKey = _getDateKey(selectedDate.value);
+      final data = await Get.find<AuthController>().fetchNutritionTracker(date: dateKey);
+      if (data == null) {
+        return;
+      }
+      _applyNutritionTrackerData(data, dateKey);
+    } finally {
+      isLoading.value = false;
+      update();
+    }
+  }
+
+  static double _toD(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
+  }
+
+  static Color _parseHexColor(String? s, Color fallback) {
+    if (s == null || s.isEmpty) return fallback;
+    var h = s.trim().replaceFirst('#', '');
+    if (h.length == 6) h = 'FF$h';
+    try {
+      return Color(int.parse(h, radix: 16));
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  MealEntry _mealEntryFromCatalogMap(Map<String, dynamic> raw, MealType mealType, DateTime dayDate) {
+    final id = raw['_id']?.toString() ?? raw['id']?.toString() ?? '';
+    final mealMap = raw['meal'];
+    MealType type = mealType;
+    if (mealMap is Map) {
+      final mt = mealMap['mealType']?.toString();
+      if (mt != null && mt.isNotEmpty) {
+        type = MealType.values.firstWhere((e) => e.name == mt, orElse: () => mealType);
+      }
+    }
+    final food = FoodItem(
+      id: id,
+      name: raw['name']?.toString() ?? '',
+      calories: _toD(raw['calories']),
+      protein: _toD(raw['proteinG'] ?? raw['protein']),
+      carbs: _toD(raw['carbsG'] ?? raw['carbs']),
+      fats: _toD(raw['fatG'] ?? raw['fats']),
+      defaultServingSize: _toD(raw['servingSize'] == null ? 1.0 : raw['servingSize']),
+      servingUnit: raw['servingUnit']?.toString() ?? 'serving',
+    );
+    return MealEntry(
+      id: id.isNotEmpty ? id : '${mealType.name}_${food.name.hashCode}',
+      foodItem: food,
+      quantity: 1,
+      mealType: type,
+      timestamp: DateTime(dayDate.year, dayDate.month, dayDate.day),
+    );
+  }
+
+  void _applyNutritionTrackerData(Map<String, dynamic> data, String dateKey) {
+    final dateStr = data['date']?.toString();
+    final dayDate = dateStr != null && dateStr.isNotEmpty
+        ? DateTime.tryParse(dateStr) ?? selectedDate.value
+        : selectedDate.value;
+
+    final summary = data['summary'];
+    final goalCal = summary is Map ? _toD(summary['goalCalories']) : calorieGoal.value;
+    final consumedCal = summary is Map ? _toD(summary['consumedCalories']) : 0.0;
+
+    final dp = data['dailyProgress'];
+    double pG = 0, cG = 0, fG = 0;
+    trackerCenterCalories = null;
+    trackerMacroPercentsFromApi = null;
+    if (dp is Map) {
+      trackerCenterCalories = _toD(dp['centerCalories']);
+
+      final macros = dp['macros'];
+      if (macros is Map) {
+        final carb = macros['carbs'];
+        final fat = macros['fat'];
+        final prot = macros['protein'];
+        if (carb is Map) cG = _toD(carb['grams']);
+        if (fat is Map) fG = _toD(fat['grams']);
+        if (prot is Map) pG = _toD(prot['grams']);
+
+        final pc = carb is Map ? _toD(carb['percent']) : 0.0;
+        final pf = fat is Map ? _toD(fat['percent']) : 0.0;
+        final pp = prot is Map ? _toD(prot['percent']) : 0.0;
+        if (pc + pf + pp > 0) {
+          trackerMacroPercentsFromApi = [pc, pf, pp];
+        }
+      }
+      final legend = dp['legend'];
+      if (legend is Map) {
+        final order = legend['order'];
+        final colorsMap = legend['colors'];
+        if (order is List && colorsMap is Map) {
+          const fallbacks = [Color(0xFFFFA726), Color(0xFF9C27B0), Color(0xFF4A90E2)];
+          final cols = <Color>[];
+          var idx = 0;
+          for (final k in order) {
+            if (k is! String) continue;
+            final hex = colorsMap[k]?.toString();
+            final fi = idx > 2 ? 2 : idx;
+            cols.add(_parseHexColor(hex, fallbacks[fi]));
+            idx++;
+          }
+          if (cols.length == 3) {
+            trackerDonutColors = cols;
+          }
+        }
+      }
+    }
+
+    final meals = <MealEntry>[];
+    final catalog = data['foodCatalog'];
+    if (catalog is Map) {
+      for (final key in const ['breakfast', 'lunch', 'dinner', 'snacks']) {
+        final rawList = catalog[key];
+        if (rawList is! List) continue;
+        MealType mealType;
+        switch (key) {
+          case 'lunch':
+            mealType = MealType.lunch;
+            break;
+          case 'dinner':
+            mealType = MealType.dinner;
+            break;
+          case 'snacks':
+            mealType = MealType.snacks;
+            break;
+          default:
+            mealType = MealType.breakfast;
+        }
+        for (final e in rawList) {
+          if (e is Map<String, dynamic>) {
+            meals.add(_mealEntryFromCatalogMap(e, mealType, dayDate));
+          } else if (e is Map) {
+            meals.add(_mealEntryFromCatalogMap(Map<String, dynamic>.from(e), mealType, dayDate));
+          }
+        }
+      }
+    }
+
+    nutritionDays[dateKey] = NutritionDay(
+      date: dayDate,
+      meals: meals,
+      calorieGoal: goalCal > 0 ? goalCal : calorieGoal.value,
+      proteinGoal: proteinGoal.value,
+      carbsGoal: carbsGoal.value,
+      fatsGoal: fatsGoal.value,
+      consumedCaloriesOverride: consumedCal,
+      consumedProteinOverride: pG,
+      consumedCarbsOverride: cG,
+      consumedFatsOverride: fG,
+    );
+
+    calorieGoal.value = nutritionDays[dateKey]!.calorieGoal;
   }
 
   // Filter recipes
@@ -341,9 +534,5 @@ class NutritionController extends GetxController {
 
     // Set featured recipes
     featuredRecipes.value = recipes.where((r) => r.isFeatured).toList();
-
-    // Add demo data for today
-    final today = DateTime.now();
-    addMealEntry(MealEntry(id: '1', foodItem: savedFoodItems[0], quantity: 1, mealType: MealType.breakfast, timestamp: today));
   }
 }

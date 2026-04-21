@@ -1456,4 +1456,20 @@ class AuthController extends GetxController {
       Get.snackbar('Error', 'Failed to sign in with Apple: ${e.toString()}', snackPosition: SnackPosition.BOTTOM);
     }
   }
+
+  /// `GET /nutrition/tracker` — returns inner `data` on success (see [NutritionController.fetchNutritionTracker]).
+  Future<Map<String, dynamic>?> fetchNutritionTracker({String? date}) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getNutritionTrackerRepo(date: date);
+      if (response is! Map<String, dynamic>) return null;
+      if (response['success'] != true) return null;
+      final data = response['data'];
+      if (data is Map<String, dynamic>) return data;
+      if (data is Map) return Map<String, dynamic>.from(data);
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 }

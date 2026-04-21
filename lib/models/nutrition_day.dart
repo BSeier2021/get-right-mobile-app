@@ -11,6 +11,12 @@ class NutritionDay {
   final double? weight; // Optional daily weight
   final String? notes;
 
+  /// When set (from `GET /nutrition/tracker`), totals use API values instead of summing [meals].
+  final double? consumedCaloriesOverride;
+  final double? consumedProteinOverride;
+  final double? consumedCarbsOverride;
+  final double? consumedFatsOverride;
+
   NutritionDay({
     required this.date,
     List<MealEntry>? meals,
@@ -20,6 +26,10 @@ class NutritionDay {
     this.fatsGoal = 65,
     this.weight,
     this.notes,
+    this.consumedCaloriesOverride,
+    this.consumedProteinOverride,
+    this.consumedCarbsOverride,
+    this.consumedFatsOverride,
   }) : meals = meals ?? [];
 
   // Get meals by type
@@ -51,10 +61,10 @@ class NutritionDay {
   }
 
   // Getters for total nutrition
-  double get totalCalories => getTotalNutrition()['calories']!;
-  double get totalProtein => getTotalNutrition()['protein']!;
-  double get totalCarbs => getTotalNutrition()['carbs']!;
-  double get totalFats => getTotalNutrition()['fats']!;
+  double get totalCalories => consumedCaloriesOverride ?? getTotalNutrition()['calories']!;
+  double get totalProtein => consumedProteinOverride ?? getTotalNutrition()['protein']!;
+  double get totalCarbs => consumedCarbsOverride ?? getTotalNutrition()['carbs']!;
+  double get totalFats => consumedFatsOverride ?? getTotalNutrition()['fats']!;
 
   // Calculate remaining calories/macros
   double get remainingCalories => calorieGoal - totalCalories;
@@ -108,6 +118,11 @@ class NutritionDay {
     double? fatsGoal,
     double? weight,
     String? notes,
+    double? consumedCaloriesOverride,
+    double? consumedProteinOverride,
+    double? consumedCarbsOverride,
+    double? consumedFatsOverride,
+    bool clearConsumedOverrides = false,
   }) {
     return NutritionDay(
       date: date ?? this.date,
@@ -118,6 +133,10 @@ class NutritionDay {
       fatsGoal: fatsGoal ?? this.fatsGoal,
       weight: weight ?? this.weight,
       notes: notes ?? this.notes,
+      consumedCaloriesOverride: clearConsumedOverrides ? null : (consumedCaloriesOverride ?? this.consumedCaloriesOverride),
+      consumedProteinOverride: clearConsumedOverrides ? null : (consumedProteinOverride ?? this.consumedProteinOverride),
+      consumedCarbsOverride: clearConsumedOverrides ? null : (consumedCarbsOverride ?? this.consumedCarbsOverride),
+      consumedFatsOverride: clearConsumedOverrides ? null : (consumedFatsOverride ?? this.consumedFatsOverride),
     );
   }
 }
