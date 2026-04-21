@@ -198,4 +198,9 @@ class AuthRepository {
   Future<dynamic> getNutritionMealTypesRepo() async {
     return _network.get(AppUrl.nutritionMealTypes);
   }
+
+  /// `GET /nutrition/foods/custom` — paginated custom foods for a meal type id.
+  Future<dynamic> getNutritionCustomFoodsRepo({required String mealId, int page = 1, int perPage = 20}) async {
+    return _network.get(AppUrl.nutritionFoodsCustom(page: page, perPage: perPage, mealId: mealId));
+  }
 }

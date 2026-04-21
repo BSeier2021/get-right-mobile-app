@@ -67,4 +67,10 @@ class AppUrl {
 
   /// `GET /nutrition/meal-types` → `data.mealTypes`.
   static String get nutritionMealTypes => '$baseUrl/nutrition/meal-types';
+
+  /// `GET /nutrition/foods/custom` — query: `page`, `per_page`, `mealId`.
+  static String nutritionFoodsCustom({required int page, required int perPage, required String mealId}) {
+    final q = Uri(queryParameters: {'page': '$page', 'per_page': '$perPage', 'mealId': mealId}).query;
+    return '$baseUrl/nutrition/foods/custom?$q';
+  }
 }

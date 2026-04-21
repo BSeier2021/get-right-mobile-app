@@ -12,6 +12,9 @@ class FoodItem {
   final bool isSaved;
   final DateTime? createdAt;
 
+  /// From `GET /nutrition/foods/custom` — hide local edit/delete until server APIs exist.
+  final bool isNutritionApiCustom;
+
   FoodItem({
     required this.id,
     required this.name,
@@ -24,6 +27,7 @@ class FoodItem {
     this.imageUrl,
     this.isSaved = false,
     DateTime? createdAt,
+    this.isNutritionApiCustom = false,
   }) : createdAt = createdAt ?? DateTime.now();
 
   // Calculate nutrition based on quantity
@@ -45,6 +49,34 @@ class FoodItem {
       imageUrl: json['imageUrl'],
       isSaved: json['isSaved'] ?? false,
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      isNutritionApiCustom: json['isNutritionApiCustom'] == true,
+    );
+  }
+
+  static double _toD(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
+  }
+
+  /// Nutrition API food row (`_id`, `proteinG`, `servingLabel`, …).
+  factory FoodItem.fromNutritionCustomFoodApi(Map<String, dynamic> json) {
+    final id = json['_id']?.toString() ?? json['id']?.toString() ?? '';
+    final servingSize = _toD(json['servingSize'] == null ? 1.0 : json['servingSize']);
+    final unit = json['servingUnit']?.toString() ?? 'serving';
+    final label = json['servingLabel']?.toString();
+    return FoodItem(
+      id: id,
+      name: json['name']?.toString() ?? '',
+      calories: _toD(json['calories']),
+      protein: _toD(json['proteinG'] ?? json['protein']),
+      carbs: _toD(json['carbsG'] ?? json['carbs']),
+      fats: _toD(json['fatG'] ?? json['fats']),
+      defaultServingSize: 1.0,
+      servingUnit: (label != null && label.isNotEmpty) ? label : '$servingSize $unit'.trim(),
+      isSaved: true,
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
+      isNutritionApiCustom: true,
     );
   }
 
@@ -62,6 +94,7 @@ class FoodItem {
       'imageUrl': imageUrl,
       'isSaved': isSaved,
       'createdAt': createdAt?.toIso8601String(),
+      'isNutritionApiCustom': isNutritionApiCustom,
     };
   }
 
@@ -78,6 +111,7 @@ class FoodItem {
     String? imageUrl,
     bool? isSaved,
     DateTime? createdAt,
+    bool? isNutritionApiCustom,
   }) {
     return FoodItem(
       id: id ?? this.id,
@@ -91,6 +125,7 @@ class FoodItem {
       imageUrl: imageUrl ?? this.imageUrl,
       isSaved: isSaved ?? this.isSaved,
       createdAt: createdAt ?? this.createdAt,
+      isNutritionApiCustom: isNutritionApiCustom ?? this.isNutritionApiCustom,
     );
   }
 }

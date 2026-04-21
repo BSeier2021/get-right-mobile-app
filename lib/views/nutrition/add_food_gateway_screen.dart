@@ -113,7 +113,7 @@ class _AddFoodGatewayScreenState extends State<AddFoodGatewayScreen> {
     final type = option.mealTypeEnum!;
     return InkWell(
       borderRadius: BorderRadius.circular(14),
-      onTap: () => _onSelectMeal(type),
+      onTap: () => _onSelectMeal(type, mealTypeApiId: option.id.isNotEmpty ? option.id : null),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
@@ -168,12 +168,12 @@ class _AddFoodGatewayScreenState extends State<AddFoodGatewayScreen> {
     );
   }
 
-  void _onSelectMeal(MealType type) {
+  void _onSelectMeal(MealType type, {String? mealTypeApiId}) {
     if (!controller.hasSubscription.value) {
       Get.snackbar('Subscription', 'Subscribe to add food', snackPosition: SnackPosition.BOTTOM);
       return;
     }
-    Get.to(() => AddFoodScreen(mealType: type));
+    Get.to(() => AddFoodScreen(mealType: type, mealTypeApiId: mealTypeApiId));
   }
 
   Widget _mealCard(BuildContext context, MealType type) {

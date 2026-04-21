@@ -9,6 +9,8 @@ import 'package:get_right/models/exercise_plan_option.dart';
 import 'package:get_right/models/fitness_level_option.dart';
 import 'package:get_right/models/user_goal_option.dart';
 import 'package:get_right/models/user_preference_option.dart';
+import 'package:get_right/models/food_item.dart';
+import 'package:get_right/models/nutrition_custom_foods_page.dart';
 import 'package:get_right/models/nutrition_meal_type_option.dart';
 import 'package:get_right/repo/auth_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -453,11 +455,7 @@ class AuthController extends GetxController {
   }
 
   String _slugToReadable(String slug) {
-    return slug
-        .split('_')
-        .where((s) => s.isNotEmpty)
-        .map((s) => '${s[0].toUpperCase()}${s.length > 1 ? s.substring(1).toLowerCase() : ''}')
-        .join(' ');
+    return slug.split('_').where((s) => s.isNotEmpty).map((s) => '${s[0].toUpperCase()}${s.length > 1 ? s.substring(1).toLowerCase() : ''}').join(' ');
   }
 
   Future<void> _persistCustomerProfileLocal(CustomerProfileDto dto) async {
@@ -1545,6 +1543,46 @@ class AuthController extends GetxController {
     } finally {
       _nutritionMealTypesLoading = false;
       update();
+    }
+  }
+
+  /// `GET /nutrition/foods/custom` — returns parsed page or null on failure.
+  Future<NutritionCustomFoodsPage?> fetchNutritionCustomFoods({
+    required String mealId,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getNutritionCustomFoodsRepo(mealId: mealId, page: page, perPage: perPage);
+      if (response is! Map<String, dynamic>) return null;
+      if (response['success'] != true) return null;
+
+      final data = response['data'];
+      final list = <FoodItem>[];
+      if (data is List) {
+        for (final e in data) {
+          if (e is Map<String, dynamic>) {
+            list.add(FoodItem.fromNutritionCustomFoodApi(e));
+          } else if (e is Map) {
+            list.add(FoodItem.fromNutritionCustomFoodApi(Map<String, dynamic>.from(e)));
+          }
+        }
+      }
+
+      final meta = response['meta'];
+      var total = list.length;
+      var p = page;
+      var pp = perPage;
+      if (meta is Map) {
+        total = int.tryParse(meta['total']?.toString() ?? '') ?? total;
+        p = int.tryParse(meta['page']?.toString() ?? '') ?? p;
+        pp = int.tryParse(meta['per_page']?.toString() ?? '') ?? pp;
+      }
+
+      return NutritionCustomFoodsPage(items: list, total: total, page: p, perPage: pp);
+    } catch (_) {
+      return null;
     }
   }
 }

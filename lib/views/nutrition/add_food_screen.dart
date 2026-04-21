@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/nutrition_controller.dart';
 import 'package:get_right/models/food_item.dart';
 import 'package:get_right/models/meal_entry.dart';
@@ -11,7 +12,10 @@ import 'package:get_right/theme/text_styles.dart';
 class AddFoodScreen extends StatefulWidget {
   final MealType mealType;
 
-  const AddFoodScreen({super.key, required this.mealType});
+  /// Meal document `_id` from `GET /nutrition/meal-types` (used for `GET /nutrition/foods/custom`).
+  final String? mealTypeApiId;
+
+  const AddFoodScreen({super.key, required this.mealType, this.mealTypeApiId});
 
   @override
   State<AddFoodScreen> createState() => _AddFoodScreenState();
@@ -20,6 +24,15 @@ class AddFoodScreen extends StatefulWidget {
 class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final controller = Get.find<NutritionController>();
+
+  /// Custom foods from `GET /nutrition/foods/custom` when [meal id] is known.
+  final List<FoodItem> _apiSavedItems = [];
+  bool _apiLoading = false;
+  bool _apiLoadingMore = false;
+  String? _apiError;
+  int _apiPage = 1;
+  bool _apiHasMore = true;
+  bool _apiInitialFetchDone = false;
 
   // Custom food form controllers
   final nameController = TextEditingController();
@@ -34,10 +47,91 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_onTabChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (Get.isRegistered<AuthController>()) {
+        final auth = Get.find<AuthController>();
+        if (auth.nutritionMealTypes.isEmpty && !auth.nutritionMealTypesLoading) {
+          await auth.fetchNutritionMealTypes();
+        }
+      }
+      if (mounted) _ensureApiCustomFoodsLoaded();
+    });
+  }
+
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    if (_tabController.index == 0) {
+      _ensureApiCustomFoodsLoaded();
+    }
+  }
+
+  String? _resolvedMealId() {
+    if (widget.mealTypeApiId != null && widget.mealTypeApiId!.trim().isNotEmpty) {
+      return widget.mealTypeApiId!.trim();
+    }
+    if (!Get.isRegistered<AuthController>()) return null;
+    for (final o in Get.find<AuthController>().nutritionMealTypes) {
+      if (o.mealTypeEnum == widget.mealType && o.id.isNotEmpty) return o.id;
+    }
+    return null;
+  }
+
+  void _ensureApiCustomFoodsLoaded() {
+    final mid = _resolvedMealId();
+    if (mid == null) return;
+    if (_apiLoading) return;
+    if (_apiInitialFetchDone) return;
+    _apiInitialFetchDone = true;
+    _fetchApiCustomFoods(append: false);
+  }
+
+  Future<void> _fetchApiCustomFoods({required bool append}) async {
+    final mid = _resolvedMealId();
+    if (mid == null || !Get.isRegistered<AuthController>()) return;
+
+    if (append) {
+      if (_apiLoadingMore || !_apiHasMore || _apiLoading) return;
+      setState(() => _apiLoadingMore = true);
+    } else {
+      if (_apiLoading) return;
+      setState(() {
+        _apiLoading = true;
+        _apiError = null;
+      });
+    }
+
+    final page = append ? _apiPage + 1 : 1;
+    final result = await Get.find<AuthController>().fetchNutritionCustomFoods(mealId: mid, page: page, perPage: 20);
+    if (!mounted) return;
+
+    setState(() {
+      _apiLoading = false;
+      _apiLoadingMore = false;
+      if (result == null) {
+        if (!append) {
+          _apiSavedItems.clear();
+          _apiError = 'Could not load saved foods';
+        }
+        return;
+      }
+      _apiError = null;
+      if (append) {
+        _apiSavedItems.addAll(result.items);
+      } else {
+        _apiSavedItems
+          ..clear()
+          ..addAll(result.items);
+      }
+      _apiPage = result.page;
+      _apiHasMore = result.hasMore;
+    });
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     nameController.dispose();
     caloriesController.dispose();
@@ -107,6 +201,75 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
   }
 
   Widget _buildSavedItemsTab() {
+    final mealId = _resolvedMealId();
+    if (mealId != null) {
+      return RefreshIndicator(
+        onRefresh: () => _fetchApiCustomFoods(append: false),
+        child: _apiLoading && _apiSavedItems.isEmpty
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 120),
+                  Center(child: CircularProgressIndicator()),
+                ],
+              )
+            : NotificationListener<ScrollNotification>(
+                onNotification: (ScrollNotification n) {
+                  if (n.metrics.axis != Axis.vertical) return false;
+                  if (n.metrics.pixels >= n.metrics.maxScrollExtent - 280) {
+                    if (_apiHasMore && !_apiLoadingMore && !_apiLoading) {
+                      _fetchApiCustomFoods(append: true);
+                    }
+                  }
+                  return false;
+                },
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    if (_apiError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(_apiError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+                      ),
+                    if (_apiSavedItems.isEmpty && !_apiLoading)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 48),
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), shape: BoxShape.circle),
+                              child: const Icon(Icons.bookmark_border, size: 60, color: AppColors.accent),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'No saved foods for this meal',
+                              style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Create a custom food on the Custom tab\nto build your list',
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ..._apiSavedItems.map((item) => _buildSavedFoodCard(item)),
+                    if (_apiLoadingMore)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))),
+                      ),
+                  ],
+                ),
+              ),
+      );
+    }
+
     return GetBuilder<NutritionController>(
       builder: (controller) {
         if (controller.savedFoodItems.isEmpty) {
@@ -206,57 +369,58 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.accent.withOpacity(0.6), width: 1.5),
+              if (!item.isNutritionApiCustom)
+                PopupMenuButton<String>(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.accent.withOpacity(0.6), width: 1.5),
+                    ),
+                    child: const Icon(Icons.more_vert, color: AppColors.accent, size: 18),
                   ),
-                  child: const Icon(Icons.more_vert, color: AppColors.accent, size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _showEditFoodDialog(item);
+                    } else if (value == 'delete') {
+                      _showDeleteConfirmationDialog(item);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                            child: const Icon(Icons.edit, color: AppColors.accent, size: 16),
+                          ),
+                          const SizedBox(width: 12),
+                          Text('Edit', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                            child: const Icon(Icons.delete_outline, color: Colors.red, size: 16),
+                          ),
+                          const SizedBox(width: 12),
+                          Text('Delete', style: AppTextStyles.bodyMedium.copyWith(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    _showEditFoodDialog(item);
-                  } else if (value == 'delete') {
-                    _showDeleteConfirmationDialog(item);
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                          child: const Icon(Icons.edit, color: AppColors.accent, size: 16),
-                        ),
-                        const SizedBox(width: 12),
-                        Text('Edit', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                          child: const Icon(Icons.delete_outline, color: Colors.red, size: 16),
-                        ),
-                        const SizedBox(width: 12),
-                        Text('Delete', style: AppTextStyles.bodyMedium.copyWith(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
@@ -428,7 +592,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
   }
 
   void _showQuantityDialog(FoodItem item) {
-    double quantity = item.defaultServingSize;
+    double quantity = item.isNutritionApiCustom ? 1.0 : item.defaultServingSize;
     final quantityController = TextEditingController(text: quantity.toString());
 
     showDialog(
