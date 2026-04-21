@@ -39,4 +39,22 @@ class AppUrl {
 
   /////////logout API//
   static String logout = '$baseUrl/auth/logout';
+
+  /// `GET /marketplace/sections` — query: `page`, `per_page`, `section` (`featured` | `new_releases` | …).
+  static String marketplaceSections({required int page, required int perPage, required String section}) {
+    final q = Uri(queryParameters: {'page': '$page', 'per_page': '$perPage', 'section': section}).query;
+    return '$baseUrl/marketplace/sections?$q';
+  }
+
+  /// `GET /marketplace/programs` — paginated full catalog.
+  static String marketplacePrograms({required int page, required int perPage}) {
+    final q = Uri(queryParameters: {'page': '$page', 'per_page': '$perPage'}).query;
+    return '$baseUrl/marketplace/programs?$q';
+  }
+
+  /// `GET /marketplace/bundles` — paginated bundles (`programs` may be program id strings).
+  static String marketplaceBundles({required int page, required int perPage}) {
+    final q = Uri(queryParameters: {'page': '$page', 'per_page': '$perPage'}).query;
+    return '$baseUrl/marketplace/bundles?$q';
+  }
 }

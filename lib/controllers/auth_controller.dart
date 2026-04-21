@@ -540,6 +540,16 @@ class AuthController extends GetxController {
     }
   }
 
+  /// Raw JSON from `GET /marketplace/programs` (paginated). The marketplace screen uses [MarketplaceRepository.fetchBrowsePrograms] to parse; this is available for other callers.
+  Future<dynamic> getMarketplaceProgramsRaw({int page = 1, int perPage = 20}) {
+    return _authRepo.getMarketplaceProgramsRepo(page: page, perPage: perPage);
+  }
+
+  /// Raw JSON from `GET /marketplace/bundles`. Prefer [MarketplaceRepository.fetchBrowseBundles] for parsed cards.
+  Future<dynamic> getMarketplaceBundlesRaw({int page = 1, int perPage = 20}) {
+    return _authRepo.getMarketplaceBundlesRepo(page: page, perPage: perPage);
+  }
+
   /// Login via `POST /user/auth/login` with email, password, deviceType, deviceToken.
   Future<void> login({required String email, required String password}) async {
     try {

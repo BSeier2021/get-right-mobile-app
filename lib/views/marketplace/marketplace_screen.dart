@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/notification_controller.dart';
+import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -21,6 +22,156 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   String _sortBy = 'Featured'; // Featured, Newest, Highest Rated, Price Low-High, Price High-Low
   bool _showCertifiedOnly = false;
 
+  final MarketplaceRepository _marketplaceRepo = MarketplaceRepository();
+  List<Map<String, dynamic>> _featuredSectionPrograms = [];
+  List<Map<String, dynamic>> _newReleasesSectionPrograms = [];
+  bool _marketplaceSectionsLoading = true;
+  String? _marketplaceSectionsError;
+
+  List<Map<String, dynamic>> _apiBundles = [];
+  bool _bundlesLoading = false;
+  String? _bundlesError;
+
+  late final ScrollController _marketplaceScrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _marketplaceScrollController = ScrollController()..addListener(_onMarketplaceScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.wait([
+        _loadMarketplaceSections(),
+        _loadBrowsePrograms(reset: true),
+      ]);
+      if (mounted) await _loadMarketplaceBundles();
+    });
+  }
+
+  @override
+  void dispose() {
+    _marketplaceScrollController.removeListener(_onMarketplaceScroll);
+    _marketplaceScrollController.dispose();
+    super.dispose();
+  }
+
+  void _onMarketplaceScroll() {
+    if (!_browseProgramsHasMore || _browseProgramsLoadingMore || _browseProgramsLoading) return;
+    final c = _marketplaceScrollController;
+    if (!c.hasClients) return;
+    if (c.position.pixels >= c.position.maxScrollExtent - 480) {
+      _loadMoreBrowsePrograms();
+    }
+  }
+
+  Future<void> _loadBrowsePrograms({bool reset = false}) async {
+    if (reset) {
+      setState(() {
+        _browsePrograms.clear();
+        _browseNextPage = 1;
+        _browseProgramsHasMore = true;
+        _browseProgramsLoading = true;
+        _browseProgramsError = null;
+        _browseProgramsTotal = 0;
+      });
+    }
+    final page = reset ? 1 : _browseNextPage;
+    try {
+      final result = await _marketplaceRepo.fetchBrowsePrograms(page: page, perPage: _browseProgramsPerPage);
+      if (!mounted) return;
+      setState(() {
+        if (reset) {
+          _browsePrograms
+            ..clear()
+            ..addAll(result.programs);
+        } else {
+          _browsePrograms.addAll(result.programs);
+        }
+        _browseProgramsTotal = result.total;
+        _browseProgramsHasMore = result.hasMore;
+        _browseNextPage = result.page + 1;
+        _browseProgramsLoading = false;
+        _browseProgramsLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _browseProgramsLoading = false;
+        _browseProgramsLoadingMore = false;
+        _browseProgramsError = e.toString();
+      });
+    }
+  }
+
+  Future<void> _loadMoreBrowsePrograms() async {
+    if (!_browseProgramsHasMore || _browseProgramsLoadingMore || _browseProgramsLoading) return;
+    setState(() => _browseProgramsLoadingMore = true);
+    final page = _browseNextPage;
+    try {
+      final result = await _marketplaceRepo.fetchBrowsePrograms(page: page, perPage: _browseProgramsPerPage);
+      if (!mounted) return;
+      setState(() {
+        _browsePrograms.addAll(result.programs);
+        _browseProgramsTotal = result.total;
+        _browseProgramsHasMore = result.hasMore;
+        _browseNextPage = result.page + 1;
+        _browseProgramsLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _browseProgramsLoadingMore = false;
+        _browseProgramsError = e.toString();
+      });
+    }
+  }
+
+  Future<void> _loadMarketplaceSections() async {
+    setState(() {
+      _marketplaceSectionsLoading = true;
+      _marketplaceSectionsError = null;
+    });
+    try {
+      final results = await Future.wait([
+        _marketplaceRepo.fetchSectionPrograms(section: MarketplaceSection.featured, page: 1, perPage: 20),
+        _marketplaceRepo.fetchSectionPrograms(section: MarketplaceSection.newReleases, page: 1, perPage: 20),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _featuredSectionPrograms = results[0];
+        _newReleasesSectionPrograms = results[1];
+        _marketplaceSectionsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _marketplaceSectionsLoading = false;
+        _marketplaceSectionsError = e.toString();
+      });
+    }
+  }
+
+  Future<void> _loadMarketplaceBundles() async {
+    setState(() {
+      _bundlesLoading = true;
+      _bundlesError = null;
+    });
+    try {
+      final catalog = List<Map<String, dynamic>>.from(_browsePrograms);
+      final page = await _marketplaceRepo.fetchBrowseBundles(page: 1, perPage: 20, programCatalog: catalog);
+      if (!mounted) return;
+      setState(() {
+        _apiBundles = page.bundles;
+        _bundlesLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _bundlesLoading = false;
+        _bundlesError = e.toString();
+      });
+    }
+  }
+
   // Motivational quotes for success modal
   final List<String> _motivationalQuotes = [
     "The only bad workout is the one that didn't happen.",
@@ -33,685 +184,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     "Push yourself because no one else is going to do it for you.",
   ];
 
-  // Mock bundle data
-  final List<Map<String, dynamic>> _bundles = [
-    {
-      'id': 'bundle_1',
-      'title': 'Gym Floor Mastery',
-      'description': 'Full body transformation program',
-      'discount': 25,
-      'totalValue': 64.99,
-      'bundlePrice': 9.99,
-      'imageUrl': 'assets/images/avatar.png',
-      'programs': [
-        {
-          'id': 'program_1',
-          'title': 'Complete Strength Program',
-          'trainer': 'Sarah Maxwell',
-          'trainerImage': 'AY',
-          'price': 49.99,
-          'duration': '12 weeks',
-          'category': 'Strength',
-          'goal': 'Muscle Building',
-          'certified': true,
-          'rating': 4.8,
-          'students': 1250,
-        },
-        {
-          'id': 'program_2',
-          'title': 'Cardio Blast Challenge',
-          'trainer': 'Mike Chen',
-          'trainerImage': 'MC',
-          'price': 29.99,
-          'duration': '8 weeks',
-          'category': 'Cardio',
-          'goal': 'Weight Loss',
-          'certified': true,
-          'rating': 4.9,
-          'students': 2100,
-        },
-        {
-          'id': 'program_3',
-          'title': 'Yoga for Athletes',
-          'trainer': 'Emma Davis',
-          'trainerImage': 'ED',
-          'price': 39.99,
-          'duration': '6 weeks',
-          'category': 'Flexibility',
-          'goal': 'Flexibility',
-          'certified': true,
-          'rating': 4.7,
-          'students': 850,
-        },
-      ],
-    },
-    {
-      'id': 'bundle_2',
-      'title': 'Gym Floor Mastery',
-      'description': 'Advanced training for serious athletes',
-      'discount': 30,
-      'totalValue': 19.99,
-      'bundlePrice': 9.99,
-      'imageUrl': 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=300&fit=crop',
-      'programs': [
-        {
-          'id': 'program_5',
-          'title': 'Marathon\nPrep',
-          'trainer': 'Ed Latimore, Ligency',
-          'trainerImage': 'EL',
-          'price': 59.99,
-          'duration': '16 weeks',
-          'category': 'Running',
-          'goal': 'Endurance',
-          'certified': true,
-          'rating': 4.9,
-          'students': 1520,
-        },
-        {
-          'id': 'program_4',
-          'title': 'Bodyweight Mastery',
-          'trainer': 'Alex Rodriguez',
-          'trainerImage': 'AR',
-          'price': 34.99,
-          'duration': '10 weeks',
-          'category': 'Bodyweight',
-          'goal': 'General Fitness',
-          'certified': false,
-          'rating': 4.5,
-          'students': 640,
-        },
-        {
-          'id': 'program_6',
-          'title': 'Core Strength Elite',
-          'trainer': 'David Kim',
-          'trainerImage': 'DK',
-          'price': 24.99,
-          'duration': '4 weeks',
-          'category': 'Core',
-          'goal': 'Strength',
-          'certified': false,
-          'rating': 4.6,
-          'students': 980,
-        },
-        {
-          'id': 'program_1',
-          'title': 'Complete Strength Program',
-          'trainer': 'Sarah Johnson',
-          'trainerImage': 'SJ',
-          'price': 49.99,
-          'duration': '12 weeks',
-          'category': 'Strength',
-          'goal': 'Muscle Building',
-          'certified': true,
-          'rating': 4.8,
-          'students': 1250,
-        },
-      ],
-    },
-    {
-      'id': 'bundle_3',
-      'title': 'Gym Floor Mastery',
-      'description': 'Full-stack web development from scratch',
-      'discount': 20,
-      'totalValue': 99.99,
-      'bundlePrice': 9.99,
-      'imageUrl': 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400&h=300&fit=crop',
-      'programs': [
-        {
-          'id': 'program_7',
-          'title': 'HTML & CSS Mastery',
-          'trainer': 'John Smith',
-          'trainerImage': 'JS',
-          'price': 29.99,
-          'duration': '8 weeks',
-          'category': 'Web Development',
-          'goal': 'Web Development',
-          'certified': true,
-          'rating': 4.7,
-          'students': 3200,
-        },
-      ],
-    },
-    {
-      'id': 'bundle_4',
-      'title': 'Data Science & Machine Learning Masterclass',
-      'description': 'Complete data science course',
-      'discount': 35,
-      'totalValue': 129.99,
-      'bundlePrice': 9.99,
-      'imageUrl': 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=400&h=300&fit=crop',
-      'programs': [
-        {
-          'id': 'program_8',
-          'title': 'Python for Data Science',
-          'trainer': 'Dr. Sarah Mitchell',
-          'trainerImage': 'SM',
-          'price': 49.99,
-          'duration': '14 weeks',
-          'category': 'Data Science',
-          'goal': 'Data Analysis',
-          'certified': true,
-          'rating': 4.9,
-          'students': 2800,
-        },
-      ],
-    },
-    {
-      'id': 'bundle_5',
-      'title': 'React - The Complete Guide 2024',
-      'description': 'Master React with Hooks, Redux, and more',
-      'discount': 28,
-      'totalValue': 84.99,
-      'bundlePrice': 9.99,
-      'imageUrl': 'https://images.unsplash.com/photo-1636731173387-f0d4d0e5b5d1?w=400&h=300&fit=crop',
-      'programs': [
-        {
-          'id': 'program_9',
-          'title': 'React Fundamentals',
-          'trainer': 'Michael Johnson',
-          'trainerImage': 'MJ',
-          'price': 39.99,
-          'duration': '10 weeks',
-          'category': 'Frontend',
-          'goal': 'Web Development',
-          'certified': true,
-          'rating': 4.8,
-          'students': 4100,
-        },
-      ],
-    },
-    {
-      'id': 'bundle_6',
-      'title': 'AWS Certified Solutions Architect Course',
-      'description': 'Complete AWS certification preparation',
-      'discount': 40,
-      'totalValue': 149.99,
-      'bundlePrice': 9.99,
-      'imageUrl': 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&h=300&fit=crop',
-      'programs': [
-        {
-          'id': 'program_10',
-          'title': 'AWS Fundamentals',
-          'trainer': 'David Chen',
-          'trainerImage': 'DC',
-          'price': 59.99,
-          'duration': '12 weeks',
-          'category': 'Cloud',
-          'goal': 'Cloud Computing',
-          'certified': true,
-          'rating': 4.9,
-          'students': 1850,
-        },
-      ],
-    },
-    {
-      'id': 'bundle_7',
-      'title': 'The Complete Digital Marketing Course',
-      'description': 'SEO, Social Media, Email Marketing & More',
-      'discount': 32,
-      'totalValue': 109.99,
-      'bundlePrice': 9.99,
-      'imageUrl': 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop',
-      'programs': [
-        {
-          'id': 'program_11',
-          'title': 'Digital Marketing Basics',
-          'trainer': 'Emma Wilson',
-          'trainerImage': 'EW',
-          'price': 44.99,
-          'duration': '9 weeks',
-          'category': 'Marketing',
-          'goal': 'Marketing',
-          'certified': true,
-          'rating': 4.6,
-          'students': 2600,
-        },
-      ],
-    },
-    {
-      'id': 'bundle_8',
-      'title': 'iOS & Swift Development Course',
-      'description': 'Build iOS apps from scratch',
-      'discount': 38,
-      'totalValue': 119.99,
-      'bundlePrice': 9.99,
-      'imageUrl': 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=400&h=300&fit=crop',
-      'programs': [
-        {
-          'id': 'program_12',
-          'title': 'Swift Programming',
-          'trainer': 'James Taylor',
-          'trainerImage': 'JT',
-          'price': 54.99,
-          'duration': '13 weeks',
-          'category': 'Mobile Development',
-          'goal': 'iOS Development',
-          'certified': true,
-          'rating': 4.8,
-          'students': 1950,
-        },
-      ],
-    },
-    {
-      'id': 'bundle_9',
-      'title': 'Blockchain & Cryptocurrency Complete Course',
-      'description': 'Master blockchain technology and crypto',
-      'discount': 45,
-      'totalValue': 159.99,
-      'bundlePrice': 9.99,
-      'imageUrl': 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=400&h=300&fit=crop',
-      'programs': [
-        {
-          'id': 'program_13',
-          'title': 'Blockchain Fundamentals',
-          'trainer': 'Robert Anderson',
-          'trainerImage': 'RA',
-          'price': 69.99,
-          'duration': '15 weeks',
-          'category': 'Blockchain',
-          'goal': 'Blockchain Development',
-          'certified': true,
-          'rating': 4.7,
-          'students': 1420,
-        },
-      ],
-    },
-    {
-      'id': 'bundle_10',
-      'title': 'UI/UX Design Masterclass',
-      'description': 'Complete guide to modern UI/UX design',
-      'discount': 30,
-      'totalValue': 94.99,
-      'bundlePrice': 9.99,
-      'imageUrl': 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=400&h=300&fit=crop',
-      'programs': [
-        {
-          'id': 'program_14',
-          'title': 'UI/UX Fundamentals',
-          'trainer': 'Sophie Martin',
-          'trainerImage': 'SM',
-          'price': 42.99,
-          'duration': '11 weeks',
-          'category': 'Design',
-          'goal': 'UI/UX Design',
-          'certified': true,
-          'rating': 4.8,
-          'students': 3300,
-        },
-      ],
-    },
-  ];
-
-  // Mock program data
-  final List<Map<String, dynamic>> _programs = [
-    {
-      'id': 'program_1',
-      'title': 'Complete Strength Program',
-      'trainer': 'Sarah Johnson',
-      'trainerImage': 'SJ',
-      'price': 49.99,
-      'duration': '12 weeks',
-      'category': 'Strength',
-      'goal': 'Muscle Building',
-      'difficulty': 'Intermediate',
-      'certified': true,
-      'rating': 4.8,
-      'students': 1250,
-      'description': 'Build muscle and strength with this comprehensive program',
-      'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_2',
-      'title': 'Cardio Blast Challenge',
-      'trainer': 'Mike Chen',
-      'trainerImage': 'MC',
-      'price': 29.99,
-      'duration': '8 weeks',
-      'category': 'Cardio',
-      'goal': 'Weight Loss',
-      'certified': true,
-      'rating': 4.9,
-      'students': 2100,
-      'description': 'High-intensity cardio program for maximum fat loss',
-      'imageUrl': 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_3',
-      'title': 'Yoga for Athletes',
-      'trainer': 'Emma Davis',
-      'trainerImage': 'ED',
-      'price': 39.99,
-      'duration': '6 weeks',
-      'category': 'Flexibility',
-      'goal': 'Flexibility',
-      'certified': true,
-      'rating': 4.7,
-      'students': 850,
-      'description': 'Improve flexibility and recovery through targeted yoga',
-      'imageUrl': 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_4',
-      'title': 'Bodyweight Mastery',
-      'trainer': 'Alex Rodriguez',
-      'trainerImage': 'AR',
-      'price': 34.99,
-      'duration': '10 weeks',
-      'category': 'Bodyweight',
-      'goal': 'General Fitness',
-      'certified': false,
-      'rating': 4.5,
-      'students': 640,
-      'description': 'Master bodyweight exercises anywhere, no equipment needed',
-      'imageUrl': 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_5',
-      'title': 'Marathon\nPrep',
-      'trainer': 'Lisa Thompson',
-      'trainerImage': 'LT',
-      'price': 59.99,
-      'duration': '16 weeks',
-      'category': 'Running',
-      'goal': 'Endurance',
-      'certified': true,
-      'rating': 4.9,
-      'students': 1520,
-      'description': 'Complete training plan to conquer your first marathon',
-      'imageUrl': 'https://images.unsplash.com/photo-1576678927484-cc907957088c?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_6',
-      'title': 'Core Strength Elite',
-      'trainer': 'David Kim',
-      'trainerImage': 'DK',
-      'price': 24.99,
-      'duration': '4 weeks',
-      'category': 'Core',
-      'goal': 'Strength',
-      'certified': false,
-      'rating': 4.6,
-      'students': 980,
-      'description': 'Intensive core training for a solid foundation',
-      'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
-    },
-    // Additional Strength Programs
-    {
-      'id': 'program_7',
-      'title': 'Powerlifting Fundamentals',
-      'trainer': 'John Martinez',
-      'trainerImage': 'JM',
-      'price': 54.99,
-      'duration': '14 weeks',
-      'category': 'Strength',
-      'goal': 'Muscle Building',
-      'certified': true,
-      'rating': 4.9,
-      'students': 1890,
-      'description': 'Master the big three lifts: squat, bench, and deadlift',
-      'imageUrl': 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_8',
-      'title': 'Hypertrophy Builder',
-      'trainer': 'Chris Wilson',
-      'trainerImage': 'CW',
-      'price': 44.99,
-      'duration': '10 weeks',
-      'category': 'Strength',
-      'goal': 'Muscle Building',
-      'certified': true,
-      'rating': 4.7,
-      'students': 1420,
-      'description': 'Science-based muscle building program',
-      'imageUrl': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_9',
-      'title': 'Beginner Strength Training',
-      'trainer': 'Maria Garcia',
-      'trainerImage': 'MG',
-      'price': 39.99,
-      'duration': '8 weeks',
-      'category': 'Strength',
-      'goal': 'Muscle Building',
-      'certified': true,
-      'rating': 4.8,
-      'students': 2100,
-      'description': 'Perfect for beginners starting their strength journey',
-      'imageUrl': 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=400&h=300&fit=crop',
-    },
-    // Additional Cardio Programs
-    {
-      'id': 'program_10',
-      'title': 'HIIT Burn Challenge',
-      'trainer': 'Jessica Lee',
-      'trainerImage': 'JL',
-      'price': 32.99,
-      'duration': '6 weeks',
-      'category': 'Cardio',
-      'goal': 'Weight Loss',
-      'certified': true,
-      'rating': 4.8,
-      'students': 1750,
-      'description': 'High-intensity interval training for maximum calorie burn',
-      'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_11',
-      'title': 'Dance Cardio Workout',
-      'trainer': 'Amanda Brown',
-      'trainerImage': 'AB',
-      'price': 27.99,
-      'duration': '5 weeks',
-      'category': 'Cardio',
-      'goal': 'Weight Loss',
-      'certified': false,
-      'rating': 4.6,
-      'students': 980,
-      'description': 'Fun and energetic dance-based cardio sessions',
-      'imageUrl': 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_12',
-      'title': 'Cycling Endurance',
-      'trainer': 'Tom Anderson',
-      'trainerImage': 'TA',
-      'price': 36.99,
-      'duration': '9 weeks',
-      'category': 'Cardio',
-      'goal': 'Endurance',
-      'certified': true,
-      'rating': 4.7,
-      'students': 1200,
-      'description': 'Build cardiovascular endurance through cycling',
-      'imageUrl': 'https://images.unsplash.com/photo-1576678927484-cc907957088c?w=400&h=300&fit=crop',
-    },
-    // Additional Flexibility Programs
-    {
-      'id': 'program_13',
-      'title': 'Stretching for Beginners',
-      'trainer': 'Sophie Taylor',
-      'trainerImage': 'ST',
-      'price': 29.99,
-      'duration': '4 weeks',
-      'category': 'Flexibility',
-      'goal': 'Flexibility',
-      'certified': true,
-      'rating': 4.5,
-      'students': 850,
-      'description': 'Gentle stretching routines for improved flexibility',
-      'imageUrl': 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_14',
-      'title': 'Advanced Yoga Flow',
-      'trainer': 'Rachel Green',
-      'trainerImage': 'RG',
-      'price': 42.99,
-      'duration': '8 weeks',
-      'category': 'Flexibility',
-      'goal': 'Flexibility',
-      'certified': true,
-      'rating': 4.9,
-      'students': 1650,
-      'description': 'Advanced yoga sequences for experienced practitioners',
-      'imageUrl': 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_15',
-      'title': 'Pilates Core & Flexibility',
-      'trainer': 'Nicole White',
-      'trainerImage': 'NW',
-      'price': 37.99,
-      'duration': '7 weeks',
-      'category': 'Flexibility',
-      'goal': 'Flexibility',
-      'certified': true,
-      'rating': 4.7,
-      'students': 1100,
-      'description': 'Pilates-based program for core strength and flexibility',
-      'imageUrl': 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&h=300&fit=crop',
-    },
-    // Additional Bodyweight Programs
-    {
-      'id': 'program_16',
-      'title': 'Calisthenics Mastery',
-      'trainer': 'Ryan Park',
-      'trainerImage': 'RP',
-      'price': 41.99,
-      'duration': '12 weeks',
-      'category': 'Bodyweight',
-      'goal': 'General Fitness',
-      'certified': true,
-      'rating': 4.8,
-      'students': 1950,
-      'description': 'Master advanced bodyweight movements and skills',
-      'imageUrl': 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_17',
-      'title': 'Home Workout Essentials',
-      'trainer': 'Kevin Smith',
-      'trainerImage': 'KS',
-      'price': 31.99,
-      'duration': '6 weeks',
-      'category': 'Bodyweight',
-      'goal': 'General Fitness',
-      'certified': false,
-      'rating': 4.5,
-      'students': 720,
-      'description': 'Effective workouts you can do at home with no equipment',
-      'imageUrl': 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_18',
-      'title': 'Push-Up Progression',
-      'trainer': 'Mark Thompson',
-      'trainerImage': 'MT',
-      'price': 26.99,
-      'duration': '5 weeks',
-      'category': 'Bodyweight',
-      'goal': 'Strength',
-      'certified': true,
-      'rating': 4.6,
-      'students': 1050,
-      'description': 'Progressive push-up program from beginner to advanced',
-      'imageUrl': 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=400&h=300&fit=crop',
-    },
-    // Additional Running Programs
-    {
-      'id': 'program_19',
-      'title': '5K Training Plan',
-      'trainer': 'Jennifer Adams',
-      'trainerImage': 'JA',
-      'price': 34.99,
-      'duration': '8 weeks',
-      'category': 'Running',
-      'goal': 'Endurance',
-      'certified': true,
-      'rating': 4.7,
-      'students': 1380,
-      'description': 'Complete training plan to run your first 5K',
-      'imageUrl': 'https://images.unsplash.com/photo-1576678927484-cc907957088c?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_20',
-      'title': 'Sprint Training',
-      'trainer': 'Michael Johnson',
-      'trainerImage': 'MJ',
-      'price': 38.99,
-      'duration': '6 weeks',
-      'category': 'Running',
-      'goal': 'Endurance',
-      'certified': true,
-      'rating': 4.8,
-      'students': 920,
-      'description': 'Improve your speed and sprint performance',
-      'imageUrl': 'https://images.unsplash.com/photo-1576678927484-cc907957088c?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_21',
-      'title': 'Trail Running Adventure',
-      'trainer': 'Patricia Moore',
-      'trainerImage': 'PM',
-      'price': 43.99,
-      'duration': '10 weeks',
-      'category': 'Running',
-      'goal': 'Endurance',
-      'certified': true,
-      'rating': 4.9,
-      'students': 1120,
-      'description': 'Master trail running techniques and build endurance',
-      'imageUrl': 'https://images.unsplash.com/photo-1576678927484-cc907957088c?w=400&h=300&fit=crop',
-    },
-    // Additional Core Programs
-    {
-      'id': 'program_22',
-      'title': 'Abs & Core Blast',
-      'trainer': 'Daniel Lee',
-      'trainerImage': 'DL',
-      'price': 28.99,
-      'duration': '5 weeks',
-      'category': 'Core',
-      'goal': 'Strength',
-      'certified': true,
-      'rating': 4.7,
-      'students': 1450,
-      'description': 'Intensive ab and core workout program',
-      'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_23',
-      'title': 'Functional Core Training',
-      'trainer': 'Laura Davis',
-      'trainerImage': 'LD',
-      'price': 35.99,
-      'duration': '7 weeks',
-      'category': 'Core',
-      'goal': 'General Fitness',
-      'certified': true,
-      'rating': 4.8,
-      'students': 1280,
-      'description': 'Build a strong core for everyday activities',
-      'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
-    },
-    {
-      'id': 'program_24',
-      'title': 'Core Stability & Balance',
-      'trainer': 'Robert Chen',
-      'trainerImage': 'RC',
-      'price': 33.99,
-      'duration': '6 weeks',
-      'category': 'Core',
-      'goal': 'Strength',
-      'certified': false,
-      'rating': 4.6,
-      'students': 890,
-      'description': 'Improve balance and stability through core work',
-      'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
-    },
-  ];
+  List<Map<String, dynamic>> _browsePrograms = [];
+  int _browseNextPage = 1;
+  bool _browseProgramsHasMore = true;
+  bool _browseProgramsLoading = false;
+  bool _browseProgramsLoadingMore = false;
+  String? _browseProgramsError;
+  int _browseProgramsTotal = 0;
+  static const int _browseProgramsPerPage = 20;
 
   // Mock weekly free workouts
   final List<Map<String, dynamic>> _weeklyFreeWorkouts = [
@@ -749,37 +229,37 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   List<Map<String, dynamic>> get _filteredPrograms {
-    var filtered = _programs.where((program) {
+    double ratingOf(Map<String, dynamic> p) => ((p['rating'] as num?) ?? 0).toDouble();
+    double priceOf(Map<String, dynamic> p) => ((p['price'] as num?) ?? 0).toDouble();
+
+    var filtered = _browsePrograms.where((program) {
       if (_selectedCategory != 'All' && program['category'] != _selectedCategory) return false;
       if (_selectedDifficulty != 'All' && program['difficulty'] != _selectedDifficulty) return false;
       if (_selectedDuration != 'All') {
-        final duration = program['duration'] as String;
+        final duration = program['duration']?.toString() ?? '';
         if (_selectedDuration == '0-4 weeks' && !duration.contains(RegExp(r'[1-4]\s+week'))) return false;
         if (_selectedDuration == '5-8 weeks' && !duration.contains(RegExp(r'[5-8]\s+week'))) return false;
         if (_selectedDuration == '9-12 weeks' && !duration.contains(RegExp(r'(9|10|11|12)\s+week'))) return false;
         if (_selectedDuration == '13+ weeks' && !duration.contains(RegExp(r'(1[3-9]|[2-9]\d)\s+week'))) return false;
       }
-      if (_showCertifiedOnly && !program['certified']) return false;
+      if (_showCertifiedOnly && program['certified'] != true) return false;
       return true;
     }).toList();
 
-    // Apply sorting
     switch (_sortBy) {
       case 'Newest':
-        // In production, sort by creation date
         filtered = filtered.reversed.toList();
         break;
       case 'Highest Rated':
-        filtered.sort((a, b) => (b['rating'] as double).compareTo(a['rating'] as double));
+        filtered.sort((a, b) => ratingOf(b).compareTo(ratingOf(a)));
         break;
       case 'Price Low-High':
-        filtered.sort((a, b) => (a['price'] as double).compareTo(b['price'] as double));
+        filtered.sort((a, b) => priceOf(a).compareTo(priceOf(b)));
         break;
       case 'Price High-Low':
-        filtered.sort((a, b) => (b['price'] as double).compareTo(a['price'] as double));
+        filtered.sort((a, b) => priceOf(b).compareTo(priceOf(a)));
         break;
-      default: // Featured
-        // Keep original order
+      default:
         break;
     }
 
@@ -787,23 +267,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   List<Map<String, dynamic>> get _filteredBundles {
-    return _bundles.where((bundle) {
+    return _apiBundles.where((bundle) {
       if (_showCertifiedOnly) {
+        if (bundle['isCertified'] == true) return true;
         final programs = bundle['programs'] as List<Map<String, dynamic>>;
-        if (!programs.every((p) => p['certified'] == true)) return false;
+        if (programs.isEmpty) return false;
+        return programs.every((p) => p['certified'] == true);
       }
       return true;
     }).toList();
-  }
-
-  // Featured/Hot programs (high engagement)
-  List<Map<String, dynamic>> get _featuredPrograms {
-    return _programs.where((p) => (p['students'] as int) > 1500 || (p['rating'] as double) >= 4.8).take(6).toList();
-  }
-
-  // New releases
-  List<Map<String, dynamic>> get _newReleases {
-    return _programs.take(5).toList();
   }
 
   void _showFilterModal() {
@@ -1681,10 +1153,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget build(BuildContext context) {
     final filteredPrograms = _filteredPrograms;
     final filteredBundles = _filteredBundles;
-    final featuredPrograms = _featuredPrograms;
-    final newReleases = _newReleases;
+    final featuredPrograms = _featuredSectionPrograms;
+    final newReleases = _newReleasesSectionPrograms;
 
     final hasActiveFilters = _selectedCategory != 'All' || _selectedDifficulty != 'All' || _selectedDuration != 'All' || _sortBy != 'Featured' || _showCertifiedOnly;
+    final catalogCountLabel = hasActiveFilters
+        ? '${filteredPrograms.length}'
+        : (_browseProgramsTotal > 0 ? '$_browseProgramsTotal' : '${filteredPrograms.length}');
 
     return Container(
       decoration: const BoxDecoration(
@@ -1758,22 +1233,76 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           ],
         ),
         body: SingleChildScrollView(
+          controller: _marketplaceScrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // WEEKLY FREE WORKOUT BANNER
               _buildWeeklyFreeWorkoutBanner(),
 
-              // FEATURED SECTION - Netflix Style &
-              _buildFeaturedSection(featuredPrograms),
+              if (_marketplaceSectionsError != null && featuredPrograms.isEmpty && newReleases.isEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('Could not load marketplace sections.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
+                      const SizedBox(height: 8),
+                      Text(
+                        _marketplaceSectionsError!,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                      ),
+                      TextButton(
+                        onPressed: _loadMarketplaceSections,
+                        child: Text(
+                          'Retry',
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // FEATURED SECTION — `GET .../marketplace/sections?section=featured`
+              _buildFeaturedSection(featuredPrograms, loading: _marketplaceSectionsLoading && featuredPrograms.isEmpty),
 
               SizedBox(height: 24.h),
-              // BUNDLES Section
-              _buildBundlesSection(filteredBundles),
+              // BUNDLES — `GET /marketplace/bundles`
+              if (_bundlesLoading && _apiBundles.isEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32.h),
+                  child: const Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                )
+              else if (_bundlesError != null && _apiBundles.isEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 8.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('Could not load bundles.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
+                      SizedBox(height: 6.h),
+                      Text(
+                        _bundlesError!,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                      ),
+                      TextButton(
+                        onPressed: _loadMarketplaceBundles,
+                        child: Text('Retry', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                _buildBundlesSection(filteredBundles),
 
               SizedBox(height: 24.h),
-              // NEW RELEASES Section
-              _buildHorizontalSection('New Releases', Icons.fiber_new_rounded, newReleases),
+              // NEW RELEASES — `GET .../marketplace/sections?section=new_releases`
+              _buildHorizontalSection('New Releases', Icons.fiber_new_rounded, newReleases, loading: _marketplaceSectionsLoading && newReleases.isEmpty),
 
               SizedBox(height: 24.h),
 
@@ -1814,7 +1343,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
                       decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
                       child: Text(
-                        '${filteredPrograms.length}',
+                        catalogCountLabel,
                         style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -1823,32 +1352,84 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               ),
               SizedBox(height: 16.h),
 
-              // Programs Grid
-              filteredPrograms.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(40.w),
-                        child: Column(
-                          children: [
-                            Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
-                            SizedBox(height: 16.h),
-                            Text('No programs found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
-                            SizedBox(height: 8.h),
-                            TextButton(
-                              onPressed: () => setState(() {
-                                _selectedCategory = 'All';
-                                _selectedDifficulty = 'All';
-                                _selectedDuration = 'All';
-                                _sortBy = 'Featured';
-                                _showCertifiedOnly = false;
-                              }),
-                              child: const Text('Clear Filters'),
-                            ),
-                          ],
+              // Programs Grid — `GET /marketplace/programs`
+              if (_browseProgramsLoading && _browsePrograms.isEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 48.h),
+                  child: const Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                )
+              else if (_browseProgramsError != null && _browsePrograms.isEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 24.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('Could not load programs.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
+                      SizedBox(height: 8.h),
+                      Text(
+                        _browseProgramsError!,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                      ),
+                      TextButton(
+                        onPressed: () => _loadBrowsePrograms(reset: true),
+                        child: Text('Retry', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                )
+              else if (filteredPrograms.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40.w),
+                    child: Column(
+                      children: [
+                        Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+                        SizedBox(height: 16.h),
+                        Text(
+                          _browsePrograms.isEmpty ? 'No programs available' : 'No programs found',
+                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray),
+                        ),
+                        SizedBox(height: 8.h),
+                        if (_browsePrograms.isNotEmpty)
+                          TextButton(
+                            onPressed: () => setState(() {
+                              _selectedCategory = 'All';
+                              _selectedDifficulty = 'All';
+                              _selectedDuration = 'All';
+                              _sortBy = 'Featured';
+                              _showCertifiedOnly = false;
+                            }),
+                            child: const Text('Clear Filters'),
+                          )
+                        else
+                          TextButton(
+                            onPressed: () => _loadBrowsePrograms(reset: true),
+                            child: const Text('Retry'),
+                          ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildProgramsGrid(filteredPrograms),
+                    if (_browseProgramsLoadingMore)
+                      Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16.h),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
+                          ),
                         ),
                       ),
-                    )
-                  : _buildProgramsGrid(filteredPrograms),
+                  ],
+                ),
 
               SizedBox(height: 24.h),
             ],
@@ -1953,7 +1534,32 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   // Featured Section - Large Hero Cards (Netflix Style)
-  Widget _buildFeaturedSection(List<Map<String, dynamic>> programs) {
+  Widget _buildFeaturedSection(List<Map<String, dynamic>> programs, {bool loading = false}) {
+    if (loading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w),
+            child: Row(
+              children: [
+                Icon(Icons.local_fire_department, color: AppColors.error, size: 24.sp),
+                SizedBox(width: 8.w),
+                Text(
+                  'Featured & Trending',
+                  style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 12.h),
+          SizedBox(
+            height: 220.h,
+            child: const Center(child: CircularProgressIndicator(color: AppColors.accent)),
+          ),
+        ],
+      );
+    }
     if (programs.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -2102,7 +1708,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           // Trainer Name
                           Flexible(
                             child: Text(
-                              "Sarah\nMaxwell",
+                              (program['trainer'] ?? 'Trainer').toString().replaceAll(' ', '\n'),
                               style: TextStyle(color: const Color(0xFF333333), fontSize: 10.sp, height: 1.0, fontWeight: FontWeight.w600),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -2111,7 +1717,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 7.w),
                           Icon(Icons.star, color: AppColors.accent, size: 13.sp),
                           Text(
-                            program['rating'].toStringAsFixed(1),
+                            ((program['rating'] as num?) ?? 0).toDouble().toStringAsFixed(1),
                             style: TextStyle(color: Colors.black, fontSize: 13.sp, fontWeight: FontWeight.w600),
                           ),
                           SizedBox(width: 5.w),
@@ -2119,7 +1725,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 3.w),
                           Flexible(
                             child: Text(
-                              '${_formatNumber(program['students'] as int)}',
+                              '${_formatNumber((program['students'] as num?)?.toInt() ?? 0)}',
                               style: TextStyle(color: Colors.black, fontSize: 13.sp),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -2155,7 +1761,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           ),
                           SizedBox(width: 4.w),
                           Text(
-                            '\$${program['price'].toStringAsFixed(2)}',
+                            '\$${((program['price'] as num?) ?? 0).toDouble().toStringAsFixed(2)}',
                             style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 18.sp),
                           ),
                         ],
@@ -2171,7 +1777,32 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
-  Widget _buildHorizontalSection(String title, IconData icon, List<Map<String, dynamic>> programs) {
+  Widget _buildHorizontalSection(String title, IconData icon, List<Map<String, dynamic>> programs, {bool loading = false}) {
+    if (loading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w),
+            child: Row(
+              children: [
+                Icon(icon, color: AppColors.accent, size: 24),
+                SizedBox(width: 8.w),
+                Text(
+                  title,
+                  style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 12.h),
+          SizedBox(
+            height: 230.h,
+            child: const Center(child: CircularProgressIndicator(color: AppColors.accent)),
+          ),
+        ],
+      );
+    }
     if (programs.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -2374,7 +2005,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           // Trainer Name
                           Flexible(
                             child: Text(
-                              "Sarah\nMaxwell",
+                              (program['trainer'] ?? 'Trainer').toString().replaceAll(' ', '\n'),
                               style: TextStyle(color: const Color(0xFF333333), fontSize: 10.sp, height: 1.0, fontWeight: FontWeight.w600),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -2383,7 +2014,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 7.w),
                           Icon(Icons.star, color: AppColors.accent, size: 13.sp),
                           Text(
-                            program['rating'].toStringAsFixed(1),
+                            ((program['rating'] as num?) ?? 0).toDouble().toStringAsFixed(1),
                             style: TextStyle(color: Colors.black, fontSize: 13.sp, fontWeight: FontWeight.w600),
                           ),
                           SizedBox(width: 5.w),
@@ -2391,7 +2022,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 3.w),
                           Flexible(
                             child: Text(
-                              '${_formatNumber(program['students'] as int)}',
+                              '${_formatNumber((program['students'] as num?)?.toInt() ?? 0)}',
                               style: TextStyle(color: Colors.black, fontSize: 13.sp),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -2427,7 +2058,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           ),
                           SizedBox(width: 4.w),
                           Text(
-                            '\$${program['price'].toStringAsFixed(2)}',
+                            '\$${((program['price'] as num?) ?? 0).toDouble().toStringAsFixed(2)}',
                             style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 18.sp),
                           ),
                         ],
@@ -2445,21 +2076,24 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Widget _buildBundleCard(Map<String, dynamic> bundle) {
     final programs = bundle['programs'] as List<Map<String, dynamic>>;
-    final totalValue = bundle['totalValue'] as double;
-    final bundlePrice = bundle['bundlePrice'] as double;
+    final totalValue = ((bundle['totalValue'] as num?) ?? 0).toDouble();
+    final bundlePrice = ((bundle['bundlePrice'] as num?) ?? 0).toDouble();
 
     // Calculate average rating from programs
-    final avgRating = programs.isNotEmpty ? programs.map((p) => p['rating'] as double).reduce((a, b) => a + b) / programs.length : 4.9;
-    final totalRatings = programs.isNotEmpty ? programs.map((p) => p['students'] as int).reduce((a, b) => a + b) : 1300;
+    final avgRating = programs.isNotEmpty
+        ? programs.map((p) => ((p['rating'] as num?) ?? 0).toDouble()).reduce((a, b) => a + b) / programs.length
+        : 0.0;
+    final totalRatings = programs.isNotEmpty
+        ? programs.map((p) => ((p['students'] as num?) ?? 0).toInt()).reduce((a, b) => a + b)
+        : 0;
 
     // Get primary trainer (first program's trainer)
-    final primaryTrainer = programs.isNotEmpty ? programs[0]['trainer'] : 'Sarah \n Maxwell';
-    final trainerImage = programs.isNotEmpty ? programs[0]['trainerImage'] : null;
-    final isHot = bundle['isHot'] ?? true;
-    final isCertified = programs.isNotEmpty && programs.every((p) => p['certified'] == true);
+    final primaryTrainer = programs.isNotEmpty ? programs[0]['trainer'] : 'Trainer';
+    final isHot = bundle['isHot'] == true;
+    final isCertified = bundle['isCertified'] == true || (programs.isNotEmpty && programs.every((p) => p['certified'] == true));
 
     // Get bundle index to cycle through different images
-    final bundleIndex = _bundles.indexOf(bundle);
+    final bundleIndex = _apiBundles.indexOf(bundle);
     final backgroundImages = ['assets/images/bundlebg1.png', 'assets/images/bannerbg2.png', 'assets/images/bannerbg3.png'];
     final personImages = ['assets/images/bundleimage.png', 'assets/images/bannerimage2.png', 'assets/images/bannerimage3.png'];
     final bgImage = backgroundImages[bundleIndex % backgroundImages.length];
@@ -2513,7 +2147,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             SizedBox(width: 6.w),
                             // Trainer Name
                             Text(
-                              "Sarah\nMaxwell",
+                              primaryTrainer.toString().replaceAll(' ', '\n'),
                               style: TextStyle(color: const Color(0xFF333333), fontSize: 12.sp, height: 1.0, fontWeight: FontWeight.w600),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -2645,7 +2279,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget _buildSeeMoreCard() {
     return GestureDetector(
       onTap: () {
-        Get.toNamed(AppRoutes.allBundles, arguments: _bundles);
+        Get.toNamed(AppRoutes.allBundles, arguments: _apiBundles);
       },
       child: Container(
         width: MediaQuery.of(context).size.width * 0.4,
@@ -2665,7 +2299,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               style: AppTextStyles.titleSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 8.h),
-            Text('${_bundles.length - 3}+ more bundles', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+            Text('${(_apiBundles.length - 3).clamp(0, 999)}+ more bundles', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
           ],
         ),
       ),
@@ -2795,7 +2429,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         // Trainer Name
                         Flexible(
                           child: Text(
-                            "Sarah\nMaxwell",
+                            (program['trainer'] ?? 'Trainer').toString().replaceAll(' ', '\n'),
                             style: TextStyle(color: const Color(0xFF333333), fontSize: 10.sp, height: 1.0, fontWeight: FontWeight.w600),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -2804,7 +2438,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         SizedBox(width: 7.w),
                         Icon(Icons.star, color: AppColors.accent, size: 13.sp),
                         Text(
-                          program['rating'].toStringAsFixed(1),
+                          ((program['rating'] as num?) ?? 0).toDouble().toStringAsFixed(1),
                           style: TextStyle(color: Colors.black, fontSize: 13.sp, fontWeight: FontWeight.w600),
                         ),
                         SizedBox(width: 5.w),
@@ -2812,7 +2446,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         SizedBox(width: 3.w),
                         Flexible(
                           child: Text(
-                            '${_formatNumber(program['students'] as int)}',
+                            '${_formatNumber((program['students'] as num?)?.toInt() ?? 0)}',
                             style: TextStyle(color: Colors.black, fontSize: 13.sp),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -2850,7 +2484,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         ),
                         SizedBox(width: 4.w),
                         Text(
-                          '\$${program['price'].toStringAsFixed(2)}',
+                          '\$${((program['price'] as num?) ?? 0).toDouble().toStringAsFixed(2)}',
                           style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 18.sp),
                         ),
                       ],
