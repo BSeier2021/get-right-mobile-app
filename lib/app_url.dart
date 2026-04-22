@@ -1,7 +1,9 @@
 class AppUrl {
+  static const String baseUrl = 'http://getright.prodservers.com:9965/api/v1';
+  static const String imnageUrl = 'http://getright.prodservers.com:9965/api/v1';
   // development url
-  static const String baseUrl = 'https://rampantly-proemial-antonietta.ngrok-free.dev/api/v1';
-  static const String imnageUrl = 'https://rampantly-proemial-antonietta.ngrok-free.dev/api/v1';
+  // static const String baseUrl = 'https://rampantly-proemial-antonietta.ngrok-free.dev/api/v1';
+  // static const String imnageUrl = 'https://rampantly-proemial-antonietta.ngrok-free.dev/api/v1';
   // static const String socketUrl = 'http://getright.prodservers.com:9965/';
 
   static String signUp = '$baseUrl/user/auth/signup';
@@ -73,4 +75,10 @@ class AppUrl {
     final q = Uri(queryParameters: {'page': '$page', 'per_page': '$perPage', 'mealId': mealId}).query;
     return '$baseUrl/nutrition/foods/custom?$q';
   }
+
+  /// `POST /nutrition/foods/custom` — JSON body (create custom food).
+  static String get nutritionFoodsCustomCreate => '$baseUrl/nutrition/foods/custom';
+
+  /// `PATCH` / `DELETE` single custom food by document id.
+  static String nutritionFoodsCustomById(String id) => '$baseUrl/nutrition/foods/custom/${Uri.encodeComponent(id)}';
 }

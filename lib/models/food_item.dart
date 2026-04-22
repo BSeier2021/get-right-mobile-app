@@ -12,8 +12,12 @@ class FoodItem {
   final bool isSaved;
   final DateTime? createdAt;
 
-  /// From `GET /nutrition/foods/custom` — hide local edit/delete until server APIs exist.
+  /// From `GET /nutrition/foods/custom`.
   final bool isNutritionApiCustom;
+
+  /// Raw `servingSize` / `servingUnit` from nutrition API (for PATCH body). Display may use [servingLabel] only.
+  final double? nutritionApiServingSize;
+  final String? nutritionApiServingUnit;
 
   FoodItem({
     required this.id,
@@ -28,6 +32,8 @@ class FoodItem {
     this.isSaved = false,
     DateTime? createdAt,
     this.isNutritionApiCustom = false,
+    this.nutritionApiServingSize,
+    this.nutritionApiServingUnit,
   }) : createdAt = createdAt ?? DateTime.now();
 
   // Calculate nutrition based on quantity
@@ -50,6 +56,8 @@ class FoodItem {
       isSaved: json['isSaved'] ?? false,
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       isNutritionApiCustom: json['isNutritionApiCustom'] == true,
+      nutritionApiServingSize: json['nutritionApiServingSize'] != null ? (json['nutritionApiServingSize'] as num).toDouble() : null,
+      nutritionApiServingUnit: json['nutritionApiServingUnit']?.toString(),
     );
   }
 
@@ -77,6 +85,8 @@ class FoodItem {
       isSaved: true,
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
       isNutritionApiCustom: true,
+      nutritionApiServingSize: servingSize,
+      nutritionApiServingUnit: unit,
     );
   }
 
@@ -95,6 +105,8 @@ class FoodItem {
       'isSaved': isSaved,
       'createdAt': createdAt?.toIso8601String(),
       'isNutritionApiCustom': isNutritionApiCustom,
+      'nutritionApiServingSize': nutritionApiServingSize,
+      'nutritionApiServingUnit': nutritionApiServingUnit,
     };
   }
 
@@ -112,6 +124,8 @@ class FoodItem {
     bool? isSaved,
     DateTime? createdAt,
     bool? isNutritionApiCustom,
+    double? nutritionApiServingSize,
+    String? nutritionApiServingUnit,
   }) {
     return FoodItem(
       id: id ?? this.id,
@@ -126,6 +140,8 @@ class FoodItem {
       isSaved: isSaved ?? this.isSaved,
       createdAt: createdAt ?? this.createdAt,
       isNutritionApiCustom: isNutritionApiCustom ?? this.isNutritionApiCustom,
+      nutritionApiServingSize: nutritionApiServingSize ?? this.nutritionApiServingSize,
+      nutritionApiServingUnit: nutritionApiServingUnit ?? this.nutritionApiServingUnit,
     );
   }
 }

@@ -20,7 +20,6 @@ class BundleDetailScreen extends StatelessWidget {
     final double totalValue = (bundle['totalValue'] as num?)?.toDouble() ?? 64.99;
     final double bundlePrice = (bundle['bundlePrice'] as num?)?.toDouble() ?? 49.99;
     final int discount = (bundle['discount'] as num?)?.toInt() ?? 25;
-    final String imageUrl = (bundle['imageUrl'] ?? 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=1200&h=800&fit=crop').toString();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,

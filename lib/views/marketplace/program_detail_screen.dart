@@ -6,6 +6,7 @@ import 'package:get_right/controllers/favorites_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// Program Detail Screen
 class ProgramDetailScreen extends StatefulWidget {
@@ -64,6 +65,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       'review': program['review'],
       ...program, // Keep any additional fields
     };
+    _safeProgram['imageUrl'] = ImageUrlSanitizer.asHttpUrlOrNull(_safeProgram['imageUrl']?.toString());
 
     // Initialize rating state if program has existing rating
     if (_safeProgram['hasRating'] == true && _rating == 0.0) {

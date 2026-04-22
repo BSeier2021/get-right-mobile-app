@@ -7,6 +7,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/views/profile/profile_screen.dart';
 
 /// Community Feed - Social Media Platform for fitness content
@@ -1177,13 +1178,18 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       default:
         // Fallback to provided URL if category is unknown
         final raw = (post['thumbnail'] ?? '').toString();
-        if (raw.isNotEmpty) return raw;
-        return 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80';
+        return ImageUrlSanitizer.asHttpUrlOrFallback(
+          raw,
+          fallback: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
+        );
     }
   }
 
   Widget _buildEnhancedThumbnail(dynamic rawUrl, {bool isFullScreen = false}) {
-    final imageUrl = (rawUrl ?? '').toString().trim();
+    final imageUrl = ImageUrlSanitizer.asHttpUrlOrFallback(
+      (rawUrl ?? '').toString(),
+      fallback: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
+    );
 
     return Stack(
       fit: StackFit.expand,

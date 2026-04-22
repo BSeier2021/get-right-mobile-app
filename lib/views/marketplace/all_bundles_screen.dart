@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// All Bundles screen - displays all available program bundles
 class AllBundlesScreen extends StatelessWidget {
@@ -86,7 +87,10 @@ class AllBundlesScreen extends StatelessWidget {
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
                   child: Image.network(
-                    bundle['imageUrl'] ?? thumbnailUrls[bundleIndex % thumbnailUrls.length],
+                    ImageUrlSanitizer.asHttpUrlOrFallback(
+                      bundle['imageUrl']?.toString(),
+                      fallback: thumbnailUrls[bundleIndex % thumbnailUrls.length],
+                    ),
                     width: double.infinity,
                     height: 120,
                     fit: BoxFit.cover,

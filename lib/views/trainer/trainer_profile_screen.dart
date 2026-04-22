@@ -5,6 +5,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// Trainer Profile Screen with Tabs
 class TrainerProfileScreen extends StatefulWidget {
@@ -214,7 +215,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Image.network(
-                  post['thumbnail'],
+                  ImageUrlSanitizer.asHttpUrlOrFallback(post['thumbnail']?.toString()),
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(
                     decoration: BoxDecoration(
@@ -309,7 +310,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: Image.network(
-                bundle['imageUrl'],
+                ImageUrlSanitizer.asHttpUrlOrFallback(bundle['imageUrl']?.toString()),
                 width: double.infinity,
                 height: 120,
                 fit: BoxFit.cover,
@@ -361,7 +362,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
-                program['imageUrl'],
+                ImageUrlSanitizer.asHttpUrlOrFallback(program['imageUrl']?.toString()),
                 width: 100,
                 height: 100,
                 fit: BoxFit.cover,

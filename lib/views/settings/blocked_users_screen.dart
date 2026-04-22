@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:get_right/controllers/safety_center_controller.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 
 class BlockedUsersScreen extends StatelessWidget {
   const BlockedUsersScreen({super.key});
@@ -120,16 +121,14 @@ class BlockedUsersScreen extends StatelessWidget {
         child: Row(
           children: [
             // Avatar
-            CircleAvatar(
+            SafeCircleNetworkAvatar(
               radius: 22,
+              imageUrl: avatarUrl,
               backgroundColor: AppColors.accent.withOpacity(0.15),
-              backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-              child: avatarUrl == null
-                  ? Text(
-                      _initials(u.name),
-                      style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
-                    )
-                  : null,
+              fallback: Text(
+                _initials(u.name),
+                style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+              ),
             ),
             const SizedBox(width: 12),
             // Name + username

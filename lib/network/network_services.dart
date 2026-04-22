@@ -112,6 +112,10 @@ class NetworkApiService extends GetxService {
     Utils.logInfo("Processing response with status code: ${response.statusCode}", name: "NetworkApiService");
 
     if (response.body.isEmpty) {
+      if (response.statusCode == 204 || response.statusCode == 205) {
+        Utils.logSuccess("Empty body with ${response.statusCode} — treating as success", name: "NetworkApiService");
+        return <String, dynamic>{'success': true};
+      }
       Utils.logError("Empty response body received", name: "NetworkApiService");
       throw Exception("Empty response received");
     }

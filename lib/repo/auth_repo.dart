@@ -203,4 +203,19 @@ class AuthRepository {
   Future<dynamic> getNutritionCustomFoodsRepo({required String mealId, int page = 1, int perPage = 20}) async {
     return _network.get(AppUrl.nutritionFoodsCustom(page: page, perPage: perPage, mealId: mealId));
   }
+
+  /// `POST /nutrition/foods/custom` — Bearer; body: name, mealType, servingSize, servingUnit, calories, proteinG, carbsG, fatG.
+  Future<dynamic> createNutritionCustomFoodRepo(Map<String, dynamic> body) async {
+    return _network.post(AppUrl.nutritionFoodsCustomCreate, body);
+  }
+
+  /// `PATCH /nutrition/foods/custom/:id` — same body shape as create.
+  Future<dynamic> updateNutritionCustomFoodRepo(String id, Map<String, dynamic> body) async {
+    return _network.patch(AppUrl.nutritionFoodsCustomById(id), body);
+  }
+
+  /// `DELETE /nutrition/foods/custom/:id`
+  Future<dynamic> deleteNutritionCustomFoodRepo(String id) async {
+    return _network.delete(AppUrl.nutritionFoodsCustomById(id));
+  }
 }

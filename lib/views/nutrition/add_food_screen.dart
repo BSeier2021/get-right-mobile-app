@@ -34,6 +34,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
   bool _apiHasMore = true;
   bool _apiInitialFetchDone = false;
 
+  bool _customSubmitting = false;
+
   // Custom food form controllers
   final nameController = TextEditingController();
   final caloriesController = TextEditingController();
@@ -77,6 +79,9 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
     }
     return null;
   }
+
+  /// `POST /nutrition/foods/custom` body field `mealType` — API expects slug only: `breakfast` | `lunch` | `dinner` | `snacks`.
+  String _mealTypeForApiBody() => widget.mealType.name;
 
   void _ensureApiCustomFoodsLoaded() {
     final mid = _resolvedMealId();
@@ -314,6 +319,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
   }
 
   Widget _buildSavedFoodCard(FoodItem item) {
+    final servingLine = item.isNutritionApiCustom && (item.servingUnit?.isNotEmpty ?? false) ? item.servingUnit! : '${item.defaultServingSize} ${item.servingUnit ?? 'serving'}';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -322,109 +329,117 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
         border: Border.all(color: AppColors.accent.withOpacity(0.14), width: 1.5),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 1))],
       ),
-      child: InkWell(
-        onTap: () => _showQuantityDialog(item),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${item.defaultServingSize} ${item.servingUnit}',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 1.5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _showQuantityDialog(item),
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.name,
+                        style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        servingLine,
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 1.5),
+                            ),
+                            child: Text(
+                              '${item.calories.toStringAsFixed(0)} kcal',
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                            ),
                           ),
-                          child: Text(
-                            '${item.calories.toStringAsFixed(0)} kcal',
-                            style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                          const SizedBox(width: 8),
+                          Text(
+                            'P${item.protein.toStringAsFixed(0)} C${item.carbs.toStringAsFixed(0)} F${item.fats.toStringAsFixed(0)}',
+                            style: AppTextStyles.labelSmall.copyWith(color: AppColors.mediumGray),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'P${item.protein.toStringAsFixed(0)} C${item.carbs.toStringAsFixed(0)} F${item.fats.toStringAsFixed(0)}',
-                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.mediumGray),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              if (!item.isNutritionApiCustom)
-                PopupMenuButton<String>(
-                  icon: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.transparent,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.accent.withOpacity(0.6), width: 1.5),
-                    ),
-                    child: const Icon(Icons.more_vert, color: AppColors.accent, size: 18),
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      _showEditFoodDialog(item);
-                    } else if (value == 'delete') {
-                      _showDeleteConfirmationDialog(item);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                            child: const Icon(Icons.edit, color: AppColors.accent, size: 16),
-                          ),
-                          const SizedBox(width: 12),
-                          Text('Edit', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                            child: const Icon(Icons.delete_outline, color: Colors.red, size: 16),
-                          ),
-                          const SizedBox(width: 12),
-                          Text('Delete', style: AppTextStyles.bodyMedium.copyWith(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+            ),
+          ),
+          Padding(padding: const EdgeInsets.only(right: 10), child: _savedFoodOverflowMenu(item)),
+        ],
+      ),
+    );
+  }
+
+  Widget _savedFoodOverflowMenu(FoodItem item) {
+    return PopupMenuButton<String>(
+      tooltip: 'More',
+      icon: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.accent.withOpacity(0.6), width: 1.5),
+        ),
+        child: const Icon(Icons.more_vert, color: AppColors.accent, size: 18),
+      ),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (value) {
+        if (value == 'edit') {
+          _showEditFoodDialog(item);
+        } else if (value == 'delete') {
+          _showDeleteConfirmationDialog(item);
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'edit',
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                child: const Icon(Icons.edit, color: AppColors.accent, size: 16),
+              ),
+              const SizedBox(width: 12),
+              Text('Edit', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
             ],
           ),
         ),
-      ),
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                child: const Icon(Icons.delete_outline, color: Colors.red, size: 16),
+              ),
+              const SizedBox(width: 12),
+              Text('Delete', style: AppTextStyles.bodyMedium.copyWith(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -513,9 +528,10 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => Get.back(),
-
-              icon: const Icon(Icons.add_circle_outline, size: 22),
+              onPressed: _customSubmitting ? null : () => _submitCreateCustomFood(addToTracker: true),
+              icon: _customSubmitting
+                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
+                  : const Icon(Icons.add_circle_outline, size: 22),
               label: Text(
                 'Add to Tracker',
                 style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold),
@@ -533,23 +549,29 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
           const SizedBox(height: 12),
 
           // Save for Later Button
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => Get.back(),
-              icon: const Icon(Icons.bookmark_outline, size: 20),
-              label: Text(
-                'Save for Later',
-                style: AppTextStyles.buttonLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.accent,
-                side: const BorderSide(color: AppColors.accent, width: 2),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-              ),
-            ),
-          ),
+          // SizedBox(
+          //   width: double.infinity,
+          //   child: OutlinedButton.icon(
+          //     onPressed: _customSubmitting ? null : () => _submitCreateCustomFood(addToTracker: false),
+          //     icon: _customSubmitting
+          //         ? SizedBox(
+          //             width: 20,
+          //             height: 20,
+          //             child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
+          //           )
+          //         : const Icon(Icons.bookmark_outline, size: 20),
+          //     label: Text(
+          //       'Save for Later',
+          //       style: AppTextStyles.buttonLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+          //     ),
+          //     style: OutlinedButton.styleFrom(
+          //       foregroundColor: AppColors.accent,
+          //       side: const BorderSide(color: AppColors.accent, width: 2),
+          //       padding: const EdgeInsets.symmetric(vertical: 16),
+          //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -741,48 +763,67 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
     );
   }
 
-  void _addCustomFood() {
-    if (_validateCustomFood()) {
-      final foodItem = _createFoodItem();
-      _addFoodToTracker(foodItem, double.tryParse(servingSizeController.text) ?? 1.0);
+  Future<void> _submitCreateCustomFood({required bool addToTracker}) async {
+    if (!_validateCustomFood()) return;
+    if (!Get.isRegistered<AuthController>()) {
+      Get.snackbar('Error', 'Sign in to create custom foods', snackPosition: SnackPosition.BOTTOM);
+      return;
     }
-  }
 
-  void _saveCustomFood() {
-    if (_validateCustomFood()) {
-      final foodItem = _createFoodItem();
-      controller.saveFoodItem(foodItem);
+    setState(() => _customSubmitting = true);
+    try {
+      final auth = Get.find<AuthController>();
+      final item = await auth.createNutritionCustomFood(
+        name: nameController.text.trim(),
+        mealType: _mealTypeForApiBody(),
+        servingSize: double.tryParse(servingSizeController.text) ?? 1.0,
+        servingUnit: servingUnitController.text.trim(),
+        calories: double.tryParse(caloriesController.text) ?? 0,
+        proteinG: double.tryParse(proteinController.text) ?? 0,
+        carbsG: double.tryParse(carbsController.text) ?? 0,
+        fatG: double.tryParse(fatsController.text) ?? 0,
+      );
+      if (!mounted) return;
+      if (item == null) return;
 
-      Get.snackbar('Success', '${foodItem.name} saved for later use', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.accent, colorText: Colors.white);
-
-      // Clear form
-      _clearForm();
+      if (addToTracker) {
+        _addFoodToTracker(item, 1.0);
+        // Close this screen only after API response and tracker update have finished.
+        Future.microtask(() => Get.back());
+      } else {
+        final mid = _resolvedMealId();
+        if (mid != null) {
+          setState(() => _apiSavedItems.insert(0, item));
+        } else {
+          controller.saveFoodItem(item.copyWith(isNutritionApiCustom: false));
+        }
+        Get.snackbar('Success', '${item.name} saved', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.accent, colorText: Colors.white);
+        _clearForm();
+      }
+    } finally {
+      if (mounted) setState(() => _customSubmitting = false);
     }
   }
 
   bool _validateCustomFood() {
-    if (nameController.text.isEmpty) {
+    if (nameController.text.trim().isEmpty) {
       Get.snackbar('Error', 'Please enter a food name', snackPosition: SnackPosition.BOTTOM);
       return false;
     }
-    if (caloriesController.text.isEmpty) {
+    if (caloriesController.text.trim().isEmpty) {
       Get.snackbar('Error', 'Please enter calories', snackPosition: SnackPosition.BOTTOM);
       return false;
     }
+    final serving = double.tryParse(servingSizeController.text) ?? 0;
+    if (serving <= 0) {
+      Get.snackbar('Error', 'Serving size must be greater than 0', snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+    if (servingUnitController.text.trim().isEmpty) {
+      Get.snackbar('Error', 'Please enter a serving unit', snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
     return true;
-  }
-
-  FoodItem _createFoodItem() {
-    return FoodItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: nameController.text,
-      calories: double.tryParse(caloriesController.text) ?? 0,
-      protein: double.tryParse(proteinController.text) ?? 0,
-      carbs: double.tryParse(carbsController.text) ?? 0,
-      fats: double.tryParse(fatsController.text) ?? 0,
-      defaultServingSize: double.tryParse(servingSizeController.text) ?? 1.0,
-      servingUnit: servingUnitController.text,
-    );
   }
 
   void _clearForm() {
@@ -802,8 +843,10 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
     final editProteinController = TextEditingController(text: item.protein.toStringAsFixed(0));
     final editCarbsController = TextEditingController(text: item.carbs.toStringAsFixed(0));
     final editFatsController = TextEditingController(text: item.fats.toStringAsFixed(0));
-    final editServingSizeController = TextEditingController(text: item.defaultServingSize.toStringAsFixed(1));
-    final editServingUnitController = TextEditingController(text: item.servingUnit ?? 'serving');
+    final servingSizeVal = item.nutritionApiServingSize ?? item.defaultServingSize;
+    final servingSizeText = (servingSizeVal % 1 == 0) ? servingSizeVal.toStringAsFixed(0) : servingSizeVal.toStringAsFixed(1);
+    final editServingSizeController = TextEditingController(text: servingSizeText);
+    final editServingUnitController = TextEditingController(text: item.nutritionApiServingUnit ?? item.servingUnit ?? 'serving');
 
     showModalBottomSheet(
       context: context,
@@ -915,7 +958,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         if (editNameController.text.isEmpty) {
                           Get.snackbar('Error', 'Please enter a food name', snackPosition: SnackPosition.BOTTOM);
                           return;
@@ -925,14 +968,52 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                           return;
                         }
 
+                        final servingSize = double.tryParse(editServingSizeController.text) ?? (item.nutritionApiServingSize ?? item.defaultServingSize);
+                        final servingUnit = editServingUnitController.text.trim().isEmpty
+                            ? (item.nutritionApiServingUnit ?? item.servingUnit ?? 'serving')
+                            : editServingUnitController.text.trim();
+
+                        if (item.isNutritionApiCustom) {
+                          if (!Get.isRegistered<AuthController>()) {
+                            Get.snackbar('Error', 'Sign in to edit foods', snackPosition: SnackPosition.BOTTOM);
+                            return;
+                          }
+                          final updated = await Get.find<AuthController>().updateNutritionCustomFood(
+                            id: item.id,
+                            name: editNameController.text.trim(),
+                            mealType: _mealTypeForApiBody(),
+                            servingSize: servingSize,
+                            servingUnit: servingUnit,
+                            calories: double.tryParse(editCaloriesController.text) ?? item.calories,
+                            proteinG: double.tryParse(editProteinController.text) ?? item.protein,
+                            carbsG: double.tryParse(editCarbsController.text) ?? item.carbs,
+                            fatG: double.tryParse(editFatsController.text) ?? item.fats,
+                          );
+                          if (!context.mounted) return;
+                          if (updated == null) return;
+                          setState(() {
+                            final i = _apiSavedItems.indexWhere((e) => e.id == item.id);
+                            if (i >= 0) _apiSavedItems[i] = updated;
+                          });
+                          Navigator.pop(context);
+                          Get.snackbar(
+                            'Success',
+                            '${updated.name} updated successfully',
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: AppColors.accent,
+                            colorText: Colors.white,
+                          );
+                          return;
+                        }
+
                         final updatedItem = item.copyWith(
                           name: editNameController.text.trim(),
                           calories: double.tryParse(editCaloriesController.text) ?? item.calories,
                           protein: double.tryParse(editProteinController.text) ?? item.protein,
                           carbs: double.tryParse(editCarbsController.text) ?? item.carbs,
                           fats: double.tryParse(editFatsController.text) ?? item.fats,
-                          defaultServingSize: double.tryParse(editServingSizeController.text) ?? item.defaultServingSize,
-                          servingUnit: editServingUnitController.text.trim().isEmpty ? item.servingUnit : editServingUnitController.text.trim(),
+                          defaultServingSize: servingSize,
+                          servingUnit: servingUnit,
                         );
 
                         controller.updateSavedFoodItem(updatedItem);
@@ -1003,10 +1084,26 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
         ],
       ),
     ).then((confirmed) {
-      if (confirmed == true) {
-        controller.removeSavedFoodItem(item.id);
+      if (confirmed != true) return;
+      _confirmDeleteSavedFood(item);
+    });
+  }
+
+  Future<void> _confirmDeleteSavedFood(FoodItem item) async {
+    if (item.isNutritionApiCustom) {
+      if (!Get.isRegistered<AuthController>()) {
+        Get.snackbar('Error', 'Sign in to delete foods', snackPosition: SnackPosition.BOTTOM);
+        return;
+      }
+      final ok = await Get.find<AuthController>().deleteNutritionCustomFood(item.id);
+      if (!mounted) return;
+      if (ok) {
+        setState(() => _apiSavedItems.removeWhere((e) => e.id == item.id));
         Get.snackbar('Deleted', '${item.name} removed from saved items', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.accent, colorText: Colors.white);
       }
-    });
+      return;
+    }
+    controller.removeSavedFoodItem(item.id);
+    Get.snackbar('Deleted', '${item.name} removed from saved items', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.accent, colorText: Colors.white);
   }
 }

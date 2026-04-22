@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get_right/models/program_model.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 
 /// Program card for marketplace
 class ProgramCard extends StatelessWidget {
@@ -22,21 +24,25 @@ class ProgramCard extends StatelessWidget {
             // Thumbnail
             AspectRatio(
               aspectRatio: 16 / 9,
-              child: program.thumbnail != null
-                  ? Image.network(
-                      program.thumbnail!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: AppColors.primaryGray, // Gray background
-                          child: const Icon(Icons.fitness_center, size: 48, color: AppColors.primaryGrayDark),
-                        );
-                      },
-                    )
-                  : Container(
-                      color: AppColors.primaryGray, // Gray background
-                      child: const Icon(Icons.fitness_center, size: 48, color: AppColors.primaryGrayDark),
-                    ),
+              child: () {
+                final thumb = ImageUrlSanitizer.asHttpUrlOrNull(program.thumbnail);
+                if (thumb != null) {
+                  return Image.network(
+                    thumb,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: AppColors.primaryGray, // Gray background
+                        child: const Icon(Icons.fitness_center, size: 48, color: AppColors.primaryGrayDark),
+                      );
+                    },
+                  );
+                }
+                return Container(
+                  color: AppColors.primaryGray, // Gray background
+                  child: const Icon(Icons.fitness_center, size: 48, color: AppColors.primaryGrayDark),
+                );
+              }(),
             ),
 
             Padding(
@@ -56,11 +62,11 @@ class ProgramCard extends StatelessWidget {
                   // Trainer info
                   Row(
                     children: [
-                      CircleAvatar(
+                      SafeCircleNetworkAvatar(
                         radius: 12,
-                        backgroundColor: AppColors.primaryGray, // Gray background
-                        backgroundImage: program.trainerImage != null ? NetworkImage(program.trainerImage!) : null,
-                        child: program.trainerImage == null ? const Icon(Icons.person, size: 16, color: AppColors.primaryGray) : null,
+                        imageUrl: program.trainerImage,
+                        backgroundColor: AppColors.primaryGray,
+                        fallback: const Icon(Icons.person, size: 16, color: AppColors.primaryGrayDark),
                       ),
                       const SizedBox(width: 8),
                       Expanded(

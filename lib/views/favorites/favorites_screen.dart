@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:get_right/controllers/favorites_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 
 /// Favorites screen — pale mint background, Programs / Exercises tabs.
 const Color _kFavoritesMintBg = Color(0xFFF7FBF2);
@@ -381,7 +383,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
     final title = item['title']?.toString() ?? item['name']?.toString() ?? 'Program';
     final trainer = item['trainer']?.toString() ?? 'Sarah Maxwell';
     final trainerImg = item['trainerImage'];
-    final imageUrl = item['imageUrl']?.toString() ?? item['image']?.toString() ?? 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400';
+    final imageUrl = ImageUrlSanitizer.asHttpUrlOrFallback(
+      item['imageUrl']?.toString() ?? item['image']?.toString(),
+      fallback: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400',
+    );
     final rating = item['rating'] is num ? (item['rating'] as num).toDouble() : double.tryParse('${item['rating'] ?? '4.9'}') ?? 4.9;
     final enrolled = _formatEnrolled(item['students']);
     final price = _formatPrice(item['price']);
@@ -558,12 +563,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
     final s = trainerImg?.toString() ?? '';
     final isUrl = s.startsWith('http://') || s.startsWith('https://');
     if (isUrl) {
-      return CircleAvatar(
+      return SafeCircleNetworkAvatar(
         radius: 14,
+        imageUrl: s,
         backgroundColor: _kFavoritesForestGreen.withValues(alpha: 0.1),
-        backgroundImage: NetworkImage(s),
-        onBackgroundImageError: (_, __) {},
-        child: null,
+        fallback: Icon(Icons.person_rounded, size: 16, color: _kFavoritesForestGreen.withValues(alpha: 0.6)),
       );
     }
     final initials = s.length <= 3

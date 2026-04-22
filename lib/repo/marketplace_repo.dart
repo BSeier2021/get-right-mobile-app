@@ -1,5 +1,6 @@
 import 'package:get_right/app_url.dart';
 import 'package:get_right/network/network_services.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// Query `section` values supported by `GET /marketplace/sections`.
 abstract final class MarketplaceSection {
@@ -159,7 +160,7 @@ class MarketplaceRepository {
       'discount': discount,
       'totalValue': totalValue,
       'bundlePrice': bundlePrice,
-      'imageUrl': b['coverImageUrl']?.toString() ?? '',
+      'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(b['coverImageUrl']?.toString()) ?? '',
       'programs': resolved,
       'isHot': b['isHot'] == true,
       'isCertified': bundleCertified,
@@ -239,7 +240,7 @@ class MarketplaceRepository {
       'title': p['title']?.toString() ?? '',
       'subtitle': p['subtitle'],
       'description': p['description']?.toString() ?? '',
-      'imageUrl': p['coverImageUrl']?.toString(),
+      'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(p['coverImageUrl']?.toString()),
       'trainer': trainer,
       'trainerImage': _initials(trainer),
       'price': price,

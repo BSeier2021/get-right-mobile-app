@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:get_right/controllers/safety_center_controller.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -162,11 +163,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Avatar
-            CircleAvatar(
+            SafeCircleNetworkAvatar(
               radius: 22,
+              imageUrl: avatarUrl,
               backgroundColor: AppColors.accent.withOpacity(0.15),
-              backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-              child: avatarUrl == null ? Icon(type == ReportType.user ? Icons.person_outline : Icons.article_outlined, color: AppColors.accent, size: 20) : null,
+              fallback: Icon(type == ReportType.user ? Icons.person_outline : Icons.article_outlined, color: AppColors.accent, size: 20),
             ),
             const SizedBox(width: 12),
             // Content

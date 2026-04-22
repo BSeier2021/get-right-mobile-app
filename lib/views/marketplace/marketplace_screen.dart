@@ -6,6 +6,7 @@ import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// Marketplace screen - browse trainer programs
 class MarketplaceScreen extends StatefulWidget {
@@ -1617,7 +1618,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ClipRRect(
                       borderRadius: BorderRadius.vertical(top: Radius.circular(12.r)),
                       child: Image.network(
-                        program['imageUrl'] ?? 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop',
+                        ImageUrlSanitizer.asHttpUrlOrFallback(
+                          program['imageUrl']?.toString(),
+                          fallback: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop',
+                        ),
                         width: double.infinity,
                         height: 110.h,
                         fit: BoxFit.cover,
@@ -1914,7 +1918,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ClipRRect(
                       borderRadius: BorderRadius.vertical(top: Radius.circular(12.r)),
                       child: Image.network(
-                        program['imageUrl'] ?? 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop',
+                        ImageUrlSanitizer.asHttpUrlOrFallback(
+                          program['imageUrl']?.toString(),
+                          fallback: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop',
+                        ),
                         width: double.infinity,
                         height: 110.h,
                         fit: BoxFit.cover,
@@ -2332,13 +2339,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.vertical(top: Radius.circular(8.r)),
                     child: Image.network(
-                      program['imageUrl'] ?? 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop',
+                      ImageUrlSanitizer.asHttpUrlOrFallback(
+                        program['imageUrl']?.toString(),
+                        fallback: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop',
+                      ),
                       width: double.infinity,
                       height: 110.h,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
                         width: double.infinity,
-                        height: 130.h,
+                        height: 110.h,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(colors: [const Color(0xFF9333EA), const Color(0xFFFBBF24)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                         ),

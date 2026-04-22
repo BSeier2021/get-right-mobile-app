@@ -1585,4 +1585,176 @@ class AuthController extends GetxController {
       return null;
     }
   }
+
+  /// `POST /nutrition/foods/custom` — [mealType] must be slug: `breakfast` | `lunch` | `dinner` | `snacks`.
+  Future<FoodItem?> createNutritionCustomFood({
+    required String name,
+    required String mealType,
+    required double servingSize,
+    required String servingUnit,
+    required double calories,
+    required double proteinG,
+    required double carbsG,
+    required double fatG,
+  }) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.createNutritionCustomFoodRepo({
+        'name': name.trim(),
+        'mealType': mealType.trim(),
+        'servingSize': servingSize,
+        'servingUnit': servingUnit.trim(),
+        'calories': calories,
+        'proteinG': proteinG,
+        'carbsG': carbsG,
+        'fatG': fatG,
+      });
+
+      if (response is! Map<String, dynamic>) {
+        _snackError('Custom food', 'Unexpected response from server');
+        return null;
+      }
+      if (response['success'] != true) {
+        _snackError('Custom food', response['message']?.toString() ?? 'Could not create food');
+        return null;
+      }
+
+      final data = response['data'];
+      if (data is Map<String, dynamic>) {
+        return FoodItem.fromNutritionCustomFoodApi(data);
+      }
+      if (data is Map) {
+        return FoodItem.fromNutritionCustomFoodApi(Map<String, dynamic>.from(data));
+      }
+      return null;
+    } on BadRequestException catch (e) {
+      _snackError('Custom food', e.message);
+      return null;
+    } on UnauthorizedException catch (e) {
+      _snackError('Custom food', e.message);
+      return null;
+    } on ForbiddenException catch (e) {
+      _snackError('Custom food', e.message);
+      return null;
+    } on NoInternetException catch (e) {
+      _snackError('Custom food', e.message);
+      return null;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Custom food', e.message);
+      return null;
+    } on ServerException catch (e) {
+      _snackError('Custom food', e.message);
+      return null;
+    } catch (e) {
+      _snackError('Custom food', e);
+      return null;
+    }
+  }
+
+  /// `PATCH /nutrition/foods/custom/:id` — body same as create; [mealType] slug only.
+  Future<FoodItem?> updateNutritionCustomFood({
+    required String id,
+    required String name,
+    required String mealType,
+    required double servingSize,
+    required String servingUnit,
+    required double calories,
+    required double proteinG,
+    required double carbsG,
+    required double fatG,
+  }) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.updateNutritionCustomFoodRepo(id, {
+        'name': name.trim(),
+        'mealType': mealType.trim(),
+        'servingSize': servingSize,
+        'servingUnit': servingUnit.trim(),
+        'calories': calories,
+        'proteinG': proteinG,
+        'carbsG': carbsG,
+        'fatG': fatG,
+      });
+
+      if (response is! Map<String, dynamic>) {
+        _snackError('Custom food', 'Unexpected response from server');
+        return null;
+      }
+      if (response['success'] != true) {
+        _snackError('Custom food', response['message']?.toString() ?? 'Could not update food');
+        return null;
+      }
+
+      final data = response['data'];
+      if (data is Map<String, dynamic>) {
+        return FoodItem.fromNutritionCustomFoodApi(data);
+      }
+      if (data is Map) {
+        return FoodItem.fromNutritionCustomFoodApi(Map<String, dynamic>.from(data));
+      }
+      return null;
+    } on BadRequestException catch (e) {
+      _snackError('Custom food', e.message);
+      return null;
+    } on UnauthorizedException catch (e) {
+      _snackError('Custom food', e.message);
+      return null;
+    } on ForbiddenException catch (e) {
+      _snackError('Custom food', e.message);
+      return null;
+    } on NoInternetException catch (e) {
+      _snackError('Custom food', e.message);
+      return null;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Custom food', e.message);
+      return null;
+    } on ServerException catch (e) {
+      _snackError('Custom food', e.message);
+      return null;
+    } catch (e) {
+      _snackError('Custom food', e);
+      return null;
+    }
+  }
+
+  /// `DELETE /nutrition/foods/custom/:id`
+  Future<bool> deleteNutritionCustomFood(String id) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.deleteNutritionCustomFoodRepo(id);
+      if (response is! Map<String, dynamic>) {
+        _snackError('Custom food', 'Unexpected response from server');
+        return false;
+      }
+      if (response['success'] != true) {
+        _snackError('Custom food', response['message']?.toString() ?? 'Could not delete food');
+        return false;
+      }
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Custom food', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Custom food', e.message);
+      return false;
+    } on ForbiddenException catch (e) {
+      _snackError('Custom food', e.message);
+      return false;
+    } on NotFoundException catch (e) {
+      _snackError('Custom food', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('Custom food', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Custom food', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Custom food', e.message);
+      return false;
+    } catch (e) {
+      _snackError('Custom food', e);
+      return false;
+    }
+  }
 }
