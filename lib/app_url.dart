@@ -79,6 +79,11 @@ class AppUrl {
   /// `POST /nutrition/foods/custom` — JSON body (create custom food).
   static String get nutritionFoodsCustomCreate => '$baseUrl/nutrition/foods/custom';
 
-  /// `PATCH` / `DELETE` single custom food by document id.
-  static String nutritionFoodsCustomById(String id) => '$baseUrl/nutrition/foods/custom/${Uri.encodeComponent(id)}';
+  /// `PUT` (update) / `PATCH` (delete) custom food by document id. Optional [mealId] query when the API requires it.
+  static String nutritionFoodsCustomById(String id, {String? mealId}) {
+    final path = '$baseUrl/nutrition/foods/custom/${Uri.encodeComponent(id.trim())}';
+    if (mealId == null || mealId.trim().isEmpty) return path;
+    final q = Uri(queryParameters: {'mealId': mealId.trim()}).query;
+    return '$path?$q';
+  }
 }

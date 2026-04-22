@@ -67,23 +67,70 @@ class FoodItem {
     return double.tryParse(v.toString()) ?? 0;
   }
 
+  /// Mongo-style `_id` as string or `{ "\$oid": "..." }` after JSON decode.
+  static String? _nutritionApiIdToString(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is String) {
+      final s = raw.trim();
+      return s.isEmpty ? null : s;
+    }
+    if (raw is Map) {
+      final oid = raw[r'$oid'];
+      if (oid != null) {
+        final o = oid.toString().trim();
+        if (o.isNotEmpty) return o;
+      }
+    }
+    return null;
+  }
+
+  /// Nested `meal` from API (has `mealType`, no macros) — must not be merged as the food document.
+  static bool _mapLooksLikeMealRef(Map<String, dynamic> m) {
+    final hasMealType = m['mealType'] != null;
+    final hasMacros = m['proteinG'] != null || m['calories'] != null || m['carbsG'] != null || m['fatG'] != null;
+    return hasMealType && !hasMacros;
+  }
+
+  /// Some list responses wrap the food row or use a junction `_id`; merge nested `food` for PATCH/DELETE id + fields.
+  static Map<String, dynamic> _flattenNutritionCustomFoodJson(Map<String, dynamic> json) {
+    final food = json['food'];
+    if (food is Map) {
+      try {
+        final fm = Map<String, dynamic>.from(food);
+        if (!_mapLooksLikeMealRef(fm)) {
+          return {...json, ...fm};
+        }
+      } catch (_) {}
+    }
+    return Map<String, dynamic>.from(json);
+  }
+
+  static String _nutritionCustomFoodDocumentId(Map<String, dynamic> merged) {
+    for (final key in ['customFoodId', 'foodId', 'nutritionFoodId']) {
+      final s = _nutritionApiIdToString(merged[key]);
+      if (s != null && s.isNotEmpty) return s;
+    }
+    return _nutritionApiIdToString(merged['_id']) ?? _nutritionApiIdToString(merged['id']) ?? '';
+  }
+
   /// Nutrition API food row (`_id`, `proteinG`, `servingLabel`, …).
   factory FoodItem.fromNutritionCustomFoodApi(Map<String, dynamic> json) {
-    final id = json['_id']?.toString() ?? json['id']?.toString() ?? '';
-    final servingSize = _toD(json['servingSize'] == null ? 1.0 : json['servingSize']);
-    final unit = json['servingUnit']?.toString() ?? 'serving';
-    final label = json['servingLabel']?.toString();
+    final merged = _flattenNutritionCustomFoodJson(json);
+    final id = _nutritionCustomFoodDocumentId(merged);
+    final servingSize = _toD(merged['servingSize'] == null ? 1.0 : merged['servingSize']);
+    final unit = merged['servingUnit']?.toString() ?? 'serving';
+    final label = merged['servingLabel']?.toString();
     return FoodItem(
       id: id,
-      name: json['name']?.toString() ?? '',
-      calories: _toD(json['calories']),
-      protein: _toD(json['proteinG'] ?? json['protein']),
-      carbs: _toD(json['carbsG'] ?? json['carbs']),
-      fats: _toD(json['fatG'] ?? json['fats']),
+      name: merged['name']?.toString() ?? '',
+      calories: _toD(merged['calories']),
+      protein: _toD(merged['proteinG'] ?? merged['protein']),
+      carbs: _toD(merged['carbsG'] ?? merged['carbs']),
+      fats: _toD(merged['fatG'] ?? merged['fats']),
       defaultServingSize: 1.0,
       servingUnit: (label != null && label.isNotEmpty) ? label : '$servingSize $unit'.trim(),
       isSaved: true,
-      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
+      createdAt: merged['createdAt'] != null ? DateTime.tryParse(merged['createdAt'].toString()) : null,
       isNutritionApiCustom: true,
       nutritionApiServingSize: servingSize,
       nutritionApiServingUnit: unit,

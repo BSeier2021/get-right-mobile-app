@@ -1560,8 +1560,21 @@ class AuthController extends GetxController {
 
       final data = response['data'];
       final list = <FoodItem>[];
+      List<dynamic>? rawRows;
       if (data is List) {
-        for (final e in data) {
+        rawRows = data;
+      } else if (data is Map) {
+        final dm = Map<String, dynamic>.from(data);
+        for (final key in ['foods', 'items', 'customFoods', 'results', 'rows', 'list', 'data']) {
+          final v = dm[key];
+          if (v is List) {
+            rawRows = v;
+            break;
+          }
+        }
+      }
+      if (rawRows != null) {
+        for (final e in rawRows) {
           if (e is Map<String, dynamic>) {
             list.add(FoodItem.fromNutritionCustomFoodApi(e));
           } else if (e is Map) {
@@ -1651,30 +1664,37 @@ class AuthController extends GetxController {
     }
   }
 
-  /// `PATCH /nutrition/foods/custom/:id` — body same as create; [mealType] slug only.
+  /// `PUT /nutrition/foods/custom/:id` — body: name, servingSize, servingUnit, calories, proteinG, carbsG, fatG (no mealType).
+  /// Pass [mealId] (meal-type document id) when the API scopes updates with `?mealId=`.
   Future<FoodItem?> updateNutritionCustomFood({
     required String id,
     required String name,
-    required String mealType,
     required double servingSize,
     required String servingUnit,
     required double calories,
     required double proteinG,
     required double carbsG,
     required double fatG,
+    String? mealId,
   }) async {
     try {
       _syncNetworkBearerFromStorage();
-      final response = await _authRepo.updateNutritionCustomFoodRepo(id, {
-        'name': name.trim(),
-        'mealType': mealType.trim(),
-        'servingSize': servingSize,
-        'servingUnit': servingUnit.trim(),
-        'calories': calories,
-        'proteinG': proteinG,
-        'carbsG': carbsG,
-        'fatG': fatG,
-      });
+      final response = await _authRepo.updateNutritionCustomFoodRepo(
+        id.trim(),
+        {
+          'name': name.trim(),
+          'servingSize': servingSize,
+          'servingUnit': servingUnit.trim(),
+          'calories': calories,
+          'proteinG': proteinG,
+          'carbsG': carbsG,
+          'fatG': fatG,
+        },
+        mealId: () {
+          final m = mealId?.trim();
+          return (m == null || m.isEmpty) ? null : m;
+        }(),
+      );
 
       if (response is! Map<String, dynamic>) {
         _snackError('Custom food', 'Unexpected response from server');
@@ -1717,11 +1737,17 @@ class AuthController extends GetxController {
     }
   }
 
-  /// `DELETE /nutrition/foods/custom/:id`
-  Future<bool> deleteNutritionCustomFood(String id) async {
+  /// `PATCH /nutrition/foods/custom/:id` — soft-delete style endpoint on this API.
+  Future<bool> deleteNutritionCustomFood(String id, {String? mealId}) async {
     try {
       _syncNetworkBearerFromStorage();
-      final response = await _authRepo.deleteNutritionCustomFoodRepo(id);
+      final response = await _authRepo.deleteNutritionCustomFoodRepo(
+        id.trim(),
+        mealId: () {
+          final m = mealId?.trim();
+          return (m == null || m.isEmpty) ? null : m;
+        }(),
+      );
       if (response is! Map<String, dynamic>) {
         _snackError('Custom food', 'Unexpected response from server');
         return false;

@@ -981,13 +981,13 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                           final updated = await Get.find<AuthController>().updateNutritionCustomFood(
                             id: item.id,
                             name: editNameController.text.trim(),
-                            mealType: _mealTypeForApiBody(),
                             servingSize: servingSize,
                             servingUnit: servingUnit,
                             calories: double.tryParse(editCaloriesController.text) ?? item.calories,
                             proteinG: double.tryParse(editProteinController.text) ?? item.protein,
                             carbsG: double.tryParse(editCarbsController.text) ?? item.carbs,
                             fatG: double.tryParse(editFatsController.text) ?? item.fats,
+                            mealId: _resolvedMealId(),
                           );
                           if (!context.mounted) return;
                           if (updated == null) return;
@@ -1095,7 +1095,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
         Get.snackbar('Error', 'Sign in to delete foods', snackPosition: SnackPosition.BOTTOM);
         return;
       }
-      final ok = await Get.find<AuthController>().deleteNutritionCustomFood(item.id);
+      final ok = await Get.find<AuthController>().deleteNutritionCustomFood(item.id, mealId: _resolvedMealId());
       if (!mounted) return;
       if (ok) {
         setState(() => _apiSavedItems.removeWhere((e) => e.id == item.id));

@@ -209,13 +209,13 @@ class AuthRepository {
     return _network.post(AppUrl.nutritionFoodsCustomCreate, body);
   }
 
-  /// `PATCH /nutrition/foods/custom/:id` — same body shape as create.
-  Future<dynamic> updateNutritionCustomFoodRepo(String id, Map<String, dynamic> body) async {
-    return _network.patch(AppUrl.nutritionFoodsCustomById(id), body);
+  /// `PUT /nutrition/foods/custom/:id` — JSON: name, servingSize, servingUnit, calories, proteinG, carbsG, fatG.
+  Future<dynamic> updateNutritionCustomFoodRepo(String id, Map<String, dynamic> body, {String? mealId}) async {
+    return _network.put(AppUrl.nutritionFoodsCustomById(id, mealId: mealId), body);
   }
 
-  /// `DELETE /nutrition/foods/custom/:id`
-  Future<dynamic> deleteNutritionCustomFoodRepo(String id) async {
-    return _network.delete(AppUrl.nutritionFoodsCustomById(id));
+  /// `PATCH /nutrition/foods/custom/:id` — delete (API uses PATCH, not DELETE).
+  Future<dynamic> deleteNutritionCustomFoodRepo(String id, {String? mealId}) async {
+    return _network.patch(AppUrl.nutritionFoodsCustomById(id, mealId: mealId), {});
   }
 }

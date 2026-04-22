@@ -16,9 +16,22 @@ class NutritionMealTypeOption {
     this.icon,
   });
 
+  static String? _idString(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is String) {
+      final s = raw.trim();
+      return s.isEmpty ? null : s;
+    }
+    if (raw is Map && raw[r'$oid'] != null) {
+      final o = raw[r'$oid'].toString().trim();
+      return o.isEmpty ? null : o;
+    }
+    return null;
+  }
+
   factory NutritionMealTypeOption.fromJson(Map<String, dynamic> json) {
     return NutritionMealTypeOption(
-      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      id: _idString(json['_id']) ?? _idString(json['id']) ?? '',
       name: json['name']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       value: json['value']?.toString() ?? '',

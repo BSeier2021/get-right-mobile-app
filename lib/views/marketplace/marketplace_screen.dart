@@ -40,10 +40,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     super.initState();
     _marketplaceScrollController = ScrollController()..addListener(_onMarketplaceScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Future.wait([
-        _loadMarketplaceSections(),
-        _loadBrowsePrograms(reset: true),
-      ]);
+      await Future.wait([_loadMarketplaceSections(), _loadBrowsePrograms(reset: true)]);
       if (mounted) await _loadMarketplaceBundles();
     });
   }
@@ -1158,9 +1155,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final newReleases = _newReleasesSectionPrograms;
 
     final hasActiveFilters = _selectedCategory != 'All' || _selectedDifficulty != 'All' || _selectedDuration != 'All' || _sortBy != 'Featured' || _showCertifiedOnly;
-    final catalogCountLabel = hasActiveFilters
-        ? '${filteredPrograms.length}'
-        : (_browseProgramsTotal > 0 ? '$_browseProgramsTotal' : '${filteredPrograms.length}');
+    final catalogCountLabel = hasActiveFilters ? '${filteredPrograms.length}' : (_browseProgramsTotal > 0 ? '$_browseProgramsTotal' : '${filteredPrograms.length}');
 
     return Container(
       decoration: const BoxDecoration(
@@ -1293,7 +1288,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       ),
                       TextButton(
                         onPressed: _loadMarketplaceBundles,
-                        child: Text('Retry', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600)),
+                        child: Text(
+                          'Retry',
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ],
                   ),
@@ -1375,7 +1373,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       ),
                       TextButton(
                         onPressed: () => _loadBrowsePrograms(reset: true),
-                        child: Text('Retry', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600)),
+                        child: Text(
+                          'Retry',
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ],
                   ),
@@ -1388,10 +1389,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       children: [
                         Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
                         SizedBox(height: 16.h),
-                        Text(
-                          _browsePrograms.isEmpty ? 'No programs available' : 'No programs found',
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray),
-                        ),
+                        Text(_browsePrograms.isEmpty ? 'No programs available' : 'No programs found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
                         SizedBox(height: 8.h),
                         if (_browsePrograms.isNotEmpty)
                           TextButton(
@@ -1405,10 +1403,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             child: const Text('Clear Filters'),
                           )
                         else
-                          TextButton(
-                            onPressed: () => _loadBrowsePrograms(reset: true),
-                            child: const Text('Retry'),
-                          ),
+                          TextButton(onPressed: () => _loadBrowsePrograms(reset: true), child: const Text('Retry')),
                       ],
                     ),
                   ),
@@ -1422,11 +1417,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       Padding(
                         padding: EdgeInsets.symmetric(vertical: 16.h),
                         child: const Center(
-                          child: SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
-                          ),
+                          child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
                         ),
                       ),
                   ],
@@ -2087,12 +2078,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final bundlePrice = ((bundle['bundlePrice'] as num?) ?? 0).toDouble();
 
     // Calculate average rating from programs
-    final avgRating = programs.isNotEmpty
-        ? programs.map((p) => ((p['rating'] as num?) ?? 0).toDouble()).reduce((a, b) => a + b) / programs.length
-        : 0.0;
-    final totalRatings = programs.isNotEmpty
-        ? programs.map((p) => ((p['students'] as num?) ?? 0).toInt()).reduce((a, b) => a + b)
-        : 0;
+    final avgRating = programs.isNotEmpty ? programs.map((p) => ((p['rating'] as num?) ?? 0).toDouble()).reduce((a, b) => a + b) / programs.length : 0.0;
+    final totalRatings = programs.isNotEmpty ? programs.map((p) => ((p['students'] as num?) ?? 0).toInt()).reduce((a, b) => a + b) : 0;
 
     // Get primary trainer (first program's trainer)
     final primaryTrainer = programs.isNotEmpty ? programs[0]['trainer'] : 'Trainer';
@@ -2205,11 +2192,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         ),
                         SizedBox(height: 7.h),
                         // Program Title
-                        Text(
-                          bundle['title'] ?? 'Gym Floor Mastery',
-                          style: TextStyle(color: const Color(0xFF000000), fontWeight: FontWeight.w700, fontSize: 18.sp, height: 1.0),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        SizedBox(
+                          width: 210.w,
+                          child: Text(
+                            bundle['title'] ?? 'Gym Floor Mastery',
+                            style: TextStyle(color: const Color(0xFF000000), fontWeight: FontWeight.w700, fontSize: 18.sp, height: 1.0),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         SizedBox(height: 10.h),
                         // Statistics Row
