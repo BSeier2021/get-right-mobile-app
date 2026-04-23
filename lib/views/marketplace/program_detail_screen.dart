@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/favorites_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -21,13 +22,113 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   final _reviewFormKey = GlobalKey<FormState>();
   final _reviewCommentController = TextEditingController();
   bool _isEnrolled = false;
-  late Map<String, dynamic> _safeProgram;
+  Map<String, dynamic> _safeProgram = {};
+  String? _apiProgramId;
+  bool _loadingDetail = false;
   double _rating = 0.0;
   bool _hasSubmittedRating = false;
 
   // Mock enrolled content URLs
   final String _enrolledVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4';
   final String _pdfUrl = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+
+  static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
+
+  @override
+  void initState() {
+    super.initState();
+    final args = Get.arguments;
+    final Map<String, dynamic> program = args is Map ? Map<String, dynamic>.from(args) : _getMockProgramData();
+    _apiProgramId = (program['id'] ?? program['_id'])?.toString().trim();
+    if (!_mongoIdRe.hasMatch(_apiProgramId ?? '')) {
+      _apiProgramId = null;
+    }
+    _fillSafeProgramFrom(program);
+    if (_apiProgramId != null && _apiProgramId!.isNotEmpty) {
+      _loadingDetail = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadProgramDetail());
+    }
+  }
+
+  void _fillSafeProgramFrom(Map<String, dynamic> program) {
+    final fallbackId = (program['title']?.toString() ?? 'unknown_program').replaceAll(' ', '_');
+    final stableId = (program['id'] ?? program['_id'] ?? fallbackId).toString();
+    _safeProgram = {
+      'id': stableId,
+      'title': program['title'] ?? 'Program',
+      'trainer': program['trainer'] ?? 'Unknown Trainer',
+      'trainerImage': program['trainerImage'] ?? 'UT',
+      'price': (program['price'] as num?)?.toDouble() ?? double.tryParse(program['price']?.toString() ?? '') ?? 0.0,
+      'duration': program['duration'] ?? '12 weeks',
+      'category': program['category'] ?? 'General',
+      'goal': program['goal'] ?? 'Fitness',
+      'certified': program['certified'] == true,
+      'rating': (program['rating'] as num?)?.toDouble() ?? 0.0,
+      'students': (program['students'] as num?)?.toInt() ?? 0,
+      'reviews': (program['reviews'] as num?)?.toInt() ?? 0,
+      'description': program['description'] ?? 'No description available',
+      'status': program['status'],
+      'hasRating': program['hasRating'] == true,
+      'review': program['review'],
+      ...program,
+    };
+    _safeProgram['imageUrl'] = ImageUrlSanitizer.asHttpUrlOrNull(_safeProgram['imageUrl']?.toString());
+    _syncEnrollmentFromProgram();
+    _hydrateRatingFromProgram();
+  }
+
+  void _syncEnrollmentFromProgram() {
+    _isEnrolled =
+        _safeProgram['isEnrolled'] == true ||
+        _safeProgram['purchased'] == true ||
+        _safeProgram['status'] == 'completed' ||
+        _safeProgram['status'] == 'active' ||
+        _safeProgram['status'] == 'scheduled';
+  }
+
+  void _hydrateRatingFromProgram() {
+    if (_safeProgram['hasRating'] == true && _rating == 0.0) {
+      _rating = (_safeProgram['rating'] as num?)?.toDouble() ?? 0.0;
+      _hasSubmittedRating = true;
+      if (_safeProgram['review'] != null) {
+        _reviewCommentController.text = _safeProgram['review'].toString();
+      }
+    }
+  }
+
+  Future<void> _loadProgramDetail() async {
+    final pid = _apiProgramId;
+    if (pid == null || pid.isEmpty || !Get.isRegistered<AuthController>()) {
+      if (mounted) setState(() => _loadingDetail = false);
+      return;
+    }
+    final detail = await Get.find<AuthController>().fetchMarketplaceProgramDetail(pid);
+    if (!mounted) return;
+    setState(() {
+      _loadingDetail = false;
+      if (detail != null) {
+        final keepHasRating = _safeProgram['hasRating'] == true || _hasSubmittedRating;
+        final keepReviewText = _reviewCommentController.text;
+        final keepRatingVal = _rating;
+        final keepSubmitted = _hasSubmittedRating;
+        _fillSafeProgramFrom(detail);
+        if (keepHasRating) {
+          _safeProgram['hasRating'] = true;
+          _safeProgram['review'] = keepReviewText;
+          _rating = keepRatingVal;
+          _hasSubmittedRating = keepSubmitted;
+        }
+      }
+    });
+  }
+
+  bool get _isCompletedProgram => _safeProgram['status'] == 'completed';
+
+  String _heroImageUrl() {
+    return _safeProgram['imageUrl']?.toString().isNotEmpty == true
+        ? _safeProgram['imageUrl'].toString()
+        : 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=400&fit=crop';
+  }
 
   @override
   void dispose() {
@@ -37,44 +138,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final Map<String, dynamic> program = Get.arguments ?? _getMockProgramData();
-    final programId = (program['id']?.toString() ?? program['title']?.toString() ?? 'unknown_program').replaceAll(' ', '_');
-
-    // Check if program is completed (from trainer profile)
-    final bool isCompletedProgram = program['status'] == 'completed';
-
-    _isEnrolled = program['isEnrolled'] ?? program['status'] == 'completed' || program['status'] == 'active' || program['status'] == 'scheduled';
-
-    // Ensure required fields have defaults
-    _safeProgram = {
-      'id': programId,
-      'title': program['title'] ?? 'Program',
-      'trainer': program['trainer'] ?? 'Unknown Trainer',
-      'trainerImage': program['trainerImage'] ?? 'UT',
-      'price': program['price'] ?? 0.0,
-      'duration': program['duration'] ?? '12 weeks',
-      'category': program['category'] ?? 'General',
-      'goal': program['goal'] ?? 'Fitness',
-      'certified': program['certified'] ?? false,
-      'rating': program['rating'] ?? 0.0,
-      'students': program['students'] ?? 0,
-      'reviews': program['reviews'] ?? 0,
-      'description': program['description'] ?? 'No description available',
-      'status': program['status'],
-      'hasRating': program['hasRating'] ?? false,
-      'review': program['review'],
-      ...program, // Keep any additional fields
-    };
-    _safeProgram['imageUrl'] = ImageUrlSanitizer.asHttpUrlOrNull(_safeProgram['imageUrl']?.toString());
-
-    // Initialize rating state if program has existing rating
-    if (_safeProgram['hasRating'] == true && _rating == 0.0) {
-      _rating = (_safeProgram['rating'] ?? 0.0) as double;
-      _hasSubmittedRating = true;
-      if (_safeProgram['review'] != null) {
-        _reviewCommentController.text = _safeProgram['review'].toString();
-      }
-    }
+    final programId = (_safeProgram['id'] ?? _apiProgramId ?? 'unknown_program').toString();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -103,9 +167,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         ),
         body: CustomScrollView(
           slivers: [
-            // App Bar with Program Image
-
-            // Content
+            if (_loadingDetail) const SliverToBoxAdapter(child: LinearProgressIndicator(minHeight: 3)),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -119,7 +181,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                           AspectRatio(
                             aspectRatio: 16 / 9,
                             child: Image.network(
-                              _safeProgram['imageUrl'] ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=400&fit=crop',
+                              _heroImageUrl(),
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) => Container(
                                 decoration: BoxDecoration(
@@ -176,14 +238,22 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
 
                     Text(
                       _safeProgram['title'] ?? 'Program',
-                      style: AppTextStyles.headlineMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                      style: AppTextStyles.headlineMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold, fontSize: 18.sp),
                     ),
+                    if ((_safeProgram['subtitle'] ?? '').toString().trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(_safeProgram['subtitle'].toString(), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                    ],
                     const SizedBox(height: 16),
 
                     // Trainer Section (Tappable)
                     GestureDetector(
                       onTap: () {
-                        Get.toNamed(AppRoutes.trainerProfile, arguments: _getMockTrainerData());
+                        final t = Map<String, dynamic>.from(_getMockTrainerData());
+                        t['id'] = _safeProgram['trainerId'] ?? t['id'];
+                        t['name'] = _safeProgram['trainer'] ?? t['name'];
+                        t['initials'] = (_safeProgram['trainerImage'] ?? t['initials']).toString();
+                        Get.toNamed(AppRoutes.trainerProfile, arguments: t);
                       },
                       child: Container(
                         padding: const EdgeInsets.all(16),
@@ -207,7 +277,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                                 children: [
                                   SizedBox(
                                     width: 180.w,
-                                    child: Text('Sarah Johnson', style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
+                                    child: Text((_safeProgram['trainer'] ?? 'Trainer').toString(), style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
                                   ),
                                   Row(
                                     children: [
@@ -264,17 +334,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                     const SizedBox(height: 24),
 
                     // What's Included
-                    Text(
-                      'What\'s Included',
-                      style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildFeatureItem('assets/images/video-square.png', 'Full workout plans and schedules'),
-                    _buildFeatureItem('assets/images/video.png', 'Video demonstrations for all exercises'),
-                    _buildFeatureItem('assets/images/status-up.png', 'Progress tracking and analytics'),
-                    _buildFeatureItem('assets/images/message.png', 'Direct messaging with trainer'),
-                    _buildFeatureItem('assets/images/note-2.png', 'Nutrition guide included'),
-                    _buildFeatureItem('assets/images/calendar-2.png', 'Lifetime access to program'),
+                    _buildWhatsIncludedBlock(),
                     const SizedBox(height: 24),
 
                     // Enrolled Content Section (only visible if enrolled)
@@ -291,7 +351,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                     ],
 
                     // Trainer Rating Section (for completed programs)
-                    if (isCompletedProgram && _isEnrolled) ...[
+                    if (_isCompletedProgram && _isEnrolled) ...[
                       Text(
                         _hasSubmittedRating || _safeProgram['hasRating'] == true ? 'Your Trainer Rating' : 'Rate Your Trainer',
                         style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
@@ -345,7 +405,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                         children: [
                           Text('Total Price', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
                           Text(
-                            '\$${_safeProgram['price']}',
+                            '\$${(((_safeProgram['price'] as num?) ?? 0)).toStringAsFixed(2)}',
                             style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -363,7 +423,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                                 colorText: Colors.white,
                               );
                             } else {
-                              Get.toNamed(AppRoutes.purchaseDetails);
+                              Get.toNamed(AppRoutes.purchaseDetails, arguments: {'isBundle': false, 'program': _safeProgram});
                             }
                           },
                           style: ElevatedButton.styleFrom(
@@ -380,6 +440,45 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                 ),
               ),
       ),
+    );
+  }
+
+  Widget _buildWhatsIncludedBlock() {
+    final api = _safeProgram['whatsIncluded'];
+    final ext = _safeProgram['whats_included'];
+    final rows = <String>[];
+    if (api is List) {
+      for (final e in api) {
+        final s = e.toString().trim();
+        if (s.isNotEmpty) rows.add(s);
+      }
+    }
+    if (ext is List) {
+      for (final e in ext) {
+        final s = e.toString().trim();
+        if (s.isNotEmpty) rows.add(s);
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'What\'s Included',
+          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        if (rows.isNotEmpty)
+          ...rows.map((t) => _buildFeatureItem('assets/images/note-2.png', t))
+        else ...[
+          _buildFeatureItem('assets/images/video-square.png', 'Full workout plans and schedules'),
+          _buildFeatureItem('assets/images/video.png', 'Video demonstrations for all exercises'),
+          _buildFeatureItem('assets/images/status-up.png', 'Progress tracking and analytics'),
+          _buildFeatureItem('assets/images/message.png', 'Direct messaging with trainer'),
+          _buildFeatureItem('assets/images/note-2.png', 'Nutrition guide included'),
+          _buildFeatureItem('assets/images/calendar-2.png', 'Lifetime access to program'),
+        ],
+      ],
     );
   }
 
@@ -562,7 +661,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.network(
-                          _safeProgram['imageUrl'] ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=400&fit=crop',
+                          _heroImageUrl(),
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
@@ -635,7 +734,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.network(
-                          _safeProgram['imageUrl'] ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=400&fit=crop',
+                          _heroImageUrl(),
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,

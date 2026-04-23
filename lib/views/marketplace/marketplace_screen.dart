@@ -2196,7 +2196,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           width: 210.w,
                           child: Text(
                             bundle['title'] ?? 'Gym Floor Mastery',
-                            style: TextStyle(color: const Color(0xFF000000), fontWeight: FontWeight.w700, fontSize: 18.sp, height: 1.0),
+                            style: TextStyle(color: const Color(0xFF000000), fontWeight: FontWeight.w700, fontSize: 14.sp, height: 1.0),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),

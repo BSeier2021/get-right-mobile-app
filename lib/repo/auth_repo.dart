@@ -168,9 +168,19 @@ class AuthRepository {
     return _network.get(AppUrl.marketplacePrograms(page: page, perPage: perPage));
   }
 
+  /// `GET /marketplace/programs/:programId` — program detail; root `data.data` holds the program document.
+  Future<dynamic> getMarketplaceProgramDetailRepo(String programId) async {
+    return _network.get(AppUrl.marketplaceProgramDetail(programId));
+  }
+
   /// `GET /marketplace/bundles` — paginated bundles.
   Future<dynamic> getMarketplaceBundlesRepo({int page = 1, int perPage = 20}) async {
     return _network.get(AppUrl.marketplaceBundles(page: page, perPage: perPage));
+  }
+
+  /// `GET /marketplace/bundles/:bundleId` — detail; root `data.data` holds the bundle document.
+  Future<dynamic> getMarketplaceBundleDetailRepo(String bundleId) async {
+    return _network.get(AppUrl.marketplaceBundleDetail(bundleId));
   }
 
   /// `POST /user/auth/change-password` — body: `{ "oldPassword": "...", "newPassword": "..." }` (Bearer).

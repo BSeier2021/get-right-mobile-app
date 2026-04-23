@@ -54,11 +54,17 @@ class AppUrl {
     return '$baseUrl/marketplace/programs?$q';
   }
 
+  /// `GET /marketplace/programs/:programId` — full program (`data.data`).
+  static String marketplaceProgramDetail(String programId) => '$baseUrl/marketplace/programs/${Uri.encodeComponent(programId.trim())}';
+
   /// `GET /marketplace/bundles` — paginated bundles (`programs` may be program id strings).
   static String marketplaceBundles({required int page, required int perPage}) {
     final q = Uri(queryParameters: {'page': '$page', 'per_page': '$perPage'}).query;
     return '$baseUrl/marketplace/bundles?$q';
   }
+
+  /// `GET /marketplace/bundles/:bundleId` — full bundle with programs, [pricing_summary], [marketplace_detail].
+  static String marketplaceBundleDetail(String bundleId) => '$baseUrl/marketplace/bundles/${Uri.encodeComponent(bundleId.trim())}';
 
   /// `GET /nutrition/tracker` — optional `date` (`YYYY-MM-DD`).
   static String nutritionTracker({String? date}) {

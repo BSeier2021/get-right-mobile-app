@@ -17,6 +17,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/customer_profile_enums.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// Auth controller: signup, OTP, and login flows (signup uses live API).
 class AuthController extends GetxController {
@@ -556,6 +557,242 @@ class AuthController extends GetxController {
   /// Raw JSON from `GET /marketplace/bundles`. Prefer [MarketplaceRepository.fetchBrowseBundles] for parsed cards.
   Future<dynamic> getMarketplaceBundlesRaw({int page = 1, int perPage = 20}) {
     return _authRepo.getMarketplaceBundlesRepo(page: page, perPage: perPage);
+  }
+
+  /// `GET /marketplace/bundles/:id` — returns a map aligned with marketplace bundle cards + detail fields, or null.
+  Future<Map<String, dynamic>?> fetchMarketplaceBundleDetail(String bundleId) async {
+    final id = bundleId.trim();
+    if (id.isEmpty) return null;
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getMarketplaceBundleDetailRepo(id);
+      if (response is! Map<String, dynamic>) {
+        _snackError('Bundle', 'Unexpected response from server');
+        return null;
+      }
+      if (response['success'] != true) {
+        _snackError('Bundle', response['message']?.toString() ?? 'Could not load bundle');
+        return null;
+      }
+      return _parseMarketplaceBundleDetailResponse(response);
+    } on BadRequestException catch (e) {
+      _snackError('Bundle', e.message);
+      return null;
+    } on UnauthorizedException catch (e) {
+      _snackError('Bundle', e.message);
+      return null;
+    } on ForbiddenException catch (e) {
+      _snackError('Bundle', e.message);
+      return null;
+    } on NoInternetException catch (e) {
+      _snackError('Bundle', e.message);
+      return null;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Bundle', e.message);
+      return null;
+    } on ServerException catch (e) {
+      _snackError('Bundle', e.message);
+      return null;
+    } on NotFoundException catch (e) {
+      _snackError('Bundle', e.message);
+      return null;
+    } catch (e) {
+      _snackError('Bundle', e);
+      return null;
+    }
+  }
+
+  Map<String, dynamic>? _parseMarketplaceBundleDetailResponse(Map<String, dynamic> response) {
+    final data = response['data'];
+    Map<String, dynamic>? inner;
+    if (data is Map && data['data'] is Map) {
+      inner = Map<String, dynamic>.from(data['data'] as Map);
+    } else if (data is Map) {
+      inner = Map<String, dynamic>.from(data);
+    }
+    if (inner == null) return null;
+
+    final pricing = inner['pricing_summary'];
+    double bundlePrice = (inner['bundlePrice'] as num?)?.toDouble() ?? 0.0;
+    double? originalList;
+    double? savingsPercent;
+    if (pricing is Map) {
+      final pm = Map<String, dynamic>.from(pricing);
+      originalList = (pm['original_list_price'] as num?)?.toDouble();
+      bundlePrice = (pm['bundle_price'] as num?)?.toDouble() ?? bundlePrice;
+      savingsPercent = (pm['savings_percent'] as num?)?.toDouble();
+    }
+
+    final programsRaw = inner['programs'];
+    var sumProgramPrices = 0.0;
+    final programs = <Map<String, dynamic>>[];
+    if (programsRaw is List) {
+      for (final e in programsRaw) {
+        if (e is! Map) continue;
+        final p = Map<String, dynamic>.from(e);
+        final disp = p['display'] is Map ? Map<String, dynamic>.from(p['display'] as Map) : <String, dynamic>{};
+        final instructor = (disp['instructor_name'] ?? 'Trainer').toString().trim();
+        final weeks = disp['duration_weeks'] ?? p['durationWeeks'];
+        final rating = (disp['average_rating'] as num?)?.toDouble() ?? 0.0;
+        final price = (p['price'] as num?)?.toDouble() ?? 0.0;
+        sumProgramPrices += price;
+        final initial = instructor.isNotEmpty ? instructor.substring(0, 1).toUpperCase() : 'T';
+        programs.add({
+          ...p,
+          'id': p['_id']?.toString() ?? '',
+          'title': p['title']?.toString() ?? 'Program',
+          'trainer': instructor,
+          'trainerImage': initial,
+          'trainerImageUrl': disp['instructor_avatar_url']?.toString(),
+          'price': price,
+          'duration': weeks != null ? '${weeks} weeks' : '—',
+          'rating': rating,
+          'category': p['focus']?.toString() ?? 'Program',
+          'goal': p['level']?.toString() ?? '—',
+          'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(p['coverImageUrl']?.toString()),
+          'certified': p['isCertified'] == true,
+        });
+      }
+    }
+
+    var totalValue = originalList ?? 0.0;
+    if (totalValue <= 0 && sumProgramPrices > 0) {
+      totalValue = sumProgramPrices;
+    }
+    if (totalValue <= bundlePrice && bundlePrice > 0) {
+      totalValue = bundlePrice * 1.12;
+    }
+
+    final discount = savingsPercent != null
+        ? savingsPercent.round().clamp(0, 95)
+        : (totalValue > 0 ? (((totalValue - bundlePrice) / totalValue) * 100).round().clamp(0, 95) : 0);
+
+    return {
+      'id': inner['_id']?.toString() ?? '',
+      'title': inner['title']?.toString() ?? '',
+      'subtitle': inner['subtitle'],
+      'description': inner['description']?.toString() ?? '',
+      'bundlePrice': bundlePrice,
+      'totalValue': totalValue,
+      'discount': discount,
+      'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(inner['coverImageUrl']?.toString()) ?? '',
+      'programs': programs,
+      'whatsIncluded': inner['whatsIncluded'],
+      'marketplace_detail': inner['marketplace_detail'],
+      '_apiBundle': inner,
+    };
+  }
+
+  /// `GET /marketplace/programs/:id` — map shaped for [ProgramDetailScreen] / marketplace program cards.
+  Future<Map<String, dynamic>?> fetchMarketplaceProgramDetail(String programId) async {
+    final id = programId.trim();
+    if (id.isEmpty) return null;
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getMarketplaceProgramDetailRepo(id);
+      if (response is! Map<String, dynamic>) {
+        _snackError('Program', 'Unexpected response from server');
+        return null;
+      }
+      if (response['success'] != true) {
+        _snackError('Program', response['message']?.toString() ?? 'Could not load program');
+        return null;
+      }
+      return _parseMarketplaceProgramDetailResponse(response);
+    } on BadRequestException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } on UnauthorizedException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } on ForbiddenException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } on NoInternetException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } on ServerException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } on NotFoundException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } catch (e) {
+      _snackError('Program', e);
+      return null;
+    }
+  }
+
+  Map<String, dynamic>? _parseMarketplaceProgramDetailResponse(Map<String, dynamic> response) {
+    final data = response['data'];
+    Map<String, dynamic>? inner;
+    if (data is Map && data['data'] is Map) {
+      inner = Map<String, dynamic>.from(data['data'] as Map);
+    } else if (data is Map) {
+      inner = Map<String, dynamic>.from(data);
+    }
+    if (inner == null) return null;
+
+    final md = inner['marketplace_detail'] is Map ? Map<String, dynamic>.from(inner['marketplace_detail'] as Map) : <String, dynamic>{};
+    final trainer = md['trainer'] is Map ? Map<String, dynamic>.from(md['trainer'] as Map) : <String, dynamic>{};
+    final stats = md['stats'] is Map ? Map<String, dynamic>.from(md['stats'] as Map) : <String, dynamic>{};
+    final ext = inner['catalog_extensions'] is Map ? Map<String, dynamic>.from(inner['catalog_extensions'] as Map) : <String, dynamic>{};
+    final attrs = ext['attributes'] is Map ? Map<String, dynamic>.from(ext['attributes'] as Map) : <String, dynamic>{};
+    final hero = ext['hero_media'] is Map ? Map<String, dynamic>.from(ext['hero_media'] as Map) : <String, dynamic>{};
+    final prSum = ext['program_rating_summary'] is Map ? Map<String, dynamic>.from(ext['program_rating_summary'] as Map) : <String, dynamic>{};
+
+    final displayName = (trainer['display_name'] ?? 'Trainer').toString().trim();
+    final initial = displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'T';
+
+    final durationLabel = attrs['duration_label']?.toString();
+    final weeks = attrs['duration_weeks'] ?? inner['durationWeeks'];
+    final duration = (durationLabel != null && durationLabel.isNotEmpty) ? durationLabel : (weeks != null ? '$weeks weeks' : '—');
+
+    var rating = (stats['average_rating'] as num?)?.toDouble() ?? 0.0;
+    if (rating == 0.0 && prSum['average_rating'] != null) {
+      rating = (prSum['average_rating'] as num).toDouble();
+    }
+    final reviewCount = (stats['review_count'] as num?)?.toInt() ?? (prSum['review_count'] as num?)?.toInt() ?? 0;
+    final students = (stats['enrollment_count'] as num?)?.toInt() ?? (ext['student_count'] as num?)?.toInt() ?? 0;
+
+    String? img = ImageUrlSanitizer.asHttpUrlOrNull(inner['coverImageUrl']?.toString());
+    img ??= ImageUrlSanitizer.asHttpUrlOrNull(hero['thumbnail_url']?.toString());
+    img ??= ImageUrlSanitizer.asHttpUrlOrNull(hero['stream_url']?.toString());
+
+    final purchased = ext['purchased'] == true;
+    final price = (inner['price'] as num?)?.toDouble() ?? (ext['price'] as num?)?.toDouble() ?? 0.0;
+
+    return {
+      'id': inner['_id']?.toString() ?? '',
+      'trainerId': inner['trainerId']?.toString(),
+      'title': inner['title']?.toString() ?? 'Program',
+      'subtitle': inner['subtitle']?.toString(),
+      'trainer': displayName,
+      'trainerImage': initial,
+      'trainerImageUrl': ImageUrlSanitizer.asHttpUrlOrNull(trainer['avatar_url']?.toString()),
+      'price': price,
+      'duration': duration,
+      'category': (attrs['focus'] ?? inner['focus'])?.toString() ?? 'General',
+      'goal': (attrs['level'] ?? inner['level'])?.toString() ?? 'Fitness',
+      'certified': inner['isCertified'] == true || trainer['is_certified'] == true,
+      'rating': rating,
+      'students': students,
+      'reviews': reviewCount,
+      'description': inner['description']?.toString() ?? '',
+      'status': inner['status']?.toString(),
+      'purchased': purchased,
+      'isEnrolled': purchased,
+      'imageUrl': img,
+      'weeks': inner['weeks'],
+      'whatsIncluded': inner['whatsIncluded'],
+      'whats_included': ext['whats_included'],
+      'catalog_extensions': ext,
+      'marketplace_detail': md,
+      '_apiProgram': inner,
+    };
   }
 
   /// Login via `POST /user/auth/login` with email, password, deviceType, deviceToken.

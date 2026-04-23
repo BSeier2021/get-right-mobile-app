@@ -2,24 +2,97 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 
-/// Bundle Detail Screen - redesigned to match compact marketplace mockup
-class BundleDetailScreen extends StatelessWidget {
+/// Bundle detail — loads `GET /marketplace/bundles/:id` when opened with a bundle id.
+class BundleDetailScreen extends StatefulWidget {
   const BundleDetailScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final Map<String, dynamic> bundle = Get.arguments ?? _getMockBundleData();
-    final programs = (bundle['programs'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+  State<BundleDetailScreen> createState() => _BundleDetailScreenState();
+}
 
-    final String title = (bundle['title'] ?? 'Bundle Deal').toString();
-    final String description = (bundle['description'] ?? 'Full body transformation program').toString();
-    final double totalValue = (bundle['totalValue'] as num?)?.toDouble() ?? 64.99;
-    final double bundlePrice = (bundle['bundlePrice'] as num?)?.toDouble() ?? 49.99;
-    final int discount = (bundle['discount'] as num?)?.toInt() ?? 25;
+class _BundleDetailScreenState extends State<BundleDetailScreen> {
+  Map<String, dynamic> _bundle = {};
+  bool _loading = true;
+  String? _error;
+  String? _bundleId;
+
+  @override
+  void initState() {
+    super.initState();
+    final args = Get.arguments;
+    if (args is Map) {
+      _bundle = Map<String, dynamic>.from(args);
+      _bundleId = (_bundle['id'] ?? _bundle['_id'])?.toString().trim();
+    } else if (args is String && args.trim().isNotEmpty) {
+      _bundleId = args.trim();
+    }
+    if (_bundleId != null && _bundleId!.isNotEmpty) {
+      _loadDetail();
+    } else {
+      _bundle = _getMockBundleData();
+      _loading = false;
+    }
+  }
+
+  Future<void> _loadDetail() async {
+    if (!Get.isRegistered<AuthController>()) {
+      setState(() {
+        _loading = false;
+        _error = 'Sign in to view this bundle';
+      });
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final ui = await Get.find<AuthController>().fetchMarketplaceBundleDetail(_bundleId!);
+    if (!mounted) return;
+    if (ui == null) {
+      setState(() {
+        _loading = false;
+        _error = 'Could not load bundle details';
+      });
+      return;
+    }
+    setState(() {
+      _bundle = ui;
+      _loading = false;
+    });
+  }
+
+  List<Map<String, dynamic>> _programsList() {
+    final raw = _bundle['programs'];
+    final out = <Map<String, dynamic>>[];
+    if (raw is List) {
+      for (final e in raw) {
+        if (e is Map<String, dynamic>) {
+          out.add(e);
+        } else if (e is Map) {
+          out.add(Map<String, dynamic>.from(e));
+        }
+      }
+    }
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final programs = _programsList();
+
+    final String title = (_bundle['title'] ?? 'Bundle Deal').toString();
+    final String? subtitle = _bundle['subtitle']?.toString();
+    final String description = (_bundle['description'] ?? '').toString();
+    final double totalValue = (_bundle['totalValue'] as num?)?.toDouble() ?? 64.99;
+    final double bundlePrice = (_bundle['bundlePrice'] as num?)?.toDouble() ?? 49.99;
+    final int discount = (_bundle['discount'] as num?)?.toInt() ?? 25;
+    final String imageUrl = (_bundle['imageUrl'] ?? '').toString();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -47,61 +120,126 @@ class BundleDetailScreen extends StatelessWidget {
             ),
           ),
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Image.asset('assets/images/demo.png', fit: BoxFit.cover, width: double.infinity),
-              const SizedBox(height: 14),
-              Text(
-                title,
-                style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 2),
-              Text(description, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75))),
-              const SizedBox(height: 12),
-              _buildPricingCard(totalValue: totalValue, bundlePrice: bundlePrice, discount: discount),
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Included Programs',
-                    style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(12)),
-                    child: Text(
-                      '${programs.length} Programs',
-                      style: AppTextStyles.labelMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null && programs.isEmpty && (_bundle['title'] == null || _bundle['title'].toString().trim().isEmpty)
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(_error!, textAlign: TextAlign.center, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
+                          const SizedBox(height: 16),
+                          TextButton(onPressed: _loadDetail, child: const Text('Retry')),
+                        ],
+                      ),
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: (_bundleId != null && _bundleId!.isNotEmpty) ? _loadDetail : () async {},
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_error != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(_error!, style: AppTextStyles.bodySmall.copyWith(color: Colors.red.shade700)),
+                            ),
+                          _buildHeroImage(imageUrl),
+                          const SizedBox(height: 14),
+                          Text(
+                            title,
+                            style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
+                          ),
+                          if (subtitle != null && subtitle.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(subtitle, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.7))),
+                          ],
+                          if (description.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(description, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75))),
+                          ],
+                          const SizedBox(height: 12),
+                          _buildPricingCard(totalValue: totalValue, bundlePrice: bundlePrice, discount: discount),
+                          const SizedBox(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Included Programs',
+                                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(12)),
+                                child: Text(
+                                  '${programs.length} Programs',
+                                  style: AppTextStyles.labelMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          ...programs.map((program) => _buildProgramCard(program)),
+                          const SizedBox(height: 10),
+                          _buildWhatsIncludedSection(programs.length, discount),
+                          const SizedBox(height: 10),
+                          _buildBottomPriceRow(totalValue: totalValue, bundlePrice: bundlePrice),
+                          const SizedBox(height: 12),
+                        ],
+                      ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              ...programs.take(2).map((program) => _buildProgramCard(program)),
-              const SizedBox(height: 10),
-              Text(
-                'What\'s Included',
-                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              _buildFeatureItem('assets/images/video-square.png', 'Access to all ${programs.length} programs'),
-              _buildFeatureItem('assets/images/video.png', 'Video demonstrations for all exercises'),
-              _buildFeatureItem('assets/images/status-up.png', 'Progress tracking and analytics'),
-              _buildFeatureItem('assets/images/message.png', 'Direct messaging with trainer'),
-              _buildFeatureItem('assets/images/note-2.png', 'Comprehensive nutrition guides'),
-              _buildFeatureItem('assets/images/calendar-2.png', 'Lifetime access to all programs'),
-              _buildFeatureItem('assets/images/receipt-discount.png', 'Special bundle discount (${discount}% OFF)'),
-              const SizedBox(height: 10),
-              _buildBottomPriceRow(totalValue: totalValue, bundlePrice: bundlePrice),
-              const SizedBox(height: 12),
-            ],
-          ),
-        ),
       ),
+    );
+  }
+
+  Widget _buildHeroImage(String url) {
+    final safe = ImageUrlSanitizer.asHttpUrlOrNull(url);
+    if (safe != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          safe,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: 200,
+          errorBuilder: (_, __, ___) => Image.asset('assets/images/demo.png', fit: BoxFit.cover, width: double.infinity, height: 200),
+        ),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.asset('assets/images/demo.png', fit: BoxFit.cover, width: double.infinity, height: 200),
+    );
+  }
+
+  Widget _buildWhatsIncludedSection(int programCount, int discount) {
+    final raw = _bundle['whatsIncluded'];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'What\'s Included',
+          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        if (raw is List && raw.isNotEmpty)
+          ...raw.map((e) => _buildFeatureItem('assets/images/note-2.png', e.toString()))
+        else ...[
+          _buildFeatureItem('assets/images/video-square.png', 'Access to all $programCount programs'),
+          _buildFeatureItem('assets/images/video.png', 'Video demonstrations for all exercises'),
+          _buildFeatureItem('assets/images/status-up.png', 'Progress tracking and analytics'),
+          _buildFeatureItem('assets/images/message.png', 'Direct messaging with trainer'),
+          _buildFeatureItem('assets/images/note-2.png', 'Comprehensive nutrition guides'),
+          _buildFeatureItem('assets/images/calendar-2.png', 'Lifetime access to all programs'),
+          _buildFeatureItem('assets/images/receipt-discount.png', 'Special bundle discount ($discount% OFF)'),
+        ],
+      ],
     );
   }
 
@@ -149,12 +287,12 @@ class BundleDetailScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 8),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: Color(0xFFF5FCEB),
+              color: const Color(0xFFF5FCEB),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: const Color(0xFFCFDEC0)),
             ),
             child: Text(
-              'Save \$${(totalValue - bundlePrice).toStringAsFixed(2)} (${discount}% OFF)',
+              'Save \$${(totalValue - bundlePrice).clamp(0, double.infinity).toStringAsFixed(2)} ($discount% OFF)',
               style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w700),
             ),
           ),
@@ -164,6 +302,8 @@ class BundleDetailScreen extends StatelessWidget {
   }
 
   Widget _buildProgramCard(Map<String, dynamic> program) {
+    final cover = ImageUrlSanitizer.asHttpUrlOrNull(program['imageUrl']?.toString());
+
     return GestureDetector(
       onTap: () => Get.toNamed(AppRoutes.programDetail, arguments: program),
       child: Container(
@@ -176,14 +316,33 @@ class BundleDetailScreen extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: const Color(0xFFE2E9DC),
-              child: Text(
-                (program['trainerImage'] ?? 'T').toString(),
-                style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700),
+            if (cover != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  cover,
+                  width: 36,
+                  height: 36,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => CircleAvatar(
+                    radius: 18,
+                    backgroundColor: const Color(0xFFE2E9DC),
+                    child: Text(
+                      (program['trainerImage'] ?? 'T').toString(),
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              )
+            else
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: const Color(0xFFE2E9DC),
+                child: Text(
+                  (program['trainerImage'] ?? 'T').toString(),
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700),
+                ),
               ),
-            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -278,7 +437,7 @@ class BundleDetailScreen extends StatelessWidget {
           SizedBox(
             height: 42,
             child: ElevatedButton(
-              onPressed: () => Get.toNamed(AppRoutes.purchaseDetails, arguments: {'isBundle': true}),
+              onPressed: () => Get.toNamed(AppRoutes.purchaseDetails, arguments: {'isBundle': true, 'bundle': _bundle}),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accent,
                 foregroundColor: Colors.white,
