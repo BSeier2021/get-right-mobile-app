@@ -55,6 +55,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final confirm = _confirmPasswordController.text;
+    final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+    final hasLowercase = RegExp(r'[a-z]').hasMatch(password);
 
     if (email.isEmpty || !email.contains('@')) {
       Get.snackbar('Invalid email', 'Please enter a valid email address', snackPosition: SnackPosition.BOTTOM);
@@ -62,6 +64,10 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     }
     if (password.length < 8) {
       Get.snackbar('Password', 'Password must be at least 8 characters', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (!hasUppercase || !hasLowercase) {
+      Get.snackbar('Password', 'Password must include both uppercase and lowercase letters', snackPosition: SnackPosition.BOTTOM);
       return;
     }
     if (password != confirm) {

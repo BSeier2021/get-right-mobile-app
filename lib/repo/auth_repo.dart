@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:get_right/app_url.dart';
 import 'package:get_right/network/network_services.dart';
 
