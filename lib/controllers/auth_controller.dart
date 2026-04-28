@@ -1261,18 +1261,20 @@ class AuthController extends GetxController {
 
       List<String>? mainGoals;
       List<String>? goalIds;
+      final rawIds = args['goalIds'];
+      if (rawIds is List && rawIds.isNotEmpty) {
+        final ids = rawIds.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+        if (ids.isNotEmpty) {
+          goalIds = ids;
+        }
+      }
       final rawMain = args['mainGoals'];
       if (rawMain is List && rawMain.isNotEmpty) {
         mainGoals = CustomerProfileEnums.filterMainGoals(rawMain.map((e) => e.toString()));
         if (mainGoals.isEmpty) mainGoals = null;
       }
       if (mainGoals == null || mainGoals.isEmpty) {
-        final rawIds = args['goalIds'];
         if (rawIds is List && rawIds.isNotEmpty) {
-          final ids = rawIds.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
-          if (ids.isNotEmpty) {
-            goalIds = ids;
-          }
           final resolved = <String>[];
           for (final id in rawIds) {
             final sid = id.toString();

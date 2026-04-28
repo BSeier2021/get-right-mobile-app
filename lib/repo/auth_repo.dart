@@ -5,40 +5,90 @@ import 'package:get_right/network/network_services.dart';
 class AuthRepository {
   final _network = NetworkApiService();
 
-  Future<dynamic> signUp({required String email, required String password, required String deviceType, required String deviceToken, String role = 'Customer'}) async {
+  Future<dynamic> signUp({
+    required String email,
+    required String password,
+    required String deviceType,
+    required String deviceToken,
+    String role = 'Customer',
+  }) async {
     final response = await _network.post(
       AppUrl.signUp,
-      {"email": email, "password": password, "deviceType": deviceType, "deviceToken": deviceToken, "role": role},
+      {
+        "email": email,
+        "password": password,
+        "deviceType": deviceType,
+        "deviceToken": deviceToken,
+        "role": role,
+      },
       headers: {"Authorization": "yNaHwJpGFSquIkXP"},
     );
     return response;
   }
 
-  Future<dynamic> verifyOTPRepo({required String userId, required String otp}) async {
-    final response = await _network.post(AppUrl.verifyOTP, {"userId": userId, "otp": otp}, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
+  Future<dynamic> verifyOTPRepo({
+    required String userId,
+    required String otp,
+  }) async {
+    final response = await _network.post(
+      AppUrl.verifyOTP,
+      {"userId": userId, "otp": otp},
+      headers: {"Authorization": "yNaHwJpGFSquIkXP"},
+    );
     return response;
   }
 
   /// `POST /user/auth/send-otp` with `{ "email": "user@example.com" }`.
   Future<dynamic> sendOtpRepo({required String email}) async {
-    final response = await _network.post(AppUrl.sendOtp, {"email": email.trim()}, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
+    final response = await _network.post(
+      AppUrl.sendOtp,
+      {"email": email.trim()},
+      headers: {"Authorization": "yNaHwJpGFSquIkXP"},
+    );
     return response;
   }
 
   /// `POST /customer/profile/create` — multipart form: fullName, dateofbirth, gender, phoneNumber, optional profilePicture (file).
-  Future<dynamic> createProfileRepo({required String fullName, required String dateofbirth, required String gender, required String phoneNumber, File? profilePicture}) async {
-    final fields = <String, dynamic>{'fullName': fullName.trim(), 'dateofbirth': dateofbirth, 'gender': gender, 'phoneNumber': phoneNumber.trim()};
+  Future<dynamic> createProfileRepo({
+    required String fullName,
+    required String dateofbirth,
+    required String gender,
+    required String phoneNumber,
+    File? profilePicture,
+  }) async {
+    final fields = <String, dynamic>{
+      'fullName': fullName.trim(),
+      'dateofbirth': dateofbirth,
+      'gender': gender,
+      'phoneNumber': phoneNumber.trim(),
+    };
     final files = <String, List<File>>{};
-    if (profilePicture != null && profilePicture.path.isNotEmpty && await profilePicture.exists()) {
+    if (profilePicture != null &&
+        profilePicture.path.isNotEmpty &&
+        await profilePicture.exists()) {
       files['profilePicture'] = [profilePicture];
     }
-    return _network.postMultipart(url: AppUrl.createProfile, fields: fields, files: files);
+    return _network.postMultipart(
+      url: AppUrl.createProfile,
+      fields: fields,
+      files: files,
+    );
   }
 
-  Future<dynamic> loginRepo({required String email, required String password, required String deviceType, required String deviceToken}) async {
+  Future<dynamic> loginRepo({
+    required String email,
+    required String password,
+    required String deviceType,
+    required String deviceToken,
+  }) async {
     final response = await _network.post(
       AppUrl.signIn,
-      {"email": email.trim(), "password": password, "deviceType": deviceType, "deviceToken": deviceToken},
+      {
+        "email": email.trim(),
+        "password": password,
+        "deviceType": deviceType,
+        "deviceToken": deviceToken,
+      },
       headers: {"Authorization": "yNaHwJpGFSquIkXP"},
     );
     return response;
@@ -46,36 +96,54 @@ class AuthRepository {
 
   /// `POST /user/auth/forget` with `{ "email": "..." }`.
   Future<dynamic> forgotPasswordRepo({required String email}) async {
-    final response = await _network.post(AppUrl.forgotPassword, {"email": email.trim()}, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
+    final response = await _network.post(
+      AppUrl.forgotPassword,
+      {"email": email.trim()},
+      headers: {"Authorization": "yNaHwJpGFSquIkXP"},
+    );
     return response;
   }
 
   /// `POST /user/auth/forget-password` — body: `{ "password": "..." }`. Uses Bearer from [NetworkApiService].
   Future<dynamic> resetPasswordRepo({required String password}) async {
-    final response = await _network.post(AppUrl.resetPassword, {"password": password.trim()});
+    final response = await _network.post(AppUrl.resetPassword, {
+      "password": password.trim(),
+    });
     return response;
   }
 
   Future<dynamic> getPreferencesRepo() async {
-    final response = await _network.get(AppUrl.preference, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
+    final response = await _network.get(
+      AppUrl.preference,
+      headers: {"Authorization": "yNaHwJpGFSquIkXP"},
+    );
     return response;
   }
 
   /// `GET /user/goals` — Bearer from [NetworkApiService] (same as preferences).
   Future<dynamic> getGoalsRepo() async {
-    final response = await _network.get(AppUrl.goals, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
+    final response = await _network.get(
+      AppUrl.goals,
+      headers: {"Authorization": "yNaHwJpGFSquIkXP"},
+    );
     return response;
   }
 
   /// `GET /user/fitness-level` → `data.fitnessLevels`.
   Future<dynamic> getFitnessLevelsRepo() async {
-    final response = await _network.get(AppUrl.fitnessLevels, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
+    final response = await _network.get(
+      AppUrl.fitnessLevels,
+      headers: {"Authorization": "yNaHwJpGFSquIkXP"},
+    );
     return response;
   }
 
   /// `GET /user/exercise-plan` → `data.exercisePlans`.
   Future<dynamic> getExercisePlansRepo() async {
-    final response = await _network.get(AppUrl.exercisePlans, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
+    final response = await _network.get(
+      AppUrl.exercisePlans,
+      headers: {"Authorization": "yNaHwJpGFSquIkXP"},
+    );
     return response;
   }
 
@@ -125,7 +193,10 @@ class AuthRepository {
     }
 
     if (goalIds != null && goalIds.isNotEmpty) {
-      final ids = goalIds.map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      final ids = goalIds
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
       if (ids.isNotEmpty) {
         fields['goals'] = ids;
       }
@@ -137,7 +208,8 @@ class AuthRepository {
       fields['exerciseFrequency'] = exerciseFrequency.trim();
     }
 
-    if (fields.isEmpty && (profilePicturePath == null || profilePicturePath.trim().isEmpty)) {
+    if (fields.isEmpty &&
+        (profilePicturePath == null || profilePicturePath.trim().isEmpty)) {
       throw Exception('No valid data to update');
     }
 
@@ -157,7 +229,11 @@ class AuthRepository {
       final files = <String, List<File>>{
         'profilePicture': [file],
       };
-      return _network.postMultipart(url: AppUrl.updateProfile, fields: multipartFields, files: files);
+      return _network.postMultipart(
+        url: AppUrl.updateProfile,
+        fields: multipartFields,
+        files: files,
+      );
     }
 
     return _network.post(AppUrl.updateProfile, fields);
@@ -169,8 +245,13 @@ class AuthRepository {
   }
 
   /// `GET /marketplace/programs` — paginated marketplace catalog (`data.data` + `data.meta`).
-  Future<dynamic> getMarketplaceProgramsRepo({int page = 1, int perPage = 20}) async {
-    return _network.get(AppUrl.marketplacePrograms(page: page, perPage: perPage));
+  Future<dynamic> getMarketplaceProgramsRepo({
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    return _network.get(
+      AppUrl.marketplacePrograms(page: page, perPage: perPage),
+    );
   }
 
   /// `GET /marketplace/programs/:programId` — program detail; root `data.data` holds the program document.
@@ -179,8 +260,13 @@ class AuthRepository {
   }
 
   /// `GET /marketplace/bundles` — paginated bundles.
-  Future<dynamic> getMarketplaceBundlesRepo({int page = 1, int perPage = 20}) async {
-    return _network.get(AppUrl.marketplaceBundles(page: page, perPage: perPage));
+  Future<dynamic> getMarketplaceBundlesRepo({
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    return _network.get(
+      AppUrl.marketplaceBundles(page: page, perPage: perPage),
+    );
   }
 
   /// `GET /marketplace/bundles/:bundleId` — detail; root `data.data` holds the bundle document.
@@ -189,18 +275,30 @@ class AuthRepository {
   }
 
   /// `POST /user/auth/change-password` — body: `{ "oldPassword": "...", "newPassword": "..." }` (Bearer).
-  Future<dynamic> changePasswordRepo({required String oldPassword, required String newPassword}) async {
-    final response = await _network.post(AppUrl.changePassword, {"oldPassword": oldPassword.trim(), "newPassword": newPassword.trim()});
+  Future<dynamic> changePasswordRepo({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    final response = await _network.post(AppUrl.changePassword, {
+      "oldPassword": oldPassword.trim(),
+      "newPassword": newPassword.trim(),
+    });
     return response;
   }
 
   Future<dynamic> getExerciseCategoriesRepo() async {
-    final response = await _network.get(headers: {"Authorization": "yNaHwJpGFSquIkXP"}, AppUrl.exerciseCategories);
+    final response = await _network.get(
+      headers: {"Authorization": "yNaHwJpGFSquIkXP"},
+      AppUrl.exerciseCategories,
+    );
     return response;
   }
 
   Future<dynamic> getExercisesByCategoryRepo(String categoryId) async {
-    final response = await _network.get(headers: {"Authorization": "yNaHwJpGFSquIkXP"}, AppUrl.exerciseCategory(categoryId));
+    final response = await _network.get(
+      headers: {"Authorization": "yNaHwJpGFSquIkXP"},
+      AppUrl.exerciseCategory(categoryId),
+    );
     return response;
   }
 
@@ -215,22 +313,43 @@ class AuthRepository {
   }
 
   /// `GET /nutrition/foods/custom` — paginated custom foods for a meal type id.
-  Future<dynamic> getNutritionCustomFoodsRepo({required String mealId, int page = 1, int perPage = 20}) async {
-    return _network.get(AppUrl.nutritionFoodsCustom(page: page, perPage: perPage, mealId: mealId));
+  Future<dynamic> getNutritionCustomFoodsRepo({
+    required String mealId,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    return _network.get(
+      AppUrl.nutritionFoodsCustom(page: page, perPage: perPage, mealId: mealId),
+    );
   }
 
   /// `POST /nutrition/foods/custom` — Bearer; body: name, mealType, servingSize, servingUnit, calories, proteinG, carbsG, fatG.
-  Future<dynamic> createNutritionCustomFoodRepo(Map<String, dynamic> body) async {
+  Future<dynamic> createNutritionCustomFoodRepo(
+    Map<String, dynamic> body,
+  ) async {
     return _network.post(AppUrl.nutritionFoodsCustomCreate, body);
   }
 
   /// `PUT /nutrition/foods/custom/:id` — JSON: name, servingSize, servingUnit, calories, proteinG, carbsG, fatG.
-  Future<dynamic> updateNutritionCustomFoodRepo(String id, Map<String, dynamic> body, {String? mealId}) async {
-    return _network.put(AppUrl.nutritionFoodsCustomById(id, mealId: mealId), body);
+  Future<dynamic> updateNutritionCustomFoodRepo(
+    String id,
+    Map<String, dynamic> body, {
+    String? mealId,
+  }) async {
+    return _network.put(
+      AppUrl.nutritionFoodsCustomById(id, mealId: mealId),
+      body,
+    );
   }
 
   /// `PATCH /nutrition/foods/custom/:id` — delete (API uses PATCH, not DELETE).
-  Future<dynamic> deleteNutritionCustomFoodRepo(String id, {String? mealId}) async {
-    return _network.patch(AppUrl.nutritionFoodsCustomById(id, mealId: mealId), {});
+  Future<dynamic> deleteNutritionCustomFoodRepo(
+    String id, {
+    String? mealId,
+  }) async {
+    return _network.patch(
+      AppUrl.nutritionFoodsCustomById(id, mealId: mealId),
+      {},
+    );
   }
 }
