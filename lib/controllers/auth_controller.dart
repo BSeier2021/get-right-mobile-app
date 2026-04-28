@@ -56,8 +56,7 @@ class AuthController extends GetxController {
   String? get goalsError => _goalsError;
 
   List<FitnessLevelOption> _fitnessLevels = [];
-  List<FitnessLevelOption> get fitnessLevels =>
-      List.unmodifiable(_fitnessLevels);
+  List<FitnessLevelOption> get fitnessLevels => List.unmodifiable(_fitnessLevels);
 
   bool _fitnessLevelsLoading = false;
   bool get fitnessLevelsLoading => _fitnessLevelsLoading;
@@ -66,8 +65,7 @@ class AuthController extends GetxController {
   String? get fitnessLevelsError => _fitnessLevelsError;
 
   List<ExercisePlanOption> _exercisePlans = [];
-  List<ExercisePlanOption> get exercisePlans =>
-      List.unmodifiable(_exercisePlans);
+  List<ExercisePlanOption> get exercisePlans => List.unmodifiable(_exercisePlans);
 
   bool _exercisePlansLoading = false;
   bool get exercisePlansLoading => _exercisePlansLoading;
@@ -85,8 +83,7 @@ class AuthController extends GetxController {
   String? get customerProfileError => _customerProfileError;
 
   List<NutritionMealTypeOption> _nutritionMealTypes = [];
-  List<NutritionMealTypeOption> get nutritionMealTypes =>
-      List.unmodifiable(_nutritionMealTypes);
+  List<NutritionMealTypeOption> get nutritionMealTypes => List.unmodifiable(_nutritionMealTypes);
 
   bool _nutritionMealTypesLoading = false;
   bool get nutritionMealTypesLoading => _nutritionMealTypesLoading;
@@ -116,17 +113,14 @@ class AuthController extends GetxController {
   Future<String> _ensureDeviceToken() async {
     var token = _storageService.getString(_deviceTokenStorageKey);
     if (token == null || token.isEmpty) {
-      token =
-          'getright-${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(0x7fffffff)}';
+      token = 'getright-${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(0x7fffffff)}';
       await _storageService.saveString(_deviceTokenStorageKey, token);
     }
     return token;
   }
 
   void _snackError(String title, Object e) {
-    final msg = e is Exception
-        ? e.toString().replaceFirst('Exception: ', '')
-        : e.toString();
+    final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
     Get.snackbar(title, msg, snackPosition: SnackPosition.BOTTOM);
   }
 
@@ -144,9 +138,7 @@ class AuthController extends GetxController {
   Future<void> _persistAccessToken(String token) async {
     await _storageService.saveToken(token);
     await _storageService.saveLoginStatus(true);
-    final ls = Get.isRegistered<LocalStorage>()
-        ? Get.find<LocalStorage>()
-        : Get.put(LocalStorage());
+    final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
     ls.saveAccessToken(token);
   }
 
@@ -154,9 +146,7 @@ class AuthController extends GetxController {
   void _syncNetworkBearerFromStorage() {
     final t = _storageService.getToken();
     if (t == null || t.isEmpty) return;
-    final ls = Get.isRegistered<LocalStorage>()
-        ? Get.find<LocalStorage>()
-        : Get.put(LocalStorage());
+    final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
     ls.saveAccessToken(t);
   }
 
@@ -195,8 +185,7 @@ class AuthController extends GetxController {
 
       if (response['success'] != true) {
         _preferences = [];
-        _preferencesError =
-            response['message']?.toString() ?? 'Could not load preferences';
+        _preferencesError = response['message']?.toString() ?? 'Could not load preferences';
         return;
       }
 
@@ -211,9 +200,7 @@ class AuthController extends GetxController {
               list.add(p);
             }
           } else if (e is Map) {
-            final p = UserPreferenceOption.fromJson(
-              Map<String, dynamic>.from(e),
-            );
+            final p = UserPreferenceOption.fromJson(Map<String, dynamic>.from(e));
             if (p.id.isNotEmpty && p.name.isNotEmpty) {
               list.add(p);
             }
@@ -342,8 +329,7 @@ class AuthController extends GetxController {
 
       if (response['success'] != true) {
         _fitnessLevels = [];
-        _fitnessLevelsError =
-            response['message']?.toString() ?? 'Could not load fitness levels';
+        _fitnessLevelsError = response['message']?.toString() ?? 'Could not load fitness levels';
         return;
       }
 
@@ -415,8 +401,7 @@ class AuthController extends GetxController {
 
       if (response['success'] != true) {
         _exercisePlans = [];
-        _exercisePlansError =
-            response['message']?.toString() ?? 'Could not load exercise plans';
+        _exercisePlansError = response['message']?.toString() ?? 'Could not load exercise plans';
         return;
       }
 
@@ -471,14 +456,7 @@ class AuthController extends GetxController {
   }
 
   String _slugToReadable(String slug) {
-    return slug
-        .split('_')
-        .where((s) => s.isNotEmpty)
-        .map(
-          (s) =>
-              '${s[0].toUpperCase()}${s.length > 1 ? s.substring(1).toLowerCase() : ''}',
-        )
-        .join(' ');
+    return slug.split('_').where((s) => s.isNotEmpty).map((s) => '${s[0].toUpperCase()}${s.length > 1 ? s.substring(1).toLowerCase() : ''}').join(' ');
   }
 
   Future<void> _persistCustomerProfileLocal(CustomerProfileDto dto) async {
@@ -489,16 +467,11 @@ class AuthController extends GetxController {
       await _storageService.saveEmail(dto.email.trim());
     }
     await _storageService.saveUserId(dto.userId);
-    final ls = Get.isRegistered<LocalStorage>()
-        ? Get.find<LocalStorage>()
-        : Get.put(LocalStorage());
+    final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
     ls.saveuserid(dto.userId);
 
     if (dto.dateofbirth != null && dto.dateofbirth!.trim().isNotEmpty) {
-      await _storageService.saveString(
-        'user_date_of_birth',
-        dto.dateofbirth!.trim(),
-      );
+      await _storageService.saveString('user_date_of_birth', dto.dateofbirth!.trim());
     }
     if (dto.gender != null && dto.gender!.trim().isNotEmpty) {
       await _storageService.saveString('user_gender', dto.gender!.trim());
@@ -510,23 +483,16 @@ class AuthController extends GetxController {
       await _storageService.saveString('user_bio', dto.bio!.trim());
     }
     if (dto.primaryFocus != null && dto.primaryFocus!.trim().isNotEmpty) {
-      await _storageService.saveUserPreference(
-        _slugToReadable(dto.primaryFocus!.trim()),
-      );
+      await _storageService.saveUserPreference(_slugToReadable(dto.primaryFocus!.trim()));
     }
     if (dto.mainGoals.isNotEmpty) {
-      await _storageService.saveUserGoals(
-        dto.mainGoals.map(_slugToReadable).toList(),
-      );
+      await _storageService.saveUserGoals(dto.mainGoals.map(_slugToReadable).toList());
     }
     if (dto.fitnessLevel != null && dto.fitnessLevel!.trim().isNotEmpty) {
       await _storageService.saveFitnessLevel(dto.fitnessLevel!.trim());
     }
-    if (dto.exerciseFrequency != null &&
-        dto.exerciseFrequency!.trim().isNotEmpty) {
-      await _storageService.saveExerciseFrequency(
-        dto.exerciseFrequency!.trim(),
-      );
+    if (dto.exerciseFrequency != null && dto.exerciseFrequency!.trim().isNotEmpty) {
+      await _storageService.saveExerciseFrequency(dto.exerciseFrequency!.trim());
     }
   }
 
@@ -548,11 +514,7 @@ class AuthController extends GetxController {
       if (response['success'] != true) {
         final msg = response['message'];
         if (msg is List && msg.isNotEmpty) {
-          _customerProfileError = msg
-              .map(
-                (e) => e is Map ? (e['message'] ?? e).toString() : e.toString(),
-              )
-              .join('; ');
+          _customerProfileError = msg.map((e) => e is Map ? (e['message'] ?? e).toString() : e.toString()).join('; ');
         } else {
           _customerProfileError = msg?.toString() ?? 'Could not load profile';
         }
@@ -598,9 +560,7 @@ class AuthController extends GetxController {
   }
 
   /// `GET /marketplace/bundles/:id` — returns a map aligned with marketplace bundle cards + detail fields, or null.
-  Future<Map<String, dynamic>?> fetchMarketplaceBundleDetail(
-    String bundleId,
-  ) async {
+  Future<Map<String, dynamic>?> fetchMarketplaceBundleDetail(String bundleId) async {
     final id = bundleId.trim();
     if (id.isEmpty) return null;
     try {
@@ -611,10 +571,7 @@ class AuthController extends GetxController {
         return null;
       }
       if (response['success'] != true) {
-        _snackError(
-          'Bundle',
-          response['message']?.toString() ?? 'Could not load bundle',
-        );
+        _snackError('Bundle', response['message']?.toString() ?? 'Could not load bundle');
         return null;
       }
       return _parseMarketplaceBundleDetailResponse(response);
@@ -645,9 +602,7 @@ class AuthController extends GetxController {
     }
   }
 
-  Map<String, dynamic>? _parseMarketplaceBundleDetailResponse(
-    Map<String, dynamic> response,
-  ) {
+  Map<String, dynamic>? _parseMarketplaceBundleDetailResponse(Map<String, dynamic> response) {
     final data = response['data'];
     Map<String, dynamic>? inner;
     if (data is Map && data['data'] is Map) {
@@ -675,19 +630,13 @@ class AuthController extends GetxController {
       for (final e in programsRaw) {
         if (e is! Map) continue;
         final p = Map<String, dynamic>.from(e);
-        final disp = p['display'] is Map
-            ? Map<String, dynamic>.from(p['display'] as Map)
-            : <String, dynamic>{};
-        final instructor = (disp['instructor_name'] ?? 'Trainer')
-            .toString()
-            .trim();
+        final disp = p['display'] is Map ? Map<String, dynamic>.from(p['display'] as Map) : <String, dynamic>{};
+        final instructor = (disp['instructor_name'] ?? 'Trainer').toString().trim();
         final weeks = disp['duration_weeks'] ?? p['durationWeeks'];
         final rating = (disp['average_rating'] as num?)?.toDouble() ?? 0.0;
         final price = (p['price'] as num?)?.toDouble() ?? 0.0;
         sumProgramPrices += price;
-        final initial = instructor.isNotEmpty
-            ? instructor.substring(0, 1).toUpperCase()
-            : 'T';
+        final initial = instructor.isNotEmpty ? instructor.substring(0, 1).toUpperCase() : 'T';
         programs.add({
           ...p,
           'id': p['_id']?.toString() ?? '',
@@ -700,9 +649,7 @@ class AuthController extends GetxController {
           'rating': rating,
           'category': p['focus']?.toString() ?? 'Program',
           'goal': p['level']?.toString() ?? '—',
-          'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(
-            p['coverImageUrl']?.toString(),
-          ),
+          'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(p['coverImageUrl']?.toString()),
           'certified': p['isCertified'] == true,
         });
       }
@@ -716,14 +663,7 @@ class AuthController extends GetxController {
       totalValue = bundlePrice * 1.12;
     }
 
-    final discount = savingsPercent != null
-        ? savingsPercent.round().clamp(0, 95)
-        : (totalValue > 0
-              ? (((totalValue - bundlePrice) / totalValue) * 100).round().clamp(
-                  0,
-                  95,
-                )
-              : 0);
+    final discount = savingsPercent != null ? savingsPercent.round().clamp(0, 95) : (totalValue > 0 ? (((totalValue - bundlePrice) / totalValue) * 100).round().clamp(0, 95) : 0);
 
     return {
       'id': inner['_id']?.toString() ?? '',
@@ -733,11 +673,7 @@ class AuthController extends GetxController {
       'bundlePrice': bundlePrice,
       'totalValue': totalValue,
       'discount': discount,
-      'imageUrl':
-          ImageUrlSanitizer.asHttpUrlOrNull(
-            inner['coverImageUrl']?.toString(),
-          ) ??
-          '',
+      'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(inner['coverImageUrl']?.toString()) ?? '',
       'programs': programs,
       'whatsIncluded': inner['whatsIncluded'],
       'marketplace_detail': inner['marketplace_detail'],
@@ -746,9 +682,7 @@ class AuthController extends GetxController {
   }
 
   /// `GET /marketplace/programs/:id` — map shaped for [ProgramDetailScreen] / marketplace program cards.
-  Future<Map<String, dynamic>?> fetchMarketplaceProgramDetail(
-    String programId,
-  ) async {
+  Future<Map<String, dynamic>?> fetchMarketplaceProgramDetail(String programId) async {
     final id = programId.trim();
     if (id.isEmpty) return null;
     try {
@@ -759,10 +693,7 @@ class AuthController extends GetxController {
         return null;
       }
       if (response['success'] != true) {
-        _snackError(
-          'Program',
-          response['message']?.toString() ?? 'Could not load program',
-        );
+        _snackError('Program', response['message']?.toString() ?? 'Could not load program');
         return null;
       }
       return _parseMarketplaceProgramDetailResponse(response);
@@ -793,9 +724,7 @@ class AuthController extends GetxController {
     }
   }
 
-  Map<String, dynamic>? _parseMarketplaceProgramDetailResponse(
-    Map<String, dynamic> response,
-  ) {
+  Map<String, dynamic>? _parseMarketplaceProgramDetailResponse(Map<String, dynamic> response) {
     final data = response['data'];
     Map<String, dynamic>? inner;
     if (data is Map && data['data'] is Map) {
@@ -805,67 +734,34 @@ class AuthController extends GetxController {
     }
     if (inner == null) return null;
 
-    final md = inner['marketplace_detail'] is Map
-        ? Map<String, dynamic>.from(inner['marketplace_detail'] as Map)
-        : <String, dynamic>{};
-    final trainer = md['trainer'] is Map
-        ? Map<String, dynamic>.from(md['trainer'] as Map)
-        : <String, dynamic>{};
-    final stats = md['stats'] is Map
-        ? Map<String, dynamic>.from(md['stats'] as Map)
-        : <String, dynamic>{};
-    final ext = inner['catalog_extensions'] is Map
-        ? Map<String, dynamic>.from(inner['catalog_extensions'] as Map)
-        : <String, dynamic>{};
-    final attrs = ext['attributes'] is Map
-        ? Map<String, dynamic>.from(ext['attributes'] as Map)
-        : <String, dynamic>{};
-    final hero = ext['hero_media'] is Map
-        ? Map<String, dynamic>.from(ext['hero_media'] as Map)
-        : <String, dynamic>{};
-    final prSum = ext['program_rating_summary'] is Map
-        ? Map<String, dynamic>.from(ext['program_rating_summary'] as Map)
-        : <String, dynamic>{};
+    final md = inner['marketplace_detail'] is Map ? Map<String, dynamic>.from(inner['marketplace_detail'] as Map) : <String, dynamic>{};
+    final trainer = md['trainer'] is Map ? Map<String, dynamic>.from(md['trainer'] as Map) : <String, dynamic>{};
+    final stats = md['stats'] is Map ? Map<String, dynamic>.from(md['stats'] as Map) : <String, dynamic>{};
+    final ext = inner['catalog_extensions'] is Map ? Map<String, dynamic>.from(inner['catalog_extensions'] as Map) : <String, dynamic>{};
+    final attrs = ext['attributes'] is Map ? Map<String, dynamic>.from(ext['attributes'] as Map) : <String, dynamic>{};
+    final hero = ext['hero_media'] is Map ? Map<String, dynamic>.from(ext['hero_media'] as Map) : <String, dynamic>{};
+    final prSum = ext['program_rating_summary'] is Map ? Map<String, dynamic>.from(ext['program_rating_summary'] as Map) : <String, dynamic>{};
 
-    final displayName = (trainer['display_name'] ?? 'Trainer')
-        .toString()
-        .trim();
-    final initial = displayName.isNotEmpty
-        ? displayName.substring(0, 1).toUpperCase()
-        : 'T';
+    final displayName = (trainer['display_name'] ?? 'Trainer').toString().trim();
+    final initial = displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'T';
 
     final durationLabel = attrs['duration_label']?.toString();
     final weeks = attrs['duration_weeks'] ?? inner['durationWeeks'];
-    final duration = (durationLabel != null && durationLabel.isNotEmpty)
-        ? durationLabel
-        : (weeks != null ? '$weeks weeks' : '—');
+    final duration = (durationLabel != null && durationLabel.isNotEmpty) ? durationLabel : (weeks != null ? '$weeks weeks' : '—');
 
     var rating = (stats['average_rating'] as num?)?.toDouble() ?? 0.0;
     if (rating == 0.0 && prSum['average_rating'] != null) {
       rating = (prSum['average_rating'] as num).toDouble();
     }
-    final reviewCount =
-        (stats['review_count'] as num?)?.toInt() ??
-        (prSum['review_count'] as num?)?.toInt() ??
-        0;
-    final students =
-        (stats['enrollment_count'] as num?)?.toInt() ??
-        (ext['student_count'] as num?)?.toInt() ??
-        0;
+    final reviewCount = (stats['review_count'] as num?)?.toInt() ?? (prSum['review_count'] as num?)?.toInt() ?? 0;
+    final students = (stats['enrollment_count'] as num?)?.toInt() ?? (ext['student_count'] as num?)?.toInt() ?? 0;
 
-    String? img = ImageUrlSanitizer.asHttpUrlOrNull(
-      inner['coverImageUrl']?.toString(),
-    );
-    img ??= ImageUrlSanitizer.asHttpUrlOrNull(
-      hero['thumbnail_url']?.toString(),
-    );
+    String? img = ImageUrlSanitizer.asHttpUrlOrNull(inner['coverImageUrl']?.toString());
+    img ??= ImageUrlSanitizer.asHttpUrlOrNull(hero['thumbnail_url']?.toString());
     img ??= ImageUrlSanitizer.asHttpUrlOrNull(hero['stream_url']?.toString());
 
     final purchased = ext['purchased'] == true;
-    final price =
-        (inner['price'] as num?)?.toDouble() ??
-        (ext['price'] as num?)?.toDouble() ??
-        0.0;
+    final price = (inner['price'] as num?)?.toDouble() ?? (ext['price'] as num?)?.toDouble() ?? 0.0;
 
     return {
       'id': inner['_id']?.toString() ?? '',
@@ -874,15 +770,12 @@ class AuthController extends GetxController {
       'subtitle': inner['subtitle']?.toString(),
       'trainer': displayName,
       'trainerImage': initial,
-      'trainerImageUrl': ImageUrlSanitizer.asHttpUrlOrNull(
-        trainer['avatar_url']?.toString(),
-      ),
+      'trainerImageUrl': ImageUrlSanitizer.asHttpUrlOrNull(trainer['avatar_url']?.toString()),
       'price': price,
       'duration': duration,
       'category': (attrs['focus'] ?? inner['focus'])?.toString() ?? 'General',
       'goal': (attrs['level'] ?? inner['level'])?.toString() ?? 'Fitness',
-      'certified':
-          inner['isCertified'] == true || trainer['is_certified'] == true,
+      'certified': inner['isCertified'] == true || trainer['is_certified'] == true,
       'rating': rating,
       'students': students,
       'reviews': reviewCount,
@@ -907,12 +800,7 @@ class AuthController extends GetxController {
       update();
 
       final deviceToken = await _ensureDeviceToken();
-      final response = await _authRepo.loginRepo(
-        email: email,
-        password: password,
-        deviceType: _deviceTypeLabel(),
-        deviceToken: deviceToken,
-      );
+      final response = await _authRepo.loginRepo(email: email, password: password, deviceType: _deviceTypeLabel(), deviceToken: deviceToken);
 
       if (response is! Map<String, dynamic>) {
         _snackError('Login', 'Unexpected response from server');
@@ -930,13 +818,9 @@ class AuthController extends GetxController {
       var needsEmailVerification = false;
       var needsProfileSetup = false;
       if (data is Map<String, dynamic>) {
-        needsEmailVerification =
-            _isExplicitlyFalse(data['isVerified']) ||
-            _isExplicitlyFalse(data['is_verified']);
+        needsEmailVerification = _isExplicitlyFalse(data['isVerified']) || _isExplicitlyFalse(data['is_verified']);
         if (!needsEmailVerification) {
-          needsProfileSetup =
-              _isExplicitlyFalse(data['isProfileCompleted']) ||
-              _isExplicitlyFalse(data['is_profile_completed']);
+          needsProfileSetup = _isExplicitlyFalse(data['isProfileCompleted']) || _isExplicitlyFalse(data['is_profile_completed']);
         }
 
         final user = data['user'];
@@ -944,9 +828,7 @@ class AuthController extends GetxController {
           final id = user['_id']?.toString();
           if (id != null && id.isNotEmpty) {
             await _storageService.saveUserId(id);
-            final ls = Get.isRegistered<LocalStorage>()
-                ? Get.find<LocalStorage>()
-                : Get.put(LocalStorage());
+            final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
             ls.saveuserid(id);
           }
           emailToStore = user['email']?.toString();
@@ -958,50 +840,29 @@ class AuthController extends GetxController {
             }
           }
 
-          needsEmailVerification =
-              needsEmailVerification ||
-              _isExplicitlyFalse(user['isVerified']) ||
-              _isExplicitlyFalse(user['is_verified']);
+          needsEmailVerification = needsEmailVerification || _isExplicitlyFalse(user['isVerified']) || _isExplicitlyFalse(user['is_verified']);
           if (!needsEmailVerification) {
-            needsProfileSetup =
-                needsProfileSetup ||
-                _isExplicitlyFalse(user['isProfileCompleted']) ||
-                _isExplicitlyFalse(user['is_profile_completed']);
+            needsProfileSetup = needsProfileSetup || _isExplicitlyFalse(user['isProfileCompleted']) || _isExplicitlyFalse(user['is_profile_completed']);
             if (profile is Map<String, dynamic>) {
-              needsProfileSetup =
-                  needsProfileSetup ||
-                  _isExplicitlyFalse(profile['isProfileCompleted']) ||
-                  _isExplicitlyFalse(profile['is_profile_completed']);
+              needsProfileSetup = needsProfileSetup || _isExplicitlyFalse(profile['isProfileCompleted']) || _isExplicitlyFalse(profile['is_profile_completed']);
             }
           }
         }
       }
       final resolvedEmail = emailToStore?.trim();
-      await _storageService.saveEmail(
-        (resolvedEmail != null && resolvedEmail.isNotEmpty)
-            ? resolvedEmail
-            : email,
-      );
+      await _storageService.saveEmail((resolvedEmail != null && resolvedEmail.isNotEmpty) ? resolvedEmail : email);
 
       if (needsEmailVerification) {
         final uid = _storageService.getUserId();
         if (uid == null || uid.isEmpty) {
-          _snackError(
-            'Login',
-            'This account needs email verification, but user id is missing. Please try again.',
-          );
+          _snackError('Login', 'This account needs email verification, but user id is missing. Please try again.');
           Get.offAllNamed(AppRoutes.home);
           return;
         }
-        final em = (resolvedEmail != null && resolvedEmail.isNotEmpty)
-            ? resolvedEmail
-            : email.trim();
+        final em = (resolvedEmail != null && resolvedEmail.isNotEmpty) ? resolvedEmail : email.trim();
         _tempEmail = em;
         _pendingSignupUserId = uid;
-        Get.offAllNamed(
-          AppRoutes.otp,
-          arguments: {'email': em, 'userId': uid, 'fromSignup': false},
-        );
+        Get.offAllNamed(AppRoutes.otp, arguments: {'email': em, 'userId': uid, 'fromSignup': false});
         return;
       }
 
@@ -1043,23 +904,13 @@ class AuthController extends GetxController {
   }
 
   /// Signup via `/user/auth/signup`. On success, OTP is sent to email; stores user id for verify-OTP.
-  Future<bool> signup({
-    required String email,
-    required String password,
-    String role = 'Customer',
-  }) async {
+  Future<bool> signup({required String email, required String password, String role = 'Customer'}) async {
     try {
       _isLoading = true;
       update();
 
       final deviceToken = await _ensureDeviceToken();
-      final response = await _authRepo.signUp(
-        email: email,
-        password: password,
-        deviceType: _deviceTypeLabel(),
-        deviceToken: deviceToken,
-        role: role,
-      );
+      final response = await _authRepo.signUp(email: email, password: password, deviceType: _deviceTypeLabel(), deviceToken: deviceToken, role: role);
 
       if (response is! Map<String, dynamic>) {
         _snackError('Sign up', 'Unexpected response from server');
@@ -1075,9 +926,7 @@ class AuthController extends GetxController {
 
       final data = response['data'];
       final user = data is Map<String, dynamic> ? data['user'] : null;
-      final userId = user is Map<String, dynamic>
-          ? user['_id']?.toString()
-          : null;
+      final userId = user is Map<String, dynamic> ? user['_id']?.toString() : null;
 
       _tempEmail = email;
       _pendingSignupUserId = userId;
@@ -1140,11 +989,7 @@ class AuthController extends GetxController {
   /// Verify OTP via `/user/auth/verify-otp` with `userId` + `otp`.
   /// Signup: persists token when present, then [AppRoutes.profileSetup].
   /// Forgot password ([forgotPasswordFlow]): persists token when present (for `POST /user/auth/forget-password` Bearer), then [AppRoutes.resetPassword].
-  Future<bool> verifyOTP({
-    required String userId,
-    required String otp,
-    bool forgotPasswordFlow = false,
-  }) async {
+  Future<bool> verifyOTP({required String userId, required String otp, bool forgotPasswordFlow = false}) async {
     try {
       _isLoading = true;
       update();
@@ -1158,8 +1003,7 @@ class AuthController extends GetxController {
 
       final success = response['success'] == true;
       if (!success) {
-        final message =
-            response['message']?.toString() ?? 'Verification failed';
+        final message = response['message']?.toString() ?? 'Verification failed';
         _snackError('Verification', message);
         return false;
       }
@@ -1172,11 +1016,7 @@ class AuthController extends GetxController {
           await _persistAccessToken(token);
         }
         if (message != null && message.isNotEmpty) {
-          Get.snackbar(
-            'Verified',
-            message,
-            snackPosition: SnackPosition.BOTTOM,
-          );
+          Get.snackbar('Verified', message, snackPosition: SnackPosition.BOTTOM);
         }
         _tempEmail = null;
         _forgotPasswordUserId = null;
@@ -1245,23 +1085,16 @@ class AuthController extends GetxController {
 
   /// Resend OTP — signup: `POST /user/auth/send-otp`. Forgot password: `POST /user/auth/forget` again.
   /// Pass [email] from the OTP screen when available; otherwise uses email from signup (`_tempEmail`).
-  Future<void> resendOTP({
-    String? email,
-    bool forgotPasswordFlow = false,
-  }) async {
+  Future<void> resendOTP({String? email, bool forgotPasswordFlow = false}) async {
     try {
       _isLoading = true;
       update();
 
-      final resolved = (email != null && email.trim().isNotEmpty)
-          ? email.trim()
-          : _tempEmail;
+      final resolved = (email != null && email.trim().isNotEmpty) ? email.trim() : _tempEmail;
       if (resolved == null || resolved.isEmpty) {
         Get.snackbar(
           'Resend OTP',
-          forgotPasswordFlow
-              ? 'No email found. Go back and try again.'
-              : 'No email found. Go back and sign up again.',
+          forgotPasswordFlow ? 'No email found. Go back and try again.' : 'No email found. Go back and sign up again.',
           snackPosition: SnackPosition.BOTTOM,
         );
         if (forgotPasswordFlow) {
@@ -1272,9 +1105,7 @@ class AuthController extends GetxController {
         return;
       }
 
-      final response = forgotPasswordFlow
-          ? await _authRepo.forgotPasswordRepo(email: resolved)
-          : await _authRepo.sendOtpRepo(email: resolved);
+      final response = forgotPasswordFlow ? await _authRepo.forgotPasswordRepo(email: resolved) : await _authRepo.sendOtpRepo(email: resolved);
       if (response is! Map<String, dynamic>) {
         _snackError('Resend OTP', 'Unexpected response from server');
         return;
@@ -1284,8 +1115,7 @@ class AuthController extends GetxController {
         final message = response['message']?.toString() ?? 'OTP sent';
         Get.snackbar('Success', message, snackPosition: SnackPosition.BOTTOM);
       } else {
-        final message =
-            response['message']?.toString() ?? 'Could not resend code';
+        final message = response['message']?.toString() ?? 'Could not resend code';
         _snackError('Resend OTP', message);
       }
     } on BadRequestException catch (e) {
@@ -1309,24 +1139,12 @@ class AuthController extends GetxController {
   }
 
   /// Create customer profile — `POST /customer/profile/create` (multipart). Saves returned token and user ids.
-  Future<bool> createProfile({
-    required String fullName,
-    required String dateofbirth,
-    required String gender,
-    required String phoneNumber,
-    File? profilePicture,
-  }) async {
+  Future<bool> createProfile({required String fullName, required String dateofbirth, required String gender, required String phoneNumber, File? profilePicture}) async {
     try {
       _isLoading = true;
       update();
 
-      final response = await _authRepo.createProfileRepo(
-        fullName: fullName,
-        dateofbirth: dateofbirth,
-        gender: gender,
-        phoneNumber: phoneNumber,
-        profilePicture: profilePicture,
-      );
+      final response = await _authRepo.createProfileRepo(fullName: fullName, dateofbirth: dateofbirth, gender: gender, phoneNumber: phoneNumber, profilePicture: profilePicture);
 
       if (response is! Map<String, dynamic>) {
         _snackError('Profile', 'Unexpected response from server');
@@ -1334,8 +1152,7 @@ class AuthController extends GetxController {
       }
 
       if (response['success'] != true) {
-        final message =
-            response['message']?.toString() ?? 'Could not create profile';
+        final message = response['message']?.toString() ?? 'Could not create profile';
         _snackError('Profile', message);
         return false;
       }
@@ -1408,10 +1225,7 @@ class AuthController extends GetxController {
 
   /// `POST /customer/profile/update` — merges locally stored profile fields with onboarding [routeArgs]
   /// (`primaryFocus` slug, `mainGoals` slugs, `fitnessLevel`, optional [exerciseFrequency]).
-  Future<bool> updateCustomerOnboardingProfile({
-    Map<String, dynamic>? routeArgs,
-    String? exerciseFrequency,
-  }) async {
+  Future<bool> updateCustomerOnboardingProfile({Map<String, dynamic>? routeArgs, String? exerciseFrequency}) async {
     try {
       _isLoading = true;
       update();
@@ -1423,9 +1237,7 @@ class AuthController extends GetxController {
         preferenceId = null;
       }
 
-      String? primaryFocus = CustomerProfileEnums.normalizePrimaryFocus(
-        args['primaryFocus']?.toString(),
-      );
+      String? primaryFocus = CustomerProfileEnums.normalizePrimaryFocus(args['primaryFocus']?.toString());
       if (!CustomerProfileEnums.isValidPrimaryFocus(primaryFocus)) {
         primaryFocus = null;
       }
@@ -1434,18 +1246,14 @@ class AuthController extends GetxController {
         if (pid != null && pid.isNotEmpty) {
           for (final p in _preferences) {
             if (p.id == pid) {
-              primaryFocus = CustomerProfileEnums.normalizePrimaryFocus(
-                p.value,
-              );
+              primaryFocus = CustomerProfileEnums.normalizePrimaryFocus(p.value);
               break;
             }
           }
         }
       }
       if (!CustomerProfileEnums.isValidPrimaryFocus(primaryFocus)) {
-        primaryFocus = CustomerProfileEnums.primaryFocusFromDisplayName(
-          args['preference']?.toString(),
-        );
+        primaryFocus = CustomerProfileEnums.primaryFocusFromDisplayName(args['preference']?.toString());
       }
       if (!CustomerProfileEnums.isValidPrimaryFocus(primaryFocus)) {
         primaryFocus = null;
@@ -1455,18 +1263,13 @@ class AuthController extends GetxController {
       List<String>? goalIds;
       final rawMain = args['mainGoals'];
       if (rawMain is List && rawMain.isNotEmpty) {
-        mainGoals = CustomerProfileEnums.filterMainGoals(
-          rawMain.map((e) => e.toString()),
-        );
+        mainGoals = CustomerProfileEnums.filterMainGoals(rawMain.map((e) => e.toString()));
         if (mainGoals.isEmpty) mainGoals = null;
       }
       if (mainGoals == null || mainGoals.isEmpty) {
         final rawIds = args['goalIds'];
         if (rawIds is List && rawIds.isNotEmpty) {
-          final ids = rawIds
-              .map((e) => e.toString().trim())
-              .where((e) => e.isNotEmpty)
-              .toList();
+          final ids = rawIds.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
           if (ids.isNotEmpty) {
             goalIds = ids;
           }
@@ -1488,20 +1291,13 @@ class AuthController extends GetxController {
       if (mainGoals == null || mainGoals.isEmpty) {
         final rawNames = args['goals'];
         if (rawNames is List && rawNames.isNotEmpty) {
-          mainGoals = CustomerProfileEnums.filterMainGoals(
-            rawNames.map(
-              (e) => CustomerProfileEnums.mainGoalFromDisplayName(e.toString()),
-            ),
-          );
+          mainGoals = CustomerProfileEnums.filterMainGoals(rawNames.map((e) => CustomerProfileEnums.mainGoalFromDisplayName(e.toString())));
           if (mainGoals.isEmpty) mainGoals = null;
         }
       }
 
       final fitnessLevelRaw = args['fitnessLevel']?.toString();
-      final fitnessLevel =
-          (fitnessLevelRaw != null && fitnessLevelRaw.trim().isNotEmpty)
-          ? fitnessLevelRaw.trim()
-          : null;
+      final fitnessLevel = (fitnessLevelRaw != null && fitnessLevelRaw.trim().isNotEmpty) ? fitnessLevelRaw.trim() : null;
 
       final freqRaw = exerciseFrequency?.trim();
       final freq = (freqRaw != null && freqRaw.isNotEmpty) ? freqRaw : null;
@@ -1525,8 +1321,7 @@ class AuthController extends GetxController {
         return false;
       }
       if (response['success'] != true) {
-        final message =
-            response['message']?.toString() ?? 'Could not update profile';
+        final message = response['message']?.toString() ?? 'Could not update profile';
         _snackError('Profile', message);
         return false;
       }
@@ -1537,12 +1332,7 @@ class AuthController extends GetxController {
       }
       final goalNames = args['goals'];
       if (goalNames is List && goalNames.isNotEmpty) {
-        await _storageService.saveUserGoals(
-          goalNames
-              .map((e) => e.toString())
-              .where((e) => e.trim().isNotEmpty)
-              .toList(),
-        );
+        await _storageService.saveUserGoals(goalNames.map((e) => e.toString()).where((e) => e.trim().isNotEmpty).toList());
       }
       if (fitnessLevel != null) {
         await _storageService.saveFitnessLevel(fitnessLevel);
@@ -1602,35 +1392,17 @@ class AuthController extends GetxController {
 
       final response = await _authRepo.updateProfileRepo(
         fullName: fullName.trim(),
-        dateofbirth: (dateofbirth != null && dateofbirth.trim().isNotEmpty)
-            ? dateofbirth.trim()
-            : null,
-        gender: (gender != null && gender.trim().isNotEmpty)
-            ? gender.trim()
-            : null,
-        phoneNumber: (phoneNumber != null && phoneNumber.trim().isNotEmpty)
-            ? phoneNumber.trim()
-            : null,
+        dateofbirth: (dateofbirth != null && dateofbirth.trim().isNotEmpty) ? dateofbirth.trim() : null,
+        gender: (gender != null && gender.trim().isNotEmpty) ? gender.trim() : null,
+        phoneNumber: (phoneNumber != null && phoneNumber.trim().isNotEmpty) ? phoneNumber.trim() : null,
         bio: (bio != null && bio.trim().isNotEmpty) ? bio.trim() : null,
-        primaryFocus: (primaryFocus != null && primaryFocus.trim().isNotEmpty)
-            ? primaryFocus.trim()
-            : null,
-        preferenceId: (preferenceId != null && preferenceId.trim().isNotEmpty)
-            ? preferenceId.trim()
-            : null,
-        mainGoals: mainGoals,
+        primaryFocus: (primaryFocus != null && primaryFocus.trim().isNotEmpty) ? primaryFocus.trim() : null,
+        preferenceId: (preferenceId != null && preferenceId.trim().isNotEmpty) ? preferenceId.trim() : null,
+
         goalIds: goalIds,
-        fitnessLevel: (fitnessLevel != null && fitnessLevel.trim().isNotEmpty)
-            ? fitnessLevel.trim()
-            : null,
-        exerciseFrequency:
-            (exerciseFrequency != null && exerciseFrequency.trim().isNotEmpty)
-            ? exerciseFrequency.trim()
-            : null,
-        profilePicturePath:
-            (profilePicturePath != null && profilePicturePath.trim().isNotEmpty)
-            ? profilePicturePath.trim()
-            : null,
+        fitnessLevel: (fitnessLevel != null && fitnessLevel.trim().isNotEmpty) ? fitnessLevel.trim() : null,
+        exerciseFrequency: (exerciseFrequency != null && exerciseFrequency.trim().isNotEmpty) ? exerciseFrequency.trim() : null,
+        profilePicturePath: (profilePicturePath != null && profilePicturePath.trim().isNotEmpty) ? profilePicturePath.trim() : null,
       );
 
       if (response is! Map<String, dynamic>) {
@@ -1640,13 +1412,7 @@ class AuthController extends GetxController {
       if (response['success'] != true) {
         final msg = response['message'];
         final message = msg is List && msg.isNotEmpty
-            ? msg
-                  .map(
-                    (e) => e is Map
-                        ? (e['message'] ?? e).toString()
-                        : e.toString(),
-                  )
-                  .join('; ')
+            ? msg.map((e) => e is Map ? (e['message'] ?? e).toString() : e.toString()).join('; ')
             : (msg?.toString() ?? 'Could not update profile');
         _snackError('Profile', message);
         return false;
@@ -1685,11 +1451,7 @@ class AuthController extends GetxController {
   Future<bool> forgotPassword(String email) async {
     final trimmed = email.trim();
     if (trimmed.isEmpty) {
-      Get.snackbar(
-        'Forgot password',
-        'Please enter your email',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Forgot password', 'Please enter your email', snackPosition: SnackPosition.BOTTOM);
       return false;
     }
 
@@ -1705,8 +1467,7 @@ class AuthController extends GetxController {
       }
 
       if (response['success'] != true) {
-        final message =
-            response['message']?.toString() ?? 'Could not send reset code';
+        final message = response['message']?.toString() ?? 'Could not send reset code';
         _snackError('Forgot password', message);
         return false;
       }
@@ -1759,20 +1520,13 @@ class AuthController extends GetxController {
   Future<bool> resetPassword({required String newPassword}) async {
     final trimmed = newPassword.trim();
     if (trimmed.isEmpty) {
-      Get.snackbar(
-        'Reset password',
-        'Please enter a new password',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Reset password', 'Please enter a new password', snackPosition: SnackPosition.BOTTOM);
       return false;
     }
 
     final session = _storageService.getToken();
     if (session == null || session.isEmpty) {
-      _snackError(
-        'Reset password',
-        'Session expired. Start again from forgot password.',
-      );
+      _snackError('Reset password', 'Session expired. Start again from forgot password.');
       Get.offAllNamed(AppRoutes.forgotPassword);
       return false;
     }
@@ -1790,8 +1544,7 @@ class AuthController extends GetxController {
       }
 
       if (response['success'] != true) {
-        final msg =
-            response['message']?.toString() ?? 'Could not reset password';
+        final msg = response['message']?.toString() ?? 'Could not reset password';
         _snackError('Reset password', msg);
         return false;
       }
@@ -1800,11 +1553,7 @@ class AuthController extends GetxController {
       if (message != null && message.isNotEmpty) {
         Get.snackbar('Success', message, snackPosition: SnackPosition.BOTTOM);
       } else {
-        Get.snackbar(
-          'Success',
-          'Password updated. Please sign in.',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        Get.snackbar('Success', 'Password updated. Please sign in.', snackPosition: SnackPosition.BOTTOM);
       }
 
       await _storageService.logout();
@@ -1839,26 +1588,15 @@ class AuthController extends GetxController {
   }
 
   /// Change password — `POST /user/auth/change-password` with old + new password (authenticated).
-  Future<bool> changePassword({
-    required String currentPassword,
-    required String newPassword,
-  }) async {
+  Future<bool> changePassword({required String currentPassword, required String newPassword}) async {
     final oldPw = currentPassword.trim();
     final newPw = newPassword.trim();
     if (oldPw.isEmpty || newPw.isEmpty) {
-      Get.snackbar(
-        'Change password',
-        'Please fill in all fields',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Change password', 'Please fill in all fields', snackPosition: SnackPosition.BOTTOM);
       return false;
     }
     if (oldPw == newPw) {
-      Get.snackbar(
-        'Change password',
-        'New password must be different from current password',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Change password', 'New password must be different from current password', snackPosition: SnackPosition.BOTTOM);
       return false;
     }
 
@@ -1867,10 +1605,7 @@ class AuthController extends GetxController {
       update();
 
       _syncNetworkBearerFromStorage();
-      final response = await _authRepo.changePasswordRepo(
-        oldPassword: oldPw,
-        newPassword: newPw,
-      );
+      final response = await _authRepo.changePasswordRepo(oldPassword: oldPw, newPassword: newPw);
 
       if (response is! Map<String, dynamic>) {
         _snackError('Change password', 'Unexpected response from server');
@@ -1878,8 +1613,7 @@ class AuthController extends GetxController {
       }
 
       if (response['success'] != true) {
-        final msg =
-            response['message']?.toString() ?? 'Could not update password';
+        final msg = response['message']?.toString() ?? 'Could not update password';
         _snackError('Change password', msg);
         return false;
       }
@@ -1888,11 +1622,7 @@ class AuthController extends GetxController {
       if (message != null && message.isNotEmpty) {
         Get.snackbar('Success', message, snackPosition: SnackPosition.BOTTOM);
       } else {
-        Get.snackbar(
-          'Success',
-          'Password updated successfully',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        Get.snackbar('Success', 'Password updated successfully', snackPosition: SnackPosition.BOTTOM);
       }
 
       return true;
@@ -1935,11 +1665,7 @@ class AuthController extends GetxController {
     try {
       // Check if Apple Sign-In is available (iOS 13+ or macOS 10.15+)
       if (!Platform.isIOS && !Platform.isMacOS) {
-        Get.snackbar(
-          'Not Available',
-          'Apple Sign-In is only available on iOS and macOS devices',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        Get.snackbar('Not Available', 'Apple Sign-In is only available on iOS and macOS devices', snackPosition: SnackPosition.BOTTOM);
         return;
       }
 
@@ -1951,21 +1677,12 @@ class AuthController extends GetxController {
       if (!isAvailable) {
         _isLoading = false;
         update();
-        Get.snackbar(
-          'Not Available',
-          'Apple Sign-In is not available on this device',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        Get.snackbar('Not Available', 'Apple Sign-In is not available on this device', snackPosition: SnackPosition.BOTTOM);
         return;
       }
 
       // Request Apple Sign-In
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-      );
+      final credential = await SignInWithApple.getAppleIDCredential(scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName]);
 
       // Simulate network delay
       await Future.delayed(const Duration(seconds: 1));
@@ -1978,12 +1695,8 @@ class AuthController extends GetxController {
       final userName = displayName.isNotEmpty ? displayName : 'Apple User';
 
       // Save demo user data locally
-      await _storageService.saveToken(
-        'apple_token_${DateTime.now().millisecondsSinceEpoch}',
-      );
-      await _storageService.saveUserId(
-        'apple_user_${credential.userIdentifier}',
-      );
+      await _storageService.saveToken('apple_token_${DateTime.now().millisecondsSinceEpoch}');
+      await _storageService.saveUserId('apple_user_${credential.userIdentifier}');
       await _storageService.saveEmail(email ?? 'apple_user@example.com');
       await _storageService.saveName(userName);
       await _storageService.saveLoginStatus(true);
@@ -2004,21 +1717,11 @@ class AuthController extends GetxController {
       }
 
       // Handle other errors
-      Get.snackbar(
-        'Sign-In Failed',
-        e.message.isNotEmpty
-            ? e.message
-            : 'An error occurred during Apple Sign-In',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Sign-In Failed', e.message.isNotEmpty ? e.message : 'An error occurred during Apple Sign-In', snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       _isLoading = false;
       update();
-      Get.snackbar(
-        'Error',
-        'Failed to sign in with Apple: ${e.toString()}',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Error', 'Failed to sign in with Apple: ${e.toString()}', snackPosition: SnackPosition.BOTTOM);
     }
   }
 
@@ -2056,8 +1759,7 @@ class AuthController extends GetxController {
 
       if (response['success'] != true) {
         _nutritionMealTypes = [];
-        _nutritionMealTypesError =
-            response['message']?.toString() ?? 'Could not load meal types';
+        _nutritionMealTypesError = response['message']?.toString() ?? 'Could not load meal types';
         return;
       }
 
@@ -2070,9 +1772,7 @@ class AuthController extends GetxController {
             final o = NutritionMealTypeOption.fromJson(e);
             if (o.value.isNotEmpty) list.add(o);
           } else if (e is Map) {
-            final o = NutritionMealTypeOption.fromJson(
-              Map<String, dynamic>.from(e),
-            );
+            final o = NutritionMealTypeOption.fromJson(Map<String, dynamic>.from(e));
             if (o.value.isNotEmpty) list.add(o);
           }
         }
@@ -2107,18 +1807,10 @@ class AuthController extends GetxController {
   }
 
   /// `GET /nutrition/foods/custom` — returns parsed page or null on failure.
-  Future<NutritionCustomFoodsPage?> fetchNutritionCustomFoods({
-    required String mealId,
-    int page = 1,
-    int perPage = 20,
-  }) async {
+  Future<NutritionCustomFoodsPage?> fetchNutritionCustomFoods({required String mealId, int page = 1, int perPage = 20}) async {
     try {
       _syncNetworkBearerFromStorage();
-      final response = await _authRepo.getNutritionCustomFoodsRepo(
-        mealId: mealId,
-        page: page,
-        perPage: perPage,
-      );
+      final response = await _authRepo.getNutritionCustomFoodsRepo(mealId: mealId, page: page, perPage: perPage);
       if (response is! Map<String, dynamic>) return null;
       if (response['success'] != true) return null;
 
@@ -2129,15 +1821,7 @@ class AuthController extends GetxController {
         rawRows = data;
       } else if (data is Map) {
         final dm = Map<String, dynamic>.from(data);
-        for (final key in [
-          'foods',
-          'items',
-          'customFoods',
-          'results',
-          'rows',
-          'list',
-          'data',
-        ]) {
+        for (final key in ['foods', 'items', 'customFoods', 'results', 'rows', 'list', 'data']) {
           final v = dm[key];
           if (v is List) {
             rawRows = v;
@@ -2150,9 +1834,7 @@ class AuthController extends GetxController {
           if (e is Map<String, dynamic>) {
             list.add(FoodItem.fromNutritionCustomFoodApi(e));
           } else if (e is Map) {
-            list.add(
-              FoodItem.fromNutritionCustomFoodApi(Map<String, dynamic>.from(e)),
-            );
+            list.add(FoodItem.fromNutritionCustomFoodApi(Map<String, dynamic>.from(e)));
           }
         }
       }
@@ -2167,12 +1849,7 @@ class AuthController extends GetxController {
         pp = int.tryParse(meta['per_page']?.toString() ?? '') ?? pp;
       }
 
-      return NutritionCustomFoodsPage(
-        items: list,
-        total: total,
-        page: p,
-        perPage: pp,
-      );
+      return NutritionCustomFoodsPage(items: list, total: total, page: p, perPage: pp);
     } catch (_) {
       return null;
     }
@@ -2207,10 +1884,7 @@ class AuthController extends GetxController {
         return null;
       }
       if (response['success'] != true) {
-        _snackError(
-          'Custom food',
-          response['message']?.toString() ?? 'Could not create food',
-        );
+        _snackError('Custom food', response['message']?.toString() ?? 'Could not create food');
         return null;
       }
 
@@ -2219,9 +1893,7 @@ class AuthController extends GetxController {
         return FoodItem.fromNutritionCustomFoodApi(data);
       }
       if (data is Map) {
-        return FoodItem.fromNutritionCustomFoodApi(
-          Map<String, dynamic>.from(data),
-        );
+        return FoodItem.fromNutritionCustomFoodApi(Map<String, dynamic>.from(data));
       }
       return null;
     } on BadRequestException catch (e) {
@@ -2265,15 +1937,7 @@ class AuthController extends GetxController {
       _syncNetworkBearerFromStorage();
       final response = await _authRepo.updateNutritionCustomFoodRepo(
         id.trim(),
-        {
-          'name': name.trim(),
-          'servingSize': servingSize,
-          'servingUnit': servingUnit.trim(),
-          'calories': calories,
-          'proteinG': proteinG,
-          'carbsG': carbsG,
-          'fatG': fatG,
-        },
+        {'name': name.trim(), 'servingSize': servingSize, 'servingUnit': servingUnit.trim(), 'calories': calories, 'proteinG': proteinG, 'carbsG': carbsG, 'fatG': fatG},
         mealId: () {
           final m = mealId?.trim();
           return (m == null || m.isEmpty) ? null : m;
@@ -2285,10 +1949,7 @@ class AuthController extends GetxController {
         return null;
       }
       if (response['success'] != true) {
-        _snackError(
-          'Custom food',
-          response['message']?.toString() ?? 'Could not update food',
-        );
+        _snackError('Custom food', response['message']?.toString() ?? 'Could not update food');
         return null;
       }
 
@@ -2297,9 +1958,7 @@ class AuthController extends GetxController {
         return FoodItem.fromNutritionCustomFoodApi(data);
       }
       if (data is Map) {
-        return FoodItem.fromNutritionCustomFoodApi(
-          Map<String, dynamic>.from(data),
-        );
+        return FoodItem.fromNutritionCustomFoodApi(Map<String, dynamic>.from(data));
       }
       return null;
     } on BadRequestException catch (e) {
@@ -2342,10 +2001,7 @@ class AuthController extends GetxController {
         return false;
       }
       if (response['success'] != true) {
-        _snackError(
-          'Custom food',
-          response['message']?.toString() ?? 'Could not delete food',
-        );
+        _snackError('Custom food', response['message']?.toString() ?? 'Could not delete food');
         return false;
       }
       return true;
