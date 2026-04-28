@@ -1418,6 +1418,10 @@ class AuthController extends GetxController {
       _syncNetworkBearerFromStorage();
 
       final args = routeArgs ?? <String, dynamic>{};
+      String? preferenceId = args['preferenceId']?.toString().trim();
+      if (preferenceId != null && preferenceId.isEmpty) {
+        preferenceId = null;
+      }
 
       String? primaryFocus = CustomerProfileEnums.normalizePrimaryFocus(
         args['primaryFocus']?.toString(),
@@ -1448,6 +1452,7 @@ class AuthController extends GetxController {
       }
 
       List<String>? mainGoals;
+      List<String>? goalIds;
       final rawMain = args['mainGoals'];
       if (rawMain is List && rawMain.isNotEmpty) {
         mainGoals = CustomerProfileEnums.filterMainGoals(
@@ -1458,6 +1463,13 @@ class AuthController extends GetxController {
       if (mainGoals == null || mainGoals.isEmpty) {
         final rawIds = args['goalIds'];
         if (rawIds is List && rawIds.isNotEmpty) {
+          final ids = rawIds
+              .map((e) => e.toString().trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
+          if (ids.isNotEmpty) {
+            goalIds = ids;
+          }
           final resolved = <String>[];
           for (final id in rawIds) {
             final sid = id.toString();
@@ -1501,7 +1513,9 @@ class AuthController extends GetxController {
         phoneNumber: _storageService.getString('user_phone'),
         bio: _storageService.getString('user_bio'),
         primaryFocus: primaryFocus,
+        preferenceId: preferenceId,
         mainGoals: mainGoals,
+        goalIds: goalIds,
         fitnessLevel: fitnessLevel,
         exerciseFrequency: freq,
       );
@@ -1574,7 +1588,9 @@ class AuthController extends GetxController {
     String? phoneNumber,
     String? bio,
     String? primaryFocus,
+    String? preferenceId,
     List<String>? mainGoals,
+    List<String>? goalIds,
     String? fitnessLevel,
     String? exerciseFrequency,
     String? profilePicturePath,
@@ -1599,7 +1615,11 @@ class AuthController extends GetxController {
         primaryFocus: (primaryFocus != null && primaryFocus.trim().isNotEmpty)
             ? primaryFocus.trim()
             : null,
+        preferenceId: (preferenceId != null && preferenceId.trim().isNotEmpty)
+            ? preferenceId.trim()
+            : null,
         mainGoals: mainGoals,
+        goalIds: goalIds,
         fitnessLevel: (fitnessLevel != null && fitnessLevel.trim().isNotEmpty)
             ? fitnessLevel.trim()
             : null,

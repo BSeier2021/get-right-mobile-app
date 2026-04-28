@@ -23,7 +23,12 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  static const List<String> _fitnessLevelOptions = ['Beginner', 'Intermediate', 'Advanced', 'Professional'];
+  static const List<String> _fitnessLevelOptions = [
+    'Beginner',
+    'Intermediate',
+    'Advanced',
+    'Professional',
+  ];
 
   static const List<Map<String, String>> _exerciseFrequencyOptions = [
     {'value': 'Daily', 'title': 'Daily'},
@@ -83,26 +88,42 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _loadSavedPreferences() async {
     setState(() => _isLoading = true);
 
-    final auth = Get.isRegistered<AuthController>() ? Get.find<AuthController>() : null;
+    final auth = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : null;
     if (auth != null) {
-      await Future.wait([auth.fetchCustomerProfile(), auth.fetchPreferences(), auth.fetchGoals()]);
+      await Future.wait([
+        auth.fetchCustomerProfile(),
+        auth.fetchPreferences(),
+        auth.fetchGoals(),
+      ]);
     }
 
     final p = auth?.customerProfile;
 
-    final name = (p?.fullName != null && p!.fullName!.trim().isNotEmpty) ? p.fullName!.trim() : (_storageService.getName() ?? '');
+    final name = (p?.fullName != null && p!.fullName!.trim().isNotEmpty)
+        ? p.fullName!.trim()
+        : (_storageService.getName() ?? '');
     _firstNameController.text = name;
 
     final dob = p?.dateofbirth?.trim();
-    _dobController.text = (dob != null && dob.isNotEmpty) ? dob : (_storageService.getString('user_date_of_birth') ?? '');
+    _dobController.text = (dob != null && dob.isNotEmpty)
+        ? dob
+        : (_storageService.getString('user_date_of_birth') ?? '');
 
     final phone = p?.phoneNumber?.trim();
-    _phoneController.text = (phone != null && phone.isNotEmpty) ? phone : (_storageService.getString('user_phone') ?? '');
+    _phoneController.text = (phone != null && phone.isNotEmpty)
+        ? phone
+        : (_storageService.getString('user_phone') ?? '');
 
     final bio = p?.bio?.trim();
-    _bioController.text = (bio != null && bio.isNotEmpty) ? bio : (_storageService.getString('user_bio') ?? '');
+    _bioController.text = (bio != null && bio.isNotEmpty)
+        ? bio
+        : (_storageService.getString('user_bio') ?? '');
 
-    _selectedGender = p?.gender?.trim().isNotEmpty == true ? p!.gender!.trim() : _storageService.getString('user_gender');
+    _selectedGender = p?.gender?.trim().isNotEmpty == true
+        ? p!.gender!.trim()
+        : _storageService.getString('user_gender');
 
     _primaryFocusValue = null;
     if (p?.primaryFocus != null && p!.primaryFocus!.trim().isNotEmpty) {
@@ -145,27 +166,40 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     _fitnessLevelValue = p?.fitnessLevel?.trim();
-    if (_fitnessLevelValue != null && _fitnessLevelValue!.isNotEmpty && !_fitnessLevelOptions.contains(_fitnessLevelValue)) {
+    if (_fitnessLevelValue != null &&
+        _fitnessLevelValue!.isNotEmpty &&
+        !_fitnessLevelOptions.contains(_fitnessLevelValue)) {
       _fitnessLevelValue = null;
     }
     final storedFitnessLevel = _storageService.getFitnessLevel();
-    if (_fitnessLevelValue == null && storedFitnessLevel != null && storedFitnessLevel.trim().isNotEmpty && _fitnessLevelOptions.contains(storedFitnessLevel.trim())) {
+    if (_fitnessLevelValue == null &&
+        storedFitnessLevel != null &&
+        storedFitnessLevel.trim().isNotEmpty &&
+        _fitnessLevelOptions.contains(storedFitnessLevel.trim())) {
       _fitnessLevelValue = storedFitnessLevel.trim();
     }
 
     _exercisePlanValue = p?.exerciseFrequency?.trim();
-    if (_exercisePlanValue != null && _exercisePlanValue!.isNotEmpty && !_exerciseFrequencyOptions.any((e) => e['value'] == _exercisePlanValue)) {
+    if (_exercisePlanValue != null &&
+        _exercisePlanValue!.isNotEmpty &&
+        !_exerciseFrequencyOptions.any(
+          (e) => e['value'] == _exercisePlanValue,
+        )) {
       _exercisePlanValue = null;
     }
     final storedExerciseFrequency = _storageService.getExerciseFrequency();
-    if ((_exercisePlanValue == null || _exercisePlanValue!.isEmpty) && storedExerciseFrequency != null && storedExerciseFrequency.trim().isNotEmpty) {
+    if ((_exercisePlanValue == null || _exercisePlanValue!.isEmpty) &&
+        storedExerciseFrequency != null &&
+        storedExerciseFrequency.trim().isNotEmpty) {
       final t = storedExerciseFrequency.trim();
       if (_exerciseFrequencyOptions.any((e) => e['value'] == t)) {
         _exercisePlanValue = t;
       }
     }
 
-    _existingPhotoUrl = p?.profilePictureUrl?.trim().isNotEmpty == true ? p!.profilePictureUrl!.trim() : null;
+    _existingPhotoUrl = p?.profilePictureUrl?.trim().isNotEmpty == true
+        ? p!.profilePictureUrl!.trim()
+        : null;
 
     if (mounted) setState(() => _isLoading = false);
   }
@@ -194,20 +228,46 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final auth = Get.find<AuthController>();
     final fullName = _firstNameController.text.trim();
     if (fullName.isEmpty) {
-      Get.snackbar('Profile', 'Please enter your full name', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Profile',
+        'Please enter your full name',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 
     final mainSlugs = CustomerProfileEnums.filterMainGoals(_mainGoalSlugs);
+    String? preferenceId;
+    for (final p in auth.preferences) {
+      if (p.value == _primaryFocusValue && p.id.trim().isNotEmpty) {
+        preferenceId = p.id;
+        break;
+      }
+    }
+    final goalIds = auth.goals
+        .where((g) => _mainGoalSlugs.contains(g.value))
+        .map((g) => g.id)
+        .where((id) => id.trim().isNotEmpty)
+        .toList();
 
     final ok = await auth.updateCustomerProfileFromEdit(
       fullName: fullName,
-      dateofbirth: _dobController.text.trim().isEmpty ? null : _dobController.text.trim(),
+      dateofbirth: _dobController.text.trim().isEmpty
+          ? null
+          : _dobController.text.trim(),
       gender: _selectedGender,
-      phoneNumber: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-      bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
-      primaryFocus: CustomerProfileEnums.isValidPrimaryFocus(_primaryFocusValue) ? _primaryFocusValue : null,
+      phoneNumber: _phoneController.text.trim().isEmpty
+          ? null
+          : _phoneController.text.trim(),
+      bio: _bioController.text.trim().isEmpty
+          ? null
+          : _bioController.text.trim(),
+      primaryFocus: CustomerProfileEnums.isValidPrimaryFocus(_primaryFocusValue)
+          ? _primaryFocusValue
+          : null,
+      preferenceId: preferenceId,
       mainGoals: mainSlugs.isEmpty ? null : mainSlugs,
+      goalIds: goalIds.isEmpty ? null : goalIds,
       fitnessLevel: _fitnessLevelValue,
       exerciseFrequency: _exercisePlanValue,
       profilePicturePath: _profileImagePath,
@@ -244,7 +304,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             children: [
               Text(
                 'Choose Profile Picture',
-                style: AppTextStyles.headlineMedium.copyWith(color: AppColors.onBackground, fontSize: 20, fontWeight: FontWeight.w700),
+                style: AppTextStyles.headlineMedium.copyWith(
+                  color: AppColors.onBackground,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -256,17 +320,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 },
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+                    border: Border.all(
+                      color: AppColors.primaryGray.withOpacity(0.3),
+                      width: 1.5,
+                    ),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                        child: Icon(Icons.photo_library_rounded, color: AppColors.accent, size: 24),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.photo_library_rounded,
+                          color: AppColors.accent,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -275,14 +352,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           children: [
                             Text(
                               'Gallery',
-                              style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
+                              style: AppTextStyles.bodyLarge.copyWith(
+                                color: AppColors.onBackground,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             const SizedBox(height: 2),
-                            Text('Choose from your photos', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 13)),
+                            Text(
+                              'Choose from your photos',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.primaryGray,
+                                fontSize: 13,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      Icon(Icons.chevron_right_rounded, color: AppColors.primaryGray),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.primaryGray,
+                      ),
                     ],
                   ),
                 ),
@@ -297,17 +386,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 },
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+                    border: Border.all(
+                      color: AppColors.primaryGray.withOpacity(0.3),
+                      width: 1.5,
+                    ),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                        child: Icon(Icons.camera_alt_rounded, color: AppColors.accent, size: 24),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.camera_alt_rounded,
+                          color: AppColors.accent,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -316,14 +418,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           children: [
                             Text(
                               'Camera',
-                              style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
+                              style: AppTextStyles.bodyLarge.copyWith(
+                                color: AppColors.onBackground,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             const SizedBox(height: 2),
-                            Text('Take a new photo', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 13)),
+                            Text(
+                              'Take a new photo',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.primaryGray,
+                                fontSize: 13,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      Icon(Icons.chevron_right_rounded, color: AppColors.primaryGray),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.primaryGray,
+                      ),
                     ],
                   ),
                 ),
@@ -335,7 +449,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 onPressed: () => Get.back(),
                 child: Text(
                   'Cancel',
-                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.primaryGray,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -356,8 +473,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.surface,
-              border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 2),
-              boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 20, spreadRadius: 0, offset: const Offset(0, 8))],
+              border: Border.all(
+                color: AppColors.primaryGray.withOpacity(0.3),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.accent.withOpacity(0.1),
+                  blurRadius: 20,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: _profileImagePath != null
                 ? ClipOval(
@@ -365,7 +492,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       File(_profileImagePath!),
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
-                        return Icon(Icons.person_outline_rounded, size: 50, color: AppColors.primaryGray);
+                        return Icon(
+                          Icons.person_outline_rounded,
+                          size: 50,
+                          color: AppColors.primaryGray,
+                        );
                       },
                     ),
                   )
@@ -376,10 +507,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       fit: BoxFit.cover,
                       width: 100.w,
                       height: 100.h,
-                      errorBuilder: (_, __, ___) => Icon(Icons.add_a_photo_outlined, size: 30, color: AppColors.primaryGray),
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.add_a_photo_outlined,
+                        size: 30,
+                        color: AppColors.primaryGray,
+                      ),
                     ),
                   )
-                : Icon(Icons.add_a_photo_outlined, size: 30, color: AppColors.primaryGray),
+                : Icon(
+                    Icons.add_a_photo_outlined,
+                    size: 30,
+                    color: AppColors.primaryGray,
+                  ),
           ),
           Positioned(
             bottom: 0,
@@ -391,7 +530,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 color: AppColors.accent,
                 border: Border.all(color: AppColors.background, width: 2),
               ),
-              child: const Icon(Icons.camera_alt_rounded, size: 18, color: AppColors.onAccent),
+              child: const Icon(
+                Icons.camera_alt_rounded,
+                size: 18,
+                color: AppColors.onAccent,
+              ),
             ),
           ),
         ],
@@ -412,10 +555,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       if (!status.isGranted && !status.isLimited) {
-        final shouldOpenSettings = status.isPermanentlyDenied || status.isRestricted;
+        final shouldOpenSettings =
+            status.isPermanentlyDenied || status.isRestricted;
         Get.snackbar(
           'Permission required',
-          source == ImageSource.camera ? 'Camera permission is required to take a photo.' : 'Gallery permission is required to choose a photo.',
+          source == ImageSource.camera
+              ? 'Camera permission is required to take a photo.'
+              : 'Gallery permission is required to choose a photo.',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.error,
           colorText: Colors.white,
@@ -424,7 +570,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           mainButton: shouldOpenSettings
               ? TextButton(
                   onPressed: () => openAppSettings(),
-                  child: const Text('Settings', style: TextStyle(color: Colors.white)),
+                  child: const Text(
+                    'Settings',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 )
               : null,
         );
@@ -432,7 +581,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: source, maxWidth: 1024, maxHeight: 1024, imageQuality: 85);
+      final XFile? image = await picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
 
       if (image != null) {
         setState(() {
@@ -471,8 +625,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.arrow_back_ios_new,
+              color: AppColors.accent,
+              size: 18,
+            ),
           ),
           onPressed: () => Get.back(),
         ),
@@ -481,7 +642,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
 
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.accent),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Form(
@@ -495,10 +658,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: 32),
 
                     // Personal Information Section
-                    _buildSectionHeader('Personal Information', Icons.person_outline),
+                    _buildSectionHeader(
+                      'Personal Information',
+                      Icons.person_outline,
+                    ),
                     const SizedBox(height: 16),
 
-                    CustomTextField(controller: _firstNameController, labelText: 'Full Name', hintText: 'Enter your full name'),
+                    CustomTextField(
+                      controller: _firstNameController,
+                      labelText: 'Full Name',
+                      hintText: 'Enter your full name',
+                    ),
                     const SizedBox(height: 16),
                     _buildSectionHeader('Date of Birth', Icons.cake_outlined),
                     const SizedBox(height: 12),
@@ -506,13 +676,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       onTap: () async {
                         DateTime? picked = await showDatePicker(
                           context: context,
-                          initialDate: _dobController.text.isNotEmpty ? DateTime.tryParse(_dobController.text) ?? DateTime(2000) : DateTime(2000),
+                          initialDate: _dobController.text.isNotEmpty
+                              ? DateTime.tryParse(_dobController.text) ??
+                                    DateTime(2000)
+                              : DateTime(2000),
                           firstDate: DateTime(1900),
                           lastDate: DateTime.now(),
                         );
                         if (picked != null) {
                           setState(() {
-                            _dobController.text = picked.toIso8601String().split('T').first;
+                            _dobController.text = picked
+                                .toIso8601String()
+                                .split('T')
+                                .first;
                           });
                         }
                       },
@@ -541,11 +717,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _buildSectionHeader('Contact Number', Icons.phone_outlined),
                     const SizedBox(height: 12),
                     // Phone Number
-                    CustomTextField(controller: _phoneController, labelText: 'Contact Number', hintText: '+1 234 567 8900', keyboardType: TextInputType.phone),
+                    CustomTextField(
+                      controller: _phoneController,
+                      labelText: 'Contact Number',
+                      hintText: '+1 234 567 8900',
+                      keyboardType: TextInputType.phone,
+                    ),
                     const SizedBox(height: 16),
                     _buildSectionHeader('Bio', Icons.edit_note),
                     const SizedBox(height: 12),
-                    CustomTextField(controller: _bioController, labelText: 'Bio (Optional)', hintText: 'Tell us about yourself...', maxLines: 3),
+                    CustomTextField(
+                      controller: _bioController,
+                      labelText: 'Bio (Optional)',
+                      hintText: 'Tell us about yourself...',
+                      maxLines: 3,
+                    ),
                     const SizedBox(height: 32),
 
                     // Gender Selection
@@ -556,12 +742,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       value: _selectedGender,
                       items: AppConstants.genderOptions,
                       icon: Icons.wc_outlined,
-                      onChanged: (value) => setState(() => _selectedGender = value),
+                      onChanged: (value) =>
+                          setState(() => _selectedGender = value),
                     ),
                     const SizedBox(height: 32),
 
                     // Onboarding Questionnaire — data from GET /user/preferences, /user/goals, /user/fitness-level, /user/exercise-plan
-                    _buildSectionHeader('Onboarding Preferences', Icons.quiz_outlined),
+                    _buildSectionHeader(
+                      'Onboarding Preferences',
+                      Icons.quiz_outlined,
+                    ),
                     const SizedBox(height: 16),
                     if (Get.isRegistered<AuthController>())
                       GetBuilder<AuthController>(
@@ -571,40 +761,69 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             children: [
                               Text(
                                 'What\'s your preference?',
-                                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                                style: AppTextStyles.titleSmall.copyWith(
+                                  color: AppColors.onBackground,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const SizedBox(height: 4),
-                              Text('Choose your primary focus to personalize your experience', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                              Text(
+                                'Choose your primary focus to personalize your experience',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.primaryGray,
+                                ),
+                              ),
                               const SizedBox(height: 12),
                               _buildPreferenceDropdown(auth),
                               const SizedBox(height: 24),
                               Text(
                                 'What\'s your main goal?',
-                                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                                style: AppTextStyles.titleSmall.copyWith(
+                                  color: AppColors.onBackground,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 'This helps us recommend the best features for you. Select all that apply',
-                                style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.primaryGray,
+                                ),
                               ),
                               const SizedBox(height: 12),
                               _buildGoalsChips(auth),
                               const SizedBox(height: 24),
                               Text(
                                 'What\'s your fitness level?',
-                                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                                style: AppTextStyles.titleSmall.copyWith(
+                                  color: AppColors.onBackground,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const SizedBox(height: 4),
-                              Text('We\'ll adjust recommendations based on your experience', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                              Text(
+                                'We\'ll adjust recommendations based on your experience',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.primaryGray,
+                                ),
+                              ),
                               const SizedBox(height: 12),
                               _buildFitnessDropdown(auth),
                               const SizedBox(height: 24),
                               Text(
                                 'How often do you plan to exercise?',
-                                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                                style: AppTextStyles.titleSmall.copyWith(
+                                  color: AppColors.onBackground,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const SizedBox(height: 4),
-                              Text('This helps us create realistic goals for you', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                              Text(
+                                'This helps us create realistic goals for you',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.primaryGray,
+                                ),
+                              ),
                               const SizedBox(height: 12),
                               _buildExercisePlanDropdown(auth),
                             ],
@@ -615,7 +834,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                     // Save Button
                     GetBuilder<AuthController>(
-                      builder: (auth) => CustomButton(text: 'Save Changes', isLoading: auth.isLoading, onPressed: _saveProfile),
+                      builder: (auth) => CustomButton(
+                        text: 'Save Changes',
+                        isLoading: auth.isLoading,
+                        onPressed: _saveProfile,
+                      ),
                     ),
                     const SizedBox(height: 16),
 
@@ -626,11 +849,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: OutlinedButton(
                         onPressed: () => Get.back(),
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.primaryGray, width: 2),
+                          side: const BorderSide(
+                            color: AppColors.primaryGray,
+                            width: 2,
+                          ),
                           foregroundColor: AppColors.onBackground,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(50),
+                          ),
                         ),
-                        child: Text('Cancel', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onBackground)),
+                        child: Text(
+                          'Cancel',
+                          style: AppTextStyles.buttonLarge.copyWith(
+                            color: AppColors.onBackground,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -641,16 +874,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  String? _dropdownValueIfInList(String? value, List<DropdownMenuItem<String>> items) {
+  String? _dropdownValueIfInList(
+    String? value,
+    List<DropdownMenuItem<String>> items,
+  ) {
     if (value == null) return null;
     return items.any((e) => e.value == value) ? value : null;
   }
 
-  Widget _buildValueDropdown({required String label, required String? value, required List<DropdownMenuItem<String>> items, required ValueChanged<String?> onChanged}) {
+  Widget _buildValueDropdown({
+    required String label,
+    required String? value,
+    required List<DropdownMenuItem<String>> items,
+    required ValueChanged<String?> onChanged,
+  }) {
     if (items.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text('No options available', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+        child: Text(
+          'No options available',
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+        ),
       );
     }
     final effective = _dropdownValueIfInList(value, items);
@@ -658,13 +902,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(50),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+        border: Border.all(
+          color: AppColors.primaryGray.withOpacity(0.3),
+          width: 1.5,
+        ),
       ),
       child: DropdownButtonFormField<String>(
         value: effective,
         decoration: InputDecoration(
           labelText: label,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 5,
+          ),
           filled: false,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -672,14 +922,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           errorBorder: InputBorder.none,
           focusedErrorBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          labelStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, fontSize: 15, fontWeight: FontWeight.w500),
-          floatingLabelStyle: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w600),
+          labelStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.primaryGray,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+          floatingLabelStyle: AppTextStyles.labelMedium.copyWith(
+            color: AppColors.accent,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 15, fontWeight: FontWeight.w500),
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.onBackground,
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
         dropdownColor: AppColors.surface,
         icon: Padding(
           padding: const EdgeInsets.only(right: 16),
-          child: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryGray),
+          child: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: AppColors.primaryGray,
+          ),
         ),
         items: items,
         onChanged: onChanged,
@@ -692,7 +957,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
         child: Center(
-          child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.accent,
+            ),
+          ),
         ),
       );
     }
@@ -700,7 +972,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(auth.preferencesError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+          Text(
+            auth.preferencesError!,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.primaryGray,
+            ),
+          ),
           TextButton(
             onPressed: () async {
               await auth.fetchPreferences();
@@ -708,14 +985,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             },
             child: Text(
               'Retry',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.accent,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
       );
     }
-    final items = auth.preferences.map((e) => DropdownMenuItem<String>(value: e.value, child: Text(e.name))).toList();
-    return _buildValueDropdown(label: 'Preference', value: _primaryFocusValue, items: items, onChanged: (v) => setState(() => _primaryFocusValue = v));
+    final items = auth.preferences
+        .map(
+          (e) => DropdownMenuItem<String>(value: e.value, child: Text(e.name)),
+        )
+        .toList();
+    return _buildValueDropdown(
+      label: 'Preference',
+      value: _primaryFocusValue,
+      items: items,
+      onChanged: (v) => setState(() => _primaryFocusValue = v),
+    );
   }
 
   Widget _buildGoalsChips(AuthController auth) {
@@ -723,7 +1012,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
         child: Center(
-          child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.accent,
+            ),
+          ),
         ),
       );
     }
@@ -731,7 +1027,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(auth.goalsError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+          Text(
+            auth.goalsError!,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.primaryGray,
+            ),
+          ),
           TextButton(
             onPressed: () async {
               await auth.fetchGoals();
@@ -739,14 +1040,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             },
             child: Text(
               'Retry',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.accent,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
       );
     }
     if (auth.goals.isEmpty) {
-      return Text('No goals available', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray));
+      return Text(
+        'No goals available',
+        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+      );
     }
     return Container(
       padding: const EdgeInsets.all(16),
@@ -754,8 +1061,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.accent.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.18), width: 1),
-        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 6))],
+        border: Border.all(
+          color: AppColors.primaryGray.withOpacity(0.18),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.accent.withOpacity(0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Wrap(
         spacing: 4,
@@ -775,12 +1091,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               });
             },
             selectedColor: AppColors.accent.withOpacity(0.18),
-            labelStyle: TextStyle(color: AppColors.onBackground, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500),
+            labelStyle: TextStyle(
+              color: AppColors.onBackground,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            ),
             backgroundColor: AppColors.accent.withOpacity(0.08),
             checkmarkColor: Colors.transparent,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(50),
-              side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray.withOpacity(0.25), width: 1),
+              side: BorderSide(
+                color: isSelected
+                    ? AppColors.accent
+                    : AppColors.primaryGray.withOpacity(0.25),
+                width: 1,
+              ),
             ),
           );
         }).toList(),
@@ -789,27 +1113,58 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildFitnessDropdown(AuthController auth) {
-    final items = _fitnessLevelOptions.map((e) => DropdownMenuItem<String>(value: e, child: Text(e))).toList();
-    return _buildValueDropdown(label: 'Fitness Level', value: _fitnessLevelValue, items: items, onChanged: (v) => setState(() => _fitnessLevelValue = v));
+    final items = _fitnessLevelOptions
+        .map((e) => DropdownMenuItem<String>(value: e, child: Text(e)))
+        .toList();
+    return _buildValueDropdown(
+      label: 'Fitness Level',
+      value: _fitnessLevelValue,
+      items: items,
+      onChanged: (v) => setState(() => _fitnessLevelValue = v),
+    );
   }
 
   Widget _buildExercisePlanDropdown(AuthController auth) {
-    final items = _exerciseFrequencyOptions.map((e) => DropdownMenuItem<String>(value: e['value'], child: Text(e['title'] ?? e['value'] ?? ''))).toList();
-    return _buildValueDropdown(label: 'Exercise Frequency', value: _exercisePlanValue, items: items, onChanged: (v) => setState(() => _exercisePlanValue = v));
+    final items = _exerciseFrequencyOptions
+        .map(
+          (e) => DropdownMenuItem<String>(
+            value: e['value'],
+            child: Text(e['title'] ?? e['value'] ?? ''),
+          ),
+        )
+        .toList();
+    return _buildValueDropdown(
+      label: 'Exercise Frequency',
+      value: _exercisePlanValue,
+      items: items,
+      onChanged: (v) => setState(() => _exercisePlanValue = v),
+    );
   }
 
-  Widget _buildDropdownField({required String label, required String? value, required List<String> items, required IconData icon, required ValueChanged<String?> onChanged}) {
+  Widget _buildDropdownField({
+    required String label,
+    required String? value,
+    required List<String> items,
+    required IconData icon,
+    required ValueChanged<String?> onChanged,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(50),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+        border: Border.all(
+          color: AppColors.primaryGray.withOpacity(0.3),
+          width: 1.5,
+        ),
       ),
       child: DropdownButtonFormField<String>(
         value: value,
         decoration: InputDecoration(
           labelText: label,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 5,
+          ),
           filled: false,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -817,14 +1172,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           errorBorder: InputBorder.none,
           focusedErrorBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          labelStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, fontSize: 15, fontWeight: FontWeight.w500),
-          floatingLabelStyle: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w600),
+          labelStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.primaryGray,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+          floatingLabelStyle: AppTextStyles.labelMedium.copyWith(
+            color: AppColors.accent,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontSize: 15, fontWeight: FontWeight.w500),
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.onBackground,
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
         dropdownColor: AppColors.surface,
         icon: Padding(
           padding: const EdgeInsets.only(right: 16),
-          child: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryGray),
+          child: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: AppColors.primaryGray,
+          ),
         ),
         items: items.map((String item) {
           return DropdownMenuItem<String>(value: item, child: Text(item));
@@ -842,7 +1212,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         //   decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
         //   child: Icon(icon, color: AppColors.accent, size: 20),
         // ),
-        Text(title, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
+        Text(
+          title,
+          style: AppTextStyles.titleMedium.copyWith(
+            color: AppColors.onBackground,
+          ),
+        ),
       ],
     );
   }
