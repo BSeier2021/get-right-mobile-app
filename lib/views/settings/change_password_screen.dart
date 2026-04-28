@@ -14,7 +14,8 @@ class ChangePasswordScreen extends StatefulWidget {
   State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
 }
 
-class _ChangePasswordScreenState extends State<ChangePasswordScreen> with SingleTickerProviderStateMixin {
+class _ChangePasswordScreenState extends State<ChangePasswordScreen>
+    with SingleTickerProviderStateMixin {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -26,9 +27,21 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
-    _fadeAnimation = CurvedAnimation(parent: _animationController, curve: Curves.easeInOut);
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
     _animationController.forward();
   }
 
@@ -54,11 +67,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
   }
 
   Future<void> _handleChangePassword() async {
+    final currentPassword = _currentPasswordController.text.trim();
     final newPassword = _newPasswordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
 
-    if (_currentPasswordController.text.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+    if (currentPassword.isEmpty ||
+        newPassword.isEmpty ||
+        confirmPassword.isEmpty) {
       _showError('All fields are required');
+      return;
+    }
+
+    if (currentPassword == newPassword) {
+      _showError('New password must be different from current password');
       return;
     }
 
@@ -73,7 +94,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
     }
 
     final authController = Get.find<AuthController>();
-    final ok = await authController.changePassword(currentPassword: _currentPasswordController.text.trim(), newPassword: newPassword);
+    final ok = await authController.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
     if (!mounted || !ok) return;
 
     Get.back(result: true);
@@ -84,15 +108,25 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Change Password', style: AppTextStyles.titleLarge.copyWith()),
+        title: Text(
+          'Change Password',
+          style: AppTextStyles.titleLarge.copyWith(),
+        ),
         centerTitle: true,
         elevation: 0,
         backgroundColor: AppColors.background,
         leading: GestureDetector(
           onTap: () => Get.back(),
           child: Container(
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.arrow_back_ios_new,
+              color: AppColors.accent,
+              size: 18,
+            ),
           ).paddingAll(8),
         ),
       ),
@@ -108,21 +142,48 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Current Password
-                  Text('Current Password', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    'Current Password',
+                    style: AppTextStyles.labelLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  PasswordTextField(controller: _currentPasswordController, labelText: null, hintText: 'Enter your current password'),
+                  PasswordTextField(
+                    controller: _currentPasswordController,
+                    labelText: null,
+                    hintText: 'Enter your current password',
+                  ),
                   const SizedBox(height: 20),
 
                   // New Password
-                  Text('New Password', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    'New Password',
+                    style: AppTextStyles.labelLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  PasswordTextField(controller: _newPasswordController, labelText: null, hintText: 'Enter new password'),
+                  PasswordTextField(
+                    controller: _newPasswordController,
+                    labelText: null,
+                    hintText: 'Enter new password',
+                  ),
                   const SizedBox(height: 20),
 
                   // Re-Enter New Password
-                  Text('Re–Enter New Password', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    'Re–Enter New Password',
+                    style: AppTextStyles.labelLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  PasswordTextField(controller: _confirmPasswordController, labelText: null, hintText: 'Re–enter new password'),
+                  PasswordTextField(
+                    controller: _confirmPasswordController,
+                    labelText: null,
+                    hintText: 'Re–enter new password',
+                  ),
                   const SizedBox(height: 24),
 
                   _buildHints(),
@@ -148,25 +209,40 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
   }
 
   Widget _buildHints() {
-    final hints = ['Use at least 8 characters', 'Include uppercase & lowercase letters', 'Add at least one number', 'Include a special character (!@#\$%)'];
+    final hints = [
+      'Use at least 8 characters',
+      'Include uppercase & lowercase letters',
+      'Add at least one number',
+      'Include a special character (!@#\$%)',
+    ];
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         color: AppColors.accent.withOpacity(0.07),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.12), width: 1),
+        border: Border.all(
+          color: AppColors.primaryGray.withOpacity(0.12),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.info_outline_rounded, size: 18, color: AppColors.accent),
+              Icon(
+                Icons.info_outline_rounded,
+                size: 18,
+                color: AppColors.accent,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Password Requirements',
-                style: AppTextStyles.labelMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: AppColors.onBackground,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -179,11 +255,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Single
                   Container(
                     width: 6,
                     height: 6,
-                    decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryGray.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(hint, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.7))),
+                    child: Text(
+                      hint,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.onBackground.withOpacity(0.7),
+                      ),
+                    ),
                   ),
                 ],
               ),

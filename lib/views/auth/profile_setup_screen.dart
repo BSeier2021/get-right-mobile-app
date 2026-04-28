@@ -4,8 +4,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/controllers/auth_controller.dart';
+import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/common/custom_button.dart';
@@ -24,6 +26,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
   final _phoneController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   File? _profileImageFile;
+  bool _agreedToTerms = false;
 
   DateTime? _dateOfBirth;
   String? _selectedGender;
@@ -94,6 +97,18 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
       Get.snackbar('Profile', 'Please enter your phone number', snackPosition: SnackPosition.BOTTOM);
       return;
     }
+    if (!RegExp(r'^\d+$').hasMatch(phone)) {
+      Get.snackbar('Profile', 'Phone number must contain digits only', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (phone.length < 8 || phone.length > 15) {
+      Get.snackbar('Profile', 'Phone number must be between 8 and 15 digits', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (!_agreedToTerms) {
+      Get.snackbar('Profile', 'Please agree to Terms & Conditions and Privacy Policy', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
 
     final dob = DateFormat('yyyy-MM-dd').format(_dateOfBirth!);
     final authController = Get.find<AuthController>();
@@ -130,6 +145,28 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
 
   Future<void> _pickProfileImage(ImageSource source) async {
     try {
+      PermissionStatus status;
+      if (source == ImageSource.camera) {
+        status = await Permission.camera.request();
+      } else {
+        status = await Permission.photos.request();
+        if (!status.isGranted && Platform.isAndroid) {
+          status = await Permission.storage.request();
+        }
+      }
+
+      if (!status.isGranted && !status.isLimited) {
+        if (!mounted) return;
+        final shouldOpenSettings = status.isPermanentlyDenied || status.isRestricted;
+        Get.snackbar(
+          'Permission required',
+          source == ImageSource.camera ? 'Camera permission is required to take a photo.' : 'Gallery permission is required to choose a photo.',
+          snackPosition: SnackPosition.BOTTOM,
+          mainButton: shouldOpenSettings ? TextButton(onPressed: () => openAppSettings(), child: const Text('Settings')) : null,
+        );
+        return;
+      }
+
       final XFile? image = await _imagePicker.pickImage(source: source, maxWidth: 1024, maxHeight: 1024, imageQuality: 85);
       if (image == null) return;
       if (!mounted) return;
@@ -142,10 +179,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
     }
   }
 
+  void _handleBack() {
+    if (Get.key.currentState?.canPop() ?? false) {
+      Get.back();
+      return;
+    }
+    Get.offAllNamed(AppRoutes.login);
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
+      onPopInvokedWithResult: (_, __) => _handleBack(),
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
@@ -168,7 +214,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                             decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
                             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
                           ),
-                          onPressed: () => Get.back(),
+                          onPressed: _handleBack,
                         ),
                       ),
                     ),
@@ -225,7 +271,21 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.check_circle, size: 18.sp, color: AppColors.accent),
+                              InkWell(
+                                onTap: () => setState(() => _agreedToTerms = !_agreedToTerms),
+                                borderRadius: BorderRadius.circular(100),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  width: 20.sp,
+                                  height: 20.sp,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _agreedToTerms ? AppColors.accent : Colors.transparent,
+                                    border: Border.all(color: _agreedToTerms ? AppColors.accent : AppColors.primaryGray.withOpacity(0.6), width: 1.6),
+                                  ),
+                                  child: _agreedToTerms ? Icon(Icons.check, size: 14.sp, color: AppColors.onAccent) : null,
+                                ),
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text.rich(

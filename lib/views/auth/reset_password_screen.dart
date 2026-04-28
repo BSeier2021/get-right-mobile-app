@@ -14,7 +14,8 @@ class ResetPasswordScreen extends StatefulWidget {
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
-class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerProviderStateMixin {
+class _ResetPasswordScreenState extends State<ResetPasswordScreen>
+    with TickerProviderStateMixin {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -31,12 +32,31 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
   }
 
   void _setupAnimations() {
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
-    _iconAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _iconAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
-    _iconScaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(CurvedAnimation(parent: _iconAnimationController, curve: Curves.elasticOut));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+    _iconScaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _iconAnimationController,
+        curve: Curves.elasticOut,
+      ),
+    );
 
     _animationController.forward();
     _iconAnimationController.forward();
@@ -55,7 +75,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
     final newPass = _newPasswordController.text;
     final confirm = _confirmPasswordController.text;
     if (newPass != confirm) {
-      Get.snackbar('Reset password', 'Passwords do not match', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Reset password',
+        'Passwords do not match',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 
@@ -76,7 +100,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
+              border: Border.all(
+                color: AppColors.primaryGray.withOpacity(0.2),
+                width: 1,
+              ),
             ),
             child: const Icon(Icons.chevron_left, size: 25),
           ),
@@ -105,9 +132,23 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
                         height: 120,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: LinearGradient(colors: [AppColors.surface, AppColors.surface.withOpacity(0.8)]),
-                          border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1.5),
-                          boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.2), blurRadius: 30, spreadRadius: 5)],
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.surface,
+                              AppColors.surface.withOpacity(0.8),
+                            ],
+                          ),
+                          border: Border.all(
+                            color: AppColors.primaryGray.withOpacity(0.2),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.accent.withOpacity(0.2),
+                              blurRadius: 30,
+                              spreadRadius: 5,
+                            ),
+                          ],
                         ),
                         child: Center(
                           child: Container(
@@ -115,9 +156,18 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
                             height: 60,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withOpacity(0.8)]),
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppColors.accent,
+                                  AppColors.accent.withOpacity(0.8),
+                                ],
+                              ),
                             ),
-                            child: const Icon(Icons.lock_reset_rounded, size: 30, color: AppColors.onAccent),
+                            child: const Icon(
+                              Icons.lock_reset_rounded,
+                              size: 30,
+                              color: AppColors.onAccent,
+                            ),
                           ),
                         ),
                       ),
@@ -127,7 +177,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
                     // Title
                     Text(
                       'Create New Password',
-                      style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -1),
+                      style: AppTextStyles.headlineLarge.copyWith(
+                        color: AppColors.onBackground,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
@@ -136,19 +191,31 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        'Your new password must be different from previously used passwords',
-                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 15, height: 1.5),
+                        'Create a strong new password for your account',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.onBackground.withOpacity(0.6),
+                          fontSize: 15,
+                          height: 1.5,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
                     const SizedBox(height: 48),
 
                     // New password
-                    PasswordTextField(controller: _newPasswordController, labelText: 'New Password', hintText: 'Enter new password'),
+                    PasswordTextField(
+                      controller: _newPasswordController,
+                      labelText: 'New Password',
+                      hintText: 'Enter new password',
+                    ),
                     const SizedBox(height: 20),
 
                     // Confirm new password
-                    PasswordTextField(controller: _confirmPasswordController, labelText: 'Confirm New Password', hintText: 'Re-enter new password'),
+                    PasswordTextField(
+                      controller: _confirmPasswordController,
+                      labelText: 'Confirm New Password',
+                      hintText: 'Re-enter new password',
+                    ),
                     const SizedBox(height: 32),
 
                     // Password requirements hint
@@ -157,24 +224,36 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
                       decoration: BoxDecoration(
                         color: AppColors.surface.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
+                        border: Border.all(
+                          color: AppColors.primaryGray.withOpacity(0.2),
+                          width: 1,
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.info_outline_rounded, size: 18, color: AppColors.accent),
+                              Icon(
+                                Icons.info_outline_rounded,
+                                size: 18,
+                                color: AppColors.accent,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 'Password Requirements',
-                                style: AppTextStyles.labelMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
+                                style: AppTextStyles.labelMedium.copyWith(
+                                  color: AppColors.onBackground,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 12),
                           _buildRequirement('At least 8 characters'),
-                          _buildRequirement('Contains uppercase and lowercase letters'),
+                          _buildRequirement(
+                            'Contains uppercase and lowercase letters',
+                          ),
                           _buildRequirement('Contains numbers'),
                           _buildRequirement('Contains special characters'),
                         ],
@@ -212,11 +291,20 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primaryGray.withOpacity(0.5)),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primaryGray.withOpacity(0.5),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(text, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 13)),
+            child: Text(
+              text,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.onBackground.withOpacity(0.6),
+                fontSize: 13,
+              ),
+            ),
           ),
         ],
       ),

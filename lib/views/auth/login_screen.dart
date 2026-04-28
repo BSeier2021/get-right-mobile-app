@@ -221,8 +221,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         Image.asset('assets/images/facebook.png', width: 60.w),
                       ],
                     ),
-                    SizedBox(height: 135.h),
-
+                    SizedBox(height: 120.h),
                     // Sign up link
                     Center(
                       child: Row(

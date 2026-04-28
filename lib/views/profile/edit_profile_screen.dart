@@ -12,6 +12,7 @@ import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/common/custom_button.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 /// Edit profile screen - Redesigned to match app theme
 class EditProfileScreen extends StatefulWidget {
@@ -22,6 +23,18 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
+  static const List<String> _fitnessLevelOptions = ['Beginner', 'Intermediate', 'Advanced', 'Professional'];
+
+  static const List<Map<String, String>> _exerciseFrequencyOptions = [
+    {'value': 'Daily', 'title': 'Daily'},
+    {'value': 'Weekly', 'title': 'Weekly'},
+    {'value': 'TwiceaWeek', 'title': 'Twice a Week'},
+    {'value': 'ThreeTimesaWeek', 'title': 'Three Times a Week'},
+    {'value': 'FourTimesaWeek', 'title': 'Four Times a Week'},
+    {'value': 'FiveTimesaWeek', 'title': 'Five Times a Week'},
+    {'value': 'SixTimesaWeek', 'title': 'Six Times a Week'},
+  ];
+
   final _formKey = GlobalKey<FormState>();
   final _storageService = Get.find<StorageService>();
   final _firstNameController = TextEditingController();
@@ -72,7 +85,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     final auth = Get.isRegistered<AuthController>() ? Get.find<AuthController>() : null;
     if (auth != null) {
-      await Future.wait([auth.fetchCustomerProfile(), auth.fetchPreferences(), auth.fetchGoals(), auth.fetchFitnessLevels(), auth.fetchExercisePlans()]);
+      await Future.wait([auth.fetchCustomerProfile(), auth.fetchPreferences(), auth.fetchGoals()]);
     }
 
     final p = auth?.customerProfile;
@@ -132,22 +145,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     _fitnessLevelValue = p?.fitnessLevel?.trim();
-    if (_fitnessLevelValue != null && _fitnessLevelValue!.isNotEmpty && auth != null && !auth.fitnessLevels.any((e) => e.value == _fitnessLevelValue)) {
+    if (_fitnessLevelValue != null && _fitnessLevelValue!.isNotEmpty && !_fitnessLevelOptions.contains(_fitnessLevelValue)) {
       _fitnessLevelValue = null;
     }
-    _fitnessLevelValue ??= _storageService.getFitnessLevel();
+    final storedFitnessLevel = _storageService.getFitnessLevel();
+    if (_fitnessLevelValue == null && storedFitnessLevel != null && storedFitnessLevel.trim().isNotEmpty && _fitnessLevelOptions.contains(storedFitnessLevel.trim())) {
+      _fitnessLevelValue = storedFitnessLevel.trim();
+    }
 
     _exercisePlanValue = p?.exerciseFrequency?.trim();
-    if (_exercisePlanValue != null && _exercisePlanValue!.isNotEmpty && auth != null && !auth.exercisePlans.any((e) => e.value == _exercisePlanValue)) {
+    if (_exercisePlanValue != null && _exercisePlanValue!.isNotEmpty && !_exerciseFrequencyOptions.any((e) => e['value'] == _exercisePlanValue)) {
       _exercisePlanValue = null;
     }
-    if ((_exercisePlanValue == null || _exercisePlanValue!.isEmpty) && auth != null) {
-      final stored = _storageService.getExerciseFrequency();
-      if (stored != null && stored.trim().isNotEmpty) {
-        final t = stored.trim();
-        if (auth.exercisePlans.any((e) => e.value == t)) {
-          _exercisePlanValue = t;
-        }
+    final storedExerciseFrequency = _storageService.getExerciseFrequency();
+    if ((_exercisePlanValue == null || _exercisePlanValue!.isEmpty) && storedExerciseFrequency != null && storedExerciseFrequency.trim().isNotEmpty) {
+      final t = storedExerciseFrequency.trim();
+      if (_exerciseFrequencyOptions.any((e) => e['value'] == t)) {
+        _exercisePlanValue = t;
       }
     }
 
@@ -387,6 +401,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _pickImageFromSource(ImageSource source) async {
     try {
+      PermissionStatus status;
+      if (source == ImageSource.camera) {
+        status = await Permission.camera.request();
+      } else {
+        status = await Permission.photos.request();
+        if (!status.isGranted && Platform.isAndroid) {
+          status = await Permission.storage.request();
+        }
+      }
+
+      if (!status.isGranted && !status.isLimited) {
+        final shouldOpenSettings = status.isPermanentlyDenied || status.isRestricted;
+        Get.snackbar(
+          'Permission required',
+          source == ImageSource.camera ? 'Camera permission is required to take a photo.' : 'Gallery permission is required to choose a photo.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.error,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 12,
+          mainButton: shouldOpenSettings
+              ? TextButton(
+                  onPressed: () => openAppSettings(),
+                  child: const Text('Settings', style: TextStyle(color: Colors.white)),
+                )
+              : null,
+        );
+        return;
+      }
+
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(source: source, maxWidth: 1024, maxHeight: 1024, imageQuality: 85);
 
@@ -745,64 +789,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildFitnessDropdown(AuthController auth) {
-    if (auth.fitnessLevelsLoading && auth.fitnessLevels.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
-        child: Center(
-          child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
-        ),
-      );
-    }
-    if (auth.fitnessLevelsError != null && auth.fitnessLevels.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(auth.fitnessLevelsError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-          TextButton(
-            onPressed: () async {
-              await auth.fetchFitnessLevels();
-              if (mounted) setState(() {});
-            },
-            child: Text(
-              'Retry',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      );
-    }
-    final items = auth.fitnessLevels.map((e) => DropdownMenuItem<String>(value: e.value, child: Text(e.title))).toList();
+    final items = _fitnessLevelOptions.map((e) => DropdownMenuItem<String>(value: e, child: Text(e))).toList();
     return _buildValueDropdown(label: 'Fitness Level', value: _fitnessLevelValue, items: items, onChanged: (v) => setState(() => _fitnessLevelValue = v));
   }
 
   Widget _buildExercisePlanDropdown(AuthController auth) {
-    if (auth.exercisePlansLoading && auth.exercisePlans.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
-        child: Center(
-          child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
-        ),
-      );
-    }
-    if (auth.exercisePlansError != null && auth.exercisePlans.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(auth.exercisePlansError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-          TextButton(
-            onPressed: () async {
-              await auth.fetchExercisePlans();
-              if (mounted) setState(() {});
-            },
-            child: Text(
-              'Retry',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      );
-    }
-    final items = auth.exercisePlans.map((e) => DropdownMenuItem<String>(value: e.value, child: Text(e.title))).toList();
+    final items = _exerciseFrequencyOptions.map((e) => DropdownMenuItem<String>(value: e['value'], child: Text(e['title'] ?? e['value'] ?? ''))).toList();
     return _buildValueDropdown(label: 'Exercise Frequency', value: _exercisePlanValue, items: items, onChanged: (v) => setState(() => _exercisePlanValue = v));
   }
 

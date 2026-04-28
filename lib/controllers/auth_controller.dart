@@ -1833,6 +1833,14 @@ class AuthController extends GetxController {
       );
       return false;
     }
+    if (oldPw == newPw) {
+      Get.snackbar(
+        'Change password',
+        'New password must be different from current password',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return false;
+    }
 
     try {
       _isLoading = true;

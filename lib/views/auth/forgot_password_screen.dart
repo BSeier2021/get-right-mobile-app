@@ -67,14 +67,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Ticker
       return;
     }
 
-    Get.toNamed(
-      AppRoutes.otp,
-      arguments: {
-        'flow': _otpFlowForgot,
-        'email': _emailController.text.trim(),
-        'userId': userId,
-      },
-    );
+    Get.toNamed(AppRoutes.otp, arguments: {'flow': _otpFlowForgot, 'email': _emailController.text.trim(), 'userId': userId});
   }
 
   @override
