@@ -17,12 +17,8 @@ class OtpScreen extends StatefulWidget {
   State<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen>
-    with SingleTickerProviderStateMixin {
-  final List<TextEditingController> _controllers = List.generate(
-    6,
-    (_) => TextEditingController(),
-  );
+class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMixin {
+  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
   int _remainingSeconds = AppConstants.otpResendTimeSeconds;
@@ -34,13 +30,8 @@ class _OtpScreenState extends State<OtpScreen>
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
     _animationController.forward();
     _startTimer();
   }
@@ -84,39 +75,46 @@ class _OtpScreenState extends State<OtpScreen>
 
   String _otpCode() => _controllers.map((c) => c.text).join();
 
+  void _showOtpExpiredAlert() {
+    Get.dialog<void>(
+      AlertDialog(
+        title: Text('OTP Expired', style: AppTextStyles.titleLarge.copyWith(color: AppColors.black)),
+        content: Text(
+          'This code has expired. Tap Resend Code to receive a new verification code.',
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.85)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back<void>(),
+            child: Text('OK', style: AppTextStyles.labelLarge.copyWith(color: AppColors.accent)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submitOtp() async {
     final args = Get.arguments as Map<String, dynamic>?;
     final forgot = args?['flow'] == _flowForgotPassword;
-    final userId =
-        args?['userId'] as String? ??
-        (forgot ? null : Get.find<AuthController>().pendingSignupUserId);
+    final userId = args?['userId'] as String? ?? (forgot ? null : Get.find<AuthController>().pendingSignupUserId);
     final code = _otpCode();
 
     if (userId == null || userId.isEmpty) {
-      Get.snackbar(
-        'Verification',
-        forgot
-            ? 'Missing user id. Go back and try again.'
-            : 'Missing user id. Go back and sign up again.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Verification', forgot ? 'Missing user id. Go back and try again.' : 'Missing user id. Go back and sign up again.', snackPosition: SnackPosition.BOTTOM);
       return;
     }
     if (code.length != 6) {
-      Get.snackbar(
-        'Verification',
-        'Enter the 6-digit code',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Verification', 'Enter the 6-digit code', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    if (_remainingSeconds <= 0) {
+      _showOtpExpiredAlert();
       return;
     }
 
     final authController = Get.find<AuthController>();
-    await authController.verifyOTP(
-      userId: userId,
-      otp: code,
-      forgotPasswordFlow: forgot,
-    );
+    await authController.verifyOTP(userId: userId, otp: code, forgotPasswordFlow: forgot);
   }
 
   void _handleBack() {
@@ -160,43 +158,27 @@ class _OtpScreenState extends State<OtpScreen>
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Padding(
-                            padding: EdgeInsets.only(left: 16.w, top: 8),
+                            padding: EdgeInsets.only(left: 16.w),
                             child: IconButton(
                               icon: Container(
                                 padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: AppColors.accent.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_back_ios_new,
-                                  color: AppColors.accent,
-                                  size: 18,
-                                ),
+                                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                                child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
                               ),
                               onPressed: _handleBack,
                             ),
                           ),
                         ),
-                        SizedBox(height: 32.h),
+                        SizedBox(height: 20.h),
 
                         // Verified icon
-                        Image.asset(
-                          'assets/images/otpicon.png',
-                          width: 90.w,
-                          height: 90.h,
-                        ),
-                        SizedBox(height: 32.h),
+                        Image.asset('assets/images/otpicon.png', width: 90.w, height: 90.h),
+                        SizedBox(height: 25.h),
 
                         // Title
                         Text(
                           'Verify Your Email',
-                          style: AppTextStyles.headlineLarge.copyWith(
-                            color: AppColors.black,
-                            fontSize: 30.sp,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.5,
-                          ),
+                          style: AppTextStyles.headlineLarge.copyWith(color: AppColors.black, fontSize: 30.sp, fontWeight: FontWeight.w700, letterSpacing: -0.5),
                           textAlign: TextAlign.center,
                         ),
                         SizedBox(height: 10.h),
@@ -205,14 +187,8 @@ class _OtpScreenState extends State<OtpScreen>
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 40.w),
                           child: Text(
-                            email != null
-                                ? 'We\'ve sent a 6-digit verification code to\n$email'
-                                : 'We\'ve sent a 6-digit verification code to',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.onBackground.withOpacity(0.6),
-                              fontSize: 14.sp,
-                              height: 1.5,
-                            ),
+                            email != null ? 'We\'ve sent a 6-digit verification code to\n$email' : 'We\'ve sent a 6-digit verification code to',
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 14.sp, height: 1.5),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -221,13 +197,7 @@ class _OtpScreenState extends State<OtpScreen>
                         // OTP circles
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 32.w),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: List.generate(
-                              6,
-                              (i) => _buildOtpCircle(i),
-                            ),
-                          ),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: List.generate(6, (i) => _buildOtpCircle(i))),
                         ),
                         SizedBox(height: 36.h),
 
@@ -245,33 +215,37 @@ class _OtpScreenState extends State<OtpScreen>
                                     backgroundColor: AppColors.accentVariant,
                                     foregroundColor: AppColors.onAccent,
                                     elevation: 0,
-                                    disabledBackgroundColor: AppColors
-                                        .accentVariant
-                                        .withOpacity(0.6),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(50),
-                                    ),
+                                    disabledBackgroundColor: AppColors.accentVariant.withOpacity(0.6),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                                   ),
                                   child: auth.isLoading
-                                      ? const SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : Text(
-                                          'Verify & continue',
-                                          style: AppTextStyles.buttonLarge
-                                              .copyWith(fontSize: 16.sp),
-                                        ),
+                                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                      : Text('Verify & continue', style: AppTextStyles.buttonLarge.copyWith(fontSize: 16.sp)),
                                 ),
                               );
                             },
                           ),
                         ),
                         SizedBox(height: 24.h),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Didn\'t receive the code? ', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 14)),
+                            if (_remainingSeconds > 0)
+                              Text(
+                                'Resend in ${_remainingSeconds}s',
+                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w700),
+                              )
+                            else
+                              GestureDetector(
+                                onTap: _resendOTP,
+                                child: Text(
+                                  'Resend Code',
+                                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontSize: 14, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -279,10 +253,6 @@ class _OtpScreenState extends State<OtpScreen>
               ),
 
               // Resend section pinned at bottom
-              Padding(
-                padding: EdgeInsets.only(bottom: 24.h),
-                child: _buildResendSection(),
-              ),
             ],
           ),
         ),
@@ -297,8 +267,7 @@ class _OtpScreenState extends State<OtpScreen>
       child: RawKeyboardListener(
         focusNode: FocusNode(),
         onKey: (event) {
-          if (event is RawKeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.backspace) {
+          if (event is RawKeyDownEvent && event.logicalKey == LogicalKeyboardKey.backspace) {
             if (_controllers[index].text.isEmpty && index > 0) {
               _focusNodes[index - 1].requestFocus();
             }
@@ -311,39 +280,22 @@ class _OtpScreenState extends State<OtpScreen>
           textAlign: TextAlign.center,
           textAlignVertical: TextAlignVertical.center,
           keyboardType: TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(1),
-          ],
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(1)],
           maxLength: 1,
           showCursor: false,
-          style: AppTextStyles.bodyLarge.copyWith(
-            color: AppColors.black,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
+          style: AppTextStyles.bodyLarge.copyWith(color: AppColors.black, fontWeight: FontWeight.w700, fontSize: 18),
           decoration: InputDecoration(
             counterText: '',
             hintText: '–',
-            hintStyle: AppTextStyles.bodyLarge.copyWith(
-              color: AppColors.primaryGray.withOpacity(0.5),
-              fontWeight: FontWeight.w400,
-              fontSize: 18,
-            ),
+            hintStyle: AppTextStyles.bodyLarge.copyWith(color: AppColors.primaryGray.withOpacity(0.5), fontWeight: FontWeight.w400, fontSize: 18),
             contentPadding: EdgeInsets.zero,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(50),
-              borderSide: BorderSide(
-                color: AppColors.primaryGray.withOpacity(0.35),
-                width: 1.2,
-              ),
+              borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.35), width: 1.2),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(50),
-              borderSide: BorderSide(
-                color: AppColors.accent.withOpacity(0.6),
-                width: 1.5,
-              ),
+              borderSide: BorderSide(color: AppColors.accent.withOpacity(0.6), width: 1.5),
             ),
           ),
           onChanged: (value) {
@@ -356,42 +308,6 @@ class _OtpScreenState extends State<OtpScreen>
           },
         ),
       ),
-    );
-  }
-
-  Widget _buildResendSection() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          'Didn\'t receive the code? ',
-          style: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.onBackground.withOpacity(0.6),
-            fontSize: 14,
-          ),
-        ),
-        if (_remainingSeconds > 0)
-          Text(
-            'Resend in ${_remainingSeconds}s',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.black,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          )
-        else
-          GestureDetector(
-            onTap: _resendOTP,
-            child: Text(
-              'Resend Code',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.accent,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

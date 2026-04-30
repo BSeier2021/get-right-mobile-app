@@ -130,8 +130,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     });
     try {
       final results = await Future.wait([
-        _marketplaceRepo.fetchSectionPrograms(section: MarketplaceSection.featured, page: 1, perPage: 20),
-        _marketplaceRepo.fetchSectionPrograms(section: MarketplaceSection.newReleases, page: 1, perPage: 20),
+        _marketplaceRepo.fetchSectionPrograms(type: MarketplaceSection.featured, page: 1, perPage: 10),
+        _marketplaceRepo.fetchSectionPrograms(type: MarketplaceSection.newReleases, page: 1, perPage: 10),
       ]);
       if (!mounted) return;
       setState(() {
@@ -155,7 +155,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     });
     try {
       final catalog = List<Map<String, dynamic>>.from(_browsePrograms);
-      final page = await _marketplaceRepo.fetchBrowseBundles(page: 1, perPage: 20, programCatalog: catalog);
+      final page = await _marketplaceRepo.fetchBrowseBundles(page: 1, perPage: 10, programCatalog: catalog);
       if (!mounted) return;
       setState(() {
         _apiBundles = page.bundles;
@@ -189,7 +189,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   bool _browseProgramsLoadingMore = false;
   String? _browseProgramsError;
   int _browseProgramsTotal = 0;
-  static const int _browseProgramsPerPage = 20;
+  static const int _browseProgramsPerPage = 10;
 
   // Mock weekly free workouts
   final List<Map<String, dynamic>> _weeklyFreeWorkouts = [
@@ -1266,7 +1266,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               _buildFeaturedSection(featuredPrograms, loading: _marketplaceSectionsLoading && featuredPrograms.isEmpty),
 
               SizedBox(height: 24.h),
-              // BUNDLES — `GET /marketplace/bundles`
+              // BUNDLES — `GET /customer/bundle`
               if (_bundlesLoading && _apiBundles.isEmpty)
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: 32.h),

@@ -8,7 +8,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
-/// Bundle detail — loads `GET /marketplace/bundles/:id` when opened with a bundle id.
+/// Bundle detail — loads `GET /customer/bundle/:id` when opened with a bundle id.
 class BundleDetailScreen extends StatefulWidget {
   const BundleDetailScreen({super.key});
 

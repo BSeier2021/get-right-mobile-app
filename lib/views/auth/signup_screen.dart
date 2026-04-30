@@ -54,7 +54,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   Future<void> _signup() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    final confirm = _confirmPasswordController.text;
+    final confirm = _confirmPasswordController.text.trim();
     final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
     final hasLowercase = RegExp(r'[a-z]').hasMatch(password);
 
@@ -68,6 +68,10 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     }
     if (!hasUppercase || !hasLowercase) {
       Get.snackbar('Password', 'Password must include both uppercase and lowercase letters', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (confirm.isEmpty) {
+      Get.snackbar('Password', 'Please confirm your password', snackPosition: SnackPosition.BOTTOM);
       return;
     }
     if (password != confirm) {

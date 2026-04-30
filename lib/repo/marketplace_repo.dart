@@ -2,13 +2,14 @@ import 'package:get_right/app_url.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
-/// Query `section` values supported by `GET /marketplace/sections`.
+/// Query `type` values supported by `GET /customer/program`.
 abstract final class MarketplaceSection {
-  static const String featured = 'featured';
-  static const String newReleases = 'new_releases';
+  static const String featured = 'Featured';
+  static const String newReleases = 'New';
+  static const String all = 'All';
 }
 
-/// One page from `GET /marketplace/bundles`.
+/// One page from `GET /customer/bundle`.
 class MarketplaceBundlesPage {
   final List<Map<String, dynamic>> bundles;
   final int page;
@@ -25,7 +26,7 @@ class MarketplaceBundlesPage {
   });
 }
 
-/// One page from `GET /marketplace/programs`.
+/// One page from `GET /customer/program`.
 class MarketplaceProgramsPage {
   final List<Map<String, dynamic>> programs;
   final int page;
@@ -42,33 +43,35 @@ class MarketplaceProgramsPage {
   });
 }
 
-/// `GET /marketplace/sections` — paginated programs per [section] (e.g. [MarketplaceSection.featured], [MarketplaceSection.newReleases]).
+/// `GET /customer/program` — paginated programs per `type`.
 class MarketplaceRepository {
   final _network = NetworkApiService();
 
   Future<List<Map<String, dynamic>>> fetchSectionPrograms({
-    required String section,
+    required String type,
     int page = 1,
-    int perPage = 20,
+    int perPage = 10,
   }) async {
-    final url = AppUrl.marketplaceSections(page: page, perPage: perPage, section: section);
+    final url = AppUrl.customerPrograms(page: page, limit: perPage, type: type);
     final raw = await _network.get(url);
-    return _parseSectionItems(raw);
+    return _parseProgramsList(raw);
   }
 
-  /// `GET /marketplace/programs` — flat `data.data[]` program documents (+ `data.meta`).
-  Future<MarketplaceProgramsPage> fetchBrowsePrograms({int page = 1, int perPage = 20}) async {
-    final raw = await _network.get(AppUrl.marketplacePrograms(page: page, perPage: perPage));
+  /// `GET /customer/program` with `type=All`.
+  Future<MarketplaceProgramsPage> fetchBrowsePrograms({int page = 1, int perPage = 10}) async {
+    final raw = await _network.get(
+      AppUrl.customerPrograms(page: page, limit: perPage, type: MarketplaceSection.all),
+    );
     return _parseBrowseProgramsPage(raw, page, perPage);
   }
 
-  /// `GET /marketplace/bundles`. [programCatalog] is used to resolve `programs: [_id, …]` into card rows (e.g. loaded browse programs).
+  /// `GET /customer/bundle` — [programCatalog] resolves `programs: [_id, …]` into card rows (e.g. browse programs).
   Future<MarketplaceBundlesPage> fetchBrowseBundles({
     int page = 1,
-    int perPage = 20,
+    int perPage = 10,
     List<Map<String, dynamic>> programCatalog = const [],
   }) async {
-    final raw = await _network.get(AppUrl.marketplaceBundles(page: page, perPage: perPage));
+    final raw = await _network.get(AppUrl.customerBundles(page: page, limit: perPage));
     return _parseBrowseBundlesPage(raw, page, perPage, programCatalog);
   }
 
@@ -88,29 +91,54 @@ class MarketplaceRepository {
       return MarketplaceBundlesPage(bundles: bundles, page: page, perPage: perPage, total: 0, hasMore: false);
     }
     final dataMap = Map<String, dynamic>.from(data);
-    final items = dataMap['data'];
-    if (items is! List) {
+    final List<dynamic>? items = dataMap['bundles'] is List
+        ? dataMap['bundles'] as List<dynamic>
+        : (dataMap['data'] is List ? dataMap['data'] as List<dynamic> : null);
+    if (items == null) {
       return MarketplaceBundlesPage(bundles: bundles, page: page, perPage: perPage, total: 0, hasMore: false);
     }
     for (final item in items) {
       if (item is! Map) continue;
       bundles.add(_bundleCardFromApi(Map<String, dynamic>.from(item), programCatalog));
     }
-    int total = bundles.length;
+    int total = (dataMap['totalDocs'] as num?)?.toInt() ?? bundles.length;
     final meta = dataMap['meta'];
     if (meta is Map) {
       total = (Map<String, dynamic>.from(meta)['total'] as num?)?.toInt() ?? total;
     }
-    final hasMore = bundles.length == perPage && (page * perPage) < total;
+    final bool? hasNext = dataMap['hasNextPage'] is bool ? dataMap['hasNextPage'] as bool : null;
+    final hasMore = hasNext ?? (bundles.length == perPage && (page * perPage) < total);
     return MarketplaceBundlesPage(bundles: bundles, page: page, perPage: perPage, total: total, hasMore: hasMore);
   }
 
   static double _programCardPrice(Map<String, dynamic> p) => ((p['price'] as num?) ?? 0).toDouble();
 
+  static String _trainerNameFromBundleApi(Map<String, dynamic> b) {
+    final tr = b['trainer'];
+    if (tr is! Map) return 'Trainer';
+    final prof = tr['profile'];
+    if (prof is Map) {
+      final fn = prof['fullName']?.toString().trim();
+      if (fn != null && fn.isNotEmpty) return fn;
+    }
+    return 'Trainer';
+  }
+
+  static String? _bundleImageUrlFromApi(Map<String, dynamic> b) {
+    final direct = ImageUrlSanitizer.asHttpUrlOrNull(b['coverImageUrl']?.toString());
+    if (direct != null && direct.isNotEmpty) return direct;
+    final th = b['thumbnail'];
+    if (th is Map) {
+      return ImageUrlSanitizer.asHttpUrlOrNull(th['url']?.toString());
+    }
+    return null;
+  }
+
   static Map<String, dynamic> _bundleCardFromApi(Map<String, dynamic> b, List<Map<String, dynamic>> programCatalog) {
     final bundleId = b['_id']?.toString() ?? '';
-    final bundlePrice = (b['bundlePrice'] as num?)?.toDouble() ?? 0.0;
+    final bundlePrice = (b['bundlePrice'] as num?)?.toDouble() ?? (b['price'] as num?)?.toDouble() ?? 0.0;
     final bundleCertified = b['isCertified'] == true;
+    final trainerName = _trainerNameFromBundleApi(b);
     final rawPrograms = b['programs'];
     final resolved = <Map<String, dynamic>>[];
 
@@ -131,8 +159,8 @@ class MarketplaceRepository {
           resolved.add({
             'id': pid,
             'title': 'Program',
-            'trainer': 'Trainer',
-            'trainerImage': 'T',
+            'trainer': trainerName,
+            'trainerImage': _initials(trainerName),
             'price': 0.0,
             'duration': '—',
             'category': 'Program',
@@ -149,8 +177,16 @@ class MarketplaceRepository {
     if (sumPrices <= bundlePrice) {
       sumPrices = bundlePrice > 0 ? bundlePrice * 1.12 : 1;
     }
-    final totalValue = sumPrices;
-    final discount = totalValue > 0 ? (((totalValue - bundlePrice) / totalValue) * 100).round().clamp(0, 95) : 0;
+
+    final apiDiscountPct = (b['discount'] as num?)?.toDouble();
+    double totalValue = sumPrices;
+    int discount;
+    if (apiDiscountPct != null && apiDiscountPct > 0 && apiDiscountPct < 100 && bundlePrice > 0) {
+      totalValue = bundlePrice / (1 - apiDiscountPct / 100);
+      discount = apiDiscountPct.round().clamp(0, 95);
+    } else {
+      discount = totalValue > 0 ? (((totalValue - bundlePrice) / totalValue) * 100).round().clamp(0, 95) : 0;
+    }
 
     return {
       'id': bundleId,
@@ -160,7 +196,7 @@ class MarketplaceRepository {
       'discount': discount,
       'totalValue': totalValue,
       'bundlePrice': bundlePrice,
-      'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(b['coverImageUrl']?.toString()) ?? '',
+      'imageUrl': _bundleImageUrlFromApi(b) ?? '',
       'programs': resolved,
       'isHot': b['isHot'] == true,
       'isCertified': bundleCertified,
@@ -179,7 +215,9 @@ class MarketplaceRepository {
       return MarketplaceProgramsPage(programs: programs, page: page, perPage: perPage, total: 0, hasMore: false);
     }
     final dataMap = Map<String, dynamic>.from(data);
-    final items = dataMap['data'];
+    final items = dataMap['programs'] is List
+        ? dataMap['programs']
+        : dataMap['data'];
     if (items is! List) {
       return MarketplaceProgramsPage(programs: programs, page: page, perPage: perPage, total: 0, hasMore: false);
     }
@@ -187,13 +225,14 @@ class MarketplaceRepository {
       if (item is! Map) continue;
       programs.add(_cardFromBrowseProgram(Map<String, dynamic>.from(item)));
     }
-    int total = programs.length;
+    int total = (dataMap['totalDocs'] as num?)?.toInt() ?? programs.length;
     final meta = dataMap['meta'];
     if (meta is Map) {
       final mm = Map<String, dynamic>.from(meta);
       total = (mm['total'] as num?)?.toInt() ?? total;
     }
-    final hasMore = programs.length == perPage && (page * perPage) < total;
+    final bool? hasNext = dataMap['hasNextPage'] is bool ? dataMap['hasNextPage'] as bool : null;
+    final hasMore = hasNext ?? (programs.length == perPage && (page * perPage) < total);
     return MarketplaceProgramsPage(programs: programs, page: page, perPage: perPage, total: total, hasMore: hasMore);
   }
 
@@ -231,16 +270,31 @@ class MarketplaceRepository {
     final duration = weeks is num ? '${weeks.toInt()} weeks' : (p['duration']?.toString().trim().isNotEmpty == true ? p['duration'].toString() : '—');
     final focus = p['focus']?.toString() ?? '';
     final level = p['level']?.toString() ?? '';
-    final trainer = display['instructor_name']?.toString().trim().isNotEmpty == true
-        ? display['instructor_name'].toString().trim()
-        : 'Trainer';
+    String trainer = 'Trainer';
+    if (display['instructor_name']?.toString().trim().isNotEmpty == true) {
+      trainer = display['instructor_name'].toString().trim();
+    } else {
+      final t = p['trainer'];
+      if (t is Map) {
+        final prof = t['profile'];
+        if (prof is Map && prof['fullName']?.toString().trim().isNotEmpty == true) {
+          trainer = prof['fullName'].toString().trim();
+        }
+      }
+    }
+    String? imageUrl = ImageUrlSanitizer.asHttpUrlOrNull(p['coverImageUrl']?.toString());
+    imageUrl ??= () {
+      final promo = p['promoMedia'];
+      if (promo is Map) return ImageUrlSanitizer.asHttpUrlOrNull(promo['url']?.toString());
+      return null;
+    }();
 
     return {
       'id': p['_id']?.toString(),
       'title': p['title']?.toString() ?? '',
       'subtitle': p['subtitle'],
       'description': p['description']?.toString() ?? '',
-      'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(p['coverImageUrl']?.toString()),
+      'imageUrl': imageUrl,
       'trainer': trainer,
       'trainerImage': _initials(trainer),
       'price': price,
@@ -261,23 +315,24 @@ class MarketplaceRepository {
     return s.split(' ').map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.length > 1 ? w.substring(1).toLowerCase() : ''}').join(' ');
   }
 
-  static List<Map<String, dynamic>> _parseSectionItems(dynamic response) {
+  static List<Map<String, dynamic>> _parseProgramsList(dynamic response) {
     final out = <Map<String, dynamic>>[];
     if (!_isOk(response)) return out;
     final root = Map<String, dynamic>.from(response);
     final data = root['data'];
     if (data is! Map) return out;
     final dataMap = Map<String, dynamic>.from(data);
-    final items = dataMap['data'];
+    final items = dataMap['programs'] is List
+        ? dataMap['programs']
+        : dataMap['data'];
     if (items is! List) return out;
     for (final item in items) {
       if (item is! Map) continue;
-      final wrap = Map<String, dynamic>.from(item);
-      final prog = wrap['program'];
-      if (prog is! Map) continue;
-      final card = _cardFromApiProgram(Map<String, dynamic>.from(prog));
-      if (wrap['placement'] is Map) {
-        card['_placement'] = Map<String, dynamic>.from(wrap['placement'] as Map);
+      final map = Map<String, dynamic>.from(item);
+      final prog = map['program'] is Map ? Map<String, dynamic>.from(map['program'] as Map) : map;
+      final card = _cardFromApiProgram(prog);
+      if (map['placement'] is Map) {
+        card['_placement'] = Map<String, dynamic>.from(map['placement'] as Map);
       }
       out.add(card);
     }

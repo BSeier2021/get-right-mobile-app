@@ -554,12 +554,12 @@ class AuthController extends GetxController {
     return _authRepo.getMarketplaceProgramsRepo(page: page, perPage: perPage);
   }
 
-  /// Raw JSON from `GET /marketplace/bundles`. Prefer [MarketplaceRepository.fetchBrowseBundles] for parsed cards.
-  Future<dynamic> getMarketplaceBundlesRaw({int page = 1, int perPage = 20}) {
+  /// Raw JSON from `GET /customer/bundle`. Prefer [MarketplaceRepository.fetchBrowseBundles] for parsed cards.
+  Future<dynamic> getMarketplaceBundlesRaw({int page = 1, int perPage = 10}) {
     return _authRepo.getMarketplaceBundlesRepo(page: page, perPage: perPage);
   }
 
-  /// `GET /marketplace/bundles/:id` — returns a map aligned with marketplace bundle cards + detail fields, or null.
+  /// `GET /customer/bundle/:id` — returns a map aligned with bundle detail UI, or null.
   Future<Map<String, dynamic>?> fetchMarketplaceBundleDetail(String bundleId) async {
     final id = bundleId.trim();
     if (id.isEmpty) return null;
@@ -604,16 +604,19 @@ class AuthController extends GetxController {
 
   Map<String, dynamic>? _parseMarketplaceBundleDetailResponse(Map<String, dynamic> response) {
     final data = response['data'];
+    if (data is! Map) return null;
+    final dm = Map<String, dynamic>.from(data);
     Map<String, dynamic>? inner;
-    if (data is Map && data['data'] is Map) {
-      inner = Map<String, dynamic>.from(data['data'] as Map);
-    } else if (data is Map) {
-      inner = Map<String, dynamic>.from(data);
+    if (dm['bundle'] is Map) {
+      inner = Map<String, dynamic>.from(dm['bundle'] as Map);
+    } else if (dm['data'] is Map) {
+      inner = Map<String, dynamic>.from(dm['data'] as Map);
+    } else {
+      inner = Map<String, dynamic>.from(dm);
     }
-    if (inner == null) return null;
 
     final pricing = inner['pricing_summary'];
-    double bundlePrice = (inner['bundlePrice'] as num?)?.toDouble() ?? 0.0;
+    double bundlePrice = (inner['bundlePrice'] as num?)?.toDouble() ?? (inner['price'] as num?)?.toDouble() ?? 0.0;
     double? originalList;
     double? savingsPercent;
     if (pricing is Map) {
@@ -623,6 +626,8 @@ class AuthController extends GetxController {
       savingsPercent = (pm['savings_percent'] as num?)?.toDouble();
     }
 
+    final apiDiscountPct = (inner['discount'] as num?)?.toDouble();
+
     final programsRaw = inner['programs'];
     var sumProgramPrices = 0.0;
     final programs = <Map<String, dynamic>>[];
@@ -630,28 +635,9 @@ class AuthController extends GetxController {
       for (final e in programsRaw) {
         if (e is! Map) continue;
         final p = Map<String, dynamic>.from(e);
-        final disp = p['display'] is Map ? Map<String, dynamic>.from(p['display'] as Map) : <String, dynamic>{};
-        final instructor = (disp['instructor_name'] ?? 'Trainer').toString().trim();
-        final weeks = disp['duration_weeks'] ?? p['durationWeeks'];
-        final rating = (disp['average_rating'] as num?)?.toDouble() ?? 0.0;
-        final price = (p['price'] as num?)?.toDouble() ?? 0.0;
-        sumProgramPrices += price;
-        final initial = instructor.isNotEmpty ? instructor.substring(0, 1).toUpperCase() : 'T';
-        programs.add({
-          ...p,
-          'id': p['_id']?.toString() ?? '',
-          'title': p['title']?.toString() ?? 'Program',
-          'trainer': instructor,
-          'trainerImage': initial,
-          'trainerImageUrl': disp['instructor_avatar_url']?.toString(),
-          'price': price,
-          'duration': weeks != null ? '${weeks} weeks' : '—',
-          'rating': rating,
-          'category': p['focus']?.toString() ?? 'Program',
-          'goal': p['level']?.toString() ?? '—',
-          'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(p['coverImageUrl']?.toString()),
-          'certified': p['isCertified'] == true,
-        });
+        final row = p['display'] is Map ? _bundleDetailProgramRowMarketplace(p) : _bundleDetailProgramRowCustomer(p);
+        sumProgramPrices += (row['price'] as num?)?.toDouble() ?? 0.0;
+        programs.add(row);
       }
     }
 
@@ -663,7 +649,21 @@ class AuthController extends GetxController {
       totalValue = bundlePrice * 1.12;
     }
 
-    final discount = savingsPercent != null ? savingsPercent.round().clamp(0, 95) : (totalValue > 0 ? (((totalValue - bundlePrice) / totalValue) * 100).round().clamp(0, 95) : 0);
+    int discount;
+    if (apiDiscountPct != null && apiDiscountPct > 0 && apiDiscountPct < 100 && bundlePrice > 0) {
+      totalValue = bundlePrice / (1 - apiDiscountPct / 100);
+      discount = apiDiscountPct.round().clamp(0, 95);
+    } else {
+      discount = savingsPercent != null ? savingsPercent.round().clamp(0, 95) : (totalValue > 0 ? (((totalValue - bundlePrice) / totalValue) * 100).round().clamp(0, 95) : 0);
+    }
+
+    var imageUrl = ImageUrlSanitizer.asHttpUrlOrNull(inner['coverImageUrl']?.toString()) ?? '';
+    if (imageUrl.isEmpty) {
+      final th = inner['thumbnail'];
+      if (th is Map) {
+        imageUrl = ImageUrlSanitizer.asHttpUrlOrNull(th['url']?.toString()) ?? '';
+      }
+    }
 
     return {
       'id': inner['_id']?.toString() ?? '',
@@ -673,7 +673,7 @@ class AuthController extends GetxController {
       'bundlePrice': bundlePrice,
       'totalValue': totalValue,
       'discount': discount,
-      'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(inner['coverImageUrl']?.toString()) ?? '',
+      'imageUrl': imageUrl,
       'programs': programs,
       'whatsIncluded': inner['whatsIncluded'],
       'marketplace_detail': inner['marketplace_detail'],
@@ -681,7 +681,78 @@ class AuthController extends GetxController {
     };
   }
 
-  /// `GET /marketplace/programs/:id` — map shaped for [ProgramDetailScreen] / marketplace program cards.
+  /// Program document from `GET /marketplace/bundles/:id` (has `display`).
+  Map<String, dynamic> _bundleDetailProgramRowMarketplace(Map<String, dynamic> p) {
+    final disp = p['display'] is Map ? Map<String, dynamic>.from(p['display'] as Map) : <String, dynamic>{};
+    final instructor = (disp['instructor_name'] ?? 'Trainer').toString().trim();
+    final weeks = disp['duration_weeks'] ?? p['durationWeeks'];
+    final rating = (disp['average_rating'] as num?)?.toDouble() ?? 0.0;
+    final price = (p['price'] as num?)?.toDouble() ?? 0.0;
+    final initial = instructor.isNotEmpty ? instructor.substring(0, 1).toUpperCase() : 'T';
+    return {
+      ...p,
+      'id': p['_id']?.toString() ?? '',
+      'title': p['title']?.toString() ?? 'Program',
+      'trainer': instructor,
+      'trainerImage': initial,
+      'trainerImageUrl': disp['instructor_avatar_url']?.toString(),
+      'price': price,
+      'duration': weeks != null ? '${weeks} weeks' : '—',
+      'rating': rating,
+      'category': p['focus']?.toString() ?? 'Program',
+      'goal': p['level']?.toString() ?? '—',
+      'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(p['coverImageUrl']?.toString()),
+      'certified': p['isCertified'] == true,
+    };
+  }
+
+  /// Program document from `GET /customer/bundle/:id` (nested `trainer`, `category`, `promoMedia`).
+  Map<String, dynamic> _bundleDetailProgramRowCustomer(Map<String, dynamic> p) {
+    var instructor = 'Trainer';
+    String? trainerAvatarUrl;
+    final tr = p['trainer'];
+    if (tr is Map) {
+      final prof = tr['profile'];
+      if (prof is Map) {
+        final fn = prof['fullName']?.toString().trim();
+        if (fn != null && fn.isNotEmpty) instructor = fn;
+        final pic = prof['profilePicture'];
+        if (pic is Map && pic['url'] != null) {
+          trainerAvatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+        }
+      }
+    }
+    final weeks = p['durationWeeks'] ?? p['duration'];
+    final durationStr = weeks != null ? '${weeks is num ? weeks.toInt() : weeks} weeks' : '—';
+    final price = (p['price'] as num?)?.toDouble() ?? 0.0;
+    String? imageUrl = ImageUrlSanitizer.asHttpUrlOrNull(p['coverImageUrl']?.toString());
+    imageUrl ??= () {
+      final pm = p['promoMedia'];
+      if (pm is Map) return ImageUrlSanitizer.asHttpUrlOrNull(pm['url']?.toString());
+      return null;
+    }();
+    final cat = p['category'];
+    final categoryStr = cat is Map ? (cat['name']?.toString() ?? 'Program') : (p['focus']?.toString() ?? 'Program');
+    final initial = instructor.isNotEmpty ? instructor.substring(0, 1).toUpperCase() : 'T';
+
+    return {
+      ...p,
+      'id': p['_id']?.toString() ?? '',
+      'title': p['title']?.toString() ?? 'Program',
+      'trainer': instructor,
+      'trainerImage': initial,
+      if (trainerAvatarUrl != null) 'trainerImageUrl': trainerAvatarUrl,
+      'price': price,
+      'duration': durationStr,
+      'rating': 0.0,
+      'category': categoryStr,
+      'goal': p['difficultyLevel']?.toString() ?? p['level']?.toString() ?? '—',
+      'imageUrl': imageUrl,
+      'certified': p['isCertified'] == true,
+    };
+  }
+
+  /// `GET /customer/program/:id` — map shaped for [ProgramDetailScreen] / marketplace program cards.
   Future<Map<String, dynamic>?> fetchMarketplaceProgramDetail(String programId) async {
     final id = programId.trim();
     if (id.isEmpty) return null;
@@ -727,26 +798,36 @@ class AuthController extends GetxController {
   Map<String, dynamic>? _parseMarketplaceProgramDetailResponse(Map<String, dynamic> response) {
     final data = response['data'];
     Map<String, dynamic>? inner;
-    if (data is Map && data['data'] is Map) {
+    if (data is Map && data['program'] is Map) {
+      inner = Map<String, dynamic>.from(data['program'] as Map);
+    } else if (data is Map && data['data'] is Map) {
       inner = Map<String, dynamic>.from(data['data'] as Map);
     } else if (data is Map) {
       inner = Map<String, dynamic>.from(data);
     }
     if (inner == null) return null;
+    final program = inner;
 
     final md = inner['marketplace_detail'] is Map ? Map<String, dynamic>.from(inner['marketplace_detail'] as Map) : <String, dynamic>{};
     final trainer = md['trainer'] is Map ? Map<String, dynamic>.from(md['trainer'] as Map) : <String, dynamic>{};
+    final trainerRaw = inner['trainer'] is Map ? Map<String, dynamic>.from(inner['trainer'] as Map) : <String, dynamic>{};
+    final trainerProfile = trainerRaw['profile'] is Map ? Map<String, dynamic>.from(trainerRaw['profile'] as Map) : <String, dynamic>{};
     final stats = md['stats'] is Map ? Map<String, dynamic>.from(md['stats'] as Map) : <String, dynamic>{};
     final ext = inner['catalog_extensions'] is Map ? Map<String, dynamic>.from(inner['catalog_extensions'] as Map) : <String, dynamic>{};
     final attrs = ext['attributes'] is Map ? Map<String, dynamic>.from(ext['attributes'] as Map) : <String, dynamic>{};
     final hero = ext['hero_media'] is Map ? Map<String, dynamic>.from(ext['hero_media'] as Map) : <String, dynamic>{};
     final prSum = ext['program_rating_summary'] is Map ? Map<String, dynamic>.from(ext['program_rating_summary'] as Map) : <String, dynamic>{};
 
-    final displayName = (trainer['display_name'] ?? 'Trainer').toString().trim();
+    final displayName =
+        (trainer['display_name'] ??
+                trainerProfile['fullName'] ??
+                'Trainer')
+            .toString()
+            .trim();
     final initial = displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'T';
 
     final durationLabel = attrs['duration_label']?.toString();
-    final weeks = attrs['duration_weeks'] ?? inner['durationWeeks'];
+    final weeks = attrs['duration_weeks'] ?? inner['durationWeeks'] ?? inner['duration'];
     final duration = (durationLabel != null && durationLabel.isNotEmpty) ? durationLabel : (weeks != null ? '$weeks weeks' : '—');
 
     var rating = (stats['average_rating'] as num?)?.toDouble() ?? 0.0;
@@ -759,22 +840,44 @@ class AuthController extends GetxController {
     String? img = ImageUrlSanitizer.asHttpUrlOrNull(inner['coverImageUrl']?.toString());
     img ??= ImageUrlSanitizer.asHttpUrlOrNull(hero['thumbnail_url']?.toString());
     img ??= ImageUrlSanitizer.asHttpUrlOrNull(hero['stream_url']?.toString());
+    final promoMedia = inner['promoMedia'];
+    if (img == null && promoMedia is Map) {
+      img = ImageUrlSanitizer.asHttpUrlOrNull(promoMedia['url']?.toString());
+    }
 
     final purchased = ext['purchased'] == true;
     final price = (inner['price'] as num?)?.toDouble() ?? (ext['price'] as num?)?.toDouble() ?? 0.0;
+    final demoVideo = inner['demoVideo'];
+    final video = inner['video'];
+    final resources = inner['resources'];
+    final demoVideoUrl = demoVideo is Map ? demoVideo['url']?.toString() : null;
+    final programVideoUrl = video is Map ? video['url']?.toString() : null;
+    final resourcesUrl = resources is Map ? resources['url']?.toString() : null;
 
     return {
       'id': inner['_id']?.toString() ?? '',
-      'trainerId': inner['trainerId']?.toString(),
+      'trainerId': inner['trainerId']?.toString() ?? trainerRaw['_id']?.toString(),
       'title': inner['title']?.toString() ?? 'Program',
       'subtitle': inner['subtitle']?.toString(),
       'trainer': displayName,
       'trainerImage': initial,
-      'trainerImageUrl': ImageUrlSanitizer.asHttpUrlOrNull(trainer['avatar_url']?.toString()),
+      'trainerImageUrl':
+          ImageUrlSanitizer.asHttpUrlOrNull(trainer['avatar_url']?.toString()) ??
+          (() {
+            final pic = trainerProfile['profilePicture'];
+            if (pic is Map) return ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+            return null;
+          })(),
       'price': price,
       'duration': duration,
-      'category': (attrs['focus'] ?? inner['focus'])?.toString() ?? 'General',
-      'goal': (attrs['level'] ?? inner['level'])?.toString() ?? 'Fitness',
+      'category': (() {
+        if (attrs['focus'] != null) return attrs['focus'].toString();
+        if (program['focus'] != null) return program['focus'].toString();
+        final cat = program['category'];
+        if (cat is Map && cat['name'] != null) return cat['name'].toString();
+        return 'General';
+      })(),
+      'goal': (attrs['level'] ?? inner['difficultyLevel'] ?? inner['level'])?.toString() ?? 'Fitness',
       'certified': inner['isCertified'] == true || trainer['is_certified'] == true,
       'rating': rating,
       'students': students,
@@ -784,6 +887,9 @@ class AuthController extends GetxController {
       'purchased': purchased,
       'isEnrolled': purchased,
       'imageUrl': img,
+      'demoVideoUrl': demoVideoUrl,
+      'programVideoUrl': programVideoUrl,
+      'resourcesUrl': resourcesUrl,
       'weeks': inner['weeks'],
       'whatsIncluded': inner['whatsIncluded'],
       'whats_included': ext['whats_included'],

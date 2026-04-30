@@ -42,20 +42,34 @@ class AppUrl {
   /////////logout API//
   static String logout = '$baseUrl/auth/logout';
 
-  /// `GET /marketplace/sections` — query: `page`, `per_page`, `section` (`featured` | `new_releases` | …).
-  static String marketplaceSections({required int page, required int perPage, required String section}) {
-    final q = Uri(queryParameters: {'page': '$page', 'per_page': '$perPage', 'section': section}).query;
-    return '$baseUrl/marketplace/sections?$q';
-  }
-
-  /// `GET /marketplace/programs` — paginated full catalog.
-  static String marketplacePrograms({required int page, required int perPage}) {
-    final q = Uri(queryParameters: {'page': '$page', 'per_page': '$perPage'}).query;
-    return '$baseUrl/marketplace/programs?$q';
+  /// `GET /customer/program` — paginated customer programs (`page`, `limit`, `type`).
+  static String customerPrograms({
+    required int page,
+    required int limit,
+    required String type,
+  }) {
+    final q = Uri(queryParameters: {
+      'page': '$page',
+      'limit': '$limit',
+      'type': type,
+    }).query;
+    return '$baseUrl/customer/program?$q';
   }
 
   /// `GET /marketplace/programs/:programId` — full program (`data.data`).
   static String marketplaceProgramDetail(String programId) => '$baseUrl/marketplace/programs/${Uri.encodeComponent(programId.trim())}';
+
+  /// `GET /customer/program/:programId` — full program (`data.program`).
+  static String customerProgramDetail(String programId) => '$baseUrl/customer/program/${Uri.encodeComponent(programId.trim())}';
+
+  /// `GET /customer/bundle` — paginated bundle deals (`page`, `limit`). Response: `data.bundles`, `totalDocs`, `hasNextPage`.
+  static String customerBundles({required int page, required int limit}) {
+    final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;
+    return '$baseUrl/customer/bundle?$q';
+  }
+
+  /// `GET /customer/bundle/:bundleId` — full bundle (`data.bundle`) with nested programs.
+  static String customerBundleDetail(String bundleId) => '$baseUrl/customer/bundle/${Uri.encodeComponent(bundleId.trim())}';
 
   /// `GET /marketplace/bundles` — paginated bundles (`programs` may be program id strings).
   static String marketplaceBundles({required int page, required int perPage}) {
