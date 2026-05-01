@@ -795,6 +795,80 @@ class AuthController extends GetxController {
     }
   }
 
+  /// `POST /customer/program/enroll` — enroll in a program or bundle; shows success snackbar from API when applicable.
+  Future<Map<String, dynamic>?> enrollProgram({required String programOrBundleId, required bool isBundle}) async {
+    final id = programOrBundleId.trim();
+    if (id.isEmpty) {
+      _snackError('Enroll', 'Missing program id');
+      return null;
+    }
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.enrollProgramRepo(id: id, isBundle: isBundle);
+      if (response is! Map<String, dynamic>) {
+        _snackError('Enroll', 'Unexpected response from server');
+        return null;
+      }
+      if (response['success'] != true) {
+        _snackError('Enroll', response['message']?.toString() ?? 'Enrollment failed');
+        return null;
+      }
+      final msg = response['message']?.toString() ?? 'Enrolled successfully';
+      Get.snackbar('Success', msg, snackPosition: SnackPosition.BOTTOM);
+      final data = response['data'];
+      if (data is Map) {
+        final dm = Map<String, dynamic>.from(data);
+        final single = dm['enrollment'];
+        if (single is Map) {
+          return Map<String, dynamic>.from(single);
+        }
+        // Bundle enroll returns `data.enrollments` (one row per program in the bundle).
+        final rawList = dm['enrollments'];
+        if (rawList is List) {
+          final enrollments = <Map<String, dynamic>>[];
+          for (final e in rawList) {
+            if (e is Map) enrollments.add(Map<String, dynamic>.from(e));
+          }
+          if (enrollments.isEmpty) return <String, dynamic>{};
+          final first = enrollments.first;
+          return <String, dynamic>{
+            'enrollments': enrollments,
+            'startDate': first['startDate'],
+            'endDate': first['endDate'],
+          };
+        }
+      }
+      return <String, dynamic>{};
+    } on BadRequestException catch (e) {
+      _snackError('Enroll', e.message);
+      return null;
+    } on UnauthorizedException catch (e) {
+      _snackError('Enroll', e.message);
+      return null;
+    } on ForbiddenException catch (e) {
+      _snackError('Enroll', e.message);
+      return null;
+    } on ConflictException catch (e) {
+      _snackError('Enroll', e.message);
+      return null;
+    } on NoInternetException catch (e) {
+      _snackError('Enroll', e.message);
+      return null;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Enroll', e.message);
+      return null;
+    } on ServerException catch (e) {
+      _snackError('Enroll', e.message);
+      return null;
+    } on NotFoundException catch (e) {
+      _snackError('Enroll', e.message);
+      return null;
+    } catch (e) {
+      _snackError('Enroll', e);
+      return null;
+    }
+  }
+
   Map<String, dynamic>? _parseMarketplaceProgramDetailResponse(Map<String, dynamic> response) {
     final data = response['data'];
     Map<String, dynamic>? inner;

@@ -27,6 +27,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   Map<String, dynamic> _safeProgram = {};
   String? _apiProgramId;
   bool _loadingDetail = false;
+  bool _enrolling = false;
   double _rating = 0.0;
   bool _hasSubmittedRating = false;
 
@@ -130,6 +131,33 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     return _safeProgram['imageUrl']?.toString().isNotEmpty == true
         ? _safeProgram['imageUrl'].toString()
         : 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=400&fit=crop';
+  }
+
+  String? _programEnrollMongoId() {
+    if (_apiProgramId != null && _mongoIdRe.hasMatch(_apiProgramId!)) return _apiProgramId;
+    final a = _safeProgram['_id']?.toString().trim();
+    if (a != null && _mongoIdRe.hasMatch(a)) return a;
+    final b = _safeProgram['id']?.toString().trim();
+    if (b != null && _mongoIdRe.hasMatch(b)) return b;
+    return null;
+  }
+
+  Future<void> _enrollAndOpenCheckout() async {
+    final enrollId = _programEnrollMongoId();
+    if (enrollId == null || !Get.isRegistered<AuthController>()) {
+      Get.snackbar('Enroll', 'This program cannot be enrolled (invalid id).', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    setState(() => _enrolling = true);
+    final enrollment = await Get.find<AuthController>().enrollProgram(programOrBundleId: enrollId, isBundle: false);
+    if (!mounted) return;
+    setState(() => _enrolling = false);
+    if (enrollment == null) return;
+    final nextProgram = Map<String, dynamic>.from(_safeProgram);
+    nextProgram['isEnrolled'] = true;
+    nextProgram['status'] = 'active';
+    if (enrollment.isNotEmpty) nextProgram['enrollment'] = enrollment;
+    Get.toNamed(AppRoutes.purchaseDetails, arguments: {'isBundle': false, 'program': nextProgram, 'skipEnrollApi': true});
   }
 
   String? _resolveApiMediaUrl(String? raw) {
@@ -457,26 +485,16 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () {
-                              if (_isEnrolled) {
-                                Get.snackbar(
-                                  'Already Enrolled',
-                                  'You are already enrolled in this program',
-                                  snackPosition: SnackPosition.BOTTOM,
-                                  backgroundColor: AppColors.primaryGray,
-                                  colorText: Colors.white,
-                                );
-                              } else {
-                                Get.toNamed(AppRoutes.purchaseDetails, arguments: {'isBundle': false, 'program': _safeProgram});
-                              }
-                            },
+                            onPressed: _enrolling ? null : _enrollAndOpenCheckout,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: _isEnrolled ? AppColors.completed : AppColors.accent,
+                              backgroundColor: AppColors.accent,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                             ),
-                            icon: Icon(_isEnrolled ? Icons.check_circle : Icons.school, size: 20),
-                            label: Text(_isEnrolled ? 'Enrolled' : 'Enroll Now', style: AppTextStyles.labelLarge.copyWith(color: AppColors.onAccent)),
+                            icon: _enrolling
+                                ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
+                                : const Icon(Icons.school, size: 20),
+                            label: Text('Enroll Now', style: AppTextStyles.labelLarge.copyWith(color: AppColors.onAccent)),
                           ),
                         ),
                       ],
