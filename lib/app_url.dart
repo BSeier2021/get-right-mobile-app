@@ -65,6 +65,12 @@ class AppUrl {
   /// `POST /customer/program/enroll` — body: `{ "id": "<programOrBundleId>", "isBundle": bool }` → `data.enrollment` (program) or `data.enrollments` (bundle).
   static String get customerProgramEnroll => '$baseUrl/customer/program/enroll';
 
+  /// `GET /customer/program/enrolled` — query: `page`, `limit`, `status` (active | completed | cancelled | scheduled).
+  static String customerProgramEnrolled({required int page, required int limit, required String status}) {
+    final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit', 'status': status.trim().toLowerCase()}).query;
+    return '$baseUrl/customer/program/enrolled?$q';
+  }
+
   /// `GET /customer/bundle` — paginated bundle deals (`page`, `limit`). Response: `data.bundles`, `totalDocs`, `hasNextPage`.
   static String customerBundles({required int page, required int limit}) {
     final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;

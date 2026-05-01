@@ -559,6 +559,73 @@ class AuthController extends GetxController {
     return _authRepo.getMarketplaceBundlesRepo(page: page, perPage: perPage);
   }
 
+  /// `GET /customer/program/enrolled` — [status]: active | scheduled | completed | cancelled.
+  Future<CustomerEnrolledProgramsPage?> fetchCustomerEnrolledPrograms({
+    int page = 1,
+    int limit = 10,
+    required String status,
+  }) async {
+    final st = status.trim().toLowerCase();
+    if (st.isEmpty) return null;
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getCustomerEnrolledProgramsRepo(page: page, limit: limit, status: st);
+      if (response is! Map<String, dynamic>) {
+        _snackError('My programs', 'Unexpected response from server');
+        return null;
+      }
+      if (response['success'] != true) {
+        _snackError('My programs', response['message']?.toString() ?? 'Could not load programs');
+        return null;
+      }
+      final data = response['data'];
+      if (data is! Map) {
+        return CustomerEnrolledProgramsPage(enrollments: const [], hasNextPage: false, currentPage: page, totalDocs: 0);
+      }
+      final dm = Map<String, dynamic>.from(data);
+      final raw = dm['enrollments'];
+      final out = <Map<String, dynamic>>[];
+      if (raw is List) {
+        for (final e in raw) {
+          if (e is Map) out.add(Map<String, dynamic>.from(e));
+        }
+      }
+      final hasNext = dm['hasNextPage'] == true;
+      final curPage = (dm['currentPage'] as num?)?.toInt() ?? page;
+      final total = (dm['totalDocs'] as num?)?.toInt() ?? out.length;
+      return CustomerEnrolledProgramsPage(
+        enrollments: out,
+        hasNextPage: hasNext,
+        currentPage: curPage,
+        totalDocs: total,
+      );
+    } on BadRequestException catch (e) {
+      _snackError('My programs', e.message);
+      return null;
+    } on UnauthorizedException catch (e) {
+      _snackError('My programs', e.message);
+      return null;
+    } on ForbiddenException catch (e) {
+      _snackError('My programs', e.message);
+      return null;
+    } on NoInternetException catch (e) {
+      _snackError('My programs', e.message);
+      return null;
+    } on RequestTimeoutException catch (e) {
+      _snackError('My programs', e.message);
+      return null;
+    } on ServerException catch (e) {
+      _snackError('My programs', e.message);
+      return null;
+    } on NotFoundException catch (e) {
+      _snackError('My programs', e.message);
+      return null;
+    } catch (e) {
+      _snackError('My programs', e);
+      return null;
+    }
+  }
+
   /// `GET /customer/bundle/:id` — returns a map aligned with bundle detail UI, or null.
   Future<Map<String, dynamic>?> fetchMarketplaceBundleDetail(String bundleId) async {
     final id = bundleId.trim();
@@ -2213,4 +2280,19 @@ class AuthController extends GetxController {
       return false;
     }
   }
+}
+
+/// One page from `GET /customer/program/enrolled`.
+class CustomerEnrolledProgramsPage {
+  final List<Map<String, dynamic>> enrollments;
+  final bool hasNextPage;
+  final int currentPage;
+  final int totalDocs;
+
+  const CustomerEnrolledProgramsPage({
+    required this.enrollments,
+    required this.hasNextPage,
+    required this.currentPage,
+    required this.totalDocs,
+  });
 }

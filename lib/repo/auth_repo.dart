@@ -183,6 +183,11 @@ class AuthRepository {
     return _network.post(AppUrl.customerProgramEnroll, {'id': id.trim(), 'isBundle': isBundle});
   }
 
+  /// `GET /customer/program/enrolled` — paginated enrollments (`data.enrollments`), filtered by [status].
+  Future<dynamic> getCustomerEnrolledProgramsRepo({int page = 1, int limit = 10, required String status}) async {
+    return _network.get(AppUrl.customerProgramEnrolled(page: page, limit: limit, status: status));
+  }
+
   /// `GET /customer/bundle` — paginated bundle deals (`limit` maps from [perPage]).
   Future<dynamic> getMarketplaceBundlesRepo({int page = 1, int perPage = 10}) async {
     return _network.get(AppUrl.customerBundles(page: page, limit: perPage));
