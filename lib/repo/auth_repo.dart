@@ -209,6 +209,12 @@ class AuthRepository {
     return response;
   }
 
+  /// `GET /user/feed-categories` → `data.categories`.
+  Future<dynamic> getFeedCategoriesRepo() async {
+    final response = await _network.get(AppUrl.feedCategories, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
+    return response;
+  }
+
   Future<dynamic> getExercisesByCategoryRepo(String categoryId) async {
     final response = await _network.get(headers: {"Authorization": "yNaHwJpGFSquIkXP"}, AppUrl.exerciseCategory(categoryId));
     return response;

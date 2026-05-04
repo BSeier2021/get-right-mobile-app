@@ -60,6 +60,8 @@ dependencies:
   video_player: ^2.8.2  # Video playback for reels
   flutter_svg: ^2.0.10+1
   get_storage: ^2.1.1
+  chewie: ^1.13.1
+  http: ^1.6.0
   
 dev_dependencies:
   flutter_test:

@@ -30,6 +30,21 @@ class AppUrl {
   static String updateProfile = '$baseUrl/customer/profile/update';
   static String getProfile = '$baseUrl/customer/profile';
   static String exerciseCategories = '$baseUrl/user/exercise-categories';
+
+  /// `GET /user/feed-categories` → `data.categories[]` (feed post categories).
+  static String get feedCategories => '$baseUrl/user/feed-categories';
+
+  /// `POST /user/feed` — body: `title`, `description`, `category` (id), `tags` (string array).
+  static String get feedCreate => '$baseUrl/user/feed';
+
+  /// `POST /user/feed/:feedId/video/multipart/init` — `contentType`, `fileSize`.
+  static String feedVideoMultipartInit(String feedId) =>
+      '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/init';
+
+  /// `POST /user/feed/:feedId/video/multipart/complete` — `key`, `uploadId`, `parts` (PartNumber, ETag).
+  static String feedVideoMultipartComplete(String feedId) =>
+      '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/complete';
+
   static String exerciseCategory(String categoryId) => '$baseUrl/user/exercises/category/$categoryId';
   static String exerciseDetail(String exerciseId) => '$baseUrl/user/exercises/$exerciseId';
 

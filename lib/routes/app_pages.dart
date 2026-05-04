@@ -1,4 +1,6 @@
 import 'package:get/get.dart';
+import 'package:get_right/controllers/feed_publish_controller.dart';
+import 'package:get_right/controllers/feed_video_upload_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/views/auth/splash_screen.dart';
 import 'package:get_right/views/auth/welcome_screen.dart';
@@ -180,7 +182,15 @@ class AppPages {
     GetPage(name: AppRoutes.feed, page: () => const FeedScreen(), transition: Transition.fade),
     GetPage(name: AppRoutes.postDetail, page: () => const PostDetailScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.savedPosts, page: () => const SavedPostsScreen(), transition: Transition.rightToLeft),
-    GetPage(name: AppRoutes.createPost, page: () => const CreatePostScreen(), transition: Transition.downToUp),
+    GetPage(
+      name: AppRoutes.createPost,
+      page: () => const CreatePostScreen(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<FeedVideoUploadController>(() => FeedVideoUploadController());
+        Get.lazyPut<FeedPublishController>(() => FeedPublishController());
+      }),
+      transition: Transition.downToUp,
+    ),
     GetPage(name: AppRoutes.videoReel, page: () => const VideoReelScreen(), transition: Transition.fade),
 
     // Search Pages

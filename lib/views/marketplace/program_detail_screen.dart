@@ -9,7 +9,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:get_right/views/marketplace/program_hls_player_screen.dart';
 
 /// Program Detail Screen
 class ProgramDetailScreen extends StatefulWidget {
@@ -172,16 +172,27 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     return null;
   }
 
-  Future<void> _launchMediaUrl(String? rawUrl, {required String title}) async {
+  String? _nestedVideoUrl(dynamic box) {
+    if (box is Map && box['url'] != null) {
+      final s = box['url'].toString().trim();
+      if (s.isNotEmpty) return s;
+    }
+    return null;
+  }
+
+  /// Opens [video_player] + [chewie] in-app — supports HLS master playlists (`.m3u8`) and progressive MP4.
+  void _openInAppVideo(String? rawUrl, {required String title, String emptyMessage = 'Video URL is unavailable for this program.'}) {
     final resolved = _resolveApiMediaUrl(rawUrl);
     if (resolved == null) {
-      Get.snackbar(title, 'Video URL is unavailable for this program.', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(title, emptyMessage, snackPosition: SnackPosition.BOTTOM);
       return;
     }
-    final ok = await launchUrl(Uri.parse(resolved), mode: LaunchMode.externalApplication);
-    if (!ok) {
-      Get.snackbar(title, 'Unable to open video right now.', snackPosition: SnackPosition.BOTTOM);
+    final uri = Uri.tryParse(resolved);
+    if (uri == null) {
+      Get.snackbar(title, 'Invalid video URL.', snackPosition: SnackPosition.BOTTOM);
+      return;
     }
+    Get.to<void>(() => ProgramHlsPlayerScreen(videoUri: uri, title: title));
   }
 
   @override
@@ -687,11 +698,18 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   }
 
   void _playDemoVideo() {
-    _launchMediaUrl(_safeProgram['demoVideoUrl']?.toString(), title: 'Demo Video');
+    final raw = _safeProgram['demoVideoUrl']?.toString() ?? _nestedVideoUrl(_safeProgram['demoVideo']);
+    _openInAppVideo(raw, title: 'Demo Video', emptyMessage: 'Demo video is unavailable for this program.');
   }
 
   void _openEnrolledVideo() {
-    _launchMediaUrl(_safeProgram['programVideoUrl']?.toString() ?? _safeProgram['demoVideoUrl']?.toString() ?? _fallbackEnrolledVideoUrl, title: 'Program Video');
+    final raw =
+        _safeProgram['programVideoUrl']?.toString() ??
+        _nestedVideoUrl(_safeProgram['video']) ??
+        _safeProgram['demoVideoUrl']?.toString() ??
+        _nestedVideoUrl(_safeProgram['demoVideo']) ??
+        _fallbackEnrolledVideoUrl;
+    _openInAppVideo(raw, title: 'Program Video');
   }
 
   void _openPDF() {
