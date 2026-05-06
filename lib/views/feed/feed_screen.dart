@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:get_right/app_url.dart';
 import 'package:get_right/controllers/notification_controller.dart';
+import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
-import 'package:get_right/views/profile/profile_screen.dart';
+import 'package:get_right/views/feed/feed_vertical_reels.dart';
 
 /// Community Feed - Social Media Platform for fitness content
 class FeedScreen extends StatefulWidget {
@@ -21,591 +23,54 @@ class FeedScreen extends StatefulWidget {
 class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _storageService = Get.find<StorageService>();
+  final FeedRepository _feedRepo = FeedRepository();
   final Map<int, PageController> _pageControllers = {};
+  final List<Map<String, dynamic>> _followingPosts = <Map<String, dynamic>>[];
 
-  // Mock feed data
-  final List<Map<String, dynamic>> _feedPosts = [
-    {
-      'id': '1',
-      'creator': 'Sarah Johnson',
-      'creatorImage': 'SJ',
-      'isTrainer': true,
-      'isFollowing': true,
-      'title': '5 Essential Squat Form Tips',
-      'description': 'Master your squat technique with these crucial tips! 💪',
-      'category': 'Workout',
-      'tags': ['#squats', '#formcheck', '#legs'],
-      'videoUrl': 'https://example.com/video1.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400',
-      'likes': 2847,
-      'comments': 156,
-      'shares': 89,
-      'saves': 421,
-      'isLiked': false,
-      'isSaved': false,
-      'isPremium': true,
-      'isFavorited': true,
-      'timestamp': '2 hours ago',
-      'duration': '45s',
-    },
-    {
-      'id': '2',
-      'creator': 'Mike Chen',
-      'creatorImage': 'MC',
-      'isTrainer': true,
-      'isFollowing': false,
-      'title': 'Meal Prep Sunday: High Protein Bowls',
-      'description': 'Easy meal prep for the week! 🍗🥗',
-      'category': 'Nutrition',
-      'tags': ['#mealprep', '#nutrition', '#healthyeating'],
-      'videoUrl': 'https://example.com/video2.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
-      'likes': 1923,
-      'comments': 87,
-      'shares': 145,
-      'saves': 892,
-      'isLiked': true,
-      'isSaved': true,
-      'isPremium': true,
-      'isFavorited': true,
-      'timestamp': '4 hours ago',
-      'duration': '1:15',
-    },
-    {
-      'id': '3',
-      'creator': 'Emma Davis',
-      'creatorImage': 'ED',
-      'isTrainer': false,
-      'isFollowing': true,
-      'title': 'Morning Run Motivation',
-      'description': 'Nothing beats a sunrise run! 🌅🏃‍♀️',
-      'category': 'Running',
-      'tags': ['#running', '#motivation', '#morningrun'],
-      'videoUrl': 'https://example.com/video3.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400',
-      'likes': 3421,
-      'comments': 234,
-      'shares': 67,
-      'saves': 156,
-      'isLiked': false,
-      'isSaved': false,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '8 hours ago',
-      'duration': '30s',
-    },
-    {
-      'id': '4',
-      'creator': 'Alex Rodriguez',
-      'creatorImage': 'AR',
-      'isTrainer': true,
-      'isFollowing': true,
-      'title': 'Basketball Dribbling Drills',
-      'description': 'Level up your handles with these drills! 🏀',
-      'category': 'Sports',
-      'tags': ['#basketball', '#training', '#skills'],
-      'videoUrl': 'https://example.com/video4.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400',
-      'likes': 1567,
-      'comments': 92,
-      'shares': 78,
-      'saves': 234,
-      'isLiked': true,
-      'isSaved': false,
-      'isPremium': true,
-      'isFavorited': true,
-      'timestamp': '1 day ago',
-      'duration': '1:00',
-    },
-    {
-      'id': '5',
-      'creator': 'Lisa Thompson',
-      'creatorImage': 'LT',
-      'isTrainer': true,
-      'isFollowing': false,
-      'title': 'Full Body Mobility Routine',
-      'description': 'Improve flexibility and reduce injury risk 🧘‍♀️',
-      'category': 'Mobility',
-      'tags': ['#mobility', '#flexibility', '#recovery'],
-      'videoUrl': 'https://example.com/video5.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400',
-      'likes': 2134,
-      'comments': 143,
-      'shares': 112,
-      'saves': 567,
-      'isLiked': false,
-      'isSaved': true,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '1 day ago',
-      'duration': '1:20',
-    },
-    {
-      'id': '6',
-      'creator': 'David Park',
-      'creatorImage': 'DP',
-      'isTrainer': true,
-      'isFollowing': true,
-      'title': 'Deadlift Mastery: Perfect Your Form',
-      'description': 'Learn the fundamentals of proper deadlift technique 💀',
-      'category': 'Strength',
-      'tags': ['#deadlift', '#strength', '#form'],
-      'videoUrl': 'https://example.com/video6.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400',
-      'likes': 3456,
-      'comments': 198,
-      'shares': 123,
-      'saves': 789,
-      'isLiked': true,
-      'isSaved': false,
-      'isPremium': true,
-      'isFavorited': true,
-      'timestamp': '2 days ago',
-      'duration': '2:30',
-    },
-    {
-      'id': '7',
-      'creator': 'Jessica Martinez',
-      'creatorImage': 'JM',
-      'isTrainer': false,
-      'isFollowing': false,
-      'title': 'Yoga Flow for Beginners',
-      'description': 'Start your yoga journey with this gentle flow 🧘',
-      'category': 'Yoga',
-      'tags': ['#yoga', '#beginner', '#flexibility'],
-      'videoUrl': 'https://example.com/video7.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400',
-      'likes': 1876,
-      'comments': 89,
-      'shares': 45,
-      'saves': 234,
-      'isLiked': false,
-      'isSaved': false,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '2 days ago',
-      'duration': '15:00',
-    },
-    {
-      'id': '8',
-      'creator': 'Tom Wilson',
-      'creatorImage': 'TW',
-      'isTrainer': true,
-      'isFollowing': true,
-      'title': 'HIIT Cardio Blast',
-      'description': '20 minutes of high-intensity cardio 🔥',
-      'category': 'Cardio',
-      'tags': ['#hiit', '#cardio', '#fatburn'],
-      'videoUrl': 'https://example.com/video8.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400',
-      'likes': 4123,
-      'comments': 267,
-      'shares': 189,
-      'saves': 1023,
-      'isLiked': true,
-      'isSaved': true,
-      'isPremium': true,
-      'isFavorited': true,
-      'timestamp': '3 days ago',
-      'duration': '20:00',
-    },
-    {
-      'id': '9',
-      'creator': 'Maria Garcia',
-      'creatorImage': 'MG',
-      'isTrainer': true,
-      'isFollowing': false,
-      'title': 'Healthy Smoothie Recipes',
-      'description': '5 delicious and nutritious smoothie recipes 🥤',
-      'category': 'Nutrition',
-      'tags': ['#smoothie', '#nutrition', '#healthy'],
-      'videoUrl': 'https://example.com/video9.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=400',
-      'likes': 2987,
-      'comments': 156,
-      'shares': 234,
-      'saves': 678,
-      'isLiked': false,
-      'isSaved': true,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '3 days ago',
-      'duration': '5:45',
-    },
-    {
-      'id': '10',
-      'creator': 'Chris Anderson',
-      'creatorImage': 'CA',
-      'isTrainer': false,
-      'isFollowing': true,
-      'title': 'Swimming Technique Tips',
-      'description': 'Improve your swimming form and speed 🏊',
-      'category': 'Swimming',
-      'tags': ['#swimming', '#technique', '#endurance'],
-      'videoUrl': 'https://example.com/video10.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400',
-      'likes': 1654,
-      'comments': 78,
-      'shares': 56,
-      'saves': 189,
-      'isLiked': false,
-      'isSaved': false,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '4 days ago',
-      'duration': '8:20',
-    },
-    {
-      'id': '11',
-      'creator': 'Rachel Kim',
-      'creatorImage': 'RK',
-      'isTrainer': true,
-      'isFollowing': true,
-      'title': 'Pilates Core Strengthening',
-      'description': 'Build a strong core with these Pilates moves 💪',
-      'category': 'Pilates',
-      'tags': ['#pilates', '#core', '#strength'],
-      'videoUrl': 'https://example.com/video11.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400',
-      'likes': 2234,
-      'comments': 134,
-      'shares': 98,
-      'saves': 456,
-      'isLiked': true,
-      'isSaved': false,
-      'isPremium': true,
-      'isFavorited': true,
-      'timestamp': '4 days ago',
-      'duration': '12:15',
-    },
-    {
-      'id': '12',
-      'creator': 'James Brown',
-      'creatorImage': 'JB',
-      'isTrainer': true,
-      'isFollowing': false,
-      'title': 'Boxing Fundamentals',
-      'description': 'Learn basic boxing punches and footwork 🥊',
-      'category': 'Boxing',
-      'tags': ['#boxing', '#martialarts', '#training'],
-      'videoUrl': 'https://example.com/video12.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400',
-      'likes': 3789,
-      'comments': 245,
-      'shares': 167,
-      'saves': 890,
-      'isLiked': false,
-      'isSaved': true,
-      'isPremium': true,
-      'isFavorited': true,
-      'timestamp': '5 days ago',
-      'duration': '10:30',
-    },
-    {
-      'id': '13',
-      'creator': 'Sophie Lee',
-      'creatorImage': 'SL',
-      'isTrainer': false,
-      'isFollowing': true,
-      'title': 'Cycling Training Tips',
-      'description': 'Boost your cycling performance 🚴‍♀️',
-      'category': 'Cycling',
-      'tags': ['#cycling', '#endurance', '#training'],
-      'videoUrl': 'https://example.com/video13.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400',
-      'likes': 1456,
-      'comments': 67,
-      'shares': 34,
-      'saves': 123,
-      'isLiked': false,
-      'isSaved': false,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '5 days ago',
-      'duration': '6:45',
-    },
-    {
-      'id': '14',
-      'creator': 'Michael Taylor',
-      'creatorImage': 'MT',
-      'isTrainer': true,
-      'isFollowing': true,
-      'title': 'Pull-Up Progression Guide',
-      'description': 'Master pull-ups from zero to hero 💪',
-      'category': 'Calisthenics',
-      'tags': ['#pullups', '#calisthenics', '#bodyweight'],
-      'videoUrl': 'https://example.com/video14.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400',
-      'likes': 4567,
-      'comments': 312,
-      'shares': 234,
-      'saves': 1234,
-      'isLiked': true,
-      'isSaved': true,
-      'isPremium': true,
-      'isFavorited': true,
-      'timestamp': '6 days ago',
-      'duration': '9:15',
-    },
-    {
-      'id': '15',
-      'creator': 'Amanda White',
-      'creatorImage': 'AW',
-      'isTrainer': true,
-      'isFollowing': false,
-      'title': 'Meditation for Athletes',
-      'description': 'Mental training for peak performance 🧘‍♂️',
-      'category': 'Mental Health',
-      'tags': ['#meditation', '#mentalhealth', '#recovery'],
-      'videoUrl': 'https://example.com/video15.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400',
-      'likes': 1890,
-      'comments': 98,
-      'shares': 76,
-      'saves': 345,
-      'isLiked': false,
-      'isSaved': false,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '6 days ago',
-      'duration': '15:30',
-    },
-    {
-      'id': '16',
-      'creator': 'Ryan Murphy',
-      'creatorImage': 'RM',
-      'isTrainer': false,
-      'isFollowing': true,
-      'title': 'Rock Climbing Basics',
-      'description': 'Get started with indoor rock climbing 🧗',
-      'category': 'Rock Climbing',
-      'tags': ['#climbing', '#adventure', '#strength'],
-      'videoUrl': 'https://example.com/video16.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400',
-      'likes': 2345,
-      'comments': 145,
-      'shares': 89,
-      'saves': 567,
-      'isLiked': true,
-      'isSaved': false,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '1 week ago',
-      'duration': '11:20',
-    },
-    {
-      'id': '17',
-      'creator': 'Nicole Foster',
-      'creatorImage': 'NF',
-      'isTrainer': true,
-      'isFollowing': true,
-      'title': 'Kettlebell Workout Routine',
-      'description': 'Full body workout with kettlebells 🔔',
-      'category': 'Strength',
-      'tags': ['#kettlebell', '#strength', '#fullbody'],
-      'videoUrl': 'https://example.com/video17.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400',
-      'likes': 3124,
-      'comments': 189,
-      'shares': 145,
-      'saves': 789,
-      'isLiked': false,
-      'isSaved': true,
-      'isPremium': true,
-      'isFavorited': true,
-      'timestamp': '1 week ago',
-      'duration': '18:45',
-    },
-    {
-      'id': '18',
-      'creator': 'Kevin Zhang',
-      'creatorImage': 'KZ',
-      'isTrainer': true,
-      'isFollowing': false,
-      'title': 'Protein-Rich Meal Ideas',
-      'description': 'High protein meals for muscle building 🍖',
-      'category': 'Nutrition',
-      'tags': ['#protein', '#nutrition', '#musclebuilding'],
-      'videoUrl': 'https://example.com/video18.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
-      'likes': 2678,
-      'comments': 167,
-      'shares': 234,
-      'saves': 890,
-      'isLiked': true,
-      'isSaved': false,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '1 week ago',
-      'duration': '7:30',
-    },
-    {
-      'id': '19',
-      'creator': 'Olivia Green',
-      'creatorImage': 'OG',
-      'isTrainer': false,
-      'isFollowing': true,
-      'title': 'Dance Cardio Workout',
-      'description': 'Fun dance moves that burn calories 💃',
-      'category': 'Cardio',
-      'tags': ['#dance', '#cardio', '#fun'],
-      'videoUrl': 'https://example.com/video19.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400',
-      'likes': 3456,
-      'comments': 234,
-      'shares': 189,
-      'saves': 678,
-      'isLiked': false,
-      'isSaved': false,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '1 week ago',
-      'duration': '25:00',
-    },
-    {
-      'id': '20',
-      'creator': 'Daniel Cooper',
-      'creatorImage': 'DC',
-      'isTrainer': true,
-      'isFollowing': true,
-      'title': 'Stretching Routine for Runners',
-      'description': 'Essential stretches to prevent injuries 🏃',
-      'category': 'Stretching',
-      'tags': ['#stretching', '#running', '#recovery'],
-      'videoUrl': 'https://example.com/video20.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400',
-      'likes': 2789,
-      'comments': 156,
-      'shares': 98,
-      'saves': 456,
-      'isLiked': true,
-      'isSaved': true,
-      'isPremium': true,
-      'isFavorited': true,
-      'timestamp': '1 week ago',
-      'duration': '14:20',
-    },
-    {
-      'id': '21',
-      'creator': 'Laura Mitchell',
-      'creatorImage': 'LM',
-      'isTrainer': true,
-      'isFollowing': false,
-      'title': 'TRX Suspension Training',
-      'description': 'Full body workout using TRX straps 🎯',
-      'category': 'Functional Training',
-      'tags': ['#trx', '#functionaltraining', '#core'],
-      'videoUrl': 'https://example.com/video21.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400',
-      'likes': 1890,
-      'comments': 112,
-      'shares': 78,
-      'saves': 345,
-      'isLiked': false,
-      'isSaved': false,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '2 weeks ago',
-      'duration': '16:45',
-    },
-    {
-      'id': '22',
-      'creator': 'Robert King',
-      'creatorImage': 'RK',
-      'isTrainer': false,
-      'isFollowing': true,
-      'title': 'Marathon Training Tips',
-      'description': 'How to prepare for your first marathon 🏃‍♂️',
-      'category': 'Running',
-      'tags': ['#marathon', '#running', '#endurance'],
-      'videoUrl': 'https://example.com/video22.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400',
-      'likes': 4123,
-      'comments': 298,
-      'shares': 234,
-      'saves': 1234,
-      'isLiked': true,
-      'isSaved': false,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '2 weeks ago',
-      'duration': '12:00',
-    },
-    {
-      'id': '23',
-      'creator': 'Jennifer Adams',
-      'creatorImage': 'JA',
-      'isTrainer': true,
-      'isFollowing': true,
-      'title': 'Post-Workout Recovery Smoothie',
-      'description': 'Perfect smoothie to refuel after training 🥤',
-      'category': 'Nutrition',
-      'tags': ['#recovery', '#smoothie', '#postworkout'],
-      'videoUrl': 'https://example.com/video23.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=400',
-      'likes': 2234,
-      'comments': 145,
-      'shares': 167,
-      'saves': 678,
-      'isLiked': false,
-      'isSaved': true,
-      'isPremium': true,
-      'isFavorited': true,
-      'timestamp': '2 weeks ago',
-      'duration': '3:45',
-    },
-    {
-      'id': '24',
-      'creator': 'Mark Stevens',
-      'creatorImage': 'MS',
-      'isTrainer': true,
-      'isFollowing': false,
-      'title': 'Olympic Lifting Basics',
-      'description': 'Introduction to snatch and clean & jerk 🏋️',
-      'category': 'Olympic Lifting',
-      'tags': ['#olympiclifting', '#strength', '#technique'],
-      'videoUrl': 'https://example.com/video24.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400',
-      'likes': 5678,
-      'comments': 412,
-      'shares': 298,
-      'saves': 1890,
-      'isLiked': true,
-      'isSaved': false,
-      'isPremium': true,
-      'isFavorited': true,
-      'timestamp': '2 weeks ago',
-      'duration': '22:30',
-    },
-    {
-      'id': '25',
-      'creator': 'Patricia Moore',
-      'creatorImage': 'PM',
-      'isTrainer': false,
-      'isFollowing': true,
-      'title': 'Outdoor Hiking Adventure',
-      'description': 'Beautiful trails and hiking tips 🥾',
-      'category': 'Hiking',
-      'tags': ['#hiking', '#outdoor', '#adventure'],
-      'videoUrl': 'https://example.com/video25.mp4',
-      'thumbnail': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400',
-      'likes': 3456,
-      'comments': 234,
-      'shares': 189,
-      'saves': 890,
-      'isLiked': false,
-      'isSaved': false,
-      'isPremium': false,
-      'isFavorited': false,
-      'timestamp': '3 weeks ago',
-      'duration': '18:15',
-    },
-  ];
+  bool _loadingForYou = false;
+  bool _loadingFollowing = false;
+  String? _errorForYou;
+  String? _errorFollowing;
+
+  int _pageForYou = 1;
+  int _pageFollowing = 1;
+  bool _hasNextForYou = true;
+  bool _hasNextFollowing = true;
+  static const int _perPage = 10;
+
+  final List<Map<String, dynamic>> _feedPosts = <Map<String, dynamic>>[];
+
+  /// Avoid calling [setState]/loaders from [PageView.builder] during build (causes request storms).
+  bool _forYouLoadMoreQueued = false;
+  bool _followingLoadMoreQueued = false;
+
+  int _forYouFeedEpoch = 0;
+  int _followingFeedEpoch = 0;
+
+  void _disposePageControllerForTab(int tabIndex) {
+    final c = _pageControllers.remove(tabIndex);
+    c?.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
+
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) return;
+      debugPrint('[FeedScreen] Tab changed to index=${_tabController.index}');
+      if (_tabController.index == 0 && _feedPosts.isEmpty && !_loadingForYou) {
+        _loadForYou(reset: true);
+      } else if (_tabController.index == 1 && _followingPosts.isEmpty && !_loadingFollowing) {
+        _loadFollowing(reset: true);
+      }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadForYou(reset: true);
+      _loadFollowing(reset: true);
+    });
   }
 
   @override
@@ -623,6 +88,255 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       _pageControllers[tabIndex] = PageController();
     }
     return _pageControllers[tabIndex]!;
+  }
+
+  bool _coerceBool(dynamic v) {
+    if (v == true) return true;
+    if (v == false) return false;
+    if (v is String) {
+      final s = v.trim().toLowerCase();
+      return s == 'true' || s == '1' || s == 'yes';
+    }
+    if (v is num) return v != 0;
+    return false;
+  }
+
+  bool _readHasNextPage(Map<String, dynamic> data) {
+    final direct = data['hasNextPage'] ?? data['has_next_page'] ?? data['hasNext'];
+    if (direct != null) {
+      if (_coerceBool(direct)) return true;
+      if (direct == false || (direct is String && ['false', '0', 'no'].contains(direct.toString().trim().toLowerCase()))) {
+        return false;
+      }
+    }
+    final cp = data['currentPage'] ?? data['page'];
+    final tp = data['totalPages'] ?? data['total_pages'];
+    if (cp is num && tp is num) {
+      return cp.toInt() < tp.toInt();
+    }
+    return false;
+  }
+
+  String? _firstNonEmptyUrlString(dynamic v) {
+    final s = v?.toString().trim();
+    return (s != null && s.isNotEmpty) ? s : null;
+  }
+
+  /// Resolves playback URL from various backend shapes (HLS or progressive).
+  String? _extractFeedVideoUrl(Map<String, dynamic> m, Map<String, dynamic> video) {
+    const videoKeys = ['playbackUrl', 'hlsUrl', 'manifestUrl', 'streamUrl', 'm3u8Url', 'url', 'src', 'fileUrl', 'videoUrl', 'link'];
+    for (final k in videoKeys) {
+      final fromVideo = _firstNonEmptyUrlString(video[k]);
+      if (fromVideo != null) return fromVideo;
+    }
+    if (video['hls'] is Map) {
+      final hls = Map<String, dynamic>.from(video['hls'] as Map);
+      for (final k in videoKeys) {
+        final s = _firstNonEmptyUrlString(hls[k]);
+        if (s != null) return s;
+      }
+    }
+    for (final k in ['videoUrl', 'playbackUrl', 'hlsUrl', 'streamUrl']) {
+      final s = _firstNonEmptyUrlString(m[k]);
+      if (s != null) return s;
+    }
+    return null;
+  }
+
+  void _queueLoadMoreForYouIfNeeded(int index) {
+    if (_feedPosts.isEmpty) return;
+    final lastTrigger = _feedPosts.length >= 3 ? _feedPosts.length - 2 : _feedPosts.length - 1;
+    if (index < lastTrigger) return;
+    if (!_hasNextForYou || _loadingForYou || _errorForYou != null) return;
+    if (_forYouLoadMoreQueued) return;
+    _forYouLoadMoreQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _forYouLoadMoreQueued = false;
+      if (!mounted) return;
+      if (!_hasNextForYou || _loadingForYou) return;
+      _loadForYou(reset: false);
+    });
+  }
+
+  void _queueLoadMoreFollowingIfNeeded(int index) {
+    if (_followingPosts.isEmpty) return;
+    final lastTrigger = _followingPosts.length >= 3 ? _followingPosts.length - 2 : _followingPosts.length - 1;
+    if (index < lastTrigger) return;
+    if (!_hasNextFollowing || _loadingFollowing || _errorFollowing != null) return;
+    if (_followingLoadMoreQueued) return;
+    _followingLoadMoreQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _followingLoadMoreQueued = false;
+      if (!mounted) return;
+      if (!_hasNextFollowing || _loadingFollowing) return;
+      _loadFollowing(reset: false);
+    });
+  }
+
+  Map<String, dynamic> _metadataMapFromFeed(Map<String, dynamic> m, Map<String, dynamic> video) {
+    if (video['metadata'] is Map) {
+      return Map<String, dynamic>.from(video['metadata'] as Map);
+    }
+    if (m['metadata'] is Map) {
+      return Map<String, dynamic>.from(m['metadata'] as Map);
+    }
+    return <String, dynamic>{};
+  }
+
+  Map<String, dynamic> _mapApiFeedToPost(dynamic raw) {
+    final m = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    final creator = (m['creator'] is Map) ? Map<String, dynamic>.from(m['creator']) : <String, dynamic>{};
+    final profile = (creator['profile'] is Map) ? Map<String, dynamic>.from(creator['profile']) : <String, dynamic>{};
+    final profilePicture = (profile['profilePicture'] is Map) ? Map<String, dynamic>.from(profile['profilePicture']) : <String, dynamic>{};
+    final category = (m['category'] is Map) ? Map<String, dynamic>.from(m['category']) : <String, dynamic>{};
+    final video = (m['video'] is Map) ? Map<String, dynamic>.from(m['video']) : <String, dynamic>{};
+
+    final tagsRaw = (m['tags'] is List) ? List.from(m['tags']) : const [];
+    final tags = tagsRaw.map((e) => e.toString()).where((t) => t.trim().isNotEmpty).map((t) => t.startsWith('#') ? t : '#$t').toList();
+
+    final fullName = (profile['fullName'] ?? '').toString().trim();
+    final initials = fullName.isEmpty ? 'U' : fullName.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2).map((p) => p[0].toUpperCase()).join();
+
+    final meta = _metadataMapFromFeed(m, video);
+    double? metaW;
+    double? metaH;
+    double? videoAspectRatio;
+    final rawMetaW = meta['width'];
+    final rawMetaH = meta['height'];
+    if (rawMetaW is num && rawMetaH is num) {
+      metaW = rawMetaW.toDouble();
+      metaH = rawMetaH.toDouble();
+      if (metaW > 0 && metaH > 0) {
+        videoAspectRatio = metaW / metaH;
+      }
+    }
+
+    double? durationSeconds =
+        (m['duration'] is num) ? (m['duration'] as num).toDouble() : (meta['duration'] is num ? (meta['duration'] as num).toDouble() : null);
+    final durationLabel = durationSeconds == null
+        ? null
+        : durationSeconds >= 60
+        ? '${(durationSeconds ~/ 60)}:${((durationSeconds % 60).round()).toString().padLeft(2, '0')}'
+        : durationSeconds >= 10
+        ? '${durationSeconds.toStringAsFixed(0)}s'
+        : '${durationSeconds.toStringAsFixed(1)}s';
+
+    final resolvedVideoUrl = _extractFeedVideoUrl(m, video) ?? '';
+    final thumb = _firstNonEmptyUrlString(video['thumbnail']) ?? _firstNonEmptyUrlString(video['poster']) ?? _firstNonEmptyUrlString(m['thumbnail']) ?? '';
+
+    return <String, dynamic>{
+      'id': (m['_id'] ?? '').toString(),
+      'creator': fullName.isEmpty ? (creator['email'] ?? 'user').toString() : fullName,
+      'creatorImage': initials,
+      'creatorAvatarUrl': (profilePicture['url'] ?? '').toString(),
+      'title': (m['title'] ?? '').toString(),
+      'description': (m['description'] ?? '').toString(),
+      'category': (category['name'] ?? '').toString(),
+      'tags': tags,
+      'videoUrl': resolvedVideoUrl,
+      'thumbnail': thumb,
+      'likes': (m['likesCount'] is num) ? (m['likesCount'] as num).toInt() : 0,
+      'comments': (m['commentsCount'] is num) ? (m['commentsCount'] as num).toInt() : 0,
+      'shares': (m['sharesCount'] is num) ? (m['sharesCount'] as num).toInt() : 0,
+      'saves': (m['savesCount'] is num) ? (m['savesCount'] as num).toInt() : 0,
+      'isLiked': false,
+      'isSaved': false,
+      'duration': durationLabel,
+      // From video.metadata — used to size reels without distorted crop.
+      if (videoAspectRatio != null) 'videoAspectRatio': videoAspectRatio,
+      if (metaW != null) 'videoPixelWidth': metaW,
+      if (metaH != null) 'videoPixelHeight': metaH,
+      if (meta['format'] != null) 'videoFormat': meta['format'].toString(),
+      if (meta['qualities'] is List)
+        'videoQualities': (meta['qualities'] as List).map((e) => e.toString()).toList(),
+    };
+  }
+
+  Future<void> _loadForYou({required bool reset}) async {
+    if (_loadingForYou) return;
+    if (!reset && !_hasNextForYou) return;
+
+    setState(() {
+      _loadingForYou = true;
+      _errorForYou = null;
+      if (reset) {
+        _pageForYou = 1;
+        _hasNextForYou = true;
+        _feedPosts.clear();
+        _forYouFeedEpoch++;
+        _disposePageControllerForTab(0);
+      }
+    });
+
+    try {
+      final raw = await _feedRepo.getFeedsRepo(page: _pageForYou, limit: _perPage);
+      final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data']) : <String, dynamic>{};
+      final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds']) : const [];
+      final mapped = feedsRaw.map(_mapApiFeedToPost).where((p) => (p['id'] ?? '').toString().isNotEmpty).toList();
+
+      setState(() {
+        _feedPosts.addAll(mapped);
+        _hasNextForYou = _readHasNextPage(data);
+        _pageForYou = _pageForYou + 1;
+      });
+    } catch (e) {
+      setState(() {
+        _errorForYou = e.toString();
+        if (_feedPosts.isNotEmpty) {
+          _hasNextForYou = false;
+        }
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingForYou = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadFollowing({required bool reset}) async {
+    if (_loadingFollowing) return;
+    if (!reset && !_hasNextFollowing) return;
+
+    setState(() {
+      _loadingFollowing = true;
+      _errorFollowing = null;
+      if (reset) {
+        _pageFollowing = 1;
+        _hasNextFollowing = true;
+        _followingPosts.clear();
+        _followingFeedEpoch++;
+        _disposePageControllerForTab(1);
+      }
+    });
+
+    try {
+      final raw = await _feedRepo.getFeedsRepo(page: _pageFollowing, limit: _perPage, type: 'following');
+      final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data']) : <String, dynamic>{};
+      final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds']) : const [];
+      final mapped = feedsRaw.map(_mapApiFeedToPost).where((p) => (p['id'] ?? '').toString().isNotEmpty).toList();
+
+      setState(() {
+        _followingPosts.addAll(mapped);
+        _hasNextFollowing = _readHasNextPage(data);
+        _pageFollowing = _pageFollowing + 1;
+      });
+    } catch (e) {
+      debugPrint('[FeedScreen] Error loading following: $e');
+      setState(() {
+        _errorFollowing = e.toString();
+        if (_followingPosts.isNotEmpty) {
+          _hasNextFollowing = false;
+        }
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingFollowing = false;
+        });
+      }
+    }
   }
 
   @override
@@ -719,26 +433,48 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           ],
           bottom: PreferredSize(preferredSize: const Size.fromHeight(0), child: Container()),
         ),
-        body: TabBarView(controller: _tabController, children: [_buildForYouFeed(), _buildFollowingFeed(), _buildProfilePage()]),
+        body: ColoredBox(
+          color: Colors.black,
+          child: TabBarView(controller: _tabController, children: [_buildForYouFeed(), _buildFollowingFeed()]),
+        ),
       ),
     );
   }
 
   Widget _buildForYouFeed() {
-    return PageView.builder(
-      controller: _getPageController(0),
-      scrollDirection: Axis.vertical,
-      itemCount: _feedPosts.length,
-      itemBuilder: (context, index) {
-        return _buildFullScreenPost(_feedPosts[index]);
+    if (_errorForYou != null && _feedPosts.isEmpty) {
+      return _buildFeedError(message: _errorForYou!, onRetry: () => _loadForYou(reset: true));
+    }
+    if (_loadingForYou && _feedPosts.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return AnimatedBuilder(
+      animation: _tabController,
+      builder: (context, _) {
+        return FeedVerticalReels(
+          key: ValueKey<Object>('fy_$_forYouFeedEpoch'),
+          posts: _feedPosts,
+          pageController: _getPageController(0),
+          active: _tabController.index == 0,
+          onPageChangedIndex: (_) {},
+          onNearEndIndex: _queueLoadMoreForYouIfNeeded,
+          resolvePlaybackUrl: _playbackUrlForPost,
+          backdropForPost: (ctx, post) => _buildReelBackdrop(post),
+          overlay: (ctx, post, index) => _buildReelChrome(post),
+        );
       },
     );
   }
 
   Widget _buildFollowingFeed() {
-    final followingPosts = _feedPosts.where((post) => post['isFollowing'] == true).toList();
+    if (_errorFollowing != null && _followingPosts.isEmpty) {
+      return _buildFeedError(message: _errorFollowing!, onRetry: () => _loadFollowing(reset: true));
+    }
+    if (_loadingFollowing && _followingPosts.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-    if (followingPosts.isEmpty) {
+    if (_followingPosts.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -748,29 +484,64 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
             Text('No posts from followed creators', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
             const SizedBox(height: 8),
             TextButton(
-              onPressed: () {
-                _tabController.animateTo(2);
-              },
-              child: const Text('Discover Creators'),
+              onPressed: () => _tabController.animateTo(0),
+              child: const Text('Browse For You'),
             ),
           ],
         ),
       );
     }
 
-    return PageView.builder(
-      controller: _getPageController(1),
-      scrollDirection: Axis.vertical,
-      itemCount: followingPosts.length,
-      itemBuilder: (context, index) {
-        return _buildFullScreenPost(followingPosts[index]);
+    return AnimatedBuilder(
+      animation: _tabController,
+      builder: (context, _) {
+        return FeedVerticalReels(
+          key: ValueKey<Object>('fl_$_followingFeedEpoch'),
+          posts: _followingPosts,
+          pageController: _getPageController(1),
+          active: _tabController.index == 1,
+          onPageChangedIndex: (_) {},
+          onNearEndIndex: _queueLoadMoreFollowingIfNeeded,
+          resolvePlaybackUrl: _playbackUrlForPost,
+          backdropForPost: (ctx, post) => _buildReelBackdrop(post),
+          overlay: (ctx, post, index) => _buildReelChrome(post),
+        );
       },
     );
   }
 
-  Widget _buildProfilePage() {
-    // Return the ProfileScreen widget without AppBar and tabs, showing only Public content
-    return const ProfileScreen(hideAppBar: true);
+  Widget _buildFeedError({required String message, required VoidCallback onRetry}) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 72, color: AppColors.primaryGray.withOpacity(0.55)),
+            const SizedBox(height: 12),
+            Text(
+              'Could not load feed',
+              style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray.withOpacity(0.9)),
+              textAlign: TextAlign.center,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton(
+              onPressed: onRetry,
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showSearchScreen() {
@@ -835,160 +606,125 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildFullScreenPost(Map<String, dynamic> post) {
-    return GestureDetector(
-      onTap: () => _showPostDetail(post),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Full screen background image/video
-          _buildEnhancedThumbnail(_resolveAttractiveThumbnail(post), isFullScreen: true),
+  Widget _buildReelBackdrop(Map<String, dynamic> post) {
+    return SizedBox.expand(child: _buildEnhancedThumbnail(_resolveAttractiveThumbnail(post), isFullScreen: true));
+  }
 
-          // Gradient overlay for better text visibility
-          Container(
+  /// Like / comment / caption; gradient ignored for hit-testing so center taps toggle play on the video layer.
+  Widget _buildReelChrome(Map<String, dynamic> post) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        IgnorePointer(
+          ignoring: true,
+          child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black.withOpacity(0.3), Colors.black.withOpacity(0.6)],
-                stops: const [0.0, 0.6, 1.0],
+                colors: [Colors.transparent, Colors.black.withOpacity(0.35), Colors.black.withOpacity(0.65)],
+                stops: const [0.0, 0.55, 1.0],
               ),
             ),
           ),
-
-          // Large white circular play button in center
-          Center(
-            child: GestureDetector(
-              onTap: () => _openVideoReel(post),
-              child: Image.asset('assets/images/playbutton.png', width: 80.w, height: 80.h),
+        ),
+        Positioned(
+          top: 18,
+          right: 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.accentVariant,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
             ),
-          ),
-
-          // Top right duration badge
-          Positioned(
-            top: 18,
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.accentVariant,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset('assets/images/play.png', width: 15),
-                  SizedBox(width: 4),
-                  Text(
-                    post['duration'] ?? '30s',
-                    style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 15.sp, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Right side interaction buttons
-          Positioned(
-            right: 16,
-            bottom: 30,
-            child: Column(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Profile Avatar
-                GestureDetector(
-                  onTap: () {
-                    // TODO: Handle premium/favorite action
-                  },
-                  child: Image.asset('assets/images/verify.png', width: 35.w),
+                Image.asset('assets/images/play.png', width: 15),
+                SizedBox(width: 4),
+                Text(
+                  post['duration'] ?? '30s',
+                  style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 15.sp, fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 20),
-
-                // Like button (heart turns red on tap)
-                _buildLikeButton(post),
-                const SizedBox(height: 20),
-
-                // Comment button
-                _buildCommentButton(post),
-                const SizedBox(height: 20),
-
-                // Save/Bookmark button
-                _buildSaveButton(post),
-                const SizedBox(height: 20),
-
-                // Share button
-                _buildVerticalInteractionSvgButton(assetPath: 'assets/icons/share.svg', count: post['shares'] ?? 0, onTap: () => _showShareOptions(post)),
-
-                // Premium star icon
               ],
             ),
           ),
-
-          // Bottom left text content
-          Positioned(
-            left: 16,
-            bottom: 30,
-            right: 100,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Username
-                GestureDetector(
-                  onTap: () => _navigateToCreatorProfile(post),
-                  child: Row(
-                    children: [
-                      Text(
-                        '@${(post['creator'] ?? 'user').toString().toLowerCase().replaceAll(' ', '')}',
-                        style: AppTextStyles.titleSmall.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Caption
-                Text(
-                  post['description'] ?? '',
-                  style: AppTextStyles.bodyMedium.copyWith(
+        ),
+        Positioned(
+          right: 16,
+          bottom: 30,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () {},
+                child: Image.asset('assets/images/verify.png', width: 35.w),
+              ),
+              const SizedBox(height: 20),
+              _buildLikeButton(post),
+              const SizedBox(height: 20),
+              _buildCommentButton(post),
+              const SizedBox(height: 20),
+              _buildSaveButton(post),
+              const SizedBox(height: 20),
+              _buildVerticalInteractionSvgButton(assetPath: 'assets/icons/share.svg', count: post['shares'] ?? 0, onTap: () => _showShareOptions(post)),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 16,
+          bottom: 30,
+          right: 100,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () => _navigateToCreatorProfile(post),
+                child: Text(
+                  '@${(post['creator'] ?? 'user').toString().toLowerCase().replaceAll(' ', '')}',
+                  style: AppTextStyles.titleSmall.copyWith(
                     color: Colors.white,
-                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                     shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
                   ),
                 ),
-                const SizedBox(height: 8),
-
-                // Hashtags
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children:
-                      (post['tags'] as List<String>?)
-                          ?.map(
-                            (tag) => Text(
-                              tag,
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
-                              ),
-                            ),
-                          )
-                          .toList() ??
-                      [],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                post['description'] ?? '',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: Colors.white,
+                  fontSize: 14,
+                  shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children:
+                    (post['tags'] as List<String>?)
+                        ?.map(
+                          (tag) => Text(
+                            tag,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+                            ),
+                          ),
+                        )
+                        .toList() ??
+                    [],
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1178,10 +914,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       default:
         // Fallback to provided URL if category is unknown
         final raw = (post['thumbnail'] ?? '').toString();
-        return ImageUrlSanitizer.asHttpUrlOrFallback(
-          raw,
-          fallback: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
-        );
+        return ImageUrlSanitizer.asHttpUrlOrFallback(raw, fallback: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80');
     }
   }
 
@@ -1389,12 +1122,37 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     Get.snackbar('Post Detail', 'Opening ${post['title']}', backgroundColor: AppColors.accent, colorText: AppColors.onAccent, snackPosition: SnackPosition.BOTTOM);
   }
 
-  void _openVideoReel(Map<String, dynamic> post) {
-    // Find the index of the current post
-    final currentIndex = _feedPosts.indexWhere((p) => p['id'] == post['id']);
+  /// Normalize feed video URLs (absolute http(s) or join with API base path).
+  String? _resolveFeedMediaUrl(String? raw) {
+    final input = raw?.trim();
+    if (input == null || input.isEmpty) return null;
+    final absolute = ImageUrlSanitizer.asHttpUrlOrNull(input);
+    if (absolute != null) return absolute;
+    if (input.startsWith('/')) {
+      final base = Uri.parse(AppUrl.baseUrl);
+      return '${base.scheme}://${base.authority}$input';
+    }
+    return null;
+  }
 
-    // Navigate to video reel screen with all posts and current index
-    Get.toNamed(AppRoutes.videoReel, arguments: {'posts': _feedPosts, 'initialIndex': currentIndex >= 0 ? currentIndex : 0});
+  String? _playbackUrlForPost(Map<String, dynamic> post) {
+    final raw =
+        _firstNonEmptyUrlString(post['videoUrl']) ??
+        _firstNonEmptyUrlString(post['playbackUrl']) ??
+        _firstNonEmptyUrlString(post['hlsUrl']) ??
+        _firstNonEmptyUrlString(post['streamUrl']);
+    return _resolveFeedMediaUrl(raw);
+  }
+
+  void _openVideoReel(Map<String, dynamic> post) {
+    final resolved = _playbackUrlForPost(post);
+    if (resolved == null) {
+      Get.snackbar('Video', 'Video URL is unavailable for this post.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    final copy = Map<String, dynamic>.from(post);
+    copy['videoUrl'] = resolved;
+    Get.toNamed(AppRoutes.videoReel, arguments: {'posts': <Map<String, dynamic>>[copy], 'initialIndex': 0});
   }
 
   void _showShareOptions(Map<String, dynamic> post) {

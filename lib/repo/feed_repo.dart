@@ -4,6 +4,24 @@ import 'package:get_right/network/network_services.dart';
 class FeedRepository {
   final NetworkApiService _network = NetworkApiService();
 
+  /// `GET /user/feed` — query: `page`, `limit`, optional `type` (`following`).
+  ///
+  /// Response shape (backend):
+  /// `data.totalDocs`, `data.feeds[]`, `data.currentPage`, `data.totalPages`,
+  /// `data.hasNextPage`, `data.hasPrevPage`.
+  Future<dynamic> getFeedsRepo({
+    required int page,
+    required int limit,
+    String? type,
+  }) async {
+    final params = <String, dynamic>{
+      'page': page,
+      'limit': limit,
+      if (type != null && type.trim().isNotEmpty) 'type': type.trim(),
+    };
+    return _network.get(AppUrl.feedCreate, params: params);
+  }
+
   /// `POST /user/feed`
   Future<dynamic> createFeedRepo({
     required String title,

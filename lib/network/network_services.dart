@@ -26,6 +26,22 @@ class NetworkApiService extends GetxService {
     return "Bearer $token";
   }
 
+  /// [`Uri.replace`]'s query map must use [String] or [Iterable<String>] values.
+  /// Passing [int]/[double]/[bool] throws: `type 'int' is not a subtype of type 'Iterable<dynamic>'`.
+  Map<String, dynamic>? _normalizeQueryParameters(Map<String, dynamic>? params) {
+    if (params == null) return null;
+    final out = <String, dynamic>{};
+    for (final MapEntry(:key, :value) in params.entries) {
+      if (value == null) continue;
+      if (value is Iterable && value is! String) {
+        out[key] = value.map((dynamic x) => x.toString()).toList();
+      } else {
+        out[key] = value.toString();
+      }
+    }
+    return out;
+  }
+
   /// Default headers for all requests with optional custom headers.
   Map<String, String> _defaultHeaders({Map<String, String>? customHeaders}) {
     Utils.logInfo('Creating default headers for request', name: 'NetworkApiService');
@@ -208,7 +224,7 @@ class NetworkApiService extends GetxService {
       Utils.logInfo("With query parameters: $params", name: "NetworkApiService");
     }
 
-    final uri = Uri.parse(url).replace(queryParameters: params);
+    final uri = Uri.parse(url).replace(queryParameters: _normalizeQueryParameters(params));
     return _sendRequest(() => http.get(uri, headers: _defaultHeaders(customHeaders: headers)));
   }
 
@@ -216,7 +232,7 @@ class NetworkApiService extends GetxService {
     Utils.logInfo("Preparing POST request to: $url", name: "NetworkApiService");
     Utils.logInfo("Request payload: $data", name: "NetworkApiService");
 
-    final uri = Uri.parse(url).replace(queryParameters: params);
+    final uri = Uri.parse(url).replace(queryParameters: _normalizeQueryParameters(params));
     return _sendRequest(
       () => http.post(
         uri,
@@ -234,7 +250,7 @@ class NetworkApiService extends GetxService {
     Utils.logInfo("Preparing PUT request to: $url", name: "NetworkApiService");
     Utils.logInfo("Request payload: $data", name: "NetworkApiService");
 
-    final uri = Uri.parse(url).replace(queryParameters: params);
+    final uri = Uri.parse(url).replace(queryParameters: _normalizeQueryParameters(params));
     return _sendRequest(
       () => http.put(
         uri,
@@ -248,7 +264,7 @@ class NetworkApiService extends GetxService {
     Utils.logInfo("Preparing PATCH request to: $url", name: "NetworkApiService");
     Utils.logInfo("Request payload: $data", name: "NetworkApiService");
 
-    final uri = Uri.parse(url).replace(queryParameters: params);
+    final uri = Uri.parse(url).replace(queryParameters: _normalizeQueryParameters(params));
     return _sendRequest(
       () => http.patch(
         uri,
@@ -261,7 +277,7 @@ class NetworkApiService extends GetxService {
   Future<dynamic> delete(String url, {Map<String, String>? headers, Map<String, dynamic>? params}) async {
     Utils.logInfo("Preparing DELETE request to: $url", name: "NetworkApiService");
 
-    final uri = Uri.parse(url).replace(queryParameters: params);
+    final uri = Uri.parse(url).replace(queryParameters: _normalizeQueryParameters(params));
     return _sendRequest(() => http.delete(uri, headers: _defaultHeaders(customHeaders: headers)));
   }
 
