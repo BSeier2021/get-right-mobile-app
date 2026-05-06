@@ -43,6 +43,9 @@ class AppUrl {
   /// `GET /user/feed/:feedId` — single published feed reel + viewer flags (`likedByMe`, `savedByMe`).
   static String feedById(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}';
 
+  /// `DELETE /user/feed/:feedId` — remove post (same path as [feedById], e.g. `/user/feed/69f8eaeb3447d7cba1700ec4`).
+  static String feedDelete(String feedId) => feedById(feedId);
+
   /// `POST /user/feed/:feedId/video/multipart/init` — `contentType`, `fileSize`.
   static String feedVideoMultipartInit(String feedId) =>
       '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/init';

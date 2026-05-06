@@ -750,7 +750,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return count.toString();
   }
 
-  /// 3-dot menu: edit metadata / delete (does not open the reel).
+  /// Overflow menu — **Delete** calls `DELETE /user/feed/{post.id}` ([FeedRepository.deleteFeedRepo]).
   Widget _buildPostGridOverflowMenu(Map<String, dynamic> post) {
     return PopupMenuButton<String>(
       tooltip: 'Post options',
@@ -896,6 +896,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     tagsController.dispose();
   }
 
+  /// Confirms then `DELETE` `…/user/feed/:id` (same resource as get-by-id).
   Future<void> _confirmDeletePost(Map<String, dynamic> post) async {
     final id = (post['id'] ?? '').toString().trim();
     if (id.isEmpty) return;

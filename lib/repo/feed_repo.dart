@@ -51,9 +51,9 @@ class FeedRepository {
     return _network.patch(AppUrl.feedById(feedId), body);
   }
 
-  /// `DELETE /user/feed/:feedId`
+  /// `DELETE` — [AppUrl.feedDelete] → `/api/v1/user/feed/:feedId`.
   Future<dynamic> deleteFeedRepo(String feedId) async {
-    return _network.delete(AppUrl.feedById(feedId));
+    return _network.delete(AppUrl.feedDelete(feedId));
   }
 
   /// `POST /user/feed`
