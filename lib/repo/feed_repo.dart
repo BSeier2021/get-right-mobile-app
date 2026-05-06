@@ -22,6 +22,40 @@ class FeedRepository {
     return _network.get(AppUrl.feedCreate, params: params);
   }
 
+  /// `GET /user/feed/mine?page=&limit=` — paginated reels owned by current user (`data.feeds`, `hasNextPage`, …).
+  Future<dynamic> getMyFeedsRepo({required int page, required int limit}) async {
+    return _network.get(AppUrl.feedMine, params: <String, dynamic>{'page': page, 'limit': limit});
+  }
+
+  /// `GET /user/feed/:feedId` — `data.feed`, `likedByMe`, `savedByMe`.
+  Future<dynamic> getFeedByIdRepo(String feedId) async {
+    return _network.get(AppUrl.feedById(feedId));
+  }
+
+  /// `PATCH /user/feed/:feedId` — metadata update (`title`, `description`, `category`, `tags`).
+  Future<dynamic> updateFeedRepo({
+    required String feedId,
+    required String title,
+    required String description,
+    required String categoryId,
+    required List<String> tags,
+  }) async {
+    final body = <String, dynamic>{
+      'title': title.trim(),
+      'description': description.trim(),
+      'tags': tags,
+    };
+    if (categoryId.trim().isNotEmpty) {
+      body['category'] = categoryId.trim();
+    }
+    return _network.patch(AppUrl.feedById(feedId), body);
+  }
+
+  /// `DELETE /user/feed/:feedId`
+  Future<dynamic> deleteFeedRepo(String feedId) async {
+    return _network.delete(AppUrl.feedById(feedId));
+  }
+
   /// `POST /user/feed`
   Future<dynamic> createFeedRepo({
     required String title,

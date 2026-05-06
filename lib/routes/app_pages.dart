@@ -73,6 +73,7 @@ import 'package:get_right/views/library/library_screen.dart';
 import 'package:get_right/views/library/exercise_list_screen.dart';
 import 'package:get_right/views/library/exercise_detail_screen.dart';
 import 'package:get_right/views/feed/feed_screen.dart';
+import 'package:get_right/views/feed/single_feed_reel_screen.dart';
 import 'package:get_right/views/feed/post_detail_screen.dart';
 import 'package:get_right/views/feed/create_post_screen.dart';
 import 'package:get_right/views/feed/saved_posts_screen.dart';
@@ -180,6 +181,7 @@ class AppPages {
 
     // Feed Pages
     GetPage(name: AppRoutes.feed, page: () => const FeedScreen(), transition: Transition.fade),
+    GetPage(name: AppRoutes.feedSingleReel, page: () => const SingleFeedReelScreen(), transition: Transition.fade),
     GetPage(name: AppRoutes.postDetail, page: () => const PostDetailScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.savedPosts, page: () => const SavedPostsScreen(), transition: Transition.rightToLeft),
     GetPage(

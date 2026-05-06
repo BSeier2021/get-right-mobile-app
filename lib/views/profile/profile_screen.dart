@@ -5,9 +5,11 @@ import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/models/customer_profile_dto.dart';
 import 'package:get_right/controllers/notification_controller.dart';
+import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
 import 'package:intl/intl.dart';
 
@@ -55,6 +57,10 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   List<PersonalRecord> _personalRecords = [];
+  final FeedRepository _feedRepo = FeedRepository();
+  List<Map<String, dynamic>> _myFeedPosts = [];
+  bool _myFeedsLoading = true;
+  String? _myFeedsError;
 
   @override
   void initState() {
@@ -63,6 +69,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (Get.isRegistered<AuthController>()) {
         Get.find<AuthController>().fetchCustomerProfile();
       }
+      _fetchMyFeeds();
     });
     _personalRecords = [
       PersonalRecord(id: '1', liftName: 'Bench Press', value: '315', unit: 'lbs', date: DateTime(2024, 12, 12), displayPublicly: true),
@@ -159,11 +166,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
           return RefreshIndicator(
             color: _kProfileForestGreen,
-            onRefresh: () => auth.fetchCustomerProfile(),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: _buildPublicProfile(auth),
-            ),
+            onRefresh: () async {
+              if (Get.isRegistered<AuthController>()) {
+                await Get.find<AuthController>().fetchCustomerProfile();
+              }
+              await _fetchMyFeeds();
+            },
+            child: SingleChildScrollView(physics: const AlwaysScrollableScrollPhysics(), child: _buildPublicProfile(auth)),
           );
         },
       ),
@@ -174,11 +183,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final t = slug.trim();
     if (t.isEmpty) return '';
     if (!t.contains('_')) return t;
-    return t
-        .split('_')
-        .where((s) => s.isNotEmpty)
-        .map((s) => '${s[0].toUpperCase()}${s.length > 1 ? s.substring(1).toLowerCase() : ''}')
-        .join(' ');
+    return t.split('_').where((s) => s.isNotEmpty).map((s) => '${s[0].toUpperCase()}${s.length > 1 ? s.substring(1).toLowerCase() : ''}').join(' ');
   }
 
   Widget _buildPublicProfile(AuthController auth) {
@@ -201,193 +206,192 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Column(
       children: [
-        if (auth.customerProfileLoading && auth.customerProfile != null)
-          const LinearProgressIndicator(minHeight: 2, color: _kProfileForestGreen),
+        if (auth.customerProfileLoading && auth.customerProfile != null) const LinearProgressIndicator(minHeight: 2, color: _kProfileForestGreen),
         const SizedBox(height: 8),
-          // Centered avatar + camera (mockup)
-          Center(
-            child: SizedBox(
-              width: 104,
-              height: 104,
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.white,
-                    child: CircleAvatar(
-                      radius: 46,
-                      backgroundColor: _kProfileForestGreen.withOpacity(0.08),
-                      child: photoUrl != null && photoUrl.isNotEmpty
-                          ? ClipOval(
-                              child: Image.network(
-                                photoUrl,
-                                width: 92,
-                                height: 92,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Icon(Icons.person, size: 52, color: _kProfileForestGreen.withOpacity(0.45)),
-                              ),
-                            )
-                          : Icon(Icons.person, size: 52, color: _kProfileForestGreen.withOpacity(0.45)),
+        // Centered avatar + camera (mockup)
+        Center(
+          child: SizedBox(
+            width: 104,
+            height: 104,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.white,
+                  child: CircleAvatar(
+                    radius: 46,
+                    backgroundColor: _kProfileForestGreen.withOpacity(0.08),
+                    child: photoUrl != null && photoUrl.isNotEmpty
+                        ? ClipOval(
+                            child: Image.network(
+                              photoUrl,
+                              width: 92,
+                              height: 92,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(Icons.person, size: 52, color: _kProfileForestGreen.withOpacity(0.45)),
+                            ),
+                          )
+                        : Icon(Icons.person, size: 52, color: _kProfileForestGreen.withOpacity(0.45)),
+                  ),
+                ),
+                Positioned(
+                  right: -2,
+                  bottom: -2,
+                  child: GestureDetector(
+                    onTap: () => Get.toNamed(AppRoutes.editProfile),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _kProfileForestGreen,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _kProfileCream, width: 3),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 2))],
+                      ),
+                      child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
                     ),
                   ),
-                  Positioned(
-                    right: -2,
-                    bottom: -2,
-                    child: GestureDetector(
-                      onTap: () => Get.toNamed(AppRoutes.editProfile),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: _kProfileForestGreen,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: _kProfileCream, width: 3),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 2))],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            children: [
+              Text(
+                displayName,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.headlineSmall.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w800, fontSize: 22),
+              ),
+              if (email.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  email,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.65), fontSize: 14),
+                ),
+              ],
+              if (bioLine != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  bioLine,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.8), height: 1.35),
+                ),
+              ],
+              if (_profileMetaLine(p).isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _profileMetaLine(p),
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.labelSmall.copyWith(color: _kProfileForestGreen.withOpacity(0.75), fontWeight: FontWeight.w600, height: 1.4),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        // Stat cards row
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          child: Row(
+            children: [
+              Expanded(child: _buildStatCard('06', 'Posts', _kStatPostsOrange)),
+              const SizedBox(width: 10),
+              Expanded(child: _buildStatCard('1247', 'Followers', _kStatFollowersBlue, onTap: () => Get.toNamed(AppRoutes.followers))),
+              const SizedBox(width: 10),
+              Expanded(child: _buildStatCard('342', 'Following', _kStatFollowingGreen, onTap: () => Get.toNamed(AppRoutes.following))),
+            ],
+          ),
+        ),
+        const SizedBox(height: 28),
+
+        // Nutrition / records section (label matches mockup)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Nutrition (per serving)',
+                    style: AppTextStyles.titleMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w700),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.edit_note_rounded, color: _kProfileForestGreen, size: 26),
+                    onPressed: _showEditPersonalRecordsDialog,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _personalRecords.isEmpty
+                  ? Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 3))],
+                        border: Border.all(color: _kProfileForestGreen.withOpacity(0.08)),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'No personal records yet.\nTap edit to add your records.',
+                          style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.55)),
+                          textAlign: TextAlign.center,
                         ),
-                        child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+                      ),
+                    )
+                  : _buildPersonalRecordsGrid(),
+            ],
+          ),
+        ),
+        const SizedBox(height: 28),
+
+        // Posts Section
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Posts',
+                    style: AppTextStyles.titleMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w700),
+                  ),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _showCreatePostOptions,
+                      customBorder: const CircleBorder(),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _kProfileForestGreen, width: 2),
+                        ),
+                        child: Icon(Icons.add, color: _kProfileForestGreen, size: 24),
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 14),
+              _buildPostsGrid(),
+            ],
           ),
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              children: [
-                Text(
-                  displayName,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.headlineSmall.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w800, fontSize: 22),
-                ),
-                if (email.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    email,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.65), fontSize: 14),
-                  ),
-                ],
-                if (bioLine != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    bioLine,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.8), height: 1.35),
-                  ),
-                ],
-                if (_profileMetaLine(p).isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    _profileMetaLine(p),
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.labelSmall.copyWith(color: _kProfileForestGreen.withOpacity(0.75), fontWeight: FontWeight.w600, height: 1.4),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Stat cards row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Row(
-              children: [
-                Expanded(child: _buildStatCard('06', 'Posts', _kStatPostsOrange)),
-                const SizedBox(width: 10),
-                Expanded(child: _buildStatCard('1247', 'Followers', _kStatFollowersBlue, onTap: () => Get.toNamed(AppRoutes.followers))),
-                const SizedBox(width: 10),
-                Expanded(child: _buildStatCard('342', 'Following', _kStatFollowingGreen, onTap: () => Get.toNamed(AppRoutes.following))),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
-
-          // Nutrition / records section (label matches mockup)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Nutrition (per serving)',
-                      style: AppTextStyles.titleMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w700),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.edit_note_rounded, color: _kProfileForestGreen, size: 26),
-                      onPressed: _showEditPersonalRecordsDialog,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                _personalRecords.isEmpty
-                    ? Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 3))],
-                          border: Border.all(color: _kProfileForestGreen.withOpacity(0.08)),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'No personal records yet.\nTap edit to add your records.',
-                            style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.55)),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      )
-                    : _buildPersonalRecordsGrid(),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
-
-          // Posts Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Posts',
-                      style: AppTextStyles.titleMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w700),
-                    ),
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: _showCreatePostOptions,
-                        customBorder: const CircleBorder(),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: _kProfileForestGreen, width: 2),
-                          ),
-                          child: Icon(Icons.add, color: _kProfileForestGreen, size: 24),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                _buildPostsGrid(),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+        ),
+        const SizedBox(height: 24),
       ],
     );
   }
@@ -506,92 +510,160 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildPostsGrid() {
-    // Mock posts data with more realistic content
-    final posts = [
-      {
-        'id': '1',
-        'isVideo': true,
-        'thumbnail': 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400',
-        'title': 'Perfect Squat Form',
-        'description': 'Master your squat technique with these tips!',
-        'likes': 315,
-        'comments': 42,
-        'saves': 89,
-        'shares': 23,
-        'duration': '1:24',
-        'timestamp': '2 days ago',
-        'tags': ['#fitness', '#squat', '#formcheck'],
-      },
-      {
-        'id': '2',
-        'isVideo': false,
-        'thumbnail': 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400',
-        'title': 'Gym Progress',
-        'description': '6 months of consistent training!',
-        'likes': 428,
-        'comments': 67,
-        'saves': 124,
-        'shares': 31,
-        'timestamp': '5 days ago',
-        'tags': ['#progress', '#transformation', '#dedication'],
-      },
-      {
-        'id': '3',
-        'isVideo': true,
-        'thumbnail': 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400',
-        'title': 'Deadlift PR',
-        'description': 'New personal record: 405 lbs!',
-        'likes': 892,
-        'comments': 134,
-        'saves': 267,
-        'shares': 89,
-        'duration': '0:45',
-        'timestamp': '1 week ago',
-        'tags': ['#deadlift', '#pr', '#powerlifting'],
-      },
-      {
-        'id': '4',
-        'isVideo': false,
-        'thumbnail': 'https://images.unsplash.com/photo-1532029837206-abbe2b7620e3?w=400',
-        'title': 'Meal Prep Sunday',
-        'description': 'High protein meals for the week',
-        'likes': 234,
-        'comments': 28,
-        'saves': 156,
-        'shares': 45,
-        'timestamp': '1 week ago',
-        'tags': ['#mealprep', '#nutrition', '#healthy'],
-      },
-      {
-        'id': '5',
-        'isVideo': true,
-        'thumbnail': 'https://images.unsplash.com/photo-1549576490-b0b4831ef60a?w=400',
-        'title': 'Morning Cardio',
-        'description': 'Starting the day right!',
-        'likes': 167,
-        'comments': 19,
-        'saves': 43,
-        'shares': 12,
-        'duration': '2:15',
-        'timestamp': '2 weeks ago',
-        'tags': ['#cardio', '#morning', '#running'],
-      },
-      {
-        'id': '6',
-        'isVideo': false,
-        'thumbnail': 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400',
-        'title': 'Gym Selfie',
-        'description': 'Post-workout pump!',
-        'likes': 521,
-        'comments': 89,
-        'saves': 78,
-        'shares': 23,
-        'timestamp': '2 weeks ago',
-        'tags': ['#fitness', '#gym', '#motivation'],
-      },
-    ];
+  Future<void> _fetchMyFeeds() async {
+    setState(() {
+      _myFeedsLoading = true;
+      _myFeedsError = null;
+    });
+    try {
+      final raw = await _feedRepo.getMyFeedsRepo(page: 1, limit: 10);
+      final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data']) : <String, dynamic>{};
+      final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds']) : const [];
+      final mapped = feedsRaw.map((e) => _mapMineFeedToGridItem(Map<String, dynamic>.from(e as Map))).where((p) => (p['id'] ?? '').toString().isNotEmpty).toList();
 
+      if (!mounted) return;
+      setState(() {
+        _myFeedPosts = mapped;
+        _myFeedsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _myFeedsError = e.toString();
+        _myFeedsLoading = false;
+      });
+    }
+  }
+
+  static const String _kMineFeedThumbFallback = 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400';
+
+  String _fallbackThumbnailForCategory(String? categoryName) {
+    switch (categoryName?.toLowerCase().trim()) {
+      case 'nutrition':
+        return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
+      default:
+        return _kMineFeedThumbFallback;
+    }
+  }
+
+  Map<String, dynamic> _mapMineFeedToGridItem(Map<String, dynamic> m) {
+    final id = (m['_id'] ?? '').toString();
+    final creator = (m['creator'] is Map) ? Map<String, dynamic>.from(m['creator']) : <String, dynamic>{};
+    final profile = (creator['profile'] is Map) ? Map<String, dynamic>.from(creator['profile']) : <String, dynamic>{};
+    final fullName = (profile['fullName'] ?? '').toString().trim();
+    final creatorName = fullName.isEmpty ? (creator['email'] ?? 'You').toString() : fullName;
+    final initials = creatorName.isEmpty ? 'U' : creatorName.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2).map((p) => p[0].toUpperCase()).join();
+
+    final video = (m['video'] is Map) ? Map<String, dynamic>.from(m['video']) : <String, dynamic>{};
+    final meta = (video['metadata'] is Map) ? Map<String, dynamic>.from(video['metadata']) : <String, dynamic>{};
+    final category = (m['category'] is Map) ? Map<String, dynamic>.from(m['category']) : <String, dynamic>{};
+    final categoryName = (category['name'] ?? '').toString();
+    final categoryId = (category['_id'] ?? category['id'] ?? '').toString();
+
+    final videoUrl = (video['url'] ?? '').toString().trim();
+    final thumbRaw = (video['thumbnail'] ?? '').toString().trim();
+    final isVideo = videoUrl.isNotEmpty;
+
+    final thumb = thumbRaw.isNotEmpty
+        ? ImageUrlSanitizer.asHttpUrlOrFallback(thumbRaw, fallback: _fallbackThumbnailForCategory(categoryName))
+        : _fallbackThumbnailForCategory(categoryName);
+
+    final tagsRaw = (m['tags'] is List) ? List.from(m['tags']) : const [];
+    final tags = tagsRaw.map((e) {
+      final s = e.toString();
+      return s.startsWith('#') ? s : '#$s';
+    }).toList();
+
+    double? ds = (m['duration'] is num) ? (m['duration'] as num).toDouble() : (meta['duration'] is num ? (meta['duration'] as num).toDouble() : null);
+    String? durationLabel;
+    if (ds != null) {
+      durationLabel = ds >= 60
+          ? '${ds ~/ 60}:${(ds % 60).round().toString().padLeft(2, '0')}'
+          : ds >= 10
+          ? '${ds.round()}s'
+          : '${ds.toStringAsFixed(1)}s';
+    }
+
+    String timestamp = '';
+    final created = m['createdAt']?.toString();
+    if (created != null && created.isNotEmpty) {
+      try {
+        timestamp = DateFormat.yMMMd().add_jm().format(DateTime.parse(created).toLocal());
+      } catch (_) {
+        timestamp = created;
+      }
+    }
+
+    final likes = (m['likesCount'] is num) ? (m['likesCount'] as num).toInt() : 0;
+    final comments = (m['commentsCount'] is num) ? (m['commentsCount'] as num).toInt() : 0;
+    final saves = (m['savesCount'] is num) ? (m['savesCount'] as num).toInt() : 0;
+    final shares = (m['sharesCount'] is num) ? (m['sharesCount'] as num).toInt() : 0;
+
+    return <String, dynamic>{
+      'id': id,
+      'isVideo': isVideo,
+      'thumbnail': thumb,
+      'videoUrl': videoUrl,
+      'title': (m['title'] ?? '').toString(),
+      'description': (m['description'] ?? '').toString(),
+      'likes': likes,
+      'comments': comments,
+      'saves': saves,
+      'shares': shares,
+      if (durationLabel != null) 'duration': durationLabel,
+      'timestamp': timestamp,
+      'tags': tags,
+      'creator': creatorName,
+      'creatorInitials': initials,
+      'categoryId': categoryId,
+      'status': (m['status'] ?? '').toString(),
+      'videoProcessingStatus': (m['videoProcessingStatus'] ?? '').toString(),
+    };
+  }
+
+  Widget _buildPostsGrid() {
+    if (_myFeedsLoading && _myFeedPosts.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 36),
+        child: Center(child: CircularProgressIndicator(color: _kProfileForestGreen)),
+      );
+    }
+
+    if (_myFeedsError != null && _myFeedPosts.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          children: [
+            Text(
+              _myFeedsError!,
+              style: AppTextStyles.bodySmall.copyWith(color: _kProfileForestGreen.withOpacity(0.85)),
+              textAlign: TextAlign.center,
+            ),
+            TextButton(
+              onPressed: _fetchMyFeeds,
+              child: Text(
+                'Retry',
+                style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_myFeedPosts.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: Text(
+            'No posts yet',
+            style: AppTextStyles.titleSmall.copyWith(color: _kProfileForestGreen.withOpacity(0.65), fontWeight: FontWeight.w600),
+          ),
+        ),
+      );
+    }
+
+    final posts = _myFeedPosts;
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -599,65 +671,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
       itemCount: posts.length,
       itemBuilder: (context, index) {
         final post = posts[index];
-        return GestureDetector(
-          onTap: () => _navigateToPostDetail(post),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Post Image/Thumbnail
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  post['thumbnail'] as String,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [_kProfileForestGreen.withOpacity(0.35), _kProfileForestGreen.withOpacity(0.15)],
+        return Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            GestureDetector(
+              onTap: () => _navigateToPostDetail(post),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Post Image/Thumbnail
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      post['thumbnail'] as String,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [_kProfileForestGreen.withOpacity(0.35), _kProfileForestGreen.withOpacity(0.15)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
+                    ),
+                  ),
+                  // Gradient overlay for engagement row
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.35)]),
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                ),
-              ),
-              // Gradient overlay for engagement row
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.35)]),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              // Video play icon (white, mockup)
-              if (post['isVideo'] as bool) Padding(padding: const EdgeInsets.all(40.0), child: Image.asset('assets/images/playbutton.png')),
-              // Engagement stats overlay
-              Positioned(
-                bottom: 4,
-                left: 4,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.favorite,
-                      color: Colors.white,
-                      size: 14,
-                      shadows: [Shadow(color: Colors.black.withOpacity(0.5), blurRadius: 4)],
+                  // Video play icon (white, mockup)
+                  if (post['isVideo'] as bool) Padding(padding: const EdgeInsets.all(40.0), child: Image.asset('assets/images/playbutton.png')),
+                  // Engagement stats overlay
+                  Positioned(
+                    bottom: 4,
+                    left: 4,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.favorite,
+                          color: Colors.white,
+                          size: 14,
+                          shadows: [Shadow(color: Colors.black.withOpacity(0.5), blurRadius: 4)],
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          _formatCount(post['likes'] as int),
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            shadows: [Shadow(color: Colors.black.withOpacity(0.5), blurRadius: 4)],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 2),
-                    Text(
-                      _formatCount(post['likes'] as int),
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        shadows: [Shadow(color: Colors.black.withOpacity(0.5), blurRadius: 4)],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            Positioned(top: 0, right: 0, child: _buildPostGridOverflowMenu(post)),
+          ],
         );
       },
     );
@@ -672,10 +750,188 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return count.toString();
   }
 
+  /// 3-dot menu: edit metadata / delete (does not open the reel).
+  Widget _buildPostGridOverflowMenu(Map<String, dynamic> post) {
+    return PopupMenuButton<String>(
+      tooltip: 'Post options',
+      padding: EdgeInsets.zero,
+      offset: const Offset(0, 36),
+      color: AppColors.surface,
+      icon: const Icon(Icons.more_horiz, color: Colors.white, size: 25), // Changed to horizontal 3 dots
+      onSelected: (value) {
+        if (value == 'edit') {
+          _showEditPostBottomSheet(post);
+        } else if (value == 'delete') {
+          _confirmDeletePost(post);
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(Icons.edit_outlined, size: 20, color: _kProfileForestGreen),
+              const SizedBox(width: 10),
+              Text('Edit', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, size: 20, color: AppColors.error),
+              const SizedBox(width: 10),
+              Text('Delete', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<String> _parseTagsForApi(String raw) {
+    return raw.split(RegExp(r'\s+')).map((t) => t.replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).toList();
+  }
+
+  Future<void> _showEditPostBottomSheet(Map<String, dynamic> post) async {
+    final id = (post['id'] ?? '').toString().trim();
+    if (id.isEmpty) return;
+
+    final titleController = TextEditingController(text: (post['title'] ?? '').toString());
+    final descriptionController = TextEditingController(text: (post['description'] ?? '').toString());
+    final tagsRaw = (post['tags'] as List<dynamic>?)?.map((e) => e.toString().replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).join(' ') ?? '';
+    final tagsController = TextEditingController(text: tagsRaw);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Edit post',
+                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    labelText: 'Title',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descriptionController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    labelText: 'Description',
+                    alignLabelWithHint: true,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: tagsController,
+                  decoration: InputDecoration(
+                    labelText: 'Tags',
+                    hintText: 'e.g. workout legs day',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(backgroundColor: _kProfileForestGreen),
+                        onPressed: () async {
+                          final tags = _parseTagsForApi(tagsController.text);
+                          final catId = (post['categoryId'] ?? '').toString().trim();
+                          try {
+                            await _feedRepo.updateFeedRepo(feedId: id, title: titleController.text, description: descriptionController.text, categoryId: catId, tags: tags);
+                            if (!context.mounted) return;
+                            Navigator.pop(ctx);
+                            await _fetchMyFeeds();
+                            Get.snackbar('Saved', 'Post updated', snackPosition: SnackPosition.BOTTOM, backgroundColor: _kProfileForestGreen, colorText: Colors.white);
+                          } catch (e) {
+                            Get.snackbar('Could not update', e.toString(), snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+                          }
+                        },
+                        child: const Text('Save'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    titleController.dispose();
+    descriptionController.dispose();
+    tagsController.dispose();
+  }
+
+  Future<void> _confirmDeletePost(Map<String, dynamic> post) async {
+    final id = (post['id'] ?? '').toString().trim();
+    if (id.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete post?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+        content: Text('This removes the post from your profile. This cannot be undone.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _feedRepo.deleteFeedRepo(id);
+      await _fetchMyFeeds();
+      if (!mounted) return;
+      Get.snackbar('Deleted', 'Post removed', snackPosition: SnackPosition.BOTTOM, backgroundColor: _kProfileForestGreen, colorText: Colors.white);
+    } catch (e) {
+      Get.snackbar('Could not delete', e.toString(), snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+    }
+  }
+
   void _navigateToPostDetail(Map<String, dynamic> post) {
-    // Add creator info to post data
-    final postWithCreator = {...post, 'creator': 'brogan seier', 'creatorInitials': 'BS', 'isLiked': false, 'isSaved': false};
-    Get.toNamed(AppRoutes.postDetail, arguments: postWithCreator);
+    final id = (post['id'] ?? '').toString().trim();
+    if (id.isEmpty) return;
+    Get.toNamed(AppRoutes.feedSingleReel, arguments: <String, dynamic>{'feedId': id});
   }
 
   void _showCreatePostOptions() {

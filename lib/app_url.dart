@@ -37,6 +37,12 @@ class AppUrl {
   /// `POST /user/feed` — body: `title`, `description`, `category` (id), `tags` (string array).
   static String get feedCreate => '$baseUrl/user/feed';
 
+  /// `GET /user/feed/mine` — query: `page`, `limit`. Authenticated user's own feed posts.
+  static String get feedMine => '$baseUrl/user/feed/mine';
+
+  /// `GET /user/feed/:feedId` — single published feed reel + viewer flags (`likedByMe`, `savedByMe`).
+  static String feedById(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}';
+
   /// `POST /user/feed/:feedId/video/multipart/init` — `contentType`, `fileSize`.
   static String feedVideoMultipartInit(String feedId) =>
       '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/init';

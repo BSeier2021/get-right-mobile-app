@@ -1,3 +1,6 @@
+import 'dart:async' show unawaited;
+
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:get_right/models/hls_video_quality.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -5,7 +8,7 @@ import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/hls_master_playlist_parser.dart';
 import 'package:video_player/video_player.dart';
 
-/// YouTube Shorts–style vertical feed: autoplay visible reel, preload neighbors, looping.
+/// YouTube Shorts–style vertical feed: autoplay visible reel, optionally preload neighbors (iOS ±1; Android current only to limit decoders).
 ///
 /// Playback uses [video_player] with the same HLS variant resolution strategy as [VideoReelScreen].
 class FeedVerticalReels extends StatefulWidget {
@@ -51,6 +54,23 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
   final Map<int, bool> _isPlaying = {};
   int _currentIndex = 0;
 
+  /// Fewer simultaneous [VideoPlayer]s on Android lowers MediaCodec `BufferPool` churn and noisy PES demux warnings.
+  int get _keepAliveRadius {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 0;
+    }
+    return 1;
+  }
+
+  Future<void> _disposeControllerQuiet(VideoPlayerController? controller) async {
+    if (controller == null) return;
+    try {
+      await controller.dispose();
+    } catch (e, st) {
+      debugPrint('FeedReel: controller.dispose failed → $e\n$st');
+    }
+  }
+
   Future<Uri> _resolveReelPlaybackUri(String rawUrl) async {
     final trimmed = rawUrl.trim();
     final parsed = Uri.tryParse(trimmed);
@@ -67,12 +87,45 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
         return parsed;
       }
       variants.sort((a, b) => (a.heightPx ?? 0).compareTo(b.heightPx ?? 0));
+
+      // Prefer a capped fixed variant on Android to shrink decoder buffers vs 720p+.
+      final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+      final maxTierAndroid = 576;
+
       HlsVideoQuality? choice;
-      for (final q in variants) {
-        final h = q.heightPx ?? 0;
-        if (h >= 480 && h <= 720) {
-          choice = q;
-          break;
+
+      if (isAndroid) {
+        HlsVideoQuality? bestUnderCap;
+        for (final q in variants) {
+          final h = q.heightPx ?? 0;
+          if (h <= 0) continue;
+          if (h > maxTierAndroid) continue;
+          if (bestUnderCap == null || (bestUnderCap.heightPx ?? 0) < h) {
+            bestUnderCap = q;
+          }
+        }
+        choice = bestUnderCap;
+      }
+
+      if (choice == null && isAndroid) {
+        HlsVideoQuality? lowest;
+        for (final q in variants) {
+          final h = q.heightPx ?? 0;
+          if (h <= 0) continue;
+          if (lowest == null || h < (lowest.heightPx ?? 1 << 30)) {
+            lowest = q;
+          }
+        }
+        choice = lowest;
+      }
+
+      if (choice == null) {
+        for (final q in variants) {
+          final h = q.heightPx ?? 0;
+          if (h >= 480 && h <= 720) {
+            choice = q;
+            break;
+          }
         }
       }
       choice ??= variants.length >= 2 ? variants[variants.length ~/ 2] : variants.first;
@@ -97,10 +150,12 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
   void didUpdateWidget(FeedVerticalReels oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!widget.active && oldWidget.active) {
-      _pauseAll();
+      // Free decoder / texture buffers when tab not visible.
+      _disposeAllControllers();
     } else if (widget.active && !oldWidget.active) {
       _playIndex(_currentIndex);
       _preloadAround(_currentIndex);
+      _trimControllers(_currentIndex);
     }
 
     final newLen = widget.posts.length;
@@ -110,7 +165,7 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
     }
 
     if (widget.posts.isEmpty) {
-      _pauseAll();
+      _disposeAllControllers();
     } else {
       _currentIndex = _currentIndex.clamp(0, widget.posts.length - 1);
     }
@@ -118,30 +173,53 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
 
   @override
   void dispose() {
-    for (final c in _controllers.values) {
-      c.dispose();
-    }
+    final toClose = List<VideoPlayerController>.from(_controllers.values);
     _controllers.clear();
+    for (final c in toClose) {
+      unawaited(_disposeControllerQuiet(c));
+    }
     super.dispose();
   }
 
   void _disposeFromIndex(int from) {
     for (final k in _controllers.keys.toList()) {
       if (k >= from) {
-        _controllers[k]?.dispose();
-        _controllers.remove(k);
+        final c = _controllers.remove(k);
+        unawaited(_disposeControllerQuiet(c));
         _isPlaying.remove(k);
         _errors.remove(k);
       }
     }
   }
 
-  void _pauseAll() {
-    for (final e in _controllers.entries) {
-      e.value.pause();
-      _isPlaying[e.key] = false;
+  void _disposeAllControllers() {
+    final snapshot = Map<int, VideoPlayerController>.from(_controllers);
+    _controllers.clear();
+    for (final c in snapshot.values) {
+      unawaited(_disposeControllerQuiet(c));
     }
+    _pending.clear();
+    _errors.clear();
+    _isPlaying.clear();
     if (mounted) setState(() {});
+  }
+
+  Future<void> _trimControllersSync(int center) async {
+    final r = _keepAliveRadius;
+    final minKeep = (center - r).clamp(0, 1 << 30);
+    final maxKeep = center + r;
+    for (final k in _controllers.keys.toList()) {
+      if (k < minKeep || k > maxKeep) {
+        final c = _controllers.remove(k);
+        await _disposeControllerQuiet(c);
+        _isPlaying.remove(k);
+        _errors.remove(k);
+      }
+    }
+  }
+
+  void _trimControllers(int center) {
+    unawaited(_trimControllersSync(center));
   }
 
   void _playIndex(int index) {
@@ -161,11 +239,13 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
 
   void _preloadAround(int center) {
     if (widget.posts.isEmpty) return;
-    final lo = (center - 1).clamp(0, widget.posts.length - 1);
-    final hi = (center + 1).clamp(0, widget.posts.length - 1);
+    final r = _keepAliveRadius;
+    final lo = (center - r).clamp(0, widget.posts.length - 1);
+    final hi = (center + r).clamp(0, widget.posts.length - 1);
     for (var i = lo; i <= hi; i++) {
       _ensureVideo(i);
     }
+    _trimControllers(center);
   }
 
   void _ensureVideo(int index) {
@@ -199,16 +279,17 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
           await controller.initialize().timeout(const Duration(seconds: 45));
         } catch (e) {
           debugPrint('FeedReel: init failed for $uri → $e');
-          if (controller != null) {
-            await controller.dispose();
-          }
+          await _disposeControllerQuiet(controller);
           return false;
         }
 
         if (!mounted) {
-          await controller.dispose();
+          await _disposeControllerQuiet(controller);
           return false;
         }
+
+        final existing = _controllers.remove(index);
+        if (existing != null) await _disposeControllerQuiet(existing);
 
         _controllers[index] = controller;
         await controller.setLooping(true);
@@ -218,6 +299,8 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
         if (shouldPlay) {
           await controller.play();
         }
+
+        await _trimControllersSync(_currentIndex);
         _errors.remove(index);
         return true;
       }
@@ -282,8 +365,8 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
   }
 
   void _retry(int index) {
-    _controllers[index]?.dispose();
-    _controllers.remove(index);
+    final c = _controllers.remove(index);
+    unawaited(_disposeControllerQuiet(c));
     _errors.remove(index);
     _pending.remove(index);
     _ensureVideo(index);
