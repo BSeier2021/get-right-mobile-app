@@ -24,6 +24,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late Animation<double> _scaleAnimation;
   late Animation<double> _shimmerAnimation;
 
+  /// Guards against navigating twice if `_initializeApp` resumes after dispose
+  /// (avoids `Navigator !_debugLocked` assertion when navigation is already in flight).
+  bool _hasNavigated = false;
+
   @override
   void initState() {
     super.initState();
@@ -53,13 +57,23 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   Future<void> _initializeApp() async {
     // Minimum splash duration (animations)
     await Future.delayed(const Duration(milliseconds: 2800));
-
     if (!mounted) return;
 
-    final didRoute = await Get.find<AuthController>().tryAutoLoginAndRouteFromSplash();
-    if (!mounted || didRoute) return;
+    final auth = Get.find<AuthController>();
+    final route = await auth.tryAutoLoginAndRouteFromSplash() ?? AppRoutes.onboarding;
+    if (!mounted) return;
 
-    Get.offAllNamed(AppRoutes.onboarding);
+    // Defer to after the current frame so we never push a new route while
+    // the framework is still mid-build / mid-transition.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_hasNavigated) return;
+      _hasNavigated = true;
+      if (route == AppRoutes.otp) {
+        Get.offAllNamed(route, arguments: auth.autoLoginOtpArgs);
+      } else {
+        Get.offAllNamed(route);
+      }
+    });
   }
 
   @override

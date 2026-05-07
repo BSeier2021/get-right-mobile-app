@@ -1190,8 +1190,14 @@ class AuthController extends GetxController {
     return g is String && g.isNotEmpty;
   }
 
-  /// Applies `data.user`-shaped payloads and navigates — same branching as [login], without snackbars / remember-me.
-  Future<void> _routeFromPersistedLoginResponse(Map<String, dynamic> response) async {
+  /// Pure outcome of [tryAutoLoginAndRouteFromSplash] — splash decides when/how to navigate.
+  /// Each value carries its target [AppRoutes] route name and any [arguments] needed (used by [autoLoginOtp]).
+  Map<String, dynamic>? _autoLoginOtpArgs;
+  Map<String, dynamic>? get autoLoginOtpArgs => _autoLoginOtpArgs;
+
+  /// Applies `data.user`-shaped payloads and returns the next route; never calls navigation itself.
+  /// Mirrors [login]'s branching, minus snackbars / remember-me.
+  Future<String> _routeFromPersistedLoginResponse(Map<String, dynamic> response) async {
     final data = response['data'];
     String? emailToStore;
     var needsEmailVerification = false;
@@ -1238,70 +1244,66 @@ class AuthController extends GetxController {
       final em = resolvedEmail;
       if (uid == null || uid.isEmpty || em == null || em.isEmpty) {
         await _clearLocalAuthSession();
-        Get.offAllNamed(AppRoutes.onboarding);
-        return;
+        return AppRoutes.onboarding;
       }
       _tempEmail = em;
       _pendingSignupUserId = uid;
-      Get.offAllNamed(AppRoutes.otp, arguments: {'email': em, 'userId': uid, 'fromSignup': false});
-      return;
+      _autoLoginOtpArgs = {'email': em, 'userId': uid, 'fromSignup': false};
+      return AppRoutes.otp;
     }
 
     final token = _tokenFromVerifyResponse(response);
     if (token == null || token.isEmpty) {
       await _clearLocalAuthSession();
-      Get.offAllNamed(AppRoutes.onboarding);
-      return;
+      return AppRoutes.onboarding;
     }
     await _persistAccessToken(token);
 
-    if (needsProfileSetup) {
-      Get.offAllNamed(AppRoutes.profileSetup);
-      return;
-    }
-    Get.offAllNamed(AppRoutes.home);
+    if (needsProfileSetup) return AppRoutes.profileSetup;
+    return AppRoutes.home;
   }
 
-  /// `GET /user/auth/auto-login` from splash when a JWT exists. Returns `true` if navigation was already performed.
-  Future<bool> tryAutoLoginAndRouteFromSplash() async {
+  /// Resolves the next route after `GET /user/auth/auto-login`. Splash performs the actual `Get.offAllNamed`,
+  /// so we never push a route while the splash is mid-transition (which causes
+  /// `Navigator !_debugLocked` assertion failures).
+  ///
+  /// Returns `null` when there's no stored JWT (or the API explicitly invalidated it) — caller should
+  /// treat that as "go to onboarding". On transient network/server errors we keep the user signed-in
+  /// and route to [AppRoutes.home] using the stored Bearer.
+  Future<String?> tryAutoLoginAndRouteFromSplash() async {
+    _autoLoginOtpArgs = null;
     await _ensurePersistedJwtSyncedForBearer();
-    if (!_hasStoredJwtForAutoLogin()) return false;
+    if (!_hasStoredJwtForAutoLogin()) return null;
 
     try {
       final response = await _authRepo.autoLoginRepo();
       if (response is! Map<String, dynamic>) {
         _syncNetworkBearerFromStorage();
-        Get.offAllNamed(AppRoutes.home);
-        return true;
+        return AppRoutes.home;
       }
       if (response['success'] != true) {
         await _clearLocalAuthSession();
-        return false;
+        return null;
       }
-      await _routeFromPersistedLoginResponse(response);
-      return true;
+      return await _routeFromPersistedLoginResponse(response);
     } on UnauthorizedException catch (_) {
       await _clearLocalAuthSession();
-      return false;
+      return null;
     } on ForbiddenException catch (_) {
       await _clearLocalAuthSession();
-      return false;
+      return null;
     } on NoInternetException catch (_) {
       _syncNetworkBearerFromStorage();
-      Get.offAllNamed(AppRoutes.home);
-      return true;
+      return AppRoutes.home;
     } on RequestTimeoutException catch (_) {
       _syncNetworkBearerFromStorage();
-      Get.offAllNamed(AppRoutes.home);
-      return true;
+      return AppRoutes.home;
     } on ServerException catch (_) {
       _syncNetworkBearerFromStorage();
-      Get.offAllNamed(AppRoutes.home);
-      return true;
+      return AppRoutes.home;
     } catch (_) {
       _syncNetworkBearerFromStorage();
-      Get.offAllNamed(AppRoutes.home);
-      return true;
+      return AppRoutes.home;
     }
   }
 
