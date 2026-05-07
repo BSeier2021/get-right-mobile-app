@@ -58,7 +58,8 @@ class AppUrl {
   static String exerciseDetail(String exerciseId) => '$baseUrl/user/exercises/$exerciseId';
 
   // static String AllPlans = '$baseUrl/get-all-plans';
-  static String autoLogin = '$baseUrl/auth/auto-login';
+  /// `GET /user/auth/auto-login` — Bearer JWT; refreshes session (`data.user`, `data.token`).
+  static String autoLogin = '$baseUrl/user/auth/auto-login';
   static String changePassword = '$baseUrl/user/auth/change-password';
   static String voicePosts = '$baseUrl/voice-posts';
   static String createVoicePost = '$baseUrl/voice-posts';

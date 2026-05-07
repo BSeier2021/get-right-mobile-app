@@ -60,8 +60,8 @@ Future<void> initServices() async {
   final storageService = await StorageService.getInstance();
   Get.put(storageService);
 
-  // Initialize AuthController
-  Get.put(AuthController(storageService));
+  // Initialize AuthController (single instance for the app lifecycle)
+  Get.put(AuthController(storageService), permanent: true);
 }
 
 class GetRightApp extends StatelessWidget {

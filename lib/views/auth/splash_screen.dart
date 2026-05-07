@@ -5,7 +5,6 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
-import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/widgets/common/app_logo.dart';
 
 /// Modern splash screen with elegant animations and premium feel
@@ -52,16 +51,14 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   }
 
   Future<void> _initializeApp() async {
-    // Initialize local storage service only
-    final storage = await StorageService.getInstance();
-
-    // Initialize auth controller as permanent (survives route changes)
-    Get.put(AuthController(storage), permanent: true);
-
-    // Wait for minimum splash screen display time (2.8 seconds for animations)
+    // Minimum splash duration (animations)
     await Future.delayed(const Duration(milliseconds: 2800));
 
-    // Always navigate to onboarding screen
+    if (!mounted) return;
+
+    final didRoute = await Get.find<AuthController>().tryAutoLoginAndRouteFromSplash();
+    if (!mounted || didRoute) return;
+
     Get.offAllNamed(AppRoutes.onboarding);
   }
 

@@ -44,6 +44,11 @@ class AuthRepository {
     return response;
   }
 
+  /// `GET /user/auth/auto-login` — uses persisted Bearer from [NetworkApiService].
+  Future<dynamic> autoLoginRepo() async {
+    return _network.get(AppUrl.autoLogin);
+  }
+
   /// `POST /user/auth/forget` with `{ "email": "..." }`.
   Future<dynamic> forgotPasswordRepo({required String email}) async {
     final response = await _network.post(AppUrl.forgotPassword, {"email": email.trim()}, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
@@ -212,10 +217,7 @@ class AuthRepository {
   /// `GET /user/feed-categories` → `data.categories`.
   Future<dynamic> getFeedCategoriesRepo() async {
     // Backend expects the raw guest token (non-Bearer) here.
-    final response = await _network.get(
-      AppUrl.feedCategories,
-      headers: {"skipAuth": "true", "Authorization": NetworkApiService.guestAuthToken},
-    );
+    final response = await _network.get(AppUrl.feedCategories, headers: {"skipAuth": "true", "Authorization": NetworkApiService.guestAuthToken});
     return response;
   }
 

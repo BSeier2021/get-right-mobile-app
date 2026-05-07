@@ -1163,6 +1163,148 @@ class AuthController extends GetxController {
     }
   }
 
+  Future<void> _clearLocalAuthSession() async {
+    await _storageService.logout();
+    if (Get.isRegistered<LocalStorage>()) {
+      Get.find<LocalStorage>().deleteAccessToken();
+    }
+  }
+
+  /// Ensures [NetworkApiService] Bearer matches JWT in [StorageService], with [LocalStorage] fallback after cold start quirks.
+  Future<void> _ensurePersistedJwtSyncedForBearer() async {
+    _syncNetworkBearerFromStorage();
+    final prefsToken = _storageService.getToken();
+    if (prefsToken != null && prefsToken.isNotEmpty) return;
+    if (!Get.isRegistered<LocalStorage>()) return;
+    final g = Get.find<LocalStorage>().getAccessToken();
+    if (g is! String || g.isEmpty) return;
+    await _storageService.saveToken(g);
+    await _storageService.saveLoginStatus(true);
+  }
+
+  bool _hasStoredJwtForAutoLogin() {
+    final t = _storageService.getToken();
+    if (t != null && t.isNotEmpty) return true;
+    if (!Get.isRegistered<LocalStorage>()) return false;
+    final g = Get.find<LocalStorage>().getAccessToken();
+    return g is String && g.isNotEmpty;
+  }
+
+  /// Applies `data.user`-shaped payloads and navigates — same branching as [login], without snackbars / remember-me.
+  Future<void> _routeFromPersistedLoginResponse(Map<String, dynamic> response) async {
+    final data = response['data'];
+    String? emailToStore;
+    var needsEmailVerification = false;
+    var needsProfileSetup = false;
+    if (data is Map<String, dynamic>) {
+      needsEmailVerification = _isExplicitlyFalse(data['isVerified']) || _isExplicitlyFalse(data['is_verified']);
+      if (!needsEmailVerification) {
+        needsProfileSetup = _isExplicitlyFalse(data['isProfileCompleted']) || _isExplicitlyFalse(data['is_profile_completed']);
+      }
+
+      final user = data['user'];
+      if (user is Map<String, dynamic>) {
+        final id = user['_id']?.toString();
+        if (id != null && id.isNotEmpty) {
+          await _storageService.saveUserId(id);
+          final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
+          ls.saveuserid(id);
+        }
+        emailToStore = user['email']?.toString();
+        final profile = user['profile'];
+        if (profile is Map<String, dynamic>) {
+          final name = profile['fullName']?.toString();
+          if (name != null && name.isNotEmpty) {
+            await _storageService.saveName(name);
+          }
+        }
+
+        needsEmailVerification = needsEmailVerification || _isExplicitlyFalse(user['isVerified']) || _isExplicitlyFalse(user['is_verified']);
+        if (!needsEmailVerification) {
+          needsProfileSetup = needsProfileSetup || _isExplicitlyFalse(user['isProfileCompleted']) || _isExplicitlyFalse(user['is_profile_completed']);
+          if (profile is Map<String, dynamic>) {
+            needsProfileSetup = needsProfileSetup || _isExplicitlyFalse(profile['isProfileCompleted']) || _isExplicitlyFalse(profile['is_profile_completed']);
+          }
+        }
+      }
+    }
+    final resolvedEmail = emailToStore?.trim();
+    if (resolvedEmail != null && resolvedEmail.isNotEmpty) {
+      await _storageService.saveEmail(resolvedEmail);
+    }
+
+    if (needsEmailVerification) {
+      final uid = _storageService.getUserId();
+      final em = resolvedEmail;
+      if (uid == null || uid.isEmpty || em == null || em.isEmpty) {
+        await _clearLocalAuthSession();
+        Get.offAllNamed(AppRoutes.onboarding);
+        return;
+      }
+      _tempEmail = em;
+      _pendingSignupUserId = uid;
+      Get.offAllNamed(AppRoutes.otp, arguments: {'email': em, 'userId': uid, 'fromSignup': false});
+      return;
+    }
+
+    final token = _tokenFromVerifyResponse(response);
+    if (token == null || token.isEmpty) {
+      await _clearLocalAuthSession();
+      Get.offAllNamed(AppRoutes.onboarding);
+      return;
+    }
+    await _persistAccessToken(token);
+
+    if (needsProfileSetup) {
+      Get.offAllNamed(AppRoutes.profileSetup);
+      return;
+    }
+    Get.offAllNamed(AppRoutes.home);
+  }
+
+  /// `GET /user/auth/auto-login` from splash when a JWT exists. Returns `true` if navigation was already performed.
+  Future<bool> tryAutoLoginAndRouteFromSplash() async {
+    await _ensurePersistedJwtSyncedForBearer();
+    if (!_hasStoredJwtForAutoLogin()) return false;
+
+    try {
+      final response = await _authRepo.autoLoginRepo();
+      if (response is! Map<String, dynamic>) {
+        _syncNetworkBearerFromStorage();
+        Get.offAllNamed(AppRoutes.home);
+        return true;
+      }
+      if (response['success'] != true) {
+        await _clearLocalAuthSession();
+        return false;
+      }
+      await _routeFromPersistedLoginResponse(response);
+      return true;
+    } on UnauthorizedException catch (_) {
+      await _clearLocalAuthSession();
+      return false;
+    } on ForbiddenException catch (_) {
+      await _clearLocalAuthSession();
+      return false;
+    } on NoInternetException catch (_) {
+      _syncNetworkBearerFromStorage();
+      Get.offAllNamed(AppRoutes.home);
+      return true;
+    } on RequestTimeoutException catch (_) {
+      _syncNetworkBearerFromStorage();
+      Get.offAllNamed(AppRoutes.home);
+      return true;
+    } on ServerException catch (_) {
+      _syncNetworkBearerFromStorage();
+      Get.offAllNamed(AppRoutes.home);
+      return true;
+    } catch (_) {
+      _syncNetworkBearerFromStorage();
+      Get.offAllNamed(AppRoutes.home);
+      return true;
+    }
+  }
+
   /// Signup via `/user/auth/signup`. On success, OTP is sent to email; stores user id for verify-OTP.
   Future<bool> signup({required String email, required String password, String role = 'Customer'}) async {
     try {
