@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:get/get.dart';
-import 'package:get/state_manager.dart';
 import 'package:get_right/Local%20Storage/local_storage.dart';
 import 'package:get_right/utils%20copy/utils.dart';
 import 'package:http/http.dart' as http;
@@ -12,7 +11,8 @@ import 'package:http_parser/http_parser.dart' as http_parser;
 class NetworkApiService extends GetxService {
   static const int _defaultTimeoutSeconds = 30;
   static const int _maxRetries = 3;
-  static const String _guestAuthToken = "ab6410c710c7ce43c36e37084a4b5205b0e1608477336023a8520c9f104398f9";
+  /// Guest token used for endpoints that expect a non-Bearer auth token.
+  static const String guestAuthToken = "yNaHwJpGFSquIkXP";
   final LocalStorage localStorage = Get.put<LocalStorage>(LocalStorage());
 
   /// Retrieves the authorization token from local storage.
@@ -21,7 +21,7 @@ class NetworkApiService extends GetxService {
     final token = localStorage.getAccessToken();
     if (token == null || token.isEmpty) {
       Utils.logError('No access token found, using guest mode', name: 'NetworkApiService');
-      return _guestAuthToken;
+      return guestAuthToken;
     }
     return "Bearer $token";
   }
@@ -245,7 +245,7 @@ class NetworkApiService extends GetxService {
   }
 
   Future<dynamic> postS(String url, dynamic data) async {
-    return _sendRequest(() => http.post(Uri.parse(url), body: jsonEncode(data), headers: {'Content-Type': 'application/json', 'Authorization': _guestAuthToken}));
+    return _sendRequest(() => http.post(Uri.parse(url), body: jsonEncode(data), headers: {'Content-Type': 'application/json', 'Authorization': guestAuthToken}));
   }
 
   Future<dynamic> put(String url, dynamic data, {Map<String, String>? headers, Map<String, dynamic>? params}) async {

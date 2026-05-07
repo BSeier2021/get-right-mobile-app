@@ -32,13 +32,26 @@ class FeedRepository {
     return _network.get(AppUrl.feedById(feedId));
   }
 
-  /// `PATCH /user/feed/:feedId` — metadata update (`title`, `description`, `category`, `tags`).
+  /// `GET /user/feed-categories` — same base auth as other feed routes (`data.categories[]`).
+  Future<dynamic> getFeedCategoriesRepo() async {
+    // Backend expects the raw guest token (non-Bearer) for this endpoint.
+    return _network.get(
+      AppUrl.feedCategories,
+      headers: <String, String>{
+        'skipAuth': 'true',
+        'Authorization': NetworkApiService.guestAuthToken,
+      },
+    );
+  }
+
+  /// `PATCH /user/feed/:feedId` — body: `title`, `description`, `tags`, `category` (id), optional `status` (`Draft` | `Published`).
   Future<dynamic> updateFeedRepo({
     required String feedId,
     required String title,
     required String description,
     required String categoryId,
     required List<String> tags,
+    String? status,
   }) async {
     final body = <String, dynamic>{
       'title': title.trim(),
@@ -47,6 +60,10 @@ class FeedRepository {
     };
     if (categoryId.trim().isNotEmpty) {
       body['category'] = categoryId.trim();
+    }
+    final st = status?.trim();
+    if (st != null && st.isNotEmpty) {
+      body['status'] = st;
     }
     return _network.patch(AppUrl.feedById(feedId), body);
   }

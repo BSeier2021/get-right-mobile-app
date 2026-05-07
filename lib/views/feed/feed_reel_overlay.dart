@@ -57,10 +57,7 @@ String resolveFeedReelThumbnailUrl(Map<String, dynamic> post) {
       return 'https://images.unsplash.com/photo-1511295742362-92c96b1a3d52?w=1200&auto=format&fit=crop&q=80';
     default:
       final raw = (post['thumbnail'] ?? '').toString();
-      return ImageUrlSanitizer.asHttpUrlOrFallback(
-        raw,
-        fallback: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
-      );
+      return ImageUrlSanitizer.asHttpUrlOrFallback(raw, fallback: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80');
   }
 }
 
@@ -272,11 +269,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildShareIcon(Icons.message, 'Message', () {}),
-                _buildShareIcon(Icons.link, 'Copy Link', () {}),
-                _buildShareIcon(Icons.share, 'More', () {}),
-              ],
+              children: [_buildShareIcon(Icons.message, 'Message', () {}), _buildShareIcon(Icons.link, 'Copy Link', () {}), _buildShareIcon(Icons.share, 'More', () {})],
             ),
             const SizedBox(height: 16),
           ],
@@ -343,7 +336,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
           ),
         ),
         Positioned(
-          top: 18,
+          top: 55,
           right: 16,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -382,11 +375,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
               const SizedBox(height: 20),
               _saveButton(context),
               const SizedBox(height: 20),
-              _buildVerticalInteractionSvgButton(
-                assetPath: 'assets/icons/share.svg',
-                count: _post['shares'] ?? 0,
-                onTap: () => _showShareOptions(context),
-              ),
+              _buildVerticalInteractionSvgButton(assetPath: 'assets/icons/share.svg', count: _post['shares'] ?? 0, onTap: () => _showShareOptions(context)),
             ],
           ),
         ),
@@ -410,6 +399,20 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
                   ),
                 ),
               ),
+              if (((_post['title'] ?? '').toString().trim()).isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  (_post['title'] ?? '').toString(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.titleSmall.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               Text(
                 _post['description'] ?? '',
@@ -459,12 +462,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SvgPicture.asset(
-            'assets/icons/heart.svg',
-            width: 28,
-            height: 28,
-            colorFilter: ColorFilter.mode(isLiked ? Colors.red : Colors.white, BlendMode.srcIn),
-          ),
+          SvgPicture.asset('assets/icons/heart.svg', width: 28, height: 28, colorFilter: ColorFilter.mode(isLiked ? Colors.red : Colors.white, BlendMode.srcIn)),
           const SizedBox(height: 6),
           Text(
             formatFeedInteractionCount(count),
@@ -531,12 +529,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
               border: isSaved ? Border.all(color: Colors.white, width: 0) : null,
             ),
             alignment: Alignment.center,
-            child: SvgPicture.asset(
-              'assets/icons/save.svg',
-              width: 24,
-              height: 24,
-              colorFilter: ColorFilter.mode(isSaved ? AppColors.accent : Colors.white, BlendMode.srcIn),
-            ),
+            child: SvgPicture.asset('assets/icons/save.svg', width: 24, height: 24, colorFilter: ColorFilter.mode(isSaved ? AppColors.accent : Colors.white, BlendMode.srcIn)),
           ),
           const SizedBox(height: 6),
           Text(

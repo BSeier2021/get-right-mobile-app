@@ -109,7 +109,10 @@ class _SingleFeedReelScreenState extends State<SingleFeedReelScreen> {
                   children: [
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: IconButton(onPressed: () => Get.back(), icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white)),
+                      child: IconButton(
+                        onPressed: () => Get.back(),
+                        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     Text('Could not load reel', style: AppTextStyles.titleMedium.copyWith(color: Colors.white)),

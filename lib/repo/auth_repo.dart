@@ -211,7 +211,11 @@ class AuthRepository {
 
   /// `GET /user/feed-categories` → `data.categories`.
   Future<dynamic> getFeedCategoriesRepo() async {
-    final response = await _network.get(AppUrl.feedCategories, headers: {"Authorization": "yNaHwJpGFSquIkXP"});
+    // Backend expects the raw guest token (non-Bearer) here.
+    final response = await _network.get(
+      AppUrl.feedCategories,
+      headers: {"skipAuth": "true", "Authorization": NetworkApiService.guestAuthToken},
+    );
     return response;
   }
 

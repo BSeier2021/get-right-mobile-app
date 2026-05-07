@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/models/customer_profile_dto.dart';
+import 'package:get_right/models/feed_category_model.dart';
 import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -12,6 +13,16 @@ import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
 import 'package:intl/intl.dart';
+
+List<String> _parseFeedTagsForApi(String raw) {
+  return raw.split(RegExp(r'\s+')).map((t) => t.replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).toList();
+}
+
+String _normalizeFeedPostStatus(String? raw) {
+  final s = (raw ?? '').trim().toLowerCase();
+  if (s == 'published') return 'Published';
+  return 'Draft';
+}
 
 /// Profile screen visual tokens (cream + forest green mockup).
 const Color _kProfileCream = Color(0xFFF9FAF0);
@@ -616,6 +627,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'creator': creatorName,
       'creatorInitials': initials,
       'categoryId': categoryId,
+      if (categoryName.isNotEmpty) 'categoryName': categoryName,
       'status': (m['status'] ?? '').toString(),
       'videoProcessingStatus': (m['videoProcessingStatus'] ?? '').toString(),
     };
@@ -750,7 +762,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return count.toString();
   }
 
-  /// Overflow menu — **Delete** calls `DELETE /user/feed/{post.id}` ([FeedRepository.deleteFeedRepo]).
+  /// Overflow menu — **Edit** uses `PATCH /user/feed/:id`; **Delete** uses `DELETE /user/feed/:id`.
   Widget _buildPostGridOverflowMenu(Map<String, dynamic> post) {
     return PopupMenuButton<String>(
       tooltip: 'Post options',
@@ -790,18 +802,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  List<String> _parseTagsForApi(String raw) {
-    return raw.split(RegExp(r'\s+')).map((t) => t.replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).toList();
-  }
-
   Future<void> _showEditPostBottomSheet(Map<String, dynamic> post) async {
     final id = (post['id'] ?? '').toString().trim();
     if (id.isEmpty) return;
-
-    final titleController = TextEditingController(text: (post['title'] ?? '').toString());
-    final descriptionController = TextEditingController(text: (post['description'] ?? '').toString());
-    final tagsRaw = (post['tags'] as List<dynamic>?)?.map((e) => e.toString().replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).join(' ') ?? '';
-    final tagsController = TextEditingController(text: tagsRaw);
 
     await showModalBottomSheet<void>(
       context: context,
@@ -811,89 +814,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (ctx) {
         return Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(2)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Edit post',
-                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: titleController,
-                  decoration: InputDecoration(
-                    labelText: 'Title',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: descriptionController,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    labelText: 'Description',
-                    alignLabelWithHint: true,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: tagsController,
-                  decoration: InputDecoration(
-                    labelText: 'Tags',
-                    hintText: 'e.g. workout legs day',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: _kProfileForestGreen),
-                        onPressed: () async {
-                          final tags = _parseTagsForApi(tagsController.text);
-                          final catId = (post['categoryId'] ?? '').toString().trim();
-                          try {
-                            await _feedRepo.updateFeedRepo(feedId: id, title: titleController.text, description: descriptionController.text, categoryId: catId, tags: tags);
-                            if (!context.mounted) return;
-                            Navigator.pop(ctx);
-                            await _fetchMyFeeds();
-                            Get.snackbar('Saved', 'Post updated', snackPosition: SnackPosition.BOTTOM, backgroundColor: _kProfileForestGreen, colorText: Colors.white);
-                          } catch (e) {
-                            Get.snackbar('Could not update', e.toString(), snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
-                          }
-                        },
-                        child: const Text('Save'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          child: _ProfileEditPostSheet(
+            post: post,
+            feedRepo: _feedRepo,
+            onSaved: () async {
+              await _fetchMyFeeds();
+            },
           ),
         );
       },
     );
-
-    titleController.dispose();
-    descriptionController.dispose();
-    tagsController.dispose();
   }
 
   /// Confirms then `DELETE` `…/user/feed/:id` (same resource as get-by-id).
@@ -1476,6 +1406,251 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Edit sheet for `PATCH /user/feed/:id` (title, description, tags, category, status).
+class _ProfileEditPostSheet extends StatefulWidget {
+  final Map<String, dynamic> post;
+  final FeedRepository feedRepo;
+  final Future<void> Function() onSaved;
+
+  const _ProfileEditPostSheet({required this.post, required this.feedRepo, required this.onSaved});
+
+  @override
+  State<_ProfileEditPostSheet> createState() => _ProfileEditPostSheetState();
+}
+
+class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _tagsController;
+
+  late String _status;
+  String? _categoryId;
+
+  List<FeedCategory> _categories = [];
+  bool _loadingCategories = true;
+  String? _categoriesError;
+
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.post;
+    _titleController = TextEditingController(text: (p['title'] ?? '').toString());
+    _descriptionController = TextEditingController(text: (p['description'] ?? '').toString());
+    final tagsRaw = (p['tags'] as List<dynamic>?)?.map((e) => e.toString().replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).join(' ') ?? '';
+    _tagsController = TextEditingController(text: tagsRaw);
+    _status = _normalizeFeedPostStatus(p['status']?.toString());
+    final cid = (p['categoryId'] ?? '').toString().trim();
+    _categoryId = cid.isEmpty ? null : cid;
+    _loadCategories();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _tagsController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() {
+      _loadingCategories = true;
+      _categoriesError = null;
+    });
+    try {
+      final raw = await widget.feedRepo.getFeedCategoriesRepo();
+      final list = FeedCategory.listFromResponse(raw);
+      if (!mounted) return;
+      setState(() {
+        _categories = list;
+        _loadingCategories = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingCategories = false;
+        _categoriesError = e.toString();
+      });
+    }
+  }
+
+  Future<void> _save() async {
+    final id = (widget.post['id'] ?? '').toString().trim();
+    if (id.isEmpty) return;
+
+    final catId = (_categoryId ?? '').trim();
+    if (catId.isEmpty) {
+      Get.snackbar('Category required', 'Please select a category.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final raw = await widget.feedRepo.updateFeedRepo(
+        feedId: id,
+        title: _titleController.text,
+        description: _descriptionController.text,
+        categoryId: catId,
+        tags: _parseFeedTagsForApi(_tagsController.text),
+        status: _status,
+      );
+
+      if (raw is! Map || raw['success'] != true) {
+        final msg = raw is Map ? raw['message']?.toString() : null;
+        throw Exception(msg ?? 'Could not update post');
+      }
+
+      await widget.onSaved();
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      final okMsg = raw['message']?.toString();
+      Get.snackbar(
+        'Saved',
+        okMsg != null && okMsg.isNotEmpty ? okMsg : 'Post updated',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: _kProfileForestGreen,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Could not update', e.toString(), snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final border = OutlineInputBorder(borderRadius: BorderRadius.circular(12));
+
+    final categoryItems = <DropdownMenuItem<String>>[];
+    if (_categoryId != null && _categoryId!.isNotEmpty && !_categories.any((c) => c.id == _categoryId)) {
+      final name = (widget.post['categoryName'] ?? _categoryId).toString();
+      categoryItems.add(DropdownMenuItem(value: _categoryId, child: Text(name)));
+    }
+    categoryItems.addAll(_categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))));
+
+    final validCategoryValue = _categoryId != null && categoryItems.any((i) => i.value == _categoryId) ? _categoryId : null;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Edit post',
+            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _titleController,
+            decoration: InputDecoration(labelText: 'Title', border: border),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _descriptionController,
+            maxLines: 4,
+            decoration: InputDecoration(labelText: 'Description', alignLabelWithHint: true, border: border),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _tagsController,
+            decoration: InputDecoration(labelText: 'Tags', hintText: 'e.g. workout legs day', border: border),
+          ),
+          const SizedBox(height: 12),
+          Text('Visibility', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'Draft', label: Text('Draft')),
+              ButtonSegment(value: 'Published', label: Text('Published')),
+            ],
+            selected: {_status},
+            onSelectionChanged: (next) => setState(() => _status = next.first),
+          ),
+          const SizedBox(height: 16),
+          Text('Category', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
+          const SizedBox(height: 8),
+          if (_loadingCategories)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(child: CircularProgressIndicator(color: _kProfileForestGreen)),
+            )
+          else if (_categoriesError != null)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(_categoriesError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+                TextButton(onPressed: _loadCategories, child: const Text('Retry')),
+              ],
+            )
+          else if (categoryItems.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text('No categories available.', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+            )
+          else
+            DropdownButtonFormField<String>(
+              value: validCategoryValue,
+              decoration: InputDecoration(border: border),
+              hint: const Text('Select category'),
+              items: categoryItems,
+              onChanged: (v) => setState(() => _categoryId = v),
+            ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              SizedBox(
+                height: 44.h,
+                width: 160.w,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(88, 44),
+                    side: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                  ),
+                  onPressed: _saving ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              SizedBox(width: 12),
+              SizedBox(
+                height: 44.h,
+                width: 160.w,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(88, 44),
+                    backgroundColor: _kProfileForestGreen,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                  ),
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Save', style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
