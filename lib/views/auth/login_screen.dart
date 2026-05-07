@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/Local%20Storage/local_storage.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -30,6 +31,21 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _setupAnimations();
+    _loadRememberedCredentials();
+  }
+
+  void _loadRememberedCredentials() {
+    final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
+    if (!ls.hasSavedCredentials()) return;
+    final savedEmail = ls.getSavedEmail();
+    final savedPassword = ls.getSavedPassword();
+    if (savedEmail != null && savedEmail.isNotEmpty) {
+      _emailController.text = savedEmail;
+    }
+    if (savedPassword != null && savedPassword.isNotEmpty) {
+      _passwordController.text = savedPassword;
+    }
+    _rememberMe = true;
   }
 
   void _setupAnimations() {
@@ -62,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       return;
     }
     final authController = Get.find<AuthController>();
-    await authController.login(email: email, password: password);
+    await authController.login(email: email, password: password, rememberMe: _rememberMe);
   }
 
   @override

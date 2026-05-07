@@ -134,6 +134,16 @@ class AuthController extends GetxController {
     return false;
   }
 
+  void _persistRememberMeCredentials(bool rememberMe, String email, String password) {
+    final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
+    if (rememberMe) {
+      ls.saveCredentials(email: email.trim(), password: password);
+    } else {
+      ls.clearSavedCredentials();
+      ls.setRememberMe(false);
+    }
+  }
+
   /// SharedPreferences + GetStorage token so [NetworkApiService] sends `Bearer` on API calls.
   Future<void> _persistAccessToken(String token) async {
     await _storageService.saveToken(token);
@@ -1041,7 +1051,8 @@ class AuthController extends GetxController {
   }
 
   /// Login via `POST /user/auth/login` with email, password, deviceType, deviceToken.
-  Future<void> login({required String email, required String password}) async {
+  /// When [rememberMe] is true, email and password are stored in [LocalStorage] for the next visit.
+  Future<void> login({required String email, required String password, bool rememberMe = false}) async {
     try {
       _isLoading = true;
       update();
@@ -1109,6 +1120,7 @@ class AuthController extends GetxController {
         final em = (resolvedEmail != null && resolvedEmail.isNotEmpty) ? resolvedEmail : email.trim();
         _tempEmail = em;
         _pendingSignupUserId = uid;
+        _persistRememberMeCredentials(rememberMe, em, password);
         Get.offAllNamed(AppRoutes.otp, arguments: {'email': em, 'userId': uid, 'fromSignup': false});
         return;
       }
@@ -1119,6 +1131,7 @@ class AuthController extends GetxController {
         return;
       }
       await _persistAccessToken(token);
+      _persistRememberMeCredentials(rememberMe, (resolvedEmail != null && resolvedEmail.isNotEmpty) ? resolvedEmail : email.trim(), password);
 
       final message = response['message']?.toString();
       if (message != null && message.isNotEmpty) {
