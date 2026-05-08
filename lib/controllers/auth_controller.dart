@@ -103,7 +103,7 @@ class AuthController extends GetxController {
 
   String _deviceTypeLabel() {
     if (Platform.isAndroid) return 'Android';
-    if (Platform.isIOS) return 'iOS';
+    if (Platform.isIOS) return 'IOS';
     if (Platform.isMacOS) return 'macOS';
     if (Platform.isWindows) return 'Windows';
     if (Platform.isLinux) return 'Linux';
@@ -891,7 +891,12 @@ class AuthController extends GetxController {
         return null;
       }
       if (response['success'] != true) {
-        _snackError('Enroll', response['message']?.toString() ?? 'Enrollment failed');
+        final message = response['message']?.toString() ?? 'Enrollment failed';
+        if (message.toLowerCase().contains('already enrolled')) {
+          Get.snackbar('Enroll', 'You are already enrolled in this program', snackPosition: SnackPosition.BOTTOM);
+          return <String, dynamic>{};
+        }
+        _snackError('Enroll', message);
         return null;
       }
       final msg = response['message']?.toString() ?? 'Enrolled successfully';
@@ -921,6 +926,10 @@ class AuthController extends GetxController {
       }
       return <String, dynamic>{};
     } on BadRequestException catch (e) {
+      if (e.message.toLowerCase().contains('already enrolled')) {
+        Get.snackbar('Enroll', 'You are already enrolled in this program', snackPosition: SnackPosition.BOTTOM);
+        return <String, dynamic>{};
+      }
       _snackError('Enroll', e.message);
       return null;
     } on UnauthorizedException catch (e) {
@@ -930,6 +939,10 @@ class AuthController extends GetxController {
       _snackError('Enroll', e.message);
       return null;
     } on ConflictException catch (e) {
+      if (e.message.toLowerCase().contains('already enrolled')) {
+        Get.snackbar('Enroll', 'You are already enrolled in this program', snackPosition: SnackPosition.BOTTOM);
+        return <String, dynamic>{};
+      }
       _snackError('Enroll', e.message);
       return null;
     } on NoInternetException catch (e) {

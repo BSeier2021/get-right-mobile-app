@@ -63,6 +63,10 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
 
   void _resendOTP() {
     if (_remainingSeconds > 0) return;
+    for (final controller in _controllers) {
+      controller.clear();
+    }
+    FocusScope.of(context).requestFocus(_focusNodes.first);
     final args = Get.arguments as Map<String, dynamic>?;
     final email = args?['email'] as String?;
     final forgot = args?['flow'] == _flowForgotPassword;
@@ -100,7 +104,11 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
     final code = _otpCode();
 
     if (userId == null || userId.isEmpty) {
-      Get.snackbar('Verification', forgot ? 'Missing user id. Go back and try again.' : 'Missing user id. Go back and sign up again.', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Verification',
+        forgot ? 'Missing user id. Go back and try again.' : 'Missing user id. Go back and sign up again.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
     if (code.length != 6) {
@@ -178,7 +186,12 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                         // Title
                         Text(
                           'Verify Your Email',
-                          style: AppTextStyles.headlineLarge.copyWith(color: AppColors.black, fontSize: 30.sp, fontWeight: FontWeight.w700, letterSpacing: -0.5),
+                          style: AppTextStyles.headlineLarge.copyWith(
+                            color: AppColors.black,
+                            fontSize: 30.sp,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.5,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                         SizedBox(height: 10.h),
@@ -230,7 +243,10 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('Didn\'t receive the code? ', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 14)),
+                            Text(
+                              'Didn\'t receive the code? ',
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 14),
+                            ),
                             if (_remainingSeconds > 0)
                               Text(
                                 'Resend in ${_remainingSeconds}s',

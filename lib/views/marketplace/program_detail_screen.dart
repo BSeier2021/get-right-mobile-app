@@ -28,6 +28,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   String? _apiProgramId;
   bool _loadingDetail = false;
   bool _enrolling = false;
+  bool _isHandlingBack = false;
   double _rating = 0.0;
   bool _hasSubmittedRating = false;
 
@@ -81,12 +82,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   }
 
   void _syncEnrollmentFromProgram() {
-    _isEnrolled =
-        _safeProgram['isEnrolled'] == true ||
-        _safeProgram['purchased'] == true ||
-        _safeProgram['status'] == 'completed' ||
-        _safeProgram['status'] == 'active' ||
-        _safeProgram['status'] == 'scheduled';
+    final status = _safeProgram['status']?.toString().toLowerCase().trim();
+    _isEnrolled = _safeProgram['isEnrolled'] == true || _safeProgram['purchased'] == true || status == 'completed' || status == 'active' || status == 'scheduled';
   }
 
   void _hydrateRatingFromProgram() {
@@ -110,11 +107,19 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     setState(() {
       _loadingDetail = false;
       if (detail != null) {
+        final wasEnrolled = _isEnrolled || _safeProgram['isEnrolled'] == true || _safeProgram['purchased'] == true;
+        final previousStatus = _safeProgram['status']?.toString();
         final keepHasRating = _safeProgram['hasRating'] == true || _hasSubmittedRating;
         final keepReviewText = _reviewCommentController.text;
         final keepRatingVal = _rating;
         final keepSubmitted = _hasSubmittedRating;
         _fillSafeProgramFrom(detail);
+        if (wasEnrolled) {
+          _safeProgram['isEnrolled'] = true;
+          _safeProgram['purchased'] = true;
+          _safeProgram['status'] ??= previousStatus ?? 'active';
+          _syncEnrollmentFromProgram();
+        }
         if (keepHasRating) {
           _safeProgram['hasRating'] = true;
           _safeProgram['review'] = keepReviewText;
@@ -201,19 +206,24 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     super.dispose();
   }
 
-  void _handleBack() {
-    if (Get.key.currentState?.canPop() ?? false) {
-      Get.back();
-      return;
-    }
+  Future<void> _handleBack() async {
+    if (_isHandlingBack || !mounted) return;
+    _isHandlingBack = true;
+
+    final didPop = await Navigator.of(context).maybePop();
+    if (didPop) return;
 
     final previousRoute = Get.previousRoute;
     if (previousRoute.isNotEmpty && previousRoute != AppRoutes.programDetail) {
-      Get.offNamed(previousRoute);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Get.offNamed(previousRoute);
+      });
       return;
     }
 
-    Get.offAllNamed(AppRoutes.marketplace);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Get.offAllNamed(AppRoutes.marketplace);
+    });
   }
 
   @override
@@ -222,10 +232,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
-      child: PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (_, __) => _handleBack(),
-        child: Scaffold(
+      child: Scaffold(
           appBar: AppBar(
             backgroundColor: AppColors.backgroundColor,
             surfaceTintColor: AppColors.backgroundColor,
@@ -521,7 +528,6 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                   ),
                 ),
         ),
-      ),
     );
   }
 
@@ -564,7 +570,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     );
   }
 
-  Widget _buildInfoCard({required String image, required String label, required String value}) {
+  Widget _buildInfoCard({required String image, required String label, required dynamic value}) {
+    final displayValue = value?.toString().trim().isNotEmpty == true ? value.toString() : 'N/A';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -580,7 +587,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
           Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
           const SizedBox(height: 2),
           Text(
-            value,
+            displayValue,
             style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 12.sp),
           ),
         ],

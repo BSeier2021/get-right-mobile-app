@@ -22,7 +22,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
-
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -53,7 +52,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
 
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
 
     _animationController.forward();
   }
@@ -111,13 +113,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           Text(
                             textAlign: TextAlign.center,
                             'Welcome Back!',
-                            style: AppTextStyles.headlineLarge.copyWith(color: AppColors.black, fontSize: 40.sp, fontWeight: FontWeight.w600, letterSpacing: -1),
+                            style: AppTextStyles.headlineLarge.copyWith(
+                              color: AppColors.black,
+                              fontSize: 40.sp,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -1,
+                            ),
                           ),
 
                           const SizedBox(height: 12),
                           Text(
                             'Login to continue your fitness journey',
-                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontSize: 15.sp, fontWeight: FontWeight.w400, letterSpacing: 0.2),
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              color: AppColors.onBackground,
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: 0.2,
+                            ),
                           ),
                           SizedBox(height: 35.h),
                         ],
@@ -163,7 +175,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               const SizedBox(width: 8),
                               Text(
                                 'Remember Me',
-                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.7), fontSize: 14.sp, fontWeight: FontWeight.w500),
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.onBackground.withOpacity(0.7),
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ],
                           ),
