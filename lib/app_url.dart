@@ -1,9 +1,9 @@
 class AppUrl {
-  // static const String baseUrl = 'http://getright.prodservers.com:9965/api/v1';
-  // static const String imnageUrl = 'http://getright.prodservers.com:9965/api/v1';
+  static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
+  static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
   // development url
-  static const String baseUrl = 'https://1x35v509-8000.asse.devtunnels.ms/api/v1';
-  static const String imnageUrl = 'https://1x35v509-8000.asse.devtunnels.ms/api/v1';
+  // static const String baseUrl = 'https://1x35v509-8000.asse.devtunnels.ms/api/v1';
+  // static const String imnageUrl = 'https://1x35v509-8000.asse.devtunnels.ms/api/v1';
   // static const String socketUrl = 'http://getright.prodservers.com:9965/';
 
   static String signUp = '$baseUrl/user/auth/signup';
@@ -66,12 +66,10 @@ class AppUrl {
   static String feedDelete(String feedId) => feedById(feedId);
 
   /// `POST /user/feed/:feedId/video/multipart/init` — `contentType`, `fileSize`.
-  static String feedVideoMultipartInit(String feedId) =>
-      '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/init';
+  static String feedVideoMultipartInit(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/init';
 
   /// `POST /user/feed/:feedId/video/multipart/complete` — `key`, `uploadId`, `parts` (PartNumber, ETag).
-  static String feedVideoMultipartComplete(String feedId) =>
-      '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/complete';
+  static String feedVideoMultipartComplete(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/complete';
 
   static String exerciseCategory(String categoryId) => '$baseUrl/user/exercises/category/$categoryId';
   static String exerciseDetail(String exerciseId) => '$baseUrl/user/exercises/$exerciseId';
@@ -87,16 +85,8 @@ class AppUrl {
   static String logout = '$baseUrl/auth/logout';
 
   /// `GET /customer/program` — paginated customer programs (`page`, `limit`, `type`).
-  static String customerPrograms({
-    required int page,
-    required int limit,
-    required String type,
-  }) {
-    final q = Uri(queryParameters: {
-      'page': '$page',
-      'limit': '$limit',
-      'type': type,
-    }).query;
+  static String customerPrograms({required int page, required int limit, required String type}) {
+    final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit', 'type': type}).query;
     return '$baseUrl/customer/program?$q';
   }
 
