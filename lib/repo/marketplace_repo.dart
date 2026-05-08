@@ -271,15 +271,18 @@ class MarketplaceRepository {
     final focus = p['focus']?.toString() ?? '';
     final level = p['level']?.toString() ?? '';
     String trainer = 'Trainer';
+    String? trainerMongoId;
+    final t = p['trainer'];
+    if (t is Map) {
+      trainerMongoId = t['_id']?.toString().trim();
+      if (trainerMongoId != null && trainerMongoId.isEmpty) trainerMongoId = null;
+    }
     if (display['instructor_name']?.toString().trim().isNotEmpty == true) {
       trainer = display['instructor_name'].toString().trim();
-    } else {
-      final t = p['trainer'];
-      if (t is Map) {
-        final prof = t['profile'];
-        if (prof is Map && prof['fullName']?.toString().trim().isNotEmpty == true) {
-          trainer = prof['fullName'].toString().trim();
-        }
+    } else if (t is Map) {
+      final prof = t['profile'];
+      if (prof is Map && prof['fullName']?.toString().trim().isNotEmpty == true) {
+        trainer = prof['fullName'].toString().trim();
       }
     }
     String? imageUrl = ImageUrlSanitizer.asHttpUrlOrNull(p['coverImageUrl']?.toString());
@@ -296,6 +299,7 @@ class MarketplaceRepository {
       'description': p['description']?.toString() ?? '',
       'imageUrl': imageUrl,
       'trainer': trainer,
+      if (trainerMongoId != null) 'trainerId': trainerMongoId,
       'trainerImage': _initials(trainer),
       'price': price,
       'duration': duration,

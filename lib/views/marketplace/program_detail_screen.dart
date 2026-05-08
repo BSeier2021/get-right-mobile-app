@@ -333,7 +333,15 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                       GestureDetector(
                         onTap: () {
                           final t = Map<String, dynamic>.from(_getMockTrainerData());
-                          t['id'] = _safeProgram['trainerId'] ?? t['id'];
+                          var tid = (_safeProgram['trainerId'] ?? '').toString().trim();
+                          if (tid.isEmpty && _safeProgram['_apiProgram'] is Map) {
+                            final tr = (Map<String, dynamic>.from(_safeProgram['_apiProgram'] as Map))['trainer'];
+                            if (tr is Map) {
+                              tid = (tr['_id'] ?? tr['id'] ?? '').toString().trim();
+                            }
+                          }
+                          t['id'] = tid.isNotEmpty ? tid : t['id'];
+                          t['_id'] = tid.isNotEmpty ? tid : t['_id'];
                           t['name'] = _safeProgram['trainer'] ?? t['name'];
                           t['initials'] = (_safeProgram['trainerImage'] ?? t['initials']).toString();
                           Get.toNamed(AppRoutes.trainerProfile, arguments: t);

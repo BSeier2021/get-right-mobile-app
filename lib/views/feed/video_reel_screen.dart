@@ -753,8 +753,10 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
     final bool isTrainer = post['isTrainer'] == true;
     final String category = (post['category'] ?? 'Fitness').toString();
 
+    final creatorId = (post['creatorId'] ?? '').toString().trim();
+
     final trainerData = <String, dynamic>{
-      'id': creatorName.toLowerCase().replaceAll(' ', '_'),
+      if (creatorId.isNotEmpty) ...{'_id': creatorId, 'id': creatorId},
       'name': creatorName,
       'initials': initials,
       'bio': isTrainer

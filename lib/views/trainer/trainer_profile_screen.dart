@@ -49,7 +49,11 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     _tabController.addListener(_onProgramsTabShow);
     trainer = _argumentsToTrainerMap(Get.arguments);
     _mongoUserId = _extractMongoUserId(Get.arguments);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadProfileAndPosts());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Arguments can be filled on the next frame in some navigations; re-resolve id once.
+      _mongoUserId ??= _extractMongoUserId(Get.arguments);
+      _loadProfileFromApi();
+    });
   }
 
   void _onProgramsTabShow() {
@@ -72,20 +76,43 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   String? _extractMongoUserId(dynamic args) {
     // Support navigation via:
     // - Get.toNamed(..., arguments: { userId / id / _id / trainerId })
+    // - Maps that nest the user under trainer / user / creator (e.g. program cards)
     // - named params (e.g. /trainer/:id) via Get.parameters
-    // - passing a pre-built trainer map that includes id fields
     final candidates = <String>[];
 
+    void add(String? s) {
+      final t = s?.toString().trim() ?? '';
+      if (t.isNotEmpty) candidates.add(t);
+    }
+
     if (args is Map) {
-      for (final k in ['userId', '_id', 'id', 'trainerId']) {
-        final v = args[k]?.toString().trim() ?? '';
-        if (v.isNotEmpty) candidates.add(v);
+      final m = Map<String, dynamic>.from(args);
+      for (final k in ['userId', 'trainerId', '_id', 'id']) {
+        add(m[k]?.toString());
+      }
+      final apiProg = m['_apiProgram'];
+      if (apiProg is Map) {
+        final tr = apiProg['trainer'];
+        if (tr is Map) {
+          final tm = Map<String, dynamic>.from(tr);
+          for (final k in ['_id', 'id', 'userId']) {
+            add(tm[k]?.toString());
+          }
+        }
+      }
+      for (final nestedKey in ['trainer', 'user', 'creator']) {
+        final nested = m[nestedKey];
+        if (nested is Map) {
+          final nm = Map<String, dynamic>.from(nested);
+          for (final k in ['_id', 'id', 'userId']) {
+            add(nm[k]?.toString());
+          }
+        }
       }
     }
 
     for (final k in ['userId', 'id', '_id', 'trainerId']) {
-      final v = Get.parameters[k]?.toString().trim() ?? '';
-      if (v.isNotEmpty) candidates.add(v);
+      add(Get.parameters[k]);
     }
 
     for (final v in candidates) {
@@ -109,16 +136,26 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     return s.isEmpty ? null : s;
   }
 
-  Future<void> _loadProfileAndPosts() async {
+  /// `GET /user/profiles/:userId/details` plus posts; runs when this screen is opened (post-frame).
+  Future<void> _loadProfileFromApi() async {
     final id = _mongoUserId;
-    if (id == null) return;
+    if (id == null) {
+      if (mounted) {
+        setState(() {
+          _loadError = 'Missing trainer id. Open this screen with a valid user id (e.g. from a program card).';
+        });
+      }
+      return;
+    }
     setState(() {
       _bootstrapLoading = true;
       _loadError = null;
     });
     try {
       final detailRaw = await _trainerRepo.getProfileDetailsRepo(id);
-      if (mounted) _applyDetailsResponse(detailRaw);
+      if (mounted) {
+        setState(() => _applyDetailsResponse(detailRaw));
+      }
     } catch (e) {
       if (mounted) setState(() => _loadError = e.toString());
     }
@@ -132,13 +169,13 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     } catch (_) {
       /* grid can stay empty */
     }
-    _loadProgramsAndBundles();
     if (mounted) setState(() => _bootstrapLoading = false);
   }
 
   Future<void> _loadProgramsAndBundles() async {
     final id = _mongoUserId;
     if (id == null) return;
+    if (!mounted) return;
     setState(() {
       _programsTabLoading = true;
       _programsLoadError = null;
@@ -389,24 +426,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         ),
         title: Text(_displayName, style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        actions: [
-          if (_showFollowButton)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: TextButton(
-                onPressed: _followActionLoading ? null : _onFollowPressed,
-                style: TextButton.styleFrom(
-                  backgroundColor: _isFollowedByMe ? AppColors.primaryGray.withOpacity(0.2) : AppColors.accent,
-                  foregroundColor: _isFollowedByMe ? AppColors.onSurface : AppColors.onAccent,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                ),
-                child: _followActionLoading
-                    ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _isFollowedByMe ? AppColors.accent : AppColors.onAccent))
-                    : Text(_isFollowedByMe ? 'Following' : 'Follow', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700)),
-              ),
-            ),
-        ],
+
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
           child: Container(
@@ -484,19 +504,43 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
           ),
           const SizedBox(height: 24),
           // Bio Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _displayName,
-                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _displayName,
+                      style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(_displayBio, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.8), height: 1.6)),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(_displayBio, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.8), height: 1.6)),
-              ],
-            ),
+              ),
+              if (_showFollowButton)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: TextButton(
+                    onPressed: _followActionLoading ? null : _onFollowPressed,
+                    style: TextButton.styleFrom(
+                      backgroundColor: _isFollowedByMe ? AppColors.primaryGray.withOpacity(0.2) : AppColors.accent,
+                      foregroundColor: _isFollowedByMe ? AppColors.onSurface : AppColors.onAccent,
+                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    ),
+                    child: _followActionLoading
+                        ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _isFollowedByMe ? AppColors.accent : AppColors.onAccent))
+                        : Text(
+                            _isFollowedByMe ? 'Following' : 'Follow',
+                            style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
+                          ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 24),
           // Posts Grid

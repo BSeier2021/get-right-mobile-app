@@ -2566,9 +2566,22 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   void _navigateToTrainerProfile(Map<String, dynamic> program) {
-    // Create trainer data from program info
-    final trainerData = {
-      'id': program['trainer'].toString().toLowerCase().replaceAll(' ', '_'),
+    String? trainerMongoId = program['trainerId']?.toString().trim();
+    if (trainerMongoId != null && trainerMongoId.isEmpty) trainerMongoId = null;
+    final api = program['_apiProgram'];
+    if (trainerMongoId == null && api is Map) {
+      final tr = api['trainer'];
+      if (tr is Map) {
+        trainerMongoId = tr['_id']?.toString().trim();
+      }
+    }
+
+    // Create trainer data from program info (real _id required for GET /user/profiles/:id/details)
+    final trainerData = <String, dynamic>{
+      if (trainerMongoId != null && trainerMongoId.isNotEmpty) ...{
+        '_id': trainerMongoId,
+        'id': trainerMongoId,
+      },
       'name': program['trainer'],
       'initials': program['trainerImage'],
       'bio': 'Certified personal trainer with years of experience helping clients achieve their fitness goals. Specializing in ${program['category']} and ${program['goal']}.',
