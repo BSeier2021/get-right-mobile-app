@@ -12,12 +12,25 @@ import 'package:get_right/models/user_preference_option.dart';
 import 'package:get_right/models/food_item.dart';
 import 'package:get_right/models/nutrition_custom_foods_page.dart';
 import 'package:get_right/models/nutrition_meal_type_option.dart';
+import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/repo/auth_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+
+/// Backend envelopes vary: some send only `status` / `statusCode` with HTTP 200-style bodies.
+bool _apiEnvelopeSuccess(Map<String, dynamic> root) {
+  final s = root['success'];
+  if (s == true || s == 1) return true;
+  if (s is String && s.toLowerCase() == 'true') return true;
+  final st = root['status'];
+  if (st == 200 || st == '200') return true;
+  final sc = root['statusCode'];
+  if (sc == 200 || sc == '200') return true;
+  return false;
+}
 
 /// Auth controller: signup, OTP, and login flows (signup uses live API).
 class AuthController extends GetxController {
@@ -146,10 +159,25 @@ class AuthController extends GetxController {
 
   /// SharedPreferences + GetStorage token so [NetworkApiService] sends `Bearer` on API calls.
   Future<void> _persistAccessToken(String token) async {
-    await _storageService.saveToken(token);
+    var cleaned = token.trim();
+    if (cleaned.toLowerCase().startsWith('bearer ')) {
+      cleaned = cleaned.substring(7).trim();
+    }
+    if (cleaned.isEmpty) return;
+    await _storageService.saveToken(cleaned);
     await _storageService.saveLoginStatus(true);
     final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
-    ls.saveAccessToken(token);
+    ls.saveAccessToken(cleaned);
+    _syncNetworkBearerFromStorage();
+  }
+
+  /// Removes only JWT storage so a stale token cannot be sent after OTP until a new token is saved.
+  Future<void> _clearStaleJwtOnly() async {
+    await _storageService.remove(AppConstants.keyUserToken);
+    await _storageService.saveLoginStatus(false);
+    if (Get.isRegistered<LocalStorage>()) {
+      Get.find<LocalStorage>().deleteAccessToken();
+    }
   }
 
   /// [NetworkApiService] reads JWT from [LocalStorage]; [StorageService] also stores it. Sync avoids 410 when GetStorage was empty or stale.
@@ -1261,12 +1289,10 @@ class AuthController extends GetxController {
       final em = resolvedEmail;
       if (uid == null || uid.isEmpty || em == null || em.isEmpty) {
         await _clearLocalAuthSession();
-        return AppRoutes.onboarding;
       }
-      _tempEmail = em;
-      _pendingSignupUserId = uid;
-      _autoLoginOtpArgs = {'email': em, 'userId': uid, 'fromSignup': false};
-      return AppRoutes.otp;
+      // Auto-login: stay on onboarding when user is not verified — do not route to OTP/home.
+      _autoLoginOtpArgs = null;
+      return AppRoutes.onboarding;
     }
 
     final token = _tokenFromVerifyResponse(response);
@@ -1352,6 +1378,9 @@ class AuthController extends GetxController {
         return false;
       }
 
+      // Any prior JWT would make splash auto-login hit the wrong account until OTP saves the new token.
+      await _clearLocalAuthSession();
+
       final data = response['data'];
       final user = data is Map<String, dynamic> ? data['user'] : null;
       final userId = user is Map<String, dynamic> ? user['_id']?.toString() : null;
@@ -1392,26 +1421,99 @@ class AuthController extends GetxController {
     }
   }
 
-  String? _tokenFromVerifyResponse(Map<String, dynamic> json) {
-    final data = json['data'];
-    if (data is Map<String, dynamic>) {
-      for (final key in ['token', 'accessToken', 'access_token', 'authToken']) {
-        final v = data[key];
-        if (v != null && v.toString().isNotEmpty) return v.toString();
-      }
-      final user = data['user'];
-      if (user is Map<String, dynamic>) {
-        for (final key in ['token', 'accessToken']) {
-          final v = user[key];
-          if (v != null && v.toString().isNotEmpty) return v.toString();
-        }
+  String? _normalizeJwtString(dynamic raw) {
+    if (raw == null) return null;
+    var s = raw.toString().trim();
+    if (s.isEmpty) return null;
+    if (s.toLowerCase().startsWith('bearer ')) {
+      s = s.substring(7).trim();
+    }
+    return s.isEmpty ? null : s;
+  }
+
+  Map<String, dynamic>? _asStringKeyedMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
+  bool _looksLikeCompactJwt(String s) {
+    final parts = s.split('.');
+    return parts.length >= 3 && parts.every((p) => p.isNotEmpty);
+  }
+
+  /// Picks JWT-like strings from arbitrarily nested maps when keys hint at auth (backend variance).
+  String? _tokenFromNestedMaps(dynamic node, {required int maxDepth}) {
+    if (maxDepth <= 0) return null;
+    final m = _asStringKeyedMap(node);
+    if (m == null) return null;
+    for (final e in m.entries) {
+      final k = e.key.toString().toLowerCase();
+      if (k.contains('token') || k.contains('jwt') || k.contains('bearer') || k == 'access' || k == 'authorization') {
+        final t = _normalizeJwtString(e.value);
+        if (t != null && _looksLikeCompactJwt(t)) return t;
       }
     }
-    for (final key in ['token', 'accessToken', 'access_token']) {
-      final v = json[key];
-      if (v != null && v.toString().isNotEmpty) return v.toString();
+    for (final e in m.entries) {
+      final nested = _tokenFromNestedMaps(e.value, maxDepth: maxDepth - 1);
+      if (nested != null) return nested;
     }
     return null;
+  }
+
+  /// Extracts JWT from login / verify-otp style payloads (nested shapes vary by backend).
+  String? _tokenFromVerifyResponse(Map<String, dynamic> json) {
+    String? fromMap(Map<String, dynamic> m) {
+      const keys = [
+        'token',
+        'accessToken',
+        'access_token',
+        'authToken',
+        'auth_token',
+        'jwt',
+        'idToken',
+        'bearerToken',
+        'access',
+        'authorization',
+        'Authorization',
+        'userToken',
+        'user_token',
+        'bearer',
+      ];
+      for (final k in keys) {
+        final out = _normalizeJwtString(m[k]);
+        if (out != null) return out;
+      }
+      return null;
+    }
+
+    final data = _asStringKeyedMap(json['data']);
+    if (data != null) {
+      final direct = fromMap(data);
+      if (direct != null) return direct;
+
+      final tokens = _asStringKeyedMap(data['tokens']);
+      if (tokens != null) {
+        final t = fromMap(tokens);
+        if (t != null) return t;
+      }
+
+      for (final key in ['user', 'session', 'auth', 'payload', 'result', 'customer', 'credentials', 'authentication']) {
+        final nested = _asStringKeyedMap(data[key]);
+        if (nested != null) {
+          final t = fromMap(nested);
+          if (t != null) return t;
+        }
+      }
+
+      final deepData = _tokenFromNestedMaps(data, maxDepth: 5);
+      if (deepData != null) return deepData;
+    }
+
+    final deepRoot = _tokenFromNestedMaps(json, maxDepth: 3);
+    if (deepRoot != null) return deepRoot;
+
+    return fromMap(json);
   }
 
   /// Verify OTP via `/user/auth/verify-otp` with `userId` + `otp`.
@@ -1440,9 +1542,13 @@ class AuthController extends GetxController {
 
       if (forgotPasswordFlow) {
         final token = _tokenFromVerifyResponse(response);
-        if (token != null && token.isNotEmpty) {
-          await _persistAccessToken(token);
+        if (token == null || token.isEmpty) {
+          await _clearStaleJwtOnly();
+          _snackError('Verification', 'Could not save reset session. Please request the code again.');
+          Get.offNamed(AppRoutes.forgotPassword);
+          return false;
         }
+        await _persistAccessToken(token);
         if (message != null && message.isNotEmpty) {
           Get.snackbar('Verified', message, snackPosition: SnackPosition.BOTTOM);
         }
@@ -1452,10 +1558,15 @@ class AuthController extends GetxController {
         return true;
       }
 
+      await _clearStaleJwtOnly();
       final token = _tokenFromVerifyResponse(response);
-      if (token != null && token.isNotEmpty) {
-        await _persistAccessToken(token);
+      if (token == null || token.isEmpty) {
+        await _clearStaleJwtOnly();
+        _snackError('Verification', 'Email verified, but session token was missing. Please sign in.');
+        Get.offAllNamed(AppRoutes.login);
+        return false;
       }
+      await _persistAccessToken(token);
 
       await _storageService.saveUserId(userId);
       if (_tempEmail != null) {
@@ -1839,7 +1950,7 @@ class AuthController extends GetxController {
         _snackError('Profile', 'Unexpected response from server');
         return false;
       }
-      if (response['success'] != true) {
+      if (!_apiEnvelopeSuccess(response)) {
         final msg = response['message'];
         final message = msg is List && msg.isNotEmpty
             ? msg.map((e) => e is Map ? (e['message'] ?? e).toString() : e.toString()).join('; ')

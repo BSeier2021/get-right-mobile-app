@@ -10,6 +10,7 @@ import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
@@ -445,7 +446,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final fl = profile.fitnessLevel?.trim();
     if (fl != null && fl.isNotEmpty) parts.add(fl);
     final ex = profile.exerciseFrequency?.trim();
-    if (ex != null && ex.isNotEmpty) parts.add(ex);
+    if (ex != null && ex.isNotEmpty) {
+      parts.add(CustomerProfileEnums.exerciseFrequencyDisplayFromApi(ex));
+    }
     if (profile.mainGoals.isNotEmpty) {
       parts.add(profile.mainGoals.map(_formatSlugLabel).join(' · '));
     }

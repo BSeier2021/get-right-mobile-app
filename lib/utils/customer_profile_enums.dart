@@ -129,6 +129,20 @@ abstract final class CustomerProfileEnums {
     return inv[slug.trim()] ?? slug;
   }
 
+  /// Same `value` → `title` as edit-profile `_exerciseFrequencyOptions` (`GET /customer/profile` stores `value`).
+  static const Map<String, String> exerciseFrequencyApiToEditTitle = {
+    'Daily': 'Daily',
+    'Weekly': 'Weekly',
+    'TwiceaWeek': 'Twice a Week',
+    'ThreeTimesaWeek': 'Three Times a Week',
+    'FourTimesaWeek': 'Four Times a Week',
+    'FiveTimesaWeek': 'Five Times a Week',
+    'SixTimesaWeek': 'Six Times a Week',
+    // Alternate spellings some APIs use (align with onboarding map below).
+    'TwoTimesaWeek': 'Twice a Week',
+    'OnceAWeek': 'Once per week',
+  };
+
   /// Edit-profile exercise dropdown label → API `exerciseFrequency` value.
   static const Map<String, String> exerciseFrequencyDisplayToApi = {
     'Daily (7x/week)': 'Daily',
@@ -157,6 +171,11 @@ abstract final class CustomerProfileEnums {
     if (api == null) return '';
     final k = api.trim();
     if (k.isEmpty) return '';
-    return _exerciseApiToDisplay[k] ?? k;
+    final editTitle = exerciseFrequencyApiToEditTitle[k];
+    if (editTitle != null) return editTitle;
+    final legacy = _exerciseApiToDisplay[k];
+    if (legacy != null) return legacy;
+    // Unknown PascalCase tokens: split word boundaries where possible.
+    return k.replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}');
   }
 }

@@ -1,3 +1,5 @@
+import 'package:get_right/models/user_preference_option.dart';
+
 /// Parsed `GET /customer/profile` → `data.user` (+ nested `profile`).
 class CustomerProfileDto {
   final String userId;
@@ -219,6 +221,14 @@ class CustomerProfileDto {
 
     final prefMap = _preferencesMap(profile);
 
+    String? primaryFocusStr = profile['primaryFocus']?.toString() ?? profile['primary_focus']?.toString();
+    primaryFocusStr = primaryFocusStr?.trim();
+    if (primaryFocusStr != null && primaryFocusStr.isEmpty) primaryFocusStr = null;
+    // Backend often returns only `profile.preferences` as an object (no top-level primaryFocus string).
+    if (primaryFocusStr == null && prefMap != null && prefMap.isNotEmpty) {
+      primaryFocusStr = UserPreferenceOption.fromJson(prefMap).value;
+    }
+
     return CustomerProfileDto(
       userId: uid,
       email: user['email']?.toString() ?? '',
@@ -230,7 +240,7 @@ class CustomerProfileDto {
       dateofbirth: _normalizeDob(profile['dateofbirth'] ?? profile['date_of_birth']),
       profilePictureUrl: _profilePictureUrlFrom(profile),
       bio: profile['bio']?.toString(),
-      primaryFocus: profile['primaryFocus']?.toString() ?? profile['primary_focus']?.toString(),
+      primaryFocus: primaryFocusStr,
       preferencesName: prefMap?['name']?.toString().trim(),
       preferencesDescription: prefMap?['description']?.toString().trim(),
       mainGoals: _mainGoalsFrom(profile),

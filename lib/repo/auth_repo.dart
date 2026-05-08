@@ -155,6 +155,10 @@ class AuthRepository {
       fields.forEach((key, value) {
         if (key == 'mainGoals' && value is List) {
           multipartFields['mainGoals[]'] = value;
+        } else if (key == 'goals' && value is List) {
+          // [NetworkApiService.sendMultipart] only expands arrays when the key ends with [];
+          // otherwise List becomes value.toString() → backend sees a string, not an array.
+          multipartFields['goals[]'] = value;
         } else {
           multipartFields[key] = value;
         }

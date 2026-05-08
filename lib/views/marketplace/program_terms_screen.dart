@@ -13,6 +13,8 @@ class ProgramTermsScreen extends StatefulWidget {
 }
 
 class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
+  static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
+
   final Map<String, dynamic> programData = Get.arguments ?? {};
   bool _termsAccepted = false;
   bool _privacyAccepted = false;
@@ -22,7 +24,13 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
 
   void _acceptTerms() {
     if (!_allAccepted) {
-      Get.snackbar('Terms Required', 'Please accept all terms and policies to continue', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar(
+        'Terms Required',
+        'Please accept all terms and policies to continue',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return;
     }
 
@@ -55,7 +63,79 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
     });
   }
 
+  bool get _dialogIsBundle => programData['isBundle'] == true;
+
+  Map<String, dynamic>? get _dialogEnrollmentMap {
+    final e = programData['enrollment'];
+    if (e is Map) return Map<String, dynamic>.from(e);
+    return null;
+  }
+
+  List<Map<String, dynamic>> get _dialogBundlePrograms {
+    final raw = programData['programs'];
+    if (raw is! List) return [];
+    return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  dynamic _dialogEffectiveStartDate() {
+    final enc = _dialogEnrollmentMap;
+    if (enc != null && enc['startDate'] != null) return enc['startDate'];
+    final list = enc?['enrollments'];
+    if (list is List && list.isNotEmpty && list.first is Map) {
+      final m = list.first as Map;
+      if (m['startDate'] != null) return m['startDate'];
+    }
+    return programData['startDate'];
+  }
+
+  dynamic _dialogEffectiveEndDate() {
+    final enc = _dialogEnrollmentMap;
+    if (enc != null && enc['endDate'] != null) return enc['endDate'];
+    final list = enc?['enrollments'];
+    if (list is List && list.isNotEmpty && list.first is Map) {
+      final m = list.first as Map;
+      if (m['endDate'] != null) return m['endDate'];
+    }
+    return programData['endDate'];
+  }
+
+  String _dialogTrainerDisplayName() {
+    final t = programData['trainer'];
+    if (t is Map) {
+      final name = t['name']?.toString().trim();
+      if (name != null && name.isNotEmpty) return name;
+    }
+    if (t is String && t.trim().isNotEmpty && !_mongoIdRe.hasMatch(t.trim())) return t.trim();
+    for (final p in _dialogBundlePrograms) {
+      final tp = p['trainer'];
+      if (tp is Map) {
+        final n = tp['name']?.toString().trim();
+        if (n != null && n.isNotEmpty) return n;
+      }
+    }
+    return 'Trainer';
+  }
+
+  String _dialogProgramTitle() {
+    final t = programData['title']?.toString().trim();
+    if (t != null && t.isNotEmpty) return t;
+    return _dialogIsBundle ? 'Bundle' : 'Program';
+  }
+
+  String _dialogAmountPaidLabel() {
+    final total = programData['total'];
+    if (total == null) return '—';
+    final n = total is num ? total.toDouble() : double.tryParse(total.toString());
+    if (n == null) return '—';
+    return '\$${n.toStringAsFixed(2)}';
+  }
+
   Widget _buildEnrollmentConfirmationDialog() {
+    final startFormatted = _formatDate(_dialogEffectiveStartDate());
+    final startLabel = startFormatted.isEmpty ? '—' : startFormatted;
+    final endRaw = _formatDate(_dialogEffectiveEndDate());
+    final showEnd = endRaw.isNotEmpty;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: Color(0xFFF8FFE9),
@@ -72,9 +152,17 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'You have been successfully\nenrolled in',
+              'You have been successfully enrolled in',
               style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.75)),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _dialogProgramTitle(),
+              style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800),
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 15),
             Container(
@@ -92,7 +180,37 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
                       Text('Starts', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                       Flexible(
                         child: Text(
-                          '3/25/2026',
+                          startLabel,
+                          textAlign: TextAlign.right,
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (showEnd) ...[
+                    const Divider(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Ends', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                        Flexible(
+                          child: Text(
+                            endRaw,
+                            textAlign: TextAlign.right,
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const Divider(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Trainer', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                      Flexible(
+                        child: Text(
+                          _dialogTrainerDisplayName(),
                           textAlign: TextAlign.right,
                           style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
                         ),
@@ -103,10 +221,10 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Trainer', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                      Text('Amount paid', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                       Flexible(
                         child: Text(
-                          'Sarah Johnson',
+                          _dialogAmountPaidLabel(),
                           textAlign: TextAlign.right,
                           style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
                         ),
@@ -163,7 +281,10 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
                   Icon(Icons.info_outline, color: AppColors.accent, size: 24),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text('Please read and accept all terms and policies before enrollment', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
+                    child: Text(
+                      'Please read and accept all terms and policies before enrollment',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface),
+                    ),
                   ),
                 ],
               ),
@@ -171,11 +292,23 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
             const SizedBox(height: 24),
 
             // Terms & Conditions
-            _buildTermsSection('Terms & Conditions', Icons.description, _getTermsAndConditions(), _termsAccepted, (value) => setState(() => _termsAccepted = value ?? false)),
+            _buildTermsSection(
+              'Terms & Conditions',
+              Icons.description,
+              _getTermsAndConditions(),
+              _termsAccepted,
+              (value) => setState(() => _termsAccepted = value ?? false),
+            ),
             const SizedBox(height: 20),
 
             // Privacy Policy
-            _buildTermsSection('Privacy Policy', Icons.privacy_tip, _getPrivacyPolicy(), _privacyAccepted, (value) => setState(() => _privacyAccepted = value ?? false)),
+            _buildTermsSection(
+              'Privacy Policy',
+              Icons.privacy_tip,
+              _getPrivacyPolicy(),
+              _privacyAccepted,
+              (value) => setState(() => _privacyAccepted = value ?? false),
+            ),
             const SizedBox(height: 20),
 
             // Cancellation Policy
@@ -250,13 +383,16 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: isAccepted ? AppColors.accent.withOpacity(0.2) : AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(
+                    color: isAccepted ? AppColors.accent.withOpacity(0.2) : AppColors.primaryGray.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Icon(icon, color: isAccepted ? AppColors.accent : AppColors.primaryGray, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    title,
+                    "title",
                     style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -349,17 +485,20 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
 
   String _formatDate(dynamic date) {
     if (date == null) return '';
+    try {
+      DateTime dateTime;
+      if (date is DateTime) {
+        dateTime = date;
+      } else if (date is String) {
+        dateTime = DateTime.parse(date);
+      } else {
+        return '';
+      }
 
-    DateTime dateTime;
-    if (date is DateTime) {
-      dateTime = date;
-    } else if (date is String) {
-      dateTime = DateTime.parse(date);
-    } else {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${months[dateTime.month - 1]} ${dateTime.day}, ${dateTime.year}';
+    } catch (_) {
       return '';
     }
-
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${months[dateTime.month - 1]} ${dateTime.day}, ${dateTime.year}';
   }
 }

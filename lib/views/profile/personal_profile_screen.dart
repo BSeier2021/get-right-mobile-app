@@ -5,6 +5,7 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/models/customer_profile_dto.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
+import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/chat/chat_list_screen.dart';
@@ -81,38 +82,69 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
     return 'No Bio Added Yet';
   }
 
-  String _displayPreference(CustomerProfileDto? p) {
-    final prefName = p?.preferencesName?.trim();
-    final prefDesc = p?.preferencesDescription?.trim();
-    if (prefName != null && prefName.isNotEmpty) {
-      if (prefDesc != null && prefDesc.isNotEmpty) return '$prefName\n$prefDesc';
-      return prefName;
+  /// When [profile] is non-null we already loaded `GET /customer/profile` successfully —
+  /// onboarding rows must reflect the API only. Falling back to [StorageService] here made
+  /// stale onboarding answers show even when the server returned empty `goals: []` etc.
+  String _displayPreference(CustomerProfileDto? profile) {
+    if (profile != null) {
+      final prefName = profile.preferencesName?.trim();
+      final prefDesc = profile.preferencesDescription?.trim();
+      if (prefName != null && prefName.isNotEmpty) {
+        if (prefDesc != null && prefDesc.isNotEmpty) return '$prefName\n$prefDesc';
+        return prefName;
+      }
+      if (prefDesc != null && prefDesc.isNotEmpty) return prefDesc;
+      final pf = profile.primaryFocus?.trim();
+      if (pf != null && pf.isNotEmpty) return _formatSlugLabel(pf);
+      return 'Not Set';
     }
-    if (prefDesc != null && prefDesc.isNotEmpty) return prefDesc;
-    final pf = p?.primaryFocus?.trim();
-    if (pf != null && pf.isNotEmpty) return _formatSlugLabel(pf);
-    return _storageService.getUserPreference() ?? 'Not Set';
+    final local = _storageService.getUserPreference();
+    if (local != null && local.trim().isNotEmpty) return local.trim();
+    return 'Not Set';
   }
 
-  String _displayGoals(CustomerProfileDto? p) {
-    if (p != null && p.mainGoals.isNotEmpty) {
-      return p.mainGoals.map((g) => _formatSlugLabel(g)).join(', ');
+  String _displayGoals(CustomerProfileDto? profile) {
+    if (profile != null) {
+      if (profile.mainGoals.isNotEmpty) {
+        return profile.mainGoals.map((g) => _formatSlugLabel(g)).join(', ');
+      }
+      return 'Not Set';
     }
     final local = _storageService.getUserGoals();
     if (local.isNotEmpty) return local.join(', ');
     return 'Not Set';
   }
 
-  String _displayFitness(CustomerProfileDto? p) {
-    final f = p?.fitnessLevel?.trim();
-    if (f != null && f.isNotEmpty) return f;
+  String _displayFitness(CustomerProfileDto? profile) {
+    if (profile != null) {
+      final f = profile.fitnessLevel?.trim();
+      return (f != null && f.isNotEmpty) ? f : 'Not Set';
+    }
     return _storageService.getFitnessLevel() ?? 'Not Set';
   }
 
-  String _displayExerciseFreq(CustomerProfileDto? p) {
-    final x = p?.exerciseFrequency?.trim();
-    if (x != null && x.isNotEmpty) return x;
-    return _storageService.getExerciseFrequency() ?? 'Not Set';
+  String _displayExerciseFreq(CustomerProfileDto? profile) {
+    if (profile != null) {
+      final x = profile.exerciseFrequency?.trim();
+      if (x != null && x.isNotEmpty) {
+        return CustomerProfileEnums.exerciseFrequencyDisplayFromApi(x);
+      }
+      return 'Not Set';
+    }
+    final local = _storageService.getExerciseFrequency();
+    if (local != null && local.trim().isNotEmpty) {
+      return CustomerProfileEnums.exerciseFrequencyDisplayFromApi(local.trim());
+    }
+    return 'Not Set';
+  }
+
+  bool _onboardingSectionHasAnyValue(CustomerProfileDto? profile) {
+    if (profile == null) return false;
+    final pref = _displayPreference(profile);
+    final goals = _displayGoals(profile);
+    final fit = _displayFitness(profile);
+    final freq = _displayExerciseFreq(profile);
+    return pref != 'Not Set' || goals != 'Not Set' || fit != 'Not Set' || freq != 'Not Set';
   }
 
   @override
@@ -194,21 +226,38 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                     _infoRow('assets/images/people22.png', 'Gender', _displayGender(p)),
                     _infoRow('assets/images/clipboard-text.png', 'Bio', _displayBio(p)),
                   ]),
-                  const SizedBox(height: 24),
-                  _sectionLabel('Onboarding Preferences'),
-                  const SizedBox(height: 12),
-                  _infoCard([
-                    _infoRow('assets/images/Vector.png', 'Preferences', _displayPreference(p)),
-                    _infoRow('assets/images/flag.png', 'Main goals', _displayGoals(p)),
-                    _infoRow('assets/images/diagram.png', 'Fitness level', _displayFitness(p)),
-                    _infoRow('assets/images/calendar-222.png', 'Exercise frequency', _displayExerciseFreq(p)),
-                  ]),
+                  if (_onboardingSectionHasAnyValue(p)) ...[
+                    const SizedBox(height: 24),
+                    _sectionLabel('Onboarding Preferences'),
+                    const SizedBox(height: 12),
+                    _infoCard([
+                      _infoRow('assets/images/Vector.png', 'Preferences', _displayPreference(p)),
+                      _infoRow('assets/images/flag.png', 'Main goals', _displayGoals(p)),
+                      _infoRow('assets/images/diagram.png', 'Fitness level', _displayFitness(p)),
+                      _infoRow('assets/images/calendar-222.png', 'Exercise frequency', _displayExerciseFreq(p)),
+                    ]),
+                  ],
                   const SizedBox(height: 24),
                   _sectionLabel('Menu'),
                   const SizedBox(height: 12),
-                  _menuRow(icon: Icons.favorite_outline, title: 'Favorites', subtitle: 'View your favorite posts and users', onTap: () => Get.toNamed(AppRoutes.favorites)),
-                  _menuRow(icon: Icons.bookmark_outline, title: 'Saved Posts', subtitle: 'Access your saved posts', onTap: () => Get.toNamed(AppRoutes.savedPosts)),
-                  _menuRow(icon: Icons.chat_bubble_outline, title: 'Chat', subtitle: 'View your conversations', onTap: () => Get.to(() => const ChatListScreen())),
+                  _menuRow(
+                    icon: Icons.favorite_outline,
+                    title: 'Favorites',
+                    subtitle: 'View your favorite posts and users',
+                    onTap: () => Get.toNamed(AppRoutes.favorites),
+                  ),
+                  _menuRow(
+                    icon: Icons.bookmark_outline,
+                    title: 'Saved Posts',
+                    subtitle: 'Access your saved posts',
+                    onTap: () => Get.toNamed(AppRoutes.savedPosts),
+                  ),
+                  _menuRow(
+                    icon: Icons.chat_bubble_outline,
+                    title: 'Chat',
+                    subtitle: 'View your conversations',
+                    onTap: () => Get.to(() => const ChatListScreen()),
+                  ),
                   _menuRow(
                     icon: Icons.receipt_long_outlined,
                     title: 'Transaction History',
@@ -244,7 +293,13 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
             ),
             child: ClipOval(
               child: url != null && url.isNotEmpty
-                  ? Image.network(url, width: 92, height: 92, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Image.asset('assets/images/profile00.png', width: 48, height: 48))
+                  ? Image.network(
+                      url,
+                      width: 92,
+                      height: 92,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Image.asset('assets/images/profile00.png', width: 48, height: 48),
+                    )
                   : Image.asset('assets/images/profile00.png', width: 48, height: 48),
             ),
           ),
