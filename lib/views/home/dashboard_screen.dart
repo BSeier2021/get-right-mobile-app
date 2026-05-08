@@ -782,6 +782,7 @@ class HomeNavigationController extends GetxController {
   GlobalKey<ScaffoldState>? scaffoldKey;
 
   int get currentIndex => _currentIndex.value;
+  RxInt get currentIndexRx => _currentIndex;
 
   void changeTab(int index, {int? journalTab}) {
     if (journalTab != null) {

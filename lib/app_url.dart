@@ -29,6 +29,25 @@ class AppUrl {
   static String exercisePlans = '$baseUrl/user/exercise-plan';
   static String updateProfile = '$baseUrl/customer/profile/update';
   static String getProfile = '$baseUrl/customer/profile';
+
+  /// `GET /user/profiles/:userId/details` — trainer/customer public card (`data.user`, counts, `isFollowedByMe`).
+  static String profileUserDetails(String userId) => '$baseUrl/user/profiles/${Uri.encodeComponent(userId.trim())}/details';
+
+  /// `GET /user/profiles/:userId/posts` — query: `page`, `limit`.
+  static String profileUserPosts(String userId) => '$baseUrl/user/profiles/${Uri.encodeComponent(userId.trim())}/posts';
+
+  /// `GET /user/profiles/:userId/programs` — paginated `data.programs.programs[]`.
+  static String profileUserPrograms(String userId) => '$baseUrl/user/profiles/${Uri.encodeComponent(userId.trim())}/programs';
+
+  /// `GET /user/profiles/:userId/bundles` — paginated `data.bundles.bundles[]` (mirror of programs shape).
+  static String profileUserBundles(String userId) => '$baseUrl/user/profiles/${Uri.encodeComponent(userId.trim())}/bundles';
+
+  /// `POST /user/profiles/:userId/follow` — follow trainer (Bearer).
+  static String profileUserFollow(String userId) => '$baseUrl/user/profiles/${Uri.encodeComponent(userId.trim())}/follow';
+
+  /// `POST /user/profiles/:userId/unfollow` — unfollow (Bearer). Adjust if backend uses DELETE on [profileUserFollow].
+  static String profileUserUnfollow(String userId) => '$baseUrl/user/profiles/${Uri.encodeComponent(userId.trim())}/unfollow';
+
   static String exerciseCategories = '$baseUrl/user/exercise-categories';
 
   /// `GET /user/feed-categories` → `data.categories[]` (feed post categories).

@@ -150,8 +150,12 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     final bool isTrainer = _post['isTrainer'] == true;
     final String category = (_post['category'] ?? 'Fitness').toString();
 
+    final String creatorId = (_post['creatorId'] ?? '').toString().trim();
+
     final trainerData = <String, dynamic>{
-      'id': creatorName.toLowerCase().replaceAll(' ', '_'),
+      if (creatorId.isNotEmpty) '_id': creatorId,
+      if (creatorId.isNotEmpty) 'id': creatorId,
+      if (creatorId.isEmpty) 'id': creatorName.toLowerCase().replaceAll(' ', '_'),
       'name': creatorName,
       'initials': initials,
       'bio': isTrainer

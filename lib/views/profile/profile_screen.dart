@@ -11,6 +11,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
 import 'package:intl/intl.dart';
 
@@ -72,20 +73,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> _myFeedPosts = [];
   bool _myFeedsLoading = true;
   String? _myFeedsError;
+  Worker? _profileTabWorker;
+  bool _lazyBootstrapped = false;
 
   @override
   void initState() {
     super.initState();
+    // IMPORTANT: HomeScreen uses IndexedStack, so initState runs right after login.
+    // We only want to hit profile API when the user actually opens the Profile tab.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (Get.isRegistered<AuthController>()) {
-        Get.find<AuthController>().fetchCustomerProfile();
+      if (!mounted) return;
+      if (Get.isRegistered<HomeNavigationController>()) {
+        final nav = Get.find<HomeNavigationController>();
+        _profileTabWorker = ever<int>(nav.currentIndexRx, (idx) {
+          if (!mounted) return;
+          if (idx == 4) _bootstrapIfNeeded();
+        });
+        if (nav.currentIndex == 4) {
+          _bootstrapIfNeeded();
+        }
+      } else {
+        // Fallback: if ProfileScreen is pushed as a route (not via bottom tabs), load immediately.
+        _bootstrapIfNeeded();
       }
-      _fetchMyFeeds();
     });
     _personalRecords = [
       PersonalRecord(id: '1', liftName: 'Bench Press', value: '315', unit: 'lbs', date: DateTime(2024, 12, 12), displayPublicly: true),
       PersonalRecord(id: '2', liftName: 'Squat', value: '405', unit: 'lbs', date: DateTime(2024, 12, 12), displayPublicly: true),
     ];
+  }
+
+  void _bootstrapIfNeeded() {
+    if (_lazyBootstrapped) return;
+    _lazyBootstrapped = true;
+    if (Get.isRegistered<AuthController>()) {
+      Get.find<AuthController>().fetchCustomerProfile();
+    }
+    _fetchMyFeeds();
+  }
+
+  @override
+  void dispose() {
+    _profileTabWorker?.dispose();
+    super.dispose();
   }
 
   @override

@@ -545,6 +545,10 @@ class AuthController extends GetxController {
       _customerProfileError = e.message;
     } on ForbiddenException catch (e) {
       _customerProfileError = e.message;
+    } on NotFoundException catch (e) {
+      // Common when the account exists but customer profile hasn't been created yet.
+      // Keep the app usable and show a clear CTA on Profile screen.
+      _customerProfileError = e.message.isNotEmpty ? e.message : 'Profile not found. Please create your profile.';
     } on NoInternetException catch (e) {
       _customerProfileError = e.message;
     } on RequestTimeoutException catch (e) {

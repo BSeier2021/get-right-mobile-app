@@ -87,6 +87,9 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
 
   return <String, dynamic>{
     'id': (m['_id'] ?? '').toString(),
+    'creatorId': (creator['_id'] ?? '').toString(),
+    'creatorRole': (creator['role'] ?? '').toString(),
+    'isTrainer': (creator['role']?.toString() ?? '').trim() == 'Trainer',
     'creator': fullName.isEmpty ? (creator['email'] ?? 'user').toString() : fullName,
     'creatorImage': initials,
     'creatorAvatarUrl': (profilePicture['url'] ?? '').toString(),

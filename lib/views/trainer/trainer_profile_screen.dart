@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/repo/trainer_profile_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/feed_post_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// Trainer Profile Screen with Tabs
@@ -16,18 +18,349 @@ class TrainerProfileScreen extends StatefulWidget {
 }
 
 class _TrainerProfileScreenState extends State<TrainerProfileScreen> with SingleTickerProviderStateMixin {
+  static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
+
   late TabController _tabController;
-  late Map<String, dynamic> trainer;
+  final TrainerProfileRepository _trainerRepo = TrainerProfileRepository();
+  final _storageService = Get.find<StorageService>();
+
+  Map<String, dynamic> trainer = {};
+
+  String? _mongoUserId;
+
+  bool _bootstrapLoading = false;
+  bool _programsTabLoading = false;
+  String? _loadError;
+
+  bool _isFollowedByMe = false;
+  bool _followActionLoading = false;
+
+  List<Map<String, dynamic>> _posts = [];
+  List<Map<String, dynamic>> _programs = [];
+  List<Map<String, dynamic>> _bundles = [];
+
+  String? _programsLoadError;
+  String? _bundlesLoadError;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    trainer = Get.arguments ?? _getMockTrainerData();
+    _tabController.addListener(_onProgramsTabShow);
+    trainer = _argumentsToTrainerMap(Get.arguments);
+    _mongoUserId = _extractMongoUserId(Get.arguments);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadProfileAndPosts());
+  }
+
+  void _onProgramsTabShow() {
+    if (!_tabController.indexIsChanging && _tabController.index == 1 && _mongoUserId != null && !_programsTabLoading && _programs.isEmpty && _bundles.isEmpty) {
+      _loadProgramsAndBundles();
+    }
+  }
+
+  Map<String, dynamic> _argumentsToTrainerMap(dynamic args) {
+    if (args is Map) {
+      final m = Map<String, dynamic>.from(args);
+      if (m['_id'] != null && (m['id'] == null || m['id'].toString().isEmpty)) {
+        m['id'] = m['_id'];
+      }
+      return m;
+    }
+    return Map<String, dynamic>.from(_getMockTrainerData());
+  }
+
+  String? _extractMongoUserId(dynamic args) {
+    // Support navigation via:
+    // - Get.toNamed(..., arguments: { userId / id / _id / trainerId })
+    // - named params (e.g. /trainer/:id) via Get.parameters
+    // - passing a pre-built trainer map that includes id fields
+    final candidates = <String>[];
+
+    if (args is Map) {
+      for (final k in ['userId', '_id', 'id', 'trainerId']) {
+        final v = args[k]?.toString().trim() ?? '';
+        if (v.isNotEmpty) candidates.add(v);
+      }
+    }
+
+    for (final k in ['userId', 'id', '_id', 'trainerId']) {
+      final v = Get.parameters[k]?.toString().trim() ?? '';
+      if (v.isNotEmpty) candidates.add(v);
+    }
+
+    for (final v in candidates) {
+      if (_mongoIdRe.hasMatch(v)) return v;
+    }
+    return null;
+  }
+
+  String? _currentUserIdOrNull() => _storageService.getUserId()?.trim();
+
+  bool get _showFollowButton => _mongoUserId != null && _currentUserIdOrNull() != null && _mongoUserId != _currentUserIdOrNull();
+
+  String get _displayName => (trainer['name'] ?? trainer['fullName'] ?? 'Trainer').toString();
+
+  String get _displayBio => (trainer['bio'] ?? '').toString();
+
+  String? get _avatarNetworkUrl {
+    final u = trainer['avatarUrl'] ?? trainer['profilePictureUrl'];
+    if (u == null) return null;
+    final s = u.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
+  Future<void> _loadProfileAndPosts() async {
+    final id = _mongoUserId;
+    if (id == null) return;
+    setState(() {
+      _bootstrapLoading = true;
+      _loadError = null;
+    });
+    try {
+      final detailRaw = await _trainerRepo.getProfileDetailsRepo(id);
+      if (mounted) _applyDetailsResponse(detailRaw);
+    } catch (e) {
+      if (mounted) setState(() => _loadError = e.toString());
+    }
+    try {
+      final postsRaw = await _trainerRepo.getProfilePostsRepo(id);
+      if (mounted) {
+        setState(() {
+          _posts = _parsePostsResponse(postsRaw);
+        });
+      }
+    } catch (_) {
+      /* grid can stay empty */
+    }
+    _loadProgramsAndBundles();
+    if (mounted) setState(() => _bootstrapLoading = false);
+  }
+
+  Future<void> _loadProgramsAndBundles() async {
+    final id = _mongoUserId;
+    if (id == null) return;
+    setState(() {
+      _programsTabLoading = true;
+      _programsLoadError = null;
+      _bundlesLoadError = null;
+    });
+    try {
+      final raw = await _trainerRepo.getProfileProgramsRepo(id);
+      if (mounted) {
+        setState(() {
+          _programs = _parseProgramsList(raw, trainerName: _displayName);
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _programsLoadError = e.toString());
+    }
+    try {
+      final rawB = await _trainerRepo.getProfileBundlesRepo(id);
+      if (mounted) {
+        setState(() {
+          _bundles = _parseBundlesList(rawB);
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _bundlesLoadError = e.toString());
+    }
+    if (mounted) setState(() => _programsTabLoading = false);
+  }
+
+  void _applyDetailsResponse(dynamic raw) {
+    if (raw is! Map<String, dynamic>) return;
+    final data = raw['data'];
+    if (data is! Map<String, dynamic>) return;
+    final user = data['user'];
+    if (user is! Map<String, dynamic>) return;
+
+    final profile = user['profile'] is Map<String, dynamic> ? user['profile'] as Map<String, dynamic> : <String, dynamic>{};
+    final pic = profile['profilePicture'];
+    String? picUrl;
+    if (pic is Map<String, dynamic>) {
+      picUrl = pic['url']?.toString();
+    }
+
+    final name = (profile['fullName'] ?? user['email'] ?? _displayName).toString();
+    final bio = (profile['bio'] ?? trainer['bio'] ?? '').toString();
+
+    trainer = {
+      ...trainer,
+      '_id': user['_id']?.toString(),
+      'id': user['_id']?.toString() ?? trainer['id'],
+      'name': name,
+      'fullName': name,
+      'bio': bio,
+      'email': user['email']?.toString(),
+      'avatarUrl': picUrl,
+      'profilePictureUrl': picUrl,
+      'postCount': user['postCount'],
+      'followersCount': user['followersCount'],
+      'followingCount': user['followingCount'],
+      'programCount': user['programCount'],
+      'bundleCount': user['bundleCount'],
+    };
+
+    _isFollowedByMe = user['isFollowedByMe'] == true;
+  }
+
+  List<Map<String, dynamic>> _parsePostsResponse(dynamic raw) {
+    final data = raw is Map ? raw['data'] : null;
+    if (data is! Map) return [];
+
+    List? list;
+    for (final key in ['feeds', 'posts', 'items', 'data']) {
+      final v = data[key];
+      if (v is List) {
+        list = v;
+        break;
+      }
+    }
+    if (list == null) return [];
+
+    return list
+        .map((e) {
+          if (e is! Map) return <String, dynamic>{};
+          final m = Map<String, dynamic>.from(e);
+          try {
+            return mapApiFeedDocumentToUiPost(m);
+          } catch (_) {
+            final id = (m['_id'] ?? m['id'])?.toString() ?? '';
+            final thumb = _firstUrlFromMap(m, const ['thumbnail', 'cover', 'image', 'poster']);
+            final videoHint = m['video'] != null || m['mediaType']?.toString().toLowerCase().contains('video') == true;
+            return <String, dynamic>{'id': id, 'thumbnail': thumb, 'title': m['title'], 'isVideo': videoHint};
+          }
+        })
+        .where((p) => (p['id'] ?? '').toString().isNotEmpty)
+        .toList();
+  }
+
+  String _firstUrlFromMap(Map<String, dynamic> m, List<String> keys) {
+    for (final k in keys) {
+      final v = m[k];
+      if (v is String && v.startsWith('http')) return v;
+      if (v is Map && v['url'] is String) return v['url'] as String;
+    }
+    final video = m['video'];
+    if (video is Map) {
+      for (final k in ['thumbnail', 'poster', 'url']) {
+        final u = video[k];
+        if (u is String && u.startsWith('http')) return u;
+      }
+    }
+    return '';
+  }
+
+  double _effectivePrice(Map<String, dynamic> m) {
+    final price = (m['price'] is num) ? (m['price'] as num).toDouble() : double.tryParse(m['price']?.toString() ?? '') ?? 0;
+    final disc = (m['discount'] is num) ? (m['discount'] as num).toDouble() : double.tryParse(m['discount']?.toString() ?? '') ?? 0;
+    if (disc <= 0) return price;
+    if (disc < 1) return price * (1 - disc);
+    return price * (1 - disc / 100);
+  }
+
+  Map<String, dynamic> _mapProgramItemToCard(Map<String, dynamic> m, {required String trainerName}) {
+    final promo = m['promoMedia'];
+    String? imageUrl;
+    if (promo is Map<String, dynamic>) {
+      imageUrl = promo['url']?.toString();
+    }
+    final id = (m['_id'] ?? m['id'])?.toString() ?? '';
+    return {
+      '_id': id,
+      'id': id,
+      'title': (m['title'] ?? 'Program').toString(),
+      'description': (m['description'] ?? '').toString(),
+      'trainer': trainerName,
+      'price': _effectivePrice(m),
+      'discount': m['discount'],
+      'imageUrl': imageUrl,
+      'status': 'active',
+    };
+  }
+
+  Map<String, dynamic> _mapBundleItemToCard(Map<String, dynamic> m) {
+    final promo = m['promoMedia'];
+    String? imageUrl;
+    if (promo is Map<String, dynamic>) {
+      imageUrl = promo['url']?.toString();
+    }
+    final id = (m['_id'] ?? m['id'])?.toString() ?? '';
+    return {'_id': id, 'id': id, 'title': (m['title'] ?? m['name'] ?? 'Bundle').toString(), 'price': _effectivePrice(m), 'imageUrl': imageUrl ?? m['imageUrl']?.toString()};
+  }
+
+  List<Map<String, dynamic>> _parseProgramsList(dynamic raw, {required String trainerName}) {
+    final data = raw is Map ? raw['data'] : null;
+    if (data is! Map) return [];
+    final block = data['programs'];
+    List? list;
+    if (block is Map && block['programs'] is List) {
+      list = block['programs'] as List;
+    } else if (block is List) {
+      list = block;
+    }
+    if (list == null) return [];
+    return list
+        .whereType<Map>()
+        .map((e) => _mapProgramItemToCard(Map<String, dynamic>.from(e), trainerName: trainerName))
+        .where((e) => (e['id'] ?? '').toString().isNotEmpty)
+        .toList();
+  }
+
+  List<Map<String, dynamic>> _parseBundlesList(dynamic raw) {
+    final data = raw is Map ? raw['data'] : null;
+    if (data is! Map) return [];
+    final block = data['bundles'];
+    List? list;
+    if (block is Map && block['bundles'] is List) {
+      list = block['bundles'] as List;
+    } else if (block is List) {
+      list = block;
+    }
+    if (list == null) return [];
+    return list.whereType<Map>().map((e) => _mapBundleItemToCard(Map<String, dynamic>.from(e))).where((e) => (e['id'] ?? '').toString().isNotEmpty).toList();
+  }
+
+  Future<void> _onFollowPressed() async {
+    final id = _mongoUserId;
+    if (id == null || _followActionLoading) return;
+    setState(() => _followActionLoading = true);
+    final was = _isFollowedByMe;
+    setState(() => _isFollowedByMe = !was);
+    try {
+      if (!was) {
+        await _trainerRepo.followUserRepo(id);
+      } else {
+        await _trainerRepo.unfollowUserRepo(id);
+      }
+      if (mounted) {
+        Get.snackbar(
+          was ? 'Unfollowed' : 'Following',
+          was ? 'You unfollowed $_displayName' : 'You are now following $_displayName',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 2),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isFollowedByMe = was);
+        Get.snackbar('Could not update', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      }
+    } finally {
+      if (mounted) setState(() => _followActionLoading = false);
+    }
+  }
+
+  int _statInt(dynamic key) {
+    final v = trainer[key];
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v?.toString() ?? '') ?? 0;
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onProgramsTabShow);
     _tabController.dispose();
     super.dispose();
   }
@@ -54,8 +387,26 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             child: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 18),
           ),
         ),
-        title: Text(trainer['name'], style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
+        title: Text(_displayName, style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
         centerTitle: true,
+        actions: [
+          if (_showFollowButton)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton(
+                onPressed: _followActionLoading ? null : _onFollowPressed,
+                style: TextButton.styleFrom(
+                  backgroundColor: _isFollowedByMe ? AppColors.primaryGray.withOpacity(0.2) : AppColors.accent,
+                  foregroundColor: _isFollowedByMe ? AppColors.onSurface : AppColors.onAccent,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                child: _followActionLoading
+                    ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _isFollowedByMe ? AppColors.accent : AppColors.onAccent))
+                    : Text(_isFollowedByMe ? 'Following' : 'Follow', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700)),
+              ),
+            ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
           child: Container(
@@ -81,40 +432,21 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     );
   }
 
-  final _storageService = Get.find<StorageService>();
-
-  String? _fullName;
-  String? _dateOfBirth;
-  String? _contactNumber;
-  String? _bio;
-  String? _gender;
-  String? _preference;
-  List<String> _goals = [];
-  String? _fitnessLevel;
-  String? _exerciseFrequency;
-
-  void _loadProfileData() {
-    // Load profile data from StorageService
-    // Note: Some fields like fullName, dateOfBirth, contactNumber, bio might need to be stored separately
-    // For now, we'll load what's available from StorageService
-    setState(() {
-      _gender = _storageService.getString('user_gender');
-      _preference = _storageService.getUserPreference();
-      _goals = _storageService.getUserGoals();
-      _fitnessLevel = _storageService.getFitnessLevel();
-      _exerciseFrequency = _storageService.getExerciseFrequency();
-      _bio = _storageService.getString('user_bio');
-      _fullName = _storageService.getName();
-      _dateOfBirth = _storageService.getString('user_date_of_birth');
-      _contactNumber = _storageService.getString('user_phone');
-    });
-  }
-
   // Profile Tab
   Widget _buildProfileTab() {
+    final postsCount = _statInt('postCount');
+    final followers = _statInt('followersCount');
+    final following = _statInt('followingCount');
+
     return SingleChildScrollView(
       child: Column(
         children: [
+          if (_bootstrapLoading) const LinearProgressIndicator(minHeight: 2),
+          if (_loadError != null && _mongoUserId != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Text(_loadError!, style: AppTextStyles.bodySmall.copyWith(color: Colors.red.shade700)),
+            ),
           const SizedBox(height: 20),
           // Stats Row
           Padding(
@@ -134,16 +466,19 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                       child: CircleAvatar(
                         radius: 45,
                         backgroundColor: AppColors.surface,
-                        child: Icon(Icons.person, size: 50, color: AppColors.accent),
+                        backgroundImage: (_avatarNetworkUrl != null && _avatarNetworkUrl!.startsWith('http'))
+                            ? NetworkImage(ImageUrlSanitizer.asHttpUrlOrFallback(_avatarNetworkUrl!))
+                            : null,
+                        child: (_avatarNetworkUrl == null || !_avatarNetworkUrl!.startsWith('http')) ? Icon(Icons.person, size: 50, color: AppColors.accent) : null,
                       ),
                     ),
                     const SizedBox(height: 5),
                   ],
                 ),
                 const SizedBox(width: 20),
-                _buildStatColumn('17', 'Posts'),
-                _buildStatColumn('1250', 'Followers'),
-                _buildStatColumn('342', 'Following'),
+                _buildStatColumn(_mongoUserId != null ? '$postsCount' : '…', 'Posts'),
+                _buildStatColumn(_mongoUserId != null ? '$followers' : '…', 'Followers'),
+                _buildStatColumn(_mongoUserId != null ? '$following' : '…', 'Following'),
               ],
             ),
           ),
@@ -155,11 +490,11 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  trainer['name'],
+                  _displayName,
                   style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                Text(trainer['bio'], style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.8), height: 1.6)),
+                Text(_displayBio, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.8), height: 1.6)),
               ],
             ),
           ),
@@ -199,7 +534,15 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   }
 
   Widget _buildPostsGrid() {
-    final posts = _getMockPosts();
+    final posts = _mongoUserId != null ? _posts : _getMockPosts();
+    if (posts.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Text(_mongoUserId != null ? 'No posts yet' : 'Loading…', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+        ),
+      );
+    }
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -207,25 +550,43 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       itemCount: posts.length,
       itemBuilder: (context, index) {
         final post = posts[index];
+        final id = (post['id'] ?? post['_id'])?.toString() ?? '';
+        final thumbRaw = post['thumbnail']?.toString() ?? '';
+
+        void openPost() {
+          if (_mongoUserId != null && id.isNotEmpty) {
+            Get.toNamed(AppRoutes.feedSingleReel, arguments: {'feedId': id});
+          } else {
+            Get.toNamed(AppRoutes.postDetail, arguments: post);
+          }
+        }
+
         return GestureDetector(
-          onTap: () => Get.toNamed(AppRoutes.postDetail, arguments: post),
+          onTap: openPost,
           child: Stack(
             fit: StackFit.expand,
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  ImageUrlSanitizer.asHttpUrlOrFallback(post['thumbnail']?.toString()),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)]),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
+                child: thumbRaw.startsWith('http')
+                    ? Image.network(
+                        ImageUrlSanitizer.asHttpUrlOrFallback(thumbRaw),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)]),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)]),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
               ),
-              if (post['isVideo'] as bool)
+              if (post['isVideo'] == true)
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(8),
@@ -242,60 +603,92 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
   // Programs Tab
   Widget _buildProgramsTab() {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 20),
-          // Bundles Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bundles',
-                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 200.h,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _getMockBundles().length,
-                    itemBuilder: (context, index) {
-                      return _buildBundleCard(_getMockBundles()[index]);
-                    },
+    final id = _mongoUserId;
+    if (id != null && _programsTabLoading && _programs.isEmpty && _bundles.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final programsToShow = id != null ? _programs : _getMockPrograms('all');
+    final bundlesToShow = id != null ? _bundles : _getMockBundles();
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (id != null) await _loadProgramsAndBundles();
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            if (_programsLoadError != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(_programsLoadError!, style: AppTextStyles.bodySmall.copyWith(color: Colors.red.shade700)),
+              ),
+            // Bundles Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bundles',
+                    style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
+                  if (_bundlesLoadError != null) Text(_bundlesLoadError!, style: AppTextStyles.bodySmall.copyWith(color: Colors.red.shade700)),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 200.h,
+                    child: bundlesToShow.isEmpty
+                        ? Center(
+                            child: Text(id != null ? 'No bundles listed' : 'No bundles', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                          )
+                        : ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: bundlesToShow.length,
+                            itemBuilder: (context, index) {
+                              return _buildBundleCard(bundlesToShow[index]);
+                            },
+                          ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-          // Programs Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Programs',
-                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                ..._getMockPrograms('all').map((program) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _buildProgramCardVertical(program))),
-              ],
+            const SizedBox(height: 24),
+            // Programs Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Programs',
+                    style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  if (programsToShow.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(id != null ? 'No programs listed' : '', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                      ),
+                    )
+                  else
+                    ...programsToShow.map((program) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _buildProgramCardVertical(program))),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-        ],
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildBundleCard(Map<String, dynamic> bundle) {
     return GestureDetector(
-      onTap: () => Get.toNamed(AppRoutes.programDetail, arguments: bundle),
+      onTap: () => Get.toNamed(AppRoutes.bundleDetail, arguments: bundle),
       child: Container(
         width: MediaQuery.of(context).size.width * 0.7,
         margin: const EdgeInsets.only(right: 12),
@@ -307,18 +700,20 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(
-                ImageUrlSanitizer.asHttpUrlOrFallback(bundle['imageUrl']?.toString()),
-                width: double.infinity,
-                height: 120,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: Image.network(
+                  ImageUrlSanitizer.asHttpUrlOrFallback(bundle['imageUrl']?.toString()),
                   width: double.infinity,
-                  height: 120,
-                  decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.accent, AppColors.accentVariant])),
-                  child: const Center(child: Icon(Icons.fitness_center, size: 40, color: Colors.white)),
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.accent, AppColors.accentVariant])),
+                    child: const Center(child: Icon(Icons.fitness_center, size: 40, color: Colors.white)),
+                  ),
                 ),
               ),
             ),
@@ -721,13 +1116,16 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
                   ),
-                  child: Text(trainer['bio'], style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.8), height: 1.7, letterSpacing: 0.3)),
+                  child: Text(
+                    _displayBio.isEmpty ? '—' : _displayBio,
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.8), height: 1.7, letterSpacing: 0.3),
+                  ),
                 ),
               ],
             ),
           ),
           // Certifications Section (if available)
-          if (trainer['certified'] && trainer['certifications'] != null) ...[
+          if (trainer['certified'] == true && trainer['certifications'] != null) ...[
             const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
