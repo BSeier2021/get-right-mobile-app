@@ -1296,6 +1296,13 @@ class AuthController extends GetxController {
     } on ForbiddenException catch (_) {
       await _clearLocalAuthSession();
       return null;
+    } on NotFoundException catch (_) {
+      // Stale JWT or account removed; must not treat as logged-in or route to home.
+      await _clearLocalAuthSession();
+      return null;
+    } on BadRequestException catch (_) {
+      await _clearLocalAuthSession();
+      return null;
     } on NoInternetException catch (_) {
       _syncNetworkBearerFromStorage();
       return AppRoutes.home;

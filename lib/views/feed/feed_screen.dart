@@ -10,6 +10,7 @@ import 'package:get_right/utils/feed_media_url.dart';
 import 'package:get_right/utils/feed_post_mapper.dart';
 import 'package:get_right/views/feed/feed_reel_overlay.dart';
 import 'package:get_right/views/feed/feed_vertical_reels.dart';
+import 'package:get_right/views/home/dashboard_screen.dart';
 
 /// Community Feed - Social Media Platform for fitness content
 class FeedScreen extends StatefulWidget {
@@ -45,6 +46,10 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   int _forYouFeedEpoch = 0;
   int _followingFeedEpoch = 0;
 
+  /// Home bottom nav uses IndexedStack — [initState] runs at app start. Defer API calls until Feed tab is selected (index 1).
+  Worker? _homeTabWorker;
+  bool _feedTabLazyBootstrapped = false;
+
   void _disposePageControllerForTab(int tabIndex) {
     final c = _pageControllers.remove(tabIndex);
     c?.dispose();
@@ -66,13 +71,37 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadForYou(reset: true);
-      _loadFollowing(reset: true);
+      if (!mounted) return;
+      if (Get.isRegistered<HomeNavigationController>()) {
+        final nav = Get.find<HomeNavigationController>();
+        _homeTabWorker = ever<int>(nav.currentIndexRx, (idx) {
+          if (!mounted) return;
+          if (idx == 1) _bootstrapFeedWhenTabSelected();
+        });
+        if (nav.currentIndex == 1) {
+          _bootstrapFeedWhenTabSelected();
+        }
+      } else {
+        _bootstrapFeedWhenTabSelected();
+      }
     });
+  }
+
+  /// First time user opens the Feed bottom tab: load only "For You". "Following" loads when that inner tab is selected.
+  void _bootstrapFeedWhenTabSelected() {
+    if (_feedTabLazyBootstrapped) return;
+    _feedTabLazyBootstrapped = true;
+    if (!mounted) return;
+    if (_tabController.index == 0 && _feedPosts.isEmpty && !_loadingForYou) {
+      _loadForYou(reset: true);
+    } else if (_tabController.index == 1 && _followingPosts.isEmpty && !_loadingFollowing) {
+      _loadFollowing(reset: true);
+    }
   }
 
   @override
   void dispose() {
+    _homeTabWorker?.dispose();
     _tabController.dispose();
     for (var controller in _pageControllers.values) {
       controller.dispose();
