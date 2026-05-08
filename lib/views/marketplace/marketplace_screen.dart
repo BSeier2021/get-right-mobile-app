@@ -7,6 +7,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/views/home/dashboard_screen.dart';
 
 /// Marketplace screen - browse trainer programs
 class MarketplaceScreen extends StatefulWidget {
@@ -26,8 +27,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   final MarketplaceRepository _marketplaceRepo = MarketplaceRepository();
   List<Map<String, dynamic>> _featuredSectionPrograms = [];
   List<Map<String, dynamic>> _newReleasesSectionPrograms = [];
-  bool _marketplaceSectionsLoading = true;
+  bool _marketplaceSectionsLoading = false;
   String? _marketplaceSectionsError;
+
+  /// Home uses IndexedStack — avoid `/customer/program` + `/customer/bundle` until Market tab (index 0) is opened.
+  Worker? _homeTabWorker;
+  bool _marketTabLazyBootstrapped = false;
 
   List<Map<String, dynamic>> _apiBundles = [];
   bool _bundlesLoading = false;
@@ -39,7 +44,28 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   void initState() {
     super.initState();
     _marketplaceScrollController = ScrollController()..addListener(_onMarketplaceScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (Get.isRegistered<HomeNavigationController>()) {
+        final nav = Get.find<HomeNavigationController>();
+        _homeTabWorker = ever<int>(nav.currentIndexRx, (idx) {
+          if (!mounted) return;
+          if (idx == 0) _bootstrapMarketTabIfNeeded();
+        });
+        if (nav.currentIndex == 0) {
+          _bootstrapMarketTabIfNeeded();
+        }
+      } else {
+        _bootstrapMarketTabIfNeeded();
+      }
+    });
+  }
+
+  void _bootstrapMarketTabIfNeeded() {
+    if (_marketTabLazyBootstrapped) return;
+    _marketTabLazyBootstrapped = true;
+    Future(() async {
+      if (!mounted) return;
       await Future.wait([_loadMarketplaceSections(), _loadBrowsePrograms(reset: true)]);
       if (mounted) await _loadMarketplaceBundles();
     });
@@ -47,6 +73,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   @override
   void dispose() {
+    _homeTabWorker?.dispose();
     _marketplaceScrollController.removeListener(_onMarketplaceScroll);
     _marketplaceScrollController.dispose();
     super.dispose();
