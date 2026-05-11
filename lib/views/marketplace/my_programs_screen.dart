@@ -183,7 +183,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     final enrollment = Map<String, dynamic>.from(raw);
     final nested = enrollment['program'];
     final p = nested is Map ? Map<String, dynamic>.from(nested) : <String, dynamic>{};
-    p['enrollment'] = enrollment;
+    p['enrollmentId'] = enrollment['_id']?.toString();
     p['_id'] ??= p['id'] ?? program['programId'];
     p['id'] ??= p['_id'];
     p['isEnrolled'] = true;

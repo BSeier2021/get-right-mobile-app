@@ -8,6 +8,22 @@ import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/hls_master_playlist_parser.dart';
 import 'package:video_player/video_player.dart';
 
+/// Width/height ratio as shown after [VideoPlayer]'s rotation correction (not raw codec size).
+double _displayAspectRatio(VideoPlayerValue v) {
+  if (!v.isInitialized || v.size.width <= 0 || v.size.height <= 0) {
+    return 16 / 9;
+  }
+  final rot = v.rotationCorrection % 360;
+  final swap = rot == 90 || rot == 270;
+  final w = swap ? v.size.height : v.size.width;
+  final h = swap ? v.size.width : v.size.height;
+  final r = w / h;
+  if (r <= 0 || r.isNaN || r.isInfinite) {
+    return 16 / 9;
+  }
+  return r;
+}
+
 /// Program / marketplace video playback — HLS (.m3u8) parsing, [Chewie] UI hooks, manual quality selection.
 ///
 /// Pass the **canonical** playback URI (typically `master.m3u8`). Variants are discovered by fetching the playlist.
@@ -116,7 +132,7 @@ class VideoStreamingController extends GetxController {
     await newVc.setPlaybackSpeed(playbackSpeed);
     await newVc.setVolume(volume);
 
-    final ratio = (newVc.value.aspectRatio > 0 && !newVc.value.aspectRatio.isNaN) ? newVc.value.aspectRatio : 16 / 9;
+    final ratio = _displayAspectRatio(newVc.value);
 
     final showOpts = qualities.length > 1;
 

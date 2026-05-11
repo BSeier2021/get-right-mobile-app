@@ -904,6 +904,134 @@ class AuthController extends GetxController {
     }
   }
 
+  /// `GET /customer/program/enrolled/:enrollmentId` — nested `program` + enrollment dates/progress for [ProgramDetailScreen].
+  Future<Map<String, dynamic>?> fetchEnrolledProgramDetail(String enrollmentId) async {
+    final id = enrollmentId.trim();
+    if (id.isEmpty) return null;
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getEnrolledProgramDetailRepo(id);
+      if (response is! Map<String, dynamic>) {
+        _snackError('Program', 'Unexpected response from server');
+        return null;
+      }
+      if (response['success'] != true) {
+        _snackError('Program', response['message']?.toString() ?? 'Could not load enrollment');
+        return null;
+      }
+      return _parseEnrolledProgramDetailResponse(response);
+    } on BadRequestException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } on UnauthorizedException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } on ForbiddenException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } on NoInternetException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } on ServerException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } on NotFoundException catch (e) {
+      _snackError('Program', e.message);
+      return null;
+    } catch (e) {
+      _snackError('Program', e);
+      return null;
+    }
+  }
+
+  Map<String, dynamic>? _parseEnrolledProgramDetailResponse(Map<String, dynamic> response) {
+    final data = response['data'];
+    if (data is! Map) return null;
+    final enrollmentRaw = data['enrollment'];
+    if (enrollmentRaw is! Map) return null;
+    final enrollment = Map<String, dynamic>.from(enrollmentRaw);
+    final progRaw = enrollment['program'];
+    if (progRaw is! Map) return null;
+    final inner = Map<String, dynamic>.from(progRaw);
+
+    final trainerRef = enrollment['trainer'];
+    final trainerId = trainerRef is Map ? (trainerRef['_id'] ?? trainerRef['id'])?.toString().trim() ?? '' : trainerRef?.toString().trim() ?? '';
+
+    final weeks = inner['durationWeeks'] ?? inner['duration'];
+    final duration = weeks != null ? '${weeks is num ? weeks.toInt() : weeks} weeks' : '—';
+
+    String? img = ImageUrlSanitizer.asHttpUrlOrNull(inner['coverImageUrl']?.toString());
+    final promoMedia = inner['promoMedia'];
+    if (img == null && promoMedia is Map) {
+      img = ImageUrlSanitizer.asHttpUrlOrNull(promoMedia['url']?.toString());
+    }
+
+    final demoVideo = inner['demoVideo'];
+    final video = inner['video'];
+    final demoVideoUrl = demoVideo is Map ? demoVideo['url']?.toString() : null;
+    final programVideoUrl = video is Map ? video['url']?.toString() : null;
+
+    final bundlePrograms = enrollment['bundlePrograms'];
+    final exercisesRaw = inner['exercise'];
+    List<Map<String, dynamic>> exercises = [];
+    if (exercisesRaw is List) {
+      for (final e in exercisesRaw) {
+        if (e is Map) exercises.add(Map<String, dynamic>.from(e));
+      }
+    }
+
+    final price = (inner['price'] as num?)?.toDouble() ?? 0.0;
+    final discount = (inner['discount'] as num?)?.toDouble();
+    final progressPct = (enrollment['progress'] as num?)?.toDouble();
+    final enrollmentStatus = enrollment['status']?.toString();
+
+    return {
+      'id': inner['_id']?.toString() ?? '',
+      '_id': inner['_id']?.toString() ?? '',
+      'enrollmentId': enrollment['_id']?.toString(),
+      'trainerId': trainerId.isNotEmpty ? trainerId : inner['trainerId']?.toString(),
+      'title': inner['title']?.toString() ?? 'Program',
+      'subtitle': inner['subtitle']?.toString(),
+      'trainer': trainerId.isNotEmpty ? 'Trainer' : 'Trainer',
+      'trainerImage': 'T',
+      'price': price,
+      if (discount != null) 'discount': discount,
+      'duration': duration,
+      'category': (() {
+        final cat = inner['category'];
+        if (cat is Map && cat['name'] != null) return cat['name'].toString();
+        if (cat != null) return cat.toString();
+        return 'Program';
+      })(),
+      'goal': (inner['difficultyLevel'] ?? inner['level'])?.toString() ?? 'Fitness',
+      'certified': inner['isCertified'] == true,
+      'rating': 0.0,
+      'students': 0,
+      'reviews': 0,
+      'description': inner['description']?.toString() ?? '',
+      'status': enrollmentStatus ?? inner['status']?.toString(),
+      'purchased': true,
+      'isEnrolled': true,
+      'imageUrl': img,
+      'demoVideoUrl': demoVideoUrl,
+      'demoVideo': demoVideo,
+      'programVideoUrl': programVideoUrl,
+      'video': video,
+      'whatsIncluded': inner['whatsIncluded'],
+      'weeks': inner['weeks'],
+      '_apiProgram': inner,
+      'enrollment': enrollment,
+      'enrollmentProgress': progressPct ?? 0,
+      'enrollmentStartDate': enrollment['startDate'],
+      'enrollmentEndDate': enrollment['endDate'],
+      'exercises': exercises,
+      if (bundlePrograms is List) 'bundlePrograms': bundlePrograms,
+    };
+  }
+
   /// `POST /customer/program/enroll` — enroll in a program or bundle; shows success snackbar from API when applicable.
   Future<Map<String, dynamic>?> enrollProgram({required String programOrBundleId, required bool isBundle}) async {
     final id = programOrBundleId.trim();

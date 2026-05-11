@@ -105,6 +105,9 @@ class AppUrl {
     return '$baseUrl/customer/program/enrolled?$q';
   }
 
+  /// `GET /customer/program/enrolled/:enrollmentId` — single enrollment with nested `program` (full media, exercises).
+  static String customerProgramEnrolledDetail(String enrollmentId) => '$baseUrl/customer/program/enrolled/${Uri.encodeComponent(enrollmentId.trim())}';
+
   /// `GET /customer/bundle` — paginated bundle deals (`page`, `limit`). Response: `data.bundles`, `totalDocs`, `hasNextPage`.
   static String customerBundles({required int page, required int limit}) {
     final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;

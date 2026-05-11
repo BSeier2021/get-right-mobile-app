@@ -75,31 +75,46 @@ class _ProgramHlsPlayerScreenState extends State<ProgramHlsPlayerScreen> {
         ],
       ),
       body: SafeArea(
-        child: GetBuilder<VideoStreamingController>(
-          tag: _tag,
-          builder: (c) {
-            final err = c.errorMessage.value;
-            final busy = c.playerBusy.value;
-            final hasPlayer = c.chewieController != null;
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Chewie sizes its outer AspectRatio from MediaQuery.size (full screen).
+            // Override so it matches this viewport (below the AppBar); otherwise the
+            // video is laid out with the wrong ratio and appears stretched.
+            final mq = MediaQuery.of(context);
+            final viewport = Size(
+              constraints.maxWidth.clamp(1.0, 1000000.0),
+              constraints.maxHeight.clamp(1.0, 1000000.0),
+            );
+            return MediaQuery(
+              data: mq.copyWith(size: viewport),
+              child: GetBuilder<VideoStreamingController>(
+                tag: _tag,
+                builder: (c) {
+                  final err = c.errorMessage.value;
+                  final busy = c.playerBusy.value;
+                  final hasPlayer = c.chewieController != null;
 
-            return Stack(
-              fit: StackFit.expand,
-              children: [
-                if (hasPlayer)
-                  Chewie(
-                    key: ValueKey<int>(c.chewieRebuildKey),
-                    controller: c.chewieController!,
-                  ),
-                if (!hasPlayer && err.isEmpty)
-                  const Center(child: CircularProgressIndicator(color: AppColors.accentVariant)),
-                if (!hasPlayer && err.isNotEmpty)
-                  _ErrorState(message: err, onBack: () => Get.back<void>()),
-                if (busy && hasPlayer)
-                  const ColoredBox(
-                    color: Color(0x66000000),
-                    child: Center(child: CircularProgressIndicator(color: AppColors.accentVariant)),
-                  ),
-              ],
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (hasPlayer)
+                        Chewie(
+                          key: ValueKey<int>(c.chewieRebuildKey),
+                          controller: c.chewieController!,
+                        ),
+                      if (!hasPlayer && err.isEmpty)
+                        const Center(child: CircularProgressIndicator(color: AppColors.accentVariant)),
+                      if (!hasPlayer && err.isNotEmpty)
+                        _ErrorState(message: err, onBack: () => Get.back<void>()),
+                      if (busy && hasPlayer)
+                        const ColoredBox(
+                          color: Color(0x66000000),
+                          child: Center(child: CircularProgressIndicator(color: AppColors.accentVariant)),
+                        ),
+                    ],
+                  );
+                },
+              ),
             );
           },
         ),

@@ -72,6 +72,138 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
     return null;
   }
 
+  Map<String, dynamic>? get _apiProgram {
+    final raw = _item['_apiProgram'];
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  int _programWeeksFromItem() {
+    if (_isBundle) {
+      var sum = 0;
+      for (final p in _bundlePrograms) {
+        sum += _durationWeeksFrom(p['durationWeeks'] ?? p['duration']);
+      }
+      if (sum > 0) return sum;
+    }
+    final api = _apiProgram;
+    if (api != null) {
+      final n = _durationWeeksFrom(api['durationWeeks'] ?? api['duration']);
+      if (n > 0) return n;
+    }
+    final top = _durationWeeksFrom(_item['duration']);
+    if (top > 0) return top;
+    final ds = _item['duration']?.toString() ?? '';
+    final m = RegExp(r'(\d+)').firstMatch(ds);
+    if (m != null) {
+      final v = int.tryParse(m.group(1)!);
+      if (v != null && v > 0) return v;
+    }
+    return 0;
+  }
+
+  String _startDateDisplay() {
+    final raw = _effectiveStartDate();
+    if (raw != null) return _dateLabelOrDash(raw);
+    return 'Upon enrollment';
+  }
+
+  String _endDateDisplay() {
+    final raw = _effectiveEndDate();
+    if (raw != null) return _dateLabelOrDash(raw);
+    final weeks = _programWeeksFromItem();
+    if (weeks > 0) {
+      final est = DateTime.now().add(Duration(days: weeks * 7));
+      return '${_formatDate(est)} (est.)';
+    }
+    return '—';
+  }
+
+  String _categorySummary() {
+    final api = _apiProgram;
+    if (api != null) {
+      final cat = api['category'];
+      if (cat is Map && cat['name']?.toString().trim().isNotEmpty == true) {
+        return cat['name'].toString().trim();
+      }
+      final focus = api['focus']?.toString().trim();
+      if (focus != null && focus.isNotEmpty) {
+        return focus.replaceAll('_', ' ');
+      }
+    }
+    final c = _item['category']?.toString().trim();
+    return (c != null && c.isNotEmpty) ? c : '—';
+  }
+
+  String _difficultySummary() {
+    final api = _apiProgram;
+    if (api != null) {
+      final dl = api['difficultyLevel']?.toString().trim();
+      if (dl != null && dl.isNotEmpty) return dl;
+      final lvl = api['level']?.toString().trim();
+      if (lvl != null && lvl.isNotEmpty) return lvl.replaceAll('_', ' ');
+    }
+    final g = _item['goal']?.toString().trim();
+    return (g != null && g.isNotEmpty) ? g : '—';
+  }
+
+  String? _discountPercentSummary() {
+    final api = _apiProgram;
+    if (api != null) {
+      final disc = api['discount'];
+      if (disc is num && disc > 0) {
+        final d = disc.toDouble();
+        final whole = d == d.roundToDouble();
+        return '${whole ? d.round() : d}% off';
+      }
+    }
+    final top = _parseDoubleLoose(_item['discount']);
+    if (top != null && top > 0) {
+      final whole = top == top.roundToDouble();
+      return '${whole ? top.round() : top}% off';
+    }
+    return null;
+  }
+
+  String? _enrollmentStatusSummary() {
+    final enc = _enrollmentMap;
+    if (enc == null) return null;
+    final s = enc['status']?.toString().trim();
+    if (s == null || s.isEmpty) return null;
+    return s.replaceAll('_', ' ');
+  }
+
+  int? _exerciseCountSummary() {
+    final api = _apiProgram;
+    if (api == null) return null;
+    final ex = api['exercise'];
+    if (ex is List) return ex.length;
+    return null;
+  }
+
+  Widget _purchaseInfoRow({required IconData icon, required String label, required String value}) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 8.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16.sp, color: AppColors.accent),
+          SizedBox(width: 8.w),
+          Text('$label: ', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Map<String, dynamic>> get _bundlePrograms {
     final raw = _item['programs'];
     if (raw is! List) return [];
@@ -234,6 +366,10 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final discountLabel = _discountPercentSummary();
+    final exerciseCount = _exerciseCountSummary();
+    final enrollmentStatus = _enrollmentStatusSummary();
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.backgroundColor,
@@ -282,7 +418,11 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                               _item['title']?.toString() ?? (_isBundle ? 'Bundle deal' : 'Program'),
                               style: AppTextStyles.titleMedium.copyWith(color: AppColors.black, fontWeight: FontWeight.bold),
                             ),
-                            const SizedBox(height: 4),
+                            if ((_item['subtitle']?.toString().trim().isNotEmpty ?? false)) ...[
+                              SizedBox(height: 6.h),
+                              Text(_item['subtitle'].toString().trim(), style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                            ],
+                            SizedBox(height: 4.h),
                             Text('by', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                           ],
                         ),
@@ -312,51 +452,18 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_today_outlined, size: 16.sp, color: AppColors.accent),
-                      const SizedBox(width: 8),
-                      Text('Start Date: ', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-                      Expanded(
-                        child: Text(
-                          _dateLabelOrDash(_effectiveStartDate()),
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.event_outlined, size: 16.sp, color: AppColors.accent),
-                      const SizedBox(width: 8),
-                      Text('End Date: ', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-                      Expanded(
-                        child: Text(
-                          _dateLabelOrDash(_effectiveEndDate()),
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.schedule_outlined, size: 16.sp, color: AppColors.accent),
-                      const SizedBox(width: 8),
-                      Text('Duration: ', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-                      Expanded(
-                        child: Text(
-                          _durationDisplay(),
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
+                  const SizedBox(height: 12),
+                  _purchaseInfoRow(icon: Icons.calendar_today_outlined, label: 'Start', value: _startDateDisplay()),
+                  _purchaseInfoRow(icon: Icons.event_outlined, label: 'End', value: _endDateDisplay()),
+                  _purchaseInfoRow(icon: Icons.schedule_outlined, label: 'Duration', value: _durationDisplay()),
+                  if (_isBundle && _bundlePrograms.isNotEmpty) _purchaseInfoRow(icon: Icons.layers_outlined, label: 'Programs', value: '${_bundlePrograms.length} included'),
+                  if (!_isBundle) ...[
+                    _purchaseInfoRow(icon: Icons.category_outlined, label: 'Focus', value: _categorySummary()),
+                    _purchaseInfoRow(icon: Icons.speed_outlined, label: 'Level', value: _difficultySummary()),
+                  ],
+                  if (discountLabel != null) _purchaseInfoRow(icon: Icons.local_offer_outlined, label: 'Offer', value: discountLabel),
+                  if (!_isBundle && (exerciseCount ?? 0) > 0) _purchaseInfoRow(icon: Icons.fitness_center, label: 'Exercises', value: '$exerciseCount in program'),
+                  if (enrollmentStatus != null) _purchaseInfoRow(icon: Icons.flag_outlined, label: 'Status', value: enrollmentStatus),
                 ],
               ),
             ),
@@ -408,7 +515,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                     children: [
                       Text('Access ends', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
                       Text(
-                        _dateLabelOrDash(_effectiveEndDate()),
+                        _endDateDisplay(),
                         style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
                       ),
                     ],

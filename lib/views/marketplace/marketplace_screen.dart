@@ -1032,7 +1032,113 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
+  Map<String, dynamic>? _programRaw(Map<String, dynamic> program) {
+    final r = program['_apiProgram'];
+    if (r is Map<String, dynamic>) return r;
+    if (r is Map) return Map<String, dynamic>.from(r);
+    return null;
+  }
+
+  String? _programTrainerAvatarUrl(Map<String, dynamic> program) {
+    final p = _programRaw(program);
+    if (p == null) return null;
+    final t = p['trainer'];
+    if (t is! Map) return null;
+    final pic = t['profilePicture'];
+    if (pic is Map) return ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+    return null;
+  }
+
+  int? _programReviewCount(Map<String, dynamic> program) {
+    final p = _programRaw(program);
+    if (p == null) return null;
+    final d = p['display'];
+    if (d is Map) return (d['review_count'] as num?)?.toInt();
+    return null;
+  }
+
+  double? _programDiscountPercent(Map<String, dynamic> program) {
+    final p = _programRaw(program);
+    if (p == null) return null;
+    final disc = p['discount'];
+    if (disc is num && disc > 0) return disc.toDouble();
+    return null;
+  }
+
+  List<String> _programWhatsIncludedLines(Map<String, dynamic> program) {
+    final p = _programRaw(program);
+    if (p == null) return [];
+    final wi = p['whatsIncluded'];
+    if (wi is! List) return [];
+    return wi.map((e) => e.toString().trim()).where((s) => s.isNotEmpty).toList();
+  }
+
+  List<Map<String, dynamic>> _programExercisePreview(Map<String, dynamic> program, {int maxItems = 6}) {
+    final p = _programRaw(program);
+    if (p == null) return [];
+    final ex = p['exercise'];
+    if (ex is! List) return [];
+    final out = <Map<String, dynamic>>[];
+    for (final e in ex) {
+      if (e is Map) out.add(Map<String, dynamic>.from(e));
+      if (out.length >= maxItems) break;
+    }
+    return out;
+  }
+
+  String? _programStatusLabel(Map<String, dynamic> program) {
+    final p = _programRaw(program);
+    final s = p?['status']?.toString().trim();
+    if (s == null || s.isEmpty) return null;
+    return s;
+  }
+
+  Widget _programSheetHeroImage(Map<String, dynamic> program) {
+    final url = ImageUrlSanitizer.asHttpUrlOrFallback(program['imageUrl']?.toString(), fallback: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&q=80');
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: AppColors.primaryGray.withOpacity(0.25),
+            alignment: Alignment.center,
+            child: Icon(Icons.fitness_center, size: 48.sp, color: AppColors.accent),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showProgramDetail(Map<String, dynamic> program) {
+    final subtitle = program['subtitle']?.toString().trim();
+    final desc = program['description']?.toString().trim();
+    final descriptionText = (desc != null && desc.isNotEmpty) ? desc : 'No description available.';
+    final difficulty = program['difficulty']?.toString().trim();
+    final statusLabel = _programStatusLabel(program);
+    final reviewCount = _programReviewCount(program);
+    final discountPct = _programDiscountPercent(program);
+    final priceVal = ((program['price'] as num?) ?? 0).toDouble();
+    final payable = (discountPct != null && discountPct > 0) ? priceVal * (1 - discountPct / 100) : priceVal;
+    final whatsLines = _programWhatsIncludedLines(program);
+    final exercisePreview = _programExercisePreview(program);
+    final trainerAvatar = _programTrainerAvatarUrl(program);
+    final initials = (program['trainerImage'] ?? 'T').toString();
+
+    final chipRows = <Widget>[
+      _buildInfoChip(Icons.schedule, '${program['duration']}'),
+      _buildInfoChip(Icons.category, '${program['category']}'),
+      _buildInfoChip(Icons.flag, '${program['goal']}'),
+    ];
+    if (difficulty != null && difficulty.isNotEmpty && difficulty != 'All') {
+      chipRows.add(_buildInfoChip(Icons.speed, difficulty));
+    }
+    if (statusLabel != null && statusLabel.toLowerCase() == 'published') {
+      chipRows.add(_buildInfoChip(Icons.verified_outlined, _titleCaseWords(statusLabel.replaceAll('_', ' '))));
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1048,6 +1154,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           child: ListView(
             controller: scrollController,
             children: [
+              _programSheetHeroImage(program),
+              const SizedBox(height: 20),
               GestureDetector(
                 onTap: () {
                   Navigator.pop(context);
@@ -1058,24 +1166,30 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     CircleAvatar(
                       radius: 30,
                       backgroundColor: AppColors.accent,
-                      child: Text(program['trainerImage'], style: AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent)),
+                      backgroundImage: trainerAvatar != null ? NetworkImage(trainerAvatar) : null,
+                      onBackgroundImageError: trainerAvatar != null ? (_, __) {} : null,
+                      child: trainerAvatar == null ? Text(initials, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent)) : null,
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(program['trainer'], style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+                          Text('${program['trainer']}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
                           Row(
                             children: [
                               Icon(Icons.star, color: AppColors.upcoming, size: 16),
                               const SizedBox(width: 4),
-                              Text('${program['rating']}', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
+                              Text(((program['rating'] as num?) ?? 0).toDouble().toStringAsFixed(1), style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
                               const SizedBox(width: 8),
-                              Text('${program['students']} students', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                              Text('${program['students']} enrolled', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                              if (reviewCount != null && reviewCount > 0) ...[
+                                Text(' · ', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                                Text('$reviewCount reviews', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                              ],
                             ],
                           ),
-                          if (program['certified'])
+                          if (program['certified'] == true)
                             Row(
                               children: [
                                 Icon(Icons.verified, color: AppColors.completed, size: 16),
@@ -1090,28 +1204,71 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-              Text(program['title'], style: AppTextStyles.headlineMedium.copyWith(color: AppColors.onSurface)),
+              const SizedBox(height: 20),
+              Text('${program['title']}', style: AppTextStyles.headlineMedium.copyWith(color: AppColors.onSurface)),
+              if (subtitle != null && subtitle.isNotEmpty) ...[const SizedBox(height: 8), Text(subtitle, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray))],
               const SizedBox(height: 12),
-              Text(program['description'], style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-              const SizedBox(height: 24),
+              Text(descriptionText, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, height: 1.45)),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [_buildInfoChip(Icons.schedule, program['duration']), _buildInfoChip(Icons.category, program['category']), _buildInfoChip(Icons.flag, program['goal'])],
-                ),
+                child: Wrap(spacing: 12, runSpacing: 8, children: chipRows),
               ),
-              const SizedBox(height: 32),
-              Text('Program Details', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+              const SizedBox(height: 28),
+              Text('What\'s included', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
               const SizedBox(height: 12),
-              _buildDetailItem(Icons.fitness_center, 'Full workout plans and schedules'),
-              _buildDetailItem(Icons.video_library, 'Video demonstrations for all exercises'),
-              _buildDetailItem(Icons.track_changes, 'Progress tracking and analytics'),
-              _buildDetailItem(Icons.chat, 'Direct messaging with trainer'),
-              _buildDetailItem(Icons.library_books, 'Nutrition guide included'),
-              const SizedBox(height: 32),
+              if (whatsLines.isNotEmpty)
+                ...whatsLines.map((line) => _buildDetailItem(Icons.check_circle_outline, line))
+              else ...[
+                _buildDetailItem(Icons.fitness_center, 'Full workout plans and schedules'),
+                _buildDetailItem(Icons.video_library, 'Video demonstrations for exercises'),
+                _buildDetailItem(Icons.track_changes, 'Progress tracking and analytics'),
+                _buildDetailItem(Icons.chat, 'Direct messaging with trainer'),
+                _buildDetailItem(Icons.library_books, 'Nutrition guide included'),
+              ],
+              if (exercisePreview.isNotEmpty) ...[
+                const SizedBox(height: 28),
+                Text('Sample exercises', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+                const SizedBox(height: 12),
+                ...exercisePreview.map((ex) {
+                  final name = ex['name']?.toString().trim().isNotEmpty == true ? ex['name'].toString() : 'Exercise';
+                  final sets = ex['sets'];
+                  final reps = ex['reps'];
+                  final rest = ex['restTime'];
+                  final bits = <String>[];
+                  if (sets != null) bits.add('$sets sets');
+                  if (reps != null) bits.add('$reps reps');
+                  if (rest != null) bits.add('${rest}s rest');
+                  final sub = bits.join(' · ');
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: 8.h),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.sports_gymnastics, color: AppColors.accent, size: 20.sp),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                              ),
+                              if (sub.isNotEmpty)
+                                Text(
+                                  sub,
+                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 11.sp),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+              const SizedBox(height: 28),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -1122,14 +1279,41 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 child: Column(
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Total Price', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
-                            Text('\$${program['price']}', style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent)),
-                          ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Price', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
+                              if (discountPct != null && discountPct > 0 && priceVal > 0) ...[
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Text(
+                                      '\$${payable.toStringAsFixed(2)}',
+                                      style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '\$${priceVal.toStringAsFixed(2)}',
+                                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, decoration: TextDecoration.lineThrough),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${discountPct.toStringAsFixed(0)}% off',
+                                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                                ),
+                              ] else
+                                Text(
+                                  '\$${priceVal.toStringAsFixed(2)}',
+                                  style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
+                                ),
+                            ],
+                          ),
                         ),
                         ElevatedButton(
                           onPressed: () {
@@ -1172,6 +1356,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         ),
       ),
     );
+  }
+
+  String _titleCaseWords(String input) {
+    final parts = input.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    if (parts.isEmpty) return input;
+    return parts.map((w) => '${w[0].toUpperCase()}${w.length > 1 ? w.substring(1).toLowerCase() : ''}').join(' ');
   }
 
   @override
@@ -2578,10 +2768,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
     // Create trainer data from program info (real _id required for GET /user/profiles/:id/details)
     final trainerData = <String, dynamic>{
-      if (trainerMongoId != null && trainerMongoId.isNotEmpty) ...{
-        '_id': trainerMongoId,
-        'id': trainerMongoId,
-      },
+      if (trainerMongoId != null && trainerMongoId.isNotEmpty) ...{'_id': trainerMongoId, 'id': trainerMongoId},
       'name': program['trainer'],
       'initials': program['trainerImage'],
       'bio': 'Certified personal trainer with years of experience helping clients achieve their fitness goals. Specializing in ${program['category']} and ${program['goal']}.',
