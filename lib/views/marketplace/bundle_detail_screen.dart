@@ -107,93 +107,93 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
             'Bundle Deal',
             style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700),
           ),
-          leading: Padding(
-            padding: const EdgeInsets.only(left: 10),
-            child: IconButton(
-              onPressed: () => Get.back(),
-              icon: Container(
-                width: 40.w,
-                height: 35.h,
-                decoration: BoxDecoration(color: const Color(0xFFE7F1E7), borderRadius: BorderRadius.circular(6)),
-                child: Icon(Icons.chevron_left, size: 20.sp, color: AppColors.accent),
-              ),
+          leading: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
             ),
+            onPressed: () => Get.back(),
           ),
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null && programs.isEmpty && (_bundle['title'] == null || _bundle['title'].toString().trim().isEmpty)
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(_error!, textAlign: TextAlign.center, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-                          const SizedBox(height: 16),
-                          TextButton(onPressed: _loadDetail, child: const Text('Retry')),
-                        ],
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground),
                       ),
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: (_bundleId != null && _bundleId!.isNotEmpty) ? _loadDetail : () async {},
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (_error != null)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Text(_error!, style: AppTextStyles.bodySmall.copyWith(color: Colors.red.shade700)),
-                            ),
-                          _buildHeroImage(imageUrl),
-                          const SizedBox(height: 14),
-                          Text(
-                            title,
-                            style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
-                          ),
-                          if (subtitle != null && subtitle.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(subtitle, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.7))),
-                          ],
-                          if (description.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(description, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75))),
-                          ],
-                          const SizedBox(height: 12),
-                          _buildPricingCard(totalValue: totalValue, bundlePrice: bundlePrice, discount: discount),
-                          const SizedBox(height: 14),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Included Programs',
-                                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(12)),
-                                child: Text(
-                                  '${programs.length} Programs',
-                                  style: AppTextStyles.labelMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          ...programs.map((program) => _buildProgramCard(program)),
-                          const SizedBox(height: 10),
-                          _buildWhatsIncludedSection(programs.length, discount),
-                          const SizedBox(height: 10),
-                          _buildBottomPriceRow(totalValue: totalValue, bundlePrice: bundlePrice),
-                          const SizedBox(height: 12),
-                        ],
-                      ),
-                    ),
+                      const SizedBox(height: 16),
+                      TextButton(onPressed: _loadDetail, child: const Text('Retry')),
+                    ],
                   ),
+                ),
+              )
+            : RefreshIndicator(
+                onRefresh: (_bundleId != null && _bundleId!.isNotEmpty) ? _loadDetail : () async {},
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(_error!, style: AppTextStyles.bodySmall.copyWith(color: Colors.red.shade700)),
+                        ),
+                      _buildHeroImage(imageUrl),
+                      const SizedBox(height: 14),
+                      Text(
+                        title,
+                        style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
+                      ),
+                      if (subtitle != null && subtitle.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(subtitle, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.7))),
+                      ],
+                      if (description.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(description, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75))),
+                      ],
+                      const SizedBox(height: 12),
+                      _buildPricingCard(totalValue: totalValue, bundlePrice: bundlePrice, discount: discount),
+                      const SizedBox(height: 14),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Included Programs',
+                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(12)),
+                            child: Text(
+                              '${programs.length} Programs',
+                              style: AppTextStyles.labelMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      ...programs.map((program) => _buildProgramCard(program)),
+                      const SizedBox(height: 10),
+                      _buildWhatsIncludedSection(programs.length, discount),
+                      const SizedBox(height: 10),
+                      _buildBottomPriceRow(totalValue: totalValue, bundlePrice: bundlePrice),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                ),
+              ),
       ),
     );
   }

@@ -24,13 +24,7 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
 
   void _acceptTerms() {
     if (!_allAccepted) {
-      Get.snackbar(
-        'Terms Required',
-        'Please accept all terms and policies to continue',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      Get.snackbar('Terms Required', 'Please accept all terms and policies to continue', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
       return;
     }
 
@@ -261,6 +255,14 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
         backgroundColor: AppColors.backgroundColor,
         title: Text('Program Terms', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+          ),
+          onPressed: () => Get.back(),
+        ),
         automaticallyImplyLeading: false,
       ),
       body: SingleChildScrollView(
@@ -281,10 +283,7 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
                   Icon(Icons.info_outline, color: AppColors.accent, size: 24),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      'Please read and accept all terms and policies before enrollment',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface),
-                    ),
+                    child: Text('Please read and accept all terms and policies before enrollment', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
                   ),
                 ],
               ),
@@ -292,23 +291,11 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
             const SizedBox(height: 24),
 
             // Terms & Conditions
-            _buildTermsSection(
-              'Terms & Conditions',
-              Icons.description,
-              _getTermsAndConditions(),
-              _termsAccepted,
-              (value) => setState(() => _termsAccepted = value ?? false),
-            ),
+            _buildTermsSection('Terms & Conditions', Icons.description, _getTermsAndConditions(), _termsAccepted, (value) => setState(() => _termsAccepted = value ?? false)),
             const SizedBox(height: 20),
 
             // Privacy Policy
-            _buildTermsSection(
-              'Privacy Policy',
-              Icons.privacy_tip,
-              _getPrivacyPolicy(),
-              _privacyAccepted,
-              (value) => setState(() => _privacyAccepted = value ?? false),
-            ),
+            _buildTermsSection('Privacy Policy', Icons.privacy_tip, _getPrivacyPolicy(), _privacyAccepted, (value) => setState(() => _privacyAccepted = value ?? false)),
             const SizedBox(height: 20),
 
             // Cancellation Policy
@@ -383,10 +370,7 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isAccepted ? AppColors.accent.withOpacity(0.2) : AppColors.primaryGray.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  decoration: BoxDecoration(color: isAccepted ? AppColors.accent.withOpacity(0.2) : AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                   child: Icon(icon, color: isAccepted ? AppColors.accent : AppColors.primaryGray, size: 20),
                 ),
                 const SizedBox(width: 12),

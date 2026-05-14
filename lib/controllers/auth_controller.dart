@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:get_right/Local%20Storage/local_storage.dart';
@@ -19,6 +20,12 @@ import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+
+/// Routes after async work + [GetxController.update] in the same frame can hit
+/// `Navigator._debugLocked`; scheduling avoids that.
+void _scheduleGetNavigation(void Function() action) {
+  WidgetsBinding.instance.addPostFrameCallback((_) => action());
+}
 
 /// Backend envelopes vary: some send only `status` / `statusCode` with HTTP 200-style bodies.
 bool _apiEnvelopeSuccess(Map<String, dynamic> root) {
@@ -1673,7 +1680,7 @@ class AuthController extends GetxController {
         if (token == null || token.isEmpty) {
           await _clearStaleJwtOnly();
           _snackError('Verification', 'Could not save reset session. Please request the code again.');
-          Get.offNamed(AppRoutes.forgotPassword);
+          _scheduleGetNavigation(() => Get.offNamed(AppRoutes.forgotPassword));
           return false;
         }
         await _persistAccessToken(token);
@@ -1682,7 +1689,7 @@ class AuthController extends GetxController {
         }
         _tempEmail = null;
         _forgotPasswordUserId = null;
-        Get.offNamed(AppRoutes.resetPassword);
+        _scheduleGetNavigation(() => Get.offNamed(AppRoutes.resetPassword));
         return true;
       }
 
@@ -1691,7 +1698,7 @@ class AuthController extends GetxController {
       if (token == null || token.isEmpty) {
         await _clearStaleJwtOnly();
         _snackError('Verification', 'Email verified, but session token was missing. Please sign in.');
-        Get.offAllNamed(AppRoutes.login);
+        _scheduleGetNavigation(() => Get.offAllNamed(AppRoutes.login));
         return false;
       }
       await _persistAccessToken(token);
@@ -1721,7 +1728,7 @@ class AuthController extends GetxController {
       _tempEmail = null;
       _pendingSignupUserId = null;
 
-      Get.offNamed(AppRoutes.profileSetup);
+      _scheduleGetNavigation(() => Get.offNamed(AppRoutes.profileSetup));
       return true;
     } on BadRequestException catch (e) {
       _snackError('Verification', e.message);
@@ -1765,9 +1772,9 @@ class AuthController extends GetxController {
           snackPosition: SnackPosition.BOTTOM,
         );
         if (forgotPasswordFlow) {
-          Get.back();
+          _scheduleGetNavigation(() => Get.back<void>());
         } else {
-          Get.offAllNamed(AppRoutes.signup);
+          _scheduleGetNavigation(() => Get.offAllNamed(AppRoutes.signup));
         }
         return;
       }
@@ -2196,7 +2203,7 @@ class AuthController extends GetxController {
     final session = _storageService.getToken();
     if (session == null || session.isEmpty) {
       _snackError('Reset password', 'Session expired. Start again from forgot password.');
-      Get.offAllNamed(AppRoutes.forgotPassword);
+      _scheduleGetNavigation(() => Get.offAllNamed(AppRoutes.forgotPassword));
       return false;
     }
 
@@ -2230,7 +2237,7 @@ class AuthController extends GetxController {
         Get.find<LocalStorage>().deleteAccessToken();
       }
 
-      Get.offAllNamed(AppRoutes.login);
+      _scheduleGetNavigation(() => Get.offAllNamed(AppRoutes.login));
       return true;
     } on BadRequestException catch (e) {
       _snackError('Reset password', e.message);

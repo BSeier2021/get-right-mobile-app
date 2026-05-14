@@ -70,10 +70,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
     _iconAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
+    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
     _iconScaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(CurvedAnimation(parent: _iconAnimationController, curve: Curves.elasticOut));
 
     _animationController.forward();
@@ -138,12 +135,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
-            ),
-            child: const Icon(Icons.chevron_left, size: 25),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
         ),
@@ -194,12 +187,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
                       // Title
                       Text(
                         'Create New Password',
-                        style: AppTextStyles.headlineLarge.copyWith(
-                          color: AppColors.onBackground,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -1,
-                        ),
+                        style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -1),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
@@ -216,12 +204,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
                       const SizedBox(height: 48),
 
                       // New password
-                      PasswordTextField(
-                        controller: _newPasswordController,
-                        labelText: 'New Password',
-                        hintText: 'Enter new password',
-                        validator: _validateNewPassword,
-                      ),
+                      PasswordTextField(controller: _newPasswordController, labelText: 'New Password', hintText: 'Enter new password', validator: _validateNewPassword),
                       const SizedBox(height: 20),
 
                       // Confirm new password

@@ -122,17 +122,13 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
             'Payment',
             style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700),
           ),
-          leading: Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: IconButton(
-              onPressed: () => Get.back(),
-              icon: Container(
-                width: 35,
-                height: 35,
-                decoration: BoxDecoration(color: const Color(0xFFE7F1E7), borderRadius: BorderRadius.circular(6)),
-                child: Icon(Icons.chevron_left, color: AppColors.accent, size: 22),
-              ),
+          leading: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
             ),
+            onPressed: () => Get.back(),
           ),
         ),
         body: SingleChildScrollView(

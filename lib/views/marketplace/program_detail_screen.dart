@@ -308,17 +308,13 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
             'Program Detail',
             style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w700),
           ),
-          leading: Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: IconButton(
-              onPressed: _handleBack,
-              icon: Container(
-                width: 45.w,
-                height: 35.h,
-                decoration: BoxDecoration(color: const Color(0xFFE7F1E7), borderRadius: BorderRadius.circular(8)),
-                child: Icon(Icons.chevron_left, size: 30.sp, color: AppColors.accent),
-              ),
+          leading: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
             ),
+            onPressed: () => Get.back(),
           ),
         ),
         body: CustomScrollView(
