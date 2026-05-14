@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
+import 'package:get_right/controllers/feed_publish_controller.dart';
+import 'package:get_right/controllers/feed_video_upload_controller.dart';
 import 'package:get_right/models/customer_profile_dto.dart';
 import 'package:get_right/models/feed_category_model.dart';
 import 'package:get_right/controllers/notification_controller.dart';
@@ -14,7 +18,10 @@ import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:get_right/models/feed_multipart_init_model.dart';
+import 'package:video_player/video_player.dart';
 
 List<String> _parseFeedTagsForApi(String raw) {
   return raw.split(RegExp(r'\s+')).map((t) => t.replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).toList();
@@ -1461,6 +1468,9 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
   late final TextEditingController _descriptionController;
   late final TextEditingController _tagsController;
 
+  /// Tags from the post + user commits (Done / Enter); same pattern as [CreatePostScreen].
+  final List<String> _committedTags = [];
+
   late String _status;
   String? _categoryId;
 
@@ -1469,6 +1479,230 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
   String? _categoriesError;
 
   bool _saving = false;
+  String _saveBusyLabel = '';
+  double _saveUploadProgress = 0;
+
+  final ImagePicker _imagePicker = ImagePicker();
+  XFile? _replacementVideo;
+  VideoPlayerController? _videoPreviewController;
+  String? _videoPreviewPath;
+  String? _videoPreviewInitError;
+
+  bool get _isVideoPost => widget.post['isVideo'] == true;
+
+  void _videoPreviewListener() {
+    if (!mounted) return;
+    final c = _videoPreviewController;
+    if (c == null || !c.value.isInitialized) return;
+    setState(() {});
+  }
+
+  void _disposeVideoPreview() {
+    final c = _videoPreviewController;
+    _videoPreviewController = null;
+    _videoPreviewPath = null;
+    _videoPreviewInitError = null;
+    if (c != null) {
+      c.removeListener(_videoPreviewListener);
+      c.dispose();
+    }
+  }
+
+  Future<void> _startVideoPreviewForPath(String path) async {
+    final old = _videoPreviewController;
+    if (old != null) {
+      old.removeListener(_videoPreviewListener);
+      await old.dispose();
+    }
+    _videoPreviewController = null;
+    _videoPreviewPath = path;
+    _videoPreviewInitError = null;
+
+    final controller = VideoPlayerController.file(File(path));
+    _videoPreviewController = controller;
+    controller.addListener(_videoPreviewListener);
+
+    try {
+      await controller.initialize();
+      if (!mounted || _videoPreviewPath != path || _videoPreviewController != controller) {
+        controller.removeListener(_videoPreviewListener);
+        await controller.dispose();
+        if (_videoPreviewController == controller) _videoPreviewController = null;
+        return;
+      }
+      await controller.setLooping(true);
+      await controller.play();
+      if (mounted) setState(() {});
+    } catch (e) {
+      controller.removeListener(_videoPreviewListener);
+      await controller.dispose();
+      if (!mounted) return;
+      if (_videoPreviewController == controller) _videoPreviewController = null;
+      _videoPreviewPath = null;
+      _videoPreviewInitError = e.toString();
+      setState(() {});
+    }
+  }
+
+  Future<void> _pickReplacementVideoGallery() async {
+    try {
+      final XFile? video = await _imagePicker.pickVideo(source: ImageSource.gallery);
+      if (!mounted || video == null) return;
+      setState(() => _replacementVideo = video);
+      await _startVideoPreviewForPath(video.path);
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Error', 'Could not pick video: $e', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+    }
+  }
+
+  Future<void> _pickReplacementVideoCamera() async {
+    try {
+      final XFile? video = await _imagePicker.pickVideo(source: ImageSource.camera);
+      if (!mounted || video == null) return;
+      setState(() => _replacementVideo = video);
+      await _startVideoPreviewForPath(video.path);
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Error', 'Could not record video: $e', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+    }
+  }
+
+  void _clearReplacementVideo() {
+    _disposeVideoPreview();
+    setState(() => _replacementVideo = null);
+  }
+
+  FeedVideoUploadController _resolveVideoUploader() {
+    if (Get.isRegistered<FeedVideoUploadController>()) {
+      return Get.find<FeedVideoUploadController>();
+    }
+    return Get.put(FeedVideoUploadController());
+  }
+
+  Future<void> _uploadReplacementVideo({required String feedId, required String mediaPath}) async {
+    final file = File(mediaPath);
+    if (!await file.exists()) {
+      throw StateError('Video file not found.');
+    }
+    final fileSize = await file.length();
+    if (fileSize <= 0) {
+      throw StateError('Video file is empty.');
+    }
+
+    final contentType = guessVideoContentType(mediaPath);
+
+    if (mounted) {
+      setState(() {
+        _saveBusyLabel = 'Preparing upload…';
+        _saveUploadProgress = 0.08;
+      });
+    }
+
+    final initRaw = await widget.feedRepo.initVideoMultipartRepo(feedId: feedId, contentType: contentType, fileSize: fileSize);
+
+    final init = FeedMultipartInitData.tryParse(initRaw);
+    if (init == null) {
+      throw StateError('Invalid multipart init response.');
+    }
+
+    if (mounted) {
+      setState(() {
+        _saveBusyLabel = 'Uploading video…';
+        _saveUploadProgress = 0.12;
+      });
+    }
+
+    final videoUpload = _resolveVideoUploader();
+    final uploaded = await videoUpload.runMultipartUpload(
+      file: file,
+      fileSize: fileSize,
+      init: init,
+      contentType: contentType,
+      onOverallProgress: (raw) {
+        if (!mounted) return;
+        setState(() {
+          _saveUploadProgress = 0.12 + raw * 0.78;
+        });
+      },
+    );
+
+    if (mounted) {
+      setState(() {
+        _saveBusyLabel = 'Finishing…';
+        _saveUploadProgress = 0.92;
+      });
+    }
+
+    await widget.feedRepo.completeVideoMultipartRepo(feedId: feedId, key: init.key, uploadId: init.uploadId, parts: uploaded.map((e) => e.toCompleteApiJson()).toList());
+
+    if (mounted) {
+      setState(() => _saveUploadProgress = 1);
+    }
+  }
+
+  Widget _buildReplacementVideoPreview() {
+    final err = _videoPreviewInitError;
+    if (err != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            err,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodySmall.copyWith(color: Colors.white70),
+          ),
+        ),
+      );
+    }
+
+    final c = _videoPreviewController;
+    if (c == null || !c.value.isInitialized) {
+      return const Center(child: CircularProgressIndicator(color: Colors.white54));
+    }
+
+    final v = c.value;
+    final w = v.size.width;
+    final h = v.size.height;
+
+    final Widget core;
+    if (w > 0 && h > 0) {
+      core = FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(width: w, height: h, child: VideoPlayer(c)),
+      );
+    } else {
+      final ar = v.aspectRatio;
+      core = AspectRatio(aspectRatio: ar > 0 && !ar.isNaN ? ar : 16 / 9, child: VideoPlayer(c));
+    }
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (c.value.isPlaying) {
+          c.pause();
+        } else {
+          c.play();
+        }
+        setState(() {});
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(child: core),
+          if (!v.isPlaying)
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), shape: BoxShape.circle),
+                child: const Icon(Icons.play_arrow, color: Colors.white, size: 40),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -1476,8 +1710,10 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
     final p = widget.post;
     _titleController = TextEditingController(text: (p['title'] ?? '').toString());
     _descriptionController = TextEditingController(text: (p['description'] ?? '').toString());
-    final tagsRaw = (p['tags'] as List<dynamic>?)?.map((e) => e.toString().replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).join(' ') ?? '';
-    _tagsController = TextEditingController(text: tagsRaw);
+    _committedTags
+      ..clear()
+      ..addAll((p['tags'] as List<dynamic>?)?.map((e) => e.toString().replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).toList() ?? const <String>[]);
+    _tagsController = TextEditingController();
     _status = _normalizeFeedPostStatus(p['status']?.toString());
     final cid = (p['categoryId'] ?? '').toString().trim();
     _categoryId = cid.isEmpty ? null : cid;
@@ -1486,10 +1722,44 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
 
   @override
   void dispose() {
+    _disposeVideoPreview();
     _titleController.dispose();
     _descriptionController.dispose();
     _tagsController.dispose();
     super.dispose();
+  }
+
+  void _commitTagsFromField() {
+    final parsed = _parseFeedTagsForApi(_tagsController.text);
+    if (parsed.isEmpty) return;
+    setState(() {
+      for (final t in parsed) {
+        final exists = _committedTags.any((x) => x.toLowerCase() == t.toLowerCase());
+        if (!exists) _committedTags.add(t);
+      }
+      _tagsController.clear();
+    });
+  }
+
+  /// API tags: chips plus any text still in the field.
+  List<String> _tagsForSave() {
+    final fromField = _parseFeedTagsForApi(_tagsController.text);
+    final seen = <String>{};
+    final out = <String>[];
+    void add(String t) {
+      final key = t.toLowerCase();
+      if (seen.contains(key)) return;
+      seen.add(key);
+      out.add(t);
+    }
+
+    for (final t in _committedTags) {
+      add(t);
+    }
+    for (final t in fromField) {
+      add(t);
+    }
+    return out;
   }
 
   Future<void> _loadCategories() async {
@@ -1524,14 +1794,18 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
       return;
     }
 
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _saveBusyLabel = 'Saving…';
+      _saveUploadProgress = 0;
+    });
     try {
       final raw = await widget.feedRepo.updateFeedRepo(
         feedId: id,
         title: _titleController.text,
         description: _descriptionController.text,
         categoryId: catId,
-        tags: _parseFeedTagsForApi(_tagsController.text),
+        tags: _tagsForSave(),
         status: _status,
       );
 
@@ -1540,14 +1814,19 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
         throw Exception(msg ?? 'Could not update post');
       }
 
+      if (_isVideoPost && _replacementVideo != null) {
+        await _uploadReplacementVideo(feedId: id, mediaPath: _replacementVideo!.path);
+      }
+
       await widget.onSaved();
       if (!mounted) return;
       Navigator.pop(context);
 
       final okMsg = raw['message']?.toString();
+      final videoNote = _isVideoPost && _replacementVideo != null ? ' New video is processing.' : '';
       Get.snackbar(
         'Saved',
-        okMsg != null && okMsg.isNotEmpty ? okMsg : 'Post updated',
+        (okMsg != null && okMsg.isNotEmpty ? okMsg : 'Post updated') + videoNote,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: _kProfileForestGreen,
         colorText: Colors.white,
@@ -1556,7 +1835,13 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
       if (!mounted) return;
       Get.snackbar('Could not update', e.toString(), snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _saveBusyLabel = '';
+          _saveUploadProgress = 0;
+        });
+      }
     }
   }
 
@@ -1564,12 +1849,26 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
   Widget build(BuildContext context) {
     final border = OutlineInputBorder(borderRadius: BorderRadius.circular(12));
 
+    final categoryDropdownStyle = AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 15, fontWeight: FontWeight.w400, height: 1.2);
+
     final categoryItems = <DropdownMenuItem<String>>[];
     if (_categoryId != null && _categoryId!.isNotEmpty && !_categories.any((c) => c.id == _categoryId)) {
       final name = (widget.post['categoryName'] ?? _categoryId).toString();
-      categoryItems.add(DropdownMenuItem(value: _categoryId, child: Text(name)));
+      categoryItems.add(
+        DropdownMenuItem(
+          value: _categoryId,
+          child: Text(name, style: categoryDropdownStyle),
+        ),
+      );
     }
-    categoryItems.addAll(_categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))));
+    categoryItems.addAll(
+      _categories.map(
+        (c) => DropdownMenuItem(
+          value: c.id,
+          child: Text(c.name, style: categoryDropdownStyle),
+        ),
+      ),
+    );
 
     final validCategoryValue = _categoryId != null && categoryItems.any((i) => i.value == _categoryId) ? _categoryId : null;
 
@@ -1589,23 +1888,123 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
           const SizedBox(height: 16),
           Text(
             'Edit post',
-            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontSize: 15, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 16),
+          if (_isVideoPost) ...[
+            Text('Video', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                height: 200,
+                width: double.infinity,
+                child: ColoredBox(
+                  color: Colors.black,
+                  child: _replacementVideo != null
+                      ? _buildReplacementVideoPreview()
+                      : Image.network(
+                          (widget.post['thumbnail'] ?? '').toString(),
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: 200,
+                          errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.videocam, color: Colors.white54, size: 48)),
+                        ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (!_saving) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickReplacementVideoGallery,
+                      icon: const Icon(Icons.video_library, size: 18),
+                      label: const Text('Gallery'),
+                      style: OutlinedButton.styleFrom(foregroundColor: _kProfileForestGreen),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickReplacementVideoCamera,
+                      icon: const Icon(Icons.videocam, size: 18),
+                      label: const Text('Camera'),
+                      style: OutlinedButton.styleFrom(foregroundColor: _kProfileForestGreen),
+                    ),
+                  ),
+                  if (_replacementVideo != null)
+                    IconButton(
+                      tooltip: 'Keep original video',
+                      onPressed: _clearReplacementVideo,
+                      icon: Icon(Icons.undo, color: AppColors.primaryGray.withValues(alpha: 0.95)),
+                    ),
+                ],
+              ),
+              Text(
+                _replacementVideo != null ? 'New video selected. Tap Save to upload.' : 'Replace video from gallery or camera.',
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 12, fontWeight: FontWeight.w400),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ],
           TextField(
             controller: _titleController,
             decoration: InputDecoration(labelText: 'Title', border: border),
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _descriptionController,
             maxLines: 4,
             decoration: InputDecoration(labelText: 'Description', alignLabelWithHint: true, border: border),
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: _tagsController,
-            decoration: InputDecoration(labelText: 'Tags', hintText: 'e.g. workout legs day', border: border),
+          if (_committedTags.isNotEmpty) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _committedTags
+                  .map(
+                    (t) => InputChip(
+                      label: Text('#$t', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 15)),
+                      deleteIconColor: AppColors.primaryGray,
+                      backgroundColor: _kProfileForestGreen.withValues(alpha: 0.12),
+                      side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.25)),
+                      onDeleted: () => setState(() => _committedTags.remove(t)),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Focus(
+            onKeyEvent: (node, event) {
+              if (event is! KeyDownEvent) return KeyEventResult.ignored;
+              if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+                _commitTagsFromField();
+                return KeyEventResult.handled;
+              }
+              return KeyEventResult.ignored;
+            },
+            child: TextField(
+              controller: _tagsController,
+              decoration: InputDecoration(
+                labelText: 'Tags',
+                hintText: 'Type a tag, then tap Done or Enter',
+                helperText: 'Multiple words add multiple tags. # prefix is optional.',
+                border: border,
+              ),
+              textCapitalization: TextCapitalization.none,
+              keyboardType: TextInputType.text,
+              textInputAction: TextInputAction.done,
+              maxLines: 1,
+              onSubmitted: (_) => _commitTagsFromField(),
+              onEditingComplete: _commitTagsFromField,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+            ),
           ),
           const SizedBox(height: 12),
           Text('Visibility', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
@@ -1630,23 +2029,52 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(_categoriesError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
-                TextButton(onPressed: _loadCategories, child: const Text('Retry')),
+                Text(
+                  _categoriesError!,
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w400),
+                ),
+                TextButton(
+                  onPressed: _loadCategories,
+                  child: const Text('Retry', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w400)),
+                ),
               ],
             )
           else if (categoryItems.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text('No categories available.', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+              child: Text(
+                'No categories available.',
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 13, fontWeight: FontWeight.w400),
+              ),
             )
           else
             DropdownButtonFormField<String>(
               value: validCategoryValue,
-              decoration: InputDecoration(border: border),
-              hint: const Text('Select category'),
+              style: categoryDropdownStyle,
+              decoration: InputDecoration(border: border, isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+              hint: Text('Select category', style: categoryDropdownStyle.copyWith(color: AppColors.primaryGray)),
               items: categoryItems,
               onChanged: (v) => setState(() => _categoryId = v),
             ),
+
+          if (_saving && _saveBusyLabel.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              _saveBusyLabel,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 15, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: _saveUploadProgress <= 0 ? null : _saveUploadProgress.clamp(0.0, 1.0),
+                minHeight: 5,
+                backgroundColor: AppColors.primaryGray.withValues(alpha: 0.22),
+                color: _kProfileForestGreen,
+              ),
+            ),
+          ],
+
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
