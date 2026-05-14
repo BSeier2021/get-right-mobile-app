@@ -5,9 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:get_right/controllers/feed_publish_controller.dart';
-
 import 'package:get_right/models/feed_category_model.dart';
-
 import 'package:get_right/theme/color_constants.dart';
 
 import 'package:get_right/theme/text_styles.dart';
@@ -29,6 +27,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _descriptionController = TextEditingController();
 
   final TextEditingController _tagsController = TextEditingController();
+
+  /// Tags committed from the field (Done / Enter). Order preserved, no duplicates (case-insensitive).
+  final List<String> _committedTags = [];
 
   final ImagePicker _picker = ImagePicker();
 
@@ -70,10 +71,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Future<void> _pickImage() async {
     try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-      );
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
 
       if (image != null) {
         setState(() {
@@ -83,13 +81,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         });
       }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to pick image: $e',
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Error', 'Failed to pick image: $e', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
     }
   }
 
@@ -105,13 +97,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         });
       }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to pick video: $e',
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Error', 'Failed to pick video: $e', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
     }
   }
 
@@ -127,42 +113,53 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         });
       }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to record video: $e',
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Error', 'Failed to record video: $e', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
     }
   }
 
   Future<void> _publishPost() async {
     if (_selectedMedia == null) {
-      Get.snackbar(
-        'Media Required',
-        'Please select an image or video',
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Media Required', 'Please select an image or video', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
 
       return;
     }
 
     if (_feed.isPublishing.value) return;
 
-    await _feed.publish(
-      mediaPath: _selectedMedia!.path,
+    await _feed.publish(mediaPath: _selectedMedia!.path, isVideo: _isVideo, title: _titleController.text, description: _descriptionController.text, tagsRaw: _combinedTagsRaw());
+  }
 
-      isVideo: _isVideo,
+  /// Tags sent to the API: committed chips plus any text still in the field.
+  String _combinedTagsRaw() {
+    final fromField = parseFeedTagsInput(_tagsController.text);
+    final seen = <String>{};
+    final out = <String>[];
+    void add(String t) {
+      final key = t.toLowerCase();
+      if (seen.contains(key)) return;
+      seen.add(key);
+      out.add(t);
+    }
 
-      title: _titleController.text,
+    for (final t in _committedTags) {
+      add(t);
+    }
+    for (final t in fromField) {
+      add(t);
+    }
+    return out.join(' ');
+  }
 
-      description: _descriptionController.text,
-
-      tagsRaw: _tagsController.text,
-    );
+  void _commitTagsFromField() {
+    final parsed = parseFeedTagsInput(_tagsController.text);
+    if (parsed.isEmpty) return;
+    setState(() {
+      for (final t in parsed) {
+        final exists = _committedTags.any((x) => x.toLowerCase() == t.toLowerCase());
+        if (!exists) _committedTags.add(t);
+      }
+      _tagsController.clear();
+    });
   }
 
   String _phaseLabel(FeedPublishController c) {
@@ -186,560 +183,492 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) {
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
 
-      appBar: AppBar(
-        backgroundColor: AppColors.backgroundColor,
+        appBar: AppBar(
+          backgroundColor: AppColors.backgroundColor,
 
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Get.back(),
+          leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Get.back()),
+
+          title: Text('Create Post', style: AppTextStyles.titleLarge.copyWith()),
+
+          centerTitle: true,
+
+          actions: [
+            Obx(() {
+              final busy = _feed.isPublishing.value;
+
+              return TextButton(
+                onPressed: busy ? null : _publishPost,
+
+                child: busy
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent)))
+                    : Text(
+                        'Publish',
+
+                        style: AppTextStyles.titleSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                      ),
+              );
+            }),
+          ],
         ),
 
-        title: Text('Create Post', style: AppTextStyles.titleLarge.copyWith()),
+        body: Column(
+          children: [
+            Obx(() {
+              if (!_feed.isPublishing.value) return const SizedBox.shrink();
 
-        centerTitle: true,
+              final label = _phaseLabel(_feed);
 
-        actions: [
-          Obx(() {
-            final busy = _feed.isPublishing.value;
+              return Material(
+                elevation: 1,
 
-            return TextButton(
-              onPressed: busy ? null : _publishPost,
+                color: AppColors.surface,
 
-              child: busy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.accent,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+
+                    children: [
+                      if (label.isNotEmpty) Text(label, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground)),
+
+                      const SizedBox(height: 6),
+
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+
+                        child: LinearProgressIndicator(
+                          value: _feed.uploadProgress.value <= 0 ? null : _feed.uploadProgress.value.clamp(0.0, 1.0),
+
+                          minHeight: 6,
+
+                          backgroundColor: AppColors.primaryGray.withOpacity(0.2),
+
+                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
                         ),
                       ),
-                    )
-                  : Text(
-                      'Publish',
 
-                      style: AppTextStyles.titleSmall.copyWith(
-                        color: AppColors.accent,
-                        fontWeight: FontWeight.bold,
+                      const SizedBox(height: 4),
+
+                      Text(
+                        '${(_feed.uploadProgress.value * 100).clamp(0, 100).toStringAsFixed(0)}%',
+
+                        textAlign: TextAlign.end,
+
+                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
                       ),
-                    ),
-            );
-          }),
-        ],
-      ),
-
-      body: Column(
-        children: [
-          Obx(() {
-            if (!_feed.isPublishing.value) return const SizedBox.shrink();
-
-            final label = _phaseLabel(_feed);
-
-            return Material(
-              elevation: 1,
-
-              color: AppColors.surface,
-
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+                    ],
+                  ),
                 ),
+              );
+            }),
 
+            Expanded(
+              child: SingleChildScrollView(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: CrossAxisAlignment.start,
 
                   children: [
-                    if (label.isNotEmpty)
-                      Text(
-                        label,
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.onBackground,
-                        ),
-                      ),
+                    if (_selectedMedia != null)
+                      Stack(
+                        children: [
+                          Container(
+                            width: double.infinity,
 
-                    const SizedBox(height: 6),
+                            height: 400,
 
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
+                            color: Colors.black,
 
-                      child: LinearProgressIndicator(
-                        value: _feed.uploadProgress.value <= 0
-                            ? null
-                            : _feed.uploadProgress.value.clamp(0.0, 1.0),
+                            child: _isVideo
+                                ? Stack(
+                                    alignment: Alignment.center,
 
-                        minHeight: 6,
+                                    children: [
+                                      Image.file(
+                                        File(_selectedMedia!.path),
 
-                        backgroundColor: AppColors.primaryGray.withOpacity(0.2),
+                                        fit: BoxFit.contain,
 
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          AppColors.accent,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    Text(
-                      '${(_feed.uploadProgress.value * 100).clamp(0, 100).toStringAsFixed(0)}%',
-
-                      textAlign: TextAlign.end,
-
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.primaryGray,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-
-                children: [
-                  if (_selectedMedia != null)
-                    Stack(
-                      children: [
-                        Container(
-                          width: double.infinity,
-
-                          height: 400,
-
-                          color: Colors.black,
-
-                          child: _isVideo
-                              ? Stack(
-                                  alignment: Alignment.center,
-
-                                  children: [
-                                    Image.file(
-                                      File(_selectedMedia!.path),
-
-                                      fit: BoxFit.contain,
-
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              const Center(
-                                                child: Icon(
-                                                  Icons.videocam,
-                                                  size: 100,
-                                                  color: Colors.white54,
-                                                ),
-                                              ),
-                                    ),
-
-                                    Container(
-                                      padding: const EdgeInsets.all(20),
-
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.6),
-                                        shape: BoxShape.circle,
+                                        errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.videocam, size: 100, color: Colors.white54)),
                                       ),
 
-                                      child: const Icon(
-                                        Icons.play_arrow,
-                                        color: Colors.white,
-                                        size: 50,
+                                      Container(
+                                        padding: const EdgeInsets.all(20),
+
+                                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+
+                                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 50),
                                       ),
-                                    ),
-                                  ],
-                                )
-                              : Image.file(
-                                  File(_selectedMedia!.path),
-                                  fit: BoxFit.contain,
-                                ),
-                        ),
+                                    ],
+                                  )
+                                : Image.file(File(_selectedMedia!.path), fit: BoxFit.contain),
+                          ),
 
-                        Positioned(
-                          top: 16,
+                          Positioned(
+                            top: 16,
 
-                          right: 16,
+                            right: 16,
 
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.6),
-                              shape: BoxShape.circle,
-                            ),
+                            child: Container(
+                              decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
 
-                            child: IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.white),
+                              child: IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.white),
 
-                              onPressed: () {
-                                if (_isVideo) {
-                                  _pickVideo();
-                                } else {
-                                  _pickImage();
-                                }
-                              },
+                                onPressed: () {
+                                  if (_isVideo) {
+                                    _pickVideo();
+                                  } else {
+                                    _pickImage();
+                                  }
+                                },
+                              ),
                             ),
                           ),
+                        ],
+                      )
+                    else
+                      Container(
+                        width: double.infinity,
+
+                        height: 300,
+
+                        margin: const EdgeInsets.all(16),
+
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+
+                          borderRadius: BorderRadius.circular(16),
+
+                          border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 2, style: BorderStyle.solid),
                         ),
-                      ],
-                    )
-                  else
-                    Container(
-                      width: double.infinity,
 
-                      height: 300,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
 
-                      margin: const EdgeInsets.all(16),
+                          children: [
+                            Icon(Icons.add_photo_alternate_outlined, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
 
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
+                            const SizedBox(height: 16),
 
-                        borderRadius: BorderRadius.circular(16),
+                            Text('Add Media', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
 
-                        border: Border.all(
-                          color: AppColors.primaryGray.withOpacity(0.3),
-                          width: 2,
-                          style: BorderStyle.solid,
+                            const SizedBox(height: 24),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: _pickImage,
+
+                                  icon: const Icon(Icons.image),
+
+                                  label: const Text('Photo'),
+
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
+                                ),
+
+                                const SizedBox(width: 12),
+
+                                ElevatedButton.icon(
+                                  onPressed: _pickVideo,
+
+                                  icon: const Icon(Icons.video_library),
+
+                                  label: const Text('Video'),
+
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
 
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
 
                         children: [
-                          Icon(
-                            Icons.add_photo_alternate_outlined,
-                            size: 80,
-                            color: AppColors.primaryGray.withOpacity(0.5),
+                          Text(
+                            'Title',
+
+                            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          TextField(
+                            controller: _titleController,
+
+                            decoration: InputDecoration(
+                              hintText: 'Give your post a catchy title...',
+
+                              filled: true,
+
+                              fillColor: AppColors.surface,
+
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+
+                                borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                              ),
+
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+
+                                borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                              ),
+
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+
+                                borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                              ),
+                            ),
+
+                            maxLength: 100,
+
+                            textCapitalization: TextCapitalization.sentences,
                           ),
 
                           const SizedBox(height: 16),
 
                           Text(
-                            'Add Media',
-                            style: AppTextStyles.titleMedium.copyWith(
-                              color: AppColors.primaryGray,
+                            'Description',
+
+                            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          TextField(
+                            controller: _descriptionController,
+
+                            decoration: InputDecoration(
+                              hintText: 'Tell your story...',
+
+                              filled: true,
+
+                              fillColor: AppColors.surface,
+
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+
+                                borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                              ),
+
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+
+                                borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                              ),
+
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+
+                                borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                              ),
                             ),
+
+                            maxLines: 4,
+
+                            maxLength: 500,
+
+                            textCapitalization: TextCapitalization.sentences,
                           ),
 
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 16),
 
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          // Categories come from API: GET /user/feed-categories → data.categories[]
+                          // (AuthRepository.getFeedCategoriesRepo → FeedPublishController.loadFeedCategories in onInit).
+                          Text(
+                            'Category',
 
-                            children: [
-                              ElevatedButton.icon(
-                                onPressed: _pickImage,
-
-                                icon: const Icon(Icons.image),
-
-                                label: const Text('Photo'),
-
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accent,
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-
-                              const SizedBox(width: 12),
-
-                              ElevatedButton.icon(
-                                onPressed: _pickVideo,
-
-                                icon: const Icon(Icons.video_library),
-
-                                label: const Text('Video'),
-
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accent,
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                            ],
+                            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                           ),
+
+                          const SizedBox(height: 8),
+
+                          Obx(() {
+                            if (_feed.feedCategoriesLoading.value) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 24,
+
+                                    height: 24,
+
+                                    child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent)),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            if (_feed.feedCategoriesError.value != null) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+
+                                children: [
+                                  Text('Could not load categories.', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+
+                                  TextButton(onPressed: _feed.loadFeedCategories, child: const Text('Retry')),
+                                ],
+                              );
+                            }
+
+                            if (_feed.feedCategories.isEmpty) {
+                              return Text('No categories available.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray));
+                            }
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+
+                                borderRadius: BorderRadius.circular(12),
+
+                                border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
+                              ),
+
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _feed.selectedCategoryId.value,
+
+                                  isExpanded: true,
+
+                                  // Compact text in the closed button and in the menu (selectedItemBuilder replaces item children).
+                                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface, fontSize: 15, fontWeight: FontWeight.w500),
+
+                                  hint: Text('Select category', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 15)),
+
+                                  selectedItemBuilder: (context) {
+                                    return _feed.feedCategories.map((FeedCategory c) {
+                                      return Align(
+                                        alignment: AlignmentDirectional.centerStart,
+                                        child: Text(
+                                          c.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface, fontSize: 15, fontWeight: FontWeight.w600),
+                                        ),
+                                      );
+                                    }).toList();
+                                  },
+
+                                  items: _feed.feedCategories.map((FeedCategory c) {
+                                    return DropdownMenuItem<String>(
+                                      value: c.id,
+                                      child: Text(
+                                        c.name,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface, fontSize: 15),
+                                      ),
+                                    );
+                                  }).toList(),
+
+                                  onChanged: (value) => _feed.setCategory(value),
+                                ),
+                              ),
+                            );
+                          }),
+
+                          const SizedBox(height: 16),
+
+                          Text(
+                            'Tags',
+
+                            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          if (_committedTags.isNotEmpty) ...[
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _committedTags
+                                  .map(
+                                    (t) => InputChip(
+                                      label: Text('#$t', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
+                                      deleteIconColor: AppColors.primaryGray,
+                                      backgroundColor: AppColors.accent.withOpacity(0.12),
+                                      side: BorderSide(color: AppColors.primaryGray.withOpacity(0.25)),
+                                      onDeleted: () {
+                                        setState(() => _committedTags.remove(t));
+                                      },
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+
+                          TextField(
+                            controller: _tagsController,
+
+                            decoration: InputDecoration(
+                              hintText: 'Type a tag, then tap Done or Enter',
+
+                              filled: true,
+
+                              fillColor: AppColors.surface,
+
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+
+                                borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                              ),
+
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+
+                                borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                              ),
+
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+
+                                borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                              ),
+
+                              helperText: 'Multiple words add multiple tags. # prefix\nis optional.',
+                            ),
+
+                            textCapitalization: TextCapitalization.none,
+
+                            keyboardType: TextInputType.text,
+                            textInputAction: TextInputAction.done,
+                            maxLines: 1,
+                            onSubmitted: (_) => _commitTagsFromField(),
+                            onEditingComplete: _commitTagsFromField,
+                          ),
+
+                          const SizedBox(height: 32),
                         ],
                       ),
                     ),
-
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-
-                      children: [
-                        Text(
-                          'Title',
-
-                          style: AppTextStyles.titleSmall.copyWith(
-                            color: AppColors.onBackground,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        TextField(
-                          controller: _titleController,
-
-                          decoration: InputDecoration(
-                            hintText: 'Give your post a catchy title...',
-
-                            filled: true,
-
-                            fillColor: AppColors.surface,
-
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-
-                              borderSide: BorderSide(
-                                color: AppColors.primaryGray.withOpacity(0.3),
-                              ),
-                            ),
-
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-
-                              borderSide: BorderSide(
-                                color: AppColors.primaryGray.withOpacity(0.3),
-                              ),
-                            ),
-
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-
-                              borderSide: const BorderSide(
-                                color: AppColors.accent,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-
-                          maxLength: 100,
-
-                          textCapitalization: TextCapitalization.sentences,
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        Text(
-                          'Description',
-
-                          style: AppTextStyles.titleSmall.copyWith(
-                            color: AppColors.onBackground,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        TextField(
-                          controller: _descriptionController,
-
-                          decoration: InputDecoration(
-                            hintText: 'Tell your story...',
-
-                            filled: true,
-
-                            fillColor: AppColors.surface,
-
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-
-                              borderSide: BorderSide(
-                                color: AppColors.primaryGray.withOpacity(0.3),
-                              ),
-                            ),
-
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-
-                              borderSide: BorderSide(
-                                color: AppColors.primaryGray.withOpacity(0.3),
-                              ),
-                            ),
-
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-
-                              borderSide: const BorderSide(
-                                color: AppColors.accent,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-
-                          maxLines: 4,
-
-                          maxLength: 500,
-
-                          textCapitalization: TextCapitalization.sentences,
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        Text(
-                          'Category',
-
-                          style: AppTextStyles.titleSmall.copyWith(
-                            color: AppColors.onBackground,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        Obx(() {
-                          if (_feed.feedCategoriesLoading.value) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 12),
-
-                              child: Center(
-                                child: SizedBox(
-                                  width: 24,
-
-                                  height: 24,
-
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      AppColors.accent,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-
-                          if (_feed.feedCategoriesError.value != null) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-
-                              children: [
-                                Text(
-                                  'Could not load categories.',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.error,
-                                  ),
-                                ),
-
-                                TextButton(
-                                  onPressed: _feed.loadFeedCategories,
-                                  child: const Text('Retry'),
-                                ),
-                              ],
-                            );
-                          }
-
-                          if (_feed.feedCategories.isEmpty) {
-                            return Text(
-                              'No categories available.',
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.primaryGray,
-                              ),
-                            );
-                          }
-
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-
-                              borderRadius: BorderRadius.circular(12),
-
-                              border: Border.all(
-                                color: AppColors.primaryGray.withOpacity(0.3),
-                              ),
-                            ),
-
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _feed.selectedCategoryId.value,
-
-                                isExpanded: true,
-
-                                hint: const Text('Select category'),
-
-                                items: _feed.feedCategories.map((
-                                  FeedCategory c,
-                                ) {
-                                  return DropdownMenuItem<String>(
-                                    value: c.id,
-                                    child: Text(c.name),
-                                  );
-                                }).toList(),
-
-                                onChanged: (value) => _feed.setCategory(value),
-                              ),
-                            ),
-                          );
-                        }),
-
-                        const SizedBox(height: 16),
-
-                        Text(
-                          'Tags',
-
-                          style: AppTextStyles.titleSmall.copyWith(
-                            color: AppColors.onBackground,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        TextField(
-                          controller: _tagsController,
-
-                          decoration: InputDecoration(
-                            hintText: '#fitness #workout #motivation',
-
-                            filled: true,
-
-                            fillColor: AppColors.surface,
-
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-
-                              borderSide: BorderSide(
-                                color: AppColors.primaryGray.withOpacity(0.3),
-                              ),
-                            ),
-
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-
-                              borderSide: BorderSide(
-                                color: AppColors.primaryGray.withOpacity(0.3),
-                              ),
-                            ),
-
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-
-                              borderSide: const BorderSide(
-                                color: AppColors.accent,
-                                width: 2,
-                              ),
-                            ),
-
-                            helperText: 'Separate tags with spaces',
-                          ),
-
-                          textCapitalization: TextCapitalization.none,
-                        ),
-
-                        const SizedBox(height: 32),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
