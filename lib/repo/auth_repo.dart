@@ -49,6 +49,11 @@ class AuthRepository {
     return _network.get(AppUrl.autoLogin);
   }
 
+  /// `POST /user/auth/logout` — body: `deviceToken` (Bearer).
+  Future<dynamic> logoutRepo({required String deviceToken}) async {
+    return _network.post(AppUrl.logout, {'deviceToken': deviceToken.trim()});
+  }
+
   /// `POST /user/auth/forget` with `{ "email": "..." }`.
   Future<dynamic> forgotPasswordRepo({required String email}) async {
     final response = await _network.post(AppUrl.forgotPassword, {"email": email.trim()}, headers: {"Authorization": "yNaHwJpGFSquIkXP"});

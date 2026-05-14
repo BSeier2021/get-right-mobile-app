@@ -2329,10 +2329,31 @@ class AuthController extends GetxController {
     }
   }
 
-  /// Logout
+  /// `POST /user/auth/logout` with [deviceToken], then clear local session and go to login.
   Future<void> logout() async {
-    await _storageService.logout();
-    Get.offAllNamed(AppRoutes.login);
+    try {
+      _syncNetworkBearerFromStorage();
+      final deviceToken = await _ensureDeviceToken();
+      await _authRepo.logoutRepo(deviceToken: deviceToken);
+    } on BadRequestException catch (e) {
+      debugPrint('Logout API: ${e.message}');
+    } on UnauthorizedException catch (e) {
+      debugPrint('Logout API: ${e.message}');
+    } on NoInternetException catch (e) {
+      debugPrint('Logout API: ${e.message}');
+    } on RequestTimeoutException catch (e) {
+      debugPrint('Logout API: ${e.message}');
+    } on ServerException catch (e) {
+      debugPrint('Logout API: ${e.message}');
+    } catch (e) {
+      debugPrint('Logout API: $e');
+    } finally {
+      await _storageService.logout();
+      if (Get.isRegistered<LocalStorage>()) {
+        Get.find<LocalStorage>().deleteAccessToken();
+      }
+      _scheduleGetNavigation(() => Get.offAllNamed(AppRoutes.login));
+    }
   }
 
   /// Sign in with Apple - DEMO VERSION

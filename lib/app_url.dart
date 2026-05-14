@@ -81,8 +81,8 @@ class AppUrl {
   static String voicePosts = '$baseUrl/voice-posts';
   static String createVoicePost = '$baseUrl/voice-posts';
 
-  /////////logout API//
-  static String logout = '$baseUrl/auth/logout';
+  /// `POST /user/auth/logout` — body: `{ "deviceToken": "..." }` (Bearer).
+  static String get logout => '$baseUrl/user/auth/logout';
 
   /// `GET /customer/program` — paginated customer programs (`page`, `limit`, `type`).
   static String customerPrograms({required int page, required int limit, required String type}) {

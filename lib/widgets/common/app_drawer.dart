@@ -367,12 +367,12 @@ class _AppDrawerState extends State<AppDrawer> {
             child: Text('Cancel', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.primaryGray)),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Get.back();
               Get.back();
               try {
                 final authController = Get.find<AuthController>();
-                authController.logout();
+                await authController.logout();
               } catch (e) {
                 debugPrint('AuthController not found: $e');
                 Get.offAllNamed(AppRoutes.login);

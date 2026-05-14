@@ -447,10 +447,10 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                 child: Text('Cancel', style: TextStyle(color: AppColors.primaryGray)),
               ),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   Get.back();
                   final authController = Get.find<AuthController>();
-                  authController.logout();
+                  await authController.logout();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.error,
