@@ -382,7 +382,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
         ),
         Positioned(
           right: 16,
-          bottom: 30,
+          bottom: 64,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -403,7 +403,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
         ),
         Positioned(
           left: 16,
-          bottom: 30,
+          bottom: 64,
           right: 100,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,6 +465,19 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
                     [],
               ),
             ],
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: SafeArea(
+            top: false,
+            minimum: const EdgeInsets.only(bottom: 4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: _FeedReelVideoProgressBar(controller: widget.videoController),
+            ),
           ),
         ),
       ],
@@ -620,6 +633,110 @@ class _FeedReelPlaybackTimerState extends State<_FeedReelPlaybackTimer> {
     return Text(
       label,
       style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 15.sp, fontWeight: FontWeight.w600),
+    );
+  }
+}
+
+/// Thin seekable progress for feed reels (full width above safe area).
+class _FeedReelVideoProgressBar extends StatefulWidget {
+  const _FeedReelVideoProgressBar({required this.controller});
+
+  final VideoPlayerController? controller;
+
+  @override
+  State<_FeedReelVideoProgressBar> createState() => _FeedReelVideoProgressBarState();
+}
+
+class _FeedReelVideoProgressBarState extends State<_FeedReelVideoProgressBar> {
+  bool _scrubbing = false;
+  double? _scrubFrac;
+
+  void _onVideoTick() {
+    if (_scrubbing || !mounted) return;
+    setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller?.addListener(_onVideoTick);
+  }
+
+  @override
+  void didUpdateWidget(_FeedReelVideoProgressBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.removeListener(_onVideoTick);
+      widget.controller?.addListener(_onVideoTick);
+      _scrubbing = false;
+      _scrubFrac = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller?.removeListener(_onVideoTick);
+    super.dispose();
+  }
+
+  double _sliderValue(VideoPlayerController c) {
+    final d = c.value.duration;
+    if (d == Duration.zero) return 0;
+    if (_scrubbing && _scrubFrac != null) return _scrubFrac!.clamp(0.0, 1.0);
+    final p = c.value.position;
+    return (p.inMicroseconds / d.inMicroseconds).clamp(0.0, 1.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    if (c == null || !c.value.isInitialized) {
+      return const SizedBox.shrink();
+    }
+    final d = c.value.duration;
+    if (d == Duration.zero) {
+      return const SizedBox.shrink();
+    }
+
+    return SliderTheme(
+      data: SliderTheme.of(context).copyWith(
+        trackHeight: 3,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+        activeTrackColor: Colors.white,
+        inactiveTrackColor: Colors.white.withValues(alpha: 0.28),
+        thumbColor: Colors.white,
+        overlayColor: Colors.white.withValues(alpha: 0.18),
+      ),
+      child: Slider(
+        value: _sliderValue(c),
+        min: 0,
+        max: 1,
+        onChangeStart: (_) {
+          setState(() {
+            _scrubbing = true;
+          });
+        },
+        onChanged: (v) {
+          setState(() {
+            _scrubFrac = v;
+          });
+        },
+        onChangeEnd: (v) async {
+          final controller = widget.controller;
+          if (controller != null && controller.value.isInitialized) {
+            final total = controller.value.duration;
+            final targetMs = (v * total.inMilliseconds).round().clamp(0, total.inMilliseconds);
+            await controller.seekTo(Duration(milliseconds: targetMs));
+          }
+          if (mounted) {
+            setState(() {
+              _scrubbing = false;
+              _scrubFrac = null;
+            });
+          }
+        },
+      ),
     );
   }
 }

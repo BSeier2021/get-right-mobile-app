@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/routes/app_route_observer.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/feed_media_url.dart';
@@ -20,7 +21,7 @@ class FeedScreen extends StatefulWidget {
   State<FeedScreen> createState() => _FeedScreenState();
 }
 
-class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateMixin {
+class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateMixin, RouteAware {
   late TabController _tabController;
   final FeedRepository _feedRepo = FeedRepository();
   final Map<int, PageController> _pageControllers = {};
@@ -50,6 +51,21 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   Worker? _homeTabWorker;
   bool _feedTabLazyBootstrapped = false;
 
+  /// False when another route is pushed above the host route (e.g. profile, search from feed).
+  bool _feedHostRouteVisible = true;
+
+  ModalRoute<dynamic>? _routeSubscription;
+
+  bool _isHomeFeedTabSelected() {
+    if (!Get.isRegistered<HomeNavigationController>()) return true;
+    return Get.find<HomeNavigationController>().currentIndex == 1;
+  }
+
+  /// Reels autoplay only when Feed tab + inner tab selected and this route is not covered.
+  bool _reelsActiveForInnerTab(int innerTabIndex) {
+    return _feedHostRouteVisible && _isHomeFeedTabSelected() && _tabController.index == innerTabIndex;
+  }
+
   void _disposePageControllerForTab(int tabIndex) {
     final c = _pageControllers.remove(tabIndex);
     c?.dispose();
@@ -76,6 +92,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         final nav = Get.find<HomeNavigationController>();
         _homeTabWorker = ever<int>(nav.currentIndexRx, (idx) {
           if (!mounted) return;
+          setState(() {});
           if (idx == 1) _bootstrapFeedWhenTabSelected();
         });
         if (nav.currentIndex == 1) {
@@ -85,6 +102,29 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         _bootstrapFeedWhenTabSelected();
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null && route != _routeSubscription) {
+      if (_routeSubscription != null) {
+        appRouteObserver.unsubscribe(this);
+      }
+      _routeSubscription = route;
+      appRouteObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPushNext() {
+    if (mounted) setState(() => _feedHostRouteVisible = false);
+  }
+
+  @override
+  void didPopNext() {
+    if (mounted) setState(() => _feedHostRouteVisible = true);
   }
 
   /// First time user opens the Feed bottom tab: load only "For You". "Following" loads when that inner tab is selected.
@@ -101,6 +141,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
     _homeTabWorker?.dispose();
     _tabController.dispose();
     for (var controller in _pageControllers.values) {
@@ -377,7 +418,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           key: ValueKey<Object>('fy_$_forYouFeedEpoch'),
           posts: _feedPosts,
           pageController: _getPageController(0),
-          active: _tabController.index == 0,
+          active: _reelsActiveForInnerTab(0),
           onPageChangedIndex: (_) {},
           onNearEndIndex: _queueLoadMoreForYouIfNeeded,
           resolvePlaybackUrl: playbackUrlForFeedPost,
@@ -418,7 +459,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           key: ValueKey<Object>('fl_$_followingFeedEpoch'),
           posts: _followingPosts,
           pageController: _getPageController(1),
-          active: _tabController.index == 1,
+          active: _reelsActiveForInnerTab(1),
           onPageChangedIndex: (_) {},
           onNearEndIndex: _queueLoadMoreFollowingIfNeeded,
           resolvePlaybackUrl: playbackUrlForFeedPost,

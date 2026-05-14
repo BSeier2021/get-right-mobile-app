@@ -6,6 +6,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get_right/theme/app_theme.dart';
 import 'package:get_right/routes/app_pages.dart';
+import 'package:get_right/routes/app_route_observer.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -87,6 +88,7 @@ class GetRightApp extends StatelessWidget {
             // GetX Routing
             initialRoute: AppPages.initial,
             getPages: AppPages.routes,
+            navigatorObservers: [appRouteObserver],
 
             // Default transition
             defaultTransition: Transition.cupertino,
