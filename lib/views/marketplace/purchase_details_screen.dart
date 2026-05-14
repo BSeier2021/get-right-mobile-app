@@ -5,6 +5,7 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// Purchase Details Screen with Payment Gateway Integration
 class PurchaseDetailsScreen extends StatefulWidget {
@@ -180,6 +181,130 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
     final ex = api['exercise'];
     if (ex is List) return ex.length;
     return null;
+  }
+
+  String? _summaryHeroImageUrl() {
+    final fromItem = ImageUrlSanitizer.asHttpUrlOrNull(_item['imageUrl']?.toString());
+    if (fromItem != null) return fromItem;
+    final api = _apiProgram;
+    if (api != null) {
+      final pm = api['promoMedia'];
+      if (pm is Map) {
+        final u = ImageUrlSanitizer.asHttpUrlOrNull(pm['url']?.toString());
+        if (u != null) return u;
+      }
+      return ImageUrlSanitizer.asHttpUrlOrNull(api['coverImageUrl']?.toString());
+    }
+    return null;
+  }
+
+  String? _trainerAvatarUrl() {
+    dynamic t = _item['trainer'];
+    if (t is! Map && _apiProgram != null) {
+      t = _apiProgram!['trainer'];
+    }
+    if (t is Map) {
+      final pic = t['profilePicture'];
+      if (pic is Map) return ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+    }
+    if (_isBundle && _bundlePrograms.isNotEmpty) {
+      final tp = _bundlePrograms.first['trainer'];
+      if (tp is Map) {
+        final pic = tp['profilePicture'];
+        if (pic is Map) return ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+      }
+    }
+    return null;
+  }
+
+  String _trainerInitials() {
+    final n = _trainerDisplayName().trim();
+    if (n.isEmpty || n == 'Trainer') return 'T';
+    final parts = n.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    if (n.length >= 2) return n.substring(0, 2).toUpperCase();
+    return n[0].toUpperCase();
+  }
+
+  String? _ratingAndStudentsLine() {
+    final r = (_item['rating'] as num?)?.toDouble();
+    final s = (_item['students'] as num?)?.toInt();
+    int? rev;
+    final api = _apiProgram;
+    if (api != null) {
+      final d = api['display'];
+      if (d is Map) rev = (d['review_count'] as num?)?.toInt();
+    }
+    if ((r == null || r <= 0) && (s == null || s <= 0) && (rev == null || rev <= 0)) return null;
+    final parts = <String>[];
+    if (r != null && r > 0) parts.add(r.toStringAsFixed(1));
+    if (s != null && s > 0) parts.add('$s enrolled');
+    if (rev != null && rev > 0) parts.add('$rev reviews');
+    if (parts.isEmpty) return null;
+    return parts.join(' · ');
+  }
+
+  String? _descriptionPreview({int maxChars = 200}) {
+    String? pick(String? s) {
+      final t = s?.trim();
+      if (t == null || t.isEmpty) return null;
+      if (t.length <= maxChars) return t;
+      return '${t.substring(0, maxChars - 1)}…';
+    }
+
+    return pick(_item['description']?.toString()) ?? pick(_apiProgram?['description']?.toString());
+  }
+
+  String? _catalogProgramStatus() {
+    if (_isBundle) return null;
+    final st = _apiProgram?['status']?.toString().trim();
+    if (st == null || st.isEmpty) return null;
+    final lower = st.toLowerCase();
+    return lower[0].toUpperCase() + (lower.length > 1 ? lower.substring(1) : '');
+  }
+
+  String? _enrollmentProgressSummary() {
+    final enc = _enrollmentMap;
+    if (enc == null) return null;
+    final p = enc['progress'];
+    if (p == null) return null;
+    final n = p is num ? p.toDouble() : double.tryParse(p.toString());
+    if (n == null) return null;
+    final pct = (n >= 0 && n <= 1) ? (n * 100).round() : n.round().clamp(0, 100);
+    return '$pct%';
+  }
+
+  String? _listPriceLabel() {
+    if (_isBundle) {
+      final tv = _parseDoubleLoose(_item['totalValue']);
+      if (tv != null && tv > _subtotal && _subtotal > 0) {
+        return '\$${tv.toStringAsFixed(2)}';
+      }
+      return null;
+    }
+    final disc = _parseDoubleLoose(_apiProgram?['discount']) ?? _parseDoubleLoose(_item['discount']);
+    final price = _parseDoubleLoose(_item['price']) ?? _parseDoubleLoose(_apiProgram?['price']);
+    if (price == null || disc == null || disc <= 0 || price <= _subtotal) return null;
+    return '\$${price.toStringAsFixed(2)}';
+  }
+
+  String? _bundleSavingsSummary() {
+    if (!_isBundle) return null;
+    final tv = _parseDoubleLoose(_item['totalValue']);
+    final bp = _parseDoubleLoose(_item['bundlePrice']) ?? _subtotal;
+    if (tv == null || tv <= bp || tv <= 0) return null;
+    return 'Save \$${(tv - bp).toStringAsFixed(2)} vs buying separately';
+  }
+
+  bool get _trainerCertified {
+    if (_item['certified'] == true || _item['isCertified'] == true) return true;
+    final api = _apiProgram;
+    if (api != null && api['isCertified'] == true) return true;
+    final t = _item['trainer'];
+    if (t is Map && t['isCertified'] == true) return true;
+    return false;
   }
 
   Widget _purchaseInfoRow({required IconData icon, required String label, required String value}) {
@@ -369,6 +494,14 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
     final discountLabel = _discountPercentSummary();
     final exerciseCount = _exerciseCountSummary();
     final enrollmentStatus = _enrollmentStatusSummary();
+    final heroUrl = _summaryHeroImageUrl();
+    final trainerUrl = _trainerAvatarUrl();
+    final ratingLine = _ratingAndStudentsLine();
+    final descPreview = _descriptionPreview();
+    final listPrice = _listPriceLabel();
+    final catalogStatus = _catalogProgramStatus();
+    final progressPct = _enrollmentProgressSummary();
+    final bundleSavings = _bundleSavingsSummary();
 
     return Scaffold(
       appBar: AppBar(
@@ -404,6 +537,16 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (heroUrl != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: Image.network(heroUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   Row(
                     children: [
                       Expanded(
@@ -425,29 +568,57 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  // Trainer mini card row like screenshot
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       CircleAvatar(
-                        radius: 16,
-                        backgroundColor: AppColors.accent,
-                        child: Image.asset('assets/images/avatar.png', width: 24.w, height: 24.h),
+                        radius: 18,
+                        backgroundColor: AppColors.accent.withOpacity(0.2),
+                        backgroundImage: trainerUrl != null ? NetworkImage(trainerUrl) : null,
+                        onBackgroundImageError: trainerUrl != null ? (_, __) {} : null,
+                        child: trainerUrl == null
+                            ? Text(
+                                _trainerInitials(),
+                                style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w800),
+                              )
+                            : null,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _trainerDisplayName(),
-                              style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _trainerDisplayName(),
+                                    style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                                if (_trainerCertified)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 4),
+                                    child: Icon(Icons.verified_outlined, size: 18, color: AppColors.accent),
+                                  ),
+                              ],
                             ),
                           ],
                         ),
                       ),
                     ],
                   ),
+                  if (ratingLine != null) ...[SizedBox(height: 8.h), Text(ratingLine, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray))],
+                  if (descPreview != null) ...[
+                    SizedBox(height: 10.h),
+                    Text(
+                      descPreview,
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, height: 1.35),
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   _purchaseInfoRow(icon: Icons.calendar_today_outlined, label: 'Start', value: _startDateDisplay()),
                   _purchaseInfoRow(icon: Icons.event_outlined, label: 'End', value: _endDateDisplay()),
@@ -457,8 +628,12 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                     _purchaseInfoRow(icon: Icons.category_outlined, label: 'Focus', value: _categorySummary()),
                     _purchaseInfoRow(icon: Icons.speed_outlined, label: 'Level', value: _difficultySummary()),
                   ],
+                  if (listPrice != null) _purchaseInfoRow(icon: Icons.sell_outlined, label: 'List price', value: listPrice),
+                  if (bundleSavings != null) _purchaseInfoRow(icon: Icons.savings_outlined, label: 'Savings', value: bundleSavings),
                   if (discountLabel != null) _purchaseInfoRow(icon: Icons.local_offer_outlined, label: 'Offer', value: discountLabel),
                   if (!_isBundle && (exerciseCount ?? 0) > 0) _purchaseInfoRow(icon: Icons.fitness_center, label: 'Exercises', value: '$exerciseCount in program'),
+                  if (catalogStatus != null) _purchaseInfoRow(icon: Icons.public_outlined, label: 'Catalog', value: catalogStatus),
+                  if (progressPct != null) _purchaseInfoRow(icon: Icons.trending_up, label: 'Progress', value: progressPct),
                   if (enrollmentStatus != null) _purchaseInfoRow(icon: Icons.flag_outlined, label: 'Status', value: enrollmentStatus),
                 ],
               ),

@@ -7,6 +7,7 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/no_emoji_input_formatter.dart';
 import 'package:get_right/widgets/common/custom_button.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
 
@@ -143,6 +144,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       hintText: 'Enter your email',
                       keyboardType: TextInputType.emailAddress,
                       prefixIcon: const Icon(Icons.email_outlined),
+                      inputFormatters: kNoEmojiInputFormatters,
                     ),
                     const SizedBox(height: 20),
 

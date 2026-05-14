@@ -181,8 +181,18 @@ class PasswordTextField extends StatefulWidget {
   final String? errorText;
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
+  final List<TextInputFormatter>? inputFormatters;
 
-  const PasswordTextField({super.key, this.controller, this.labelText, this.hintText, this.errorText, this.validator, this.onChanged});
+  const PasswordTextField({
+    super.key,
+    this.controller,
+    this.labelText,
+    this.hintText,
+    this.errorText,
+    this.validator,
+    this.onChanged,
+    this.inputFormatters,
+  });
 
   @override
   State<PasswordTextField> createState() => _PasswordTextFieldState();
@@ -208,6 +218,7 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
       keyboardType: TextInputType.visiblePassword,
       validator: widget.validator,
       onChanged: widget.onChanged,
+      inputFormatters: widget.inputFormatters,
       prefixIcon: const Icon(Icons.lock_outline),
       suffixIcon: IconButton(
         icon: AnimatedSwitcher(

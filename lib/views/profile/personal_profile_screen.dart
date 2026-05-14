@@ -157,12 +157,8 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.accent.withOpacity(0.15), width: 1),
-            ),
-            child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 20),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
         ),
@@ -240,24 +236,9 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                   const SizedBox(height: 24),
                   _sectionLabel('Menu'),
                   const SizedBox(height: 12),
-                  _menuRow(
-                    icon: Icons.favorite_outline,
-                    title: 'Favorites',
-                    subtitle: 'View your favorite posts and users',
-                    onTap: () => Get.toNamed(AppRoutes.favorites),
-                  ),
-                  _menuRow(
-                    icon: Icons.bookmark_outline,
-                    title: 'Saved Posts',
-                    subtitle: 'Access your saved posts',
-                    onTap: () => Get.toNamed(AppRoutes.savedPosts),
-                  ),
-                  _menuRow(
-                    icon: Icons.chat_bubble_outline,
-                    title: 'Chat',
-                    subtitle: 'View your conversations',
-                    onTap: () => Get.to(() => const ChatListScreen()),
-                  ),
+                  _menuRow(icon: Icons.favorite_outline, title: 'Favorites', subtitle: 'View your favorite posts and users', onTap: () => Get.toNamed(AppRoutes.favorites)),
+                  _menuRow(icon: Icons.bookmark_outline, title: 'Saved Posts', subtitle: 'Access your saved posts', onTap: () => Get.toNamed(AppRoutes.savedPosts)),
+                  _menuRow(icon: Icons.chat_bubble_outline, title: 'Chat', subtitle: 'View your conversations', onTap: () => Get.to(() => const ChatListScreen())),
                   _menuRow(
                     icon: Icons.receipt_long_outlined,
                     title: 'Transaction History',
@@ -293,13 +274,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
             ),
             child: ClipOval(
               child: url != null && url.isNotEmpty
-                  ? Image.network(
-                      url,
-                      width: 92,
-                      height: 92,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Image.asset('assets/images/profile00.png', width: 48, height: 48),
-                    )
+                  ? Image.network(url, width: 92, height: 92, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Image.asset('assets/images/profile00.png', width: 48, height: 48))
                   : Image.asset('assets/images/profile00.png', width: 48, height: 48),
             ),
           ),

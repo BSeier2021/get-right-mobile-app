@@ -6,6 +6,7 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/no_emoji_input_formatter.dart';
 import 'package:get_right/widgets/common/custom_button.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
 
@@ -201,6 +202,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                             prefixIcon: const Icon(Icons.email_outlined),
                             validator: _validateEmail,
                             onChanged: (value) => setState(() {}),
+                            inputFormatters: kNoEmojiInputFormatters,
                           ),
                           const SizedBox(height: 15),
 
@@ -213,6 +215,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                             hintText: 'Enter your password',
                             validator: _validatePassword,
                             onChanged: (value) => setState(() {}),
+                            inputFormatters: kNoEmojiInputFormatters,
                           ),
                           const SizedBox(height: 15),
 
@@ -225,6 +228,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                             hintText: 'Confirm your password',
                             validator: _validateConfirmPassword,
                             onChanged: (value) => setState(() {}),
+                            inputFormatters: kNoEmojiInputFormatters,
                           ),
                           const SizedBox(height: 16),
 

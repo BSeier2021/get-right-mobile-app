@@ -10,6 +10,7 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/no_emoji_input_formatter.dart';
 import 'package:get_right/widgets/common/custom_button.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
 
@@ -243,6 +244,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                             controller: _fullNameController,
                             hintText: 'Enter your full name',
                             suffixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.onBackground, size: 21),
+                            inputFormatters: kNoEmojiInputFormatters,
                           ),
                           const SizedBox(height: 12),
                           _buildSimpleLabel('Date Of Birth'),
@@ -256,6 +258,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                             hintText: 'Enter your phone number',
                             keyboardType: TextInputType.phone,
                             suffixIcon: const Icon(Icons.phone_outlined, color: AppColors.onBackground, size: 21),
+                            inputFormatters: kNoEmojiInputFormatters,
                           ),
                           const SizedBox(height: 12),
                           _buildSimpleLabel('Gender'),

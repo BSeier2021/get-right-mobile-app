@@ -71,6 +71,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     });
   }
 
+  /// Pull-to-refresh: reload featured / new releases, browse programs, then bundles (uses updated catalog).
+  Future<void> _refreshMarketplace() async {
+    await Future.wait([_loadMarketplaceSections(), _loadBrowsePrograms(reset: true)]);
+    if (!mounted) return;
+    await _loadMarketplaceBundles();
+  }
+
   @override
   void dispose() {
     _homeTabWorker?.dispose();
@@ -1445,203 +1452,207 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             ).paddingOnly(right: 5),
           ],
         ),
-        body: SingleChildScrollView(
-          controller: _marketplaceScrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // WEEKLY FREE WORKOUT BANNER
-              _buildWeeklyFreeWorkoutBanner(),
+        body: RefreshIndicator(
+          color: AppColors.accent,
+          onRefresh: _refreshMarketplace,
+          child: SingleChildScrollView(
+            controller: _marketplaceScrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // WEEKLY FREE WORKOUT BANNER
+                _buildWeeklyFreeWorkoutBanner(),
 
-              if (_marketplaceSectionsError != null && featuredPrograms.isEmpty && newReleases.isEmpty)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text('Could not load marketplace sections.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-                      const SizedBox(height: 8),
-                      Text(
-                        _marketplaceSectionsError!,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-                      ),
-                      TextButton(
-                        onPressed: _loadMarketplaceSections,
-                        child: Text(
-                          'Retry',
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                if (_marketplaceSectionsError != null && featuredPrograms.isEmpty && newReleases.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text('Could not load marketplace sections.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
+                        const SizedBox(height: 8),
+                        Text(
+                          _marketplaceSectionsError!,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // FEATURED SECTION — `GET .../marketplace/sections?section=featured`
-              _buildFeaturedSection(featuredPrograms, loading: _marketplaceSectionsLoading && featuredPrograms.isEmpty),
-
-              SizedBox(height: 24.h),
-              // BUNDLES — `GET /customer/bundle`
-              if (_bundlesLoading && _apiBundles.isEmpty)
-                Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32.h),
-                  child: const Center(child: CircularProgressIndicator(color: AppColors.accent)),
-                )
-              else if (_bundlesError != null && _apiBundles.isEmpty)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 8.h),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text('Could not load bundles.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-                      SizedBox(height: 6.h),
-                      Text(
-                        _bundlesError!,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-                      ),
-                      TextButton(
-                        onPressed: _loadMarketplaceBundles,
-                        child: Text(
-                          'Retry',
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                        TextButton(
+                          onPressed: _loadMarketplaceSections,
+                          child: Text(
+                            'Retry',
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                )
-              else
-                _buildBundlesSection(filteredBundles),
 
-              SizedBox(height: 24.h),
-              // NEW RELEASES — `GET .../marketplace/sections?section=new_releases`
-              _buildHorizontalSection('New Releases', Icons.fiber_new_rounded, newReleases, loading: _marketplaceSectionsLoading && newReleases.isEmpty),
+                // FEATURED SECTION — `GET .../marketplace/sections?section=featured`
+                _buildFeaturedSection(featuredPrograms, loading: _marketplaceSectionsLoading && featuredPrograms.isEmpty),
 
-              SizedBox(height: 24.h),
+                SizedBox(height: 24.h),
+                // BUNDLES — `GET /customer/bundle`
+                if (_bundlesLoading && _apiBundles.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32.h),
+                    child: const Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                  )
+                else if (_bundlesError != null && _apiBundles.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 8.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text('Could not load bundles.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
+                        SizedBox(height: 6.h),
+                        Text(
+                          _bundlesError!,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                        ),
+                        TextButton(
+                          onPressed: _loadMarketplaceBundles,
+                          child: Text(
+                            'Retry',
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  _buildBundlesSection(filteredBundles),
 
-              // Active filters indicator
-              if (hasActiveFilters) ...[
+                SizedBox(height: 24.h),
+                // NEW RELEASES — `GET .../marketplace/sections?section=new_releases`
+                _buildHorizontalSection('New Releases', Icons.fiber_new_rounded, newReleases, loading: _marketplaceSectionsLoading && newReleases.isEmpty),
+
+                SizedBox(height: 24.h),
+
+                // Active filters indicator
+                if (hasActiveFilters) ...[
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        Text(
+                          'Active Filters: ',
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                        ),
+                        if (_sortBy != 'Featured') _buildFilterChip(_sortBy, () => setState(() => _sortBy = 'Featured')),
+                        if (_selectedCategory != 'All') _buildFilterChip(_selectedCategory, () => setState(() => _selectedCategory = 'All')),
+                        if (_selectedDifficulty != 'All') _buildFilterChip(_selectedDifficulty, () => setState(() => _selectedDifficulty = 'All')),
+                        if (_selectedDuration != 'All') _buildFilterChip(_selectedDuration, () => setState(() => _selectedDuration = 'All')),
+                        if (_showCertifiedOnly) _buildFilterChip('Certified', () => setState(() => _showCertifiedOnly = false)),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
+                ],
+
+                // MARKETPLACE GRID - All Programs
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Active Filters: ',
-                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                        'All Programs',
+                        style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w700),
                       ),
-                      if (_sortBy != 'Featured') _buildFilterChip(_sortBy, () => setState(() => _sortBy = 'Featured')),
-                      if (_selectedCategory != 'All') _buildFilterChip(_selectedCategory, () => setState(() => _selectedCategory = 'All')),
-                      if (_selectedDifficulty != 'All') _buildFilterChip(_selectedDifficulty, () => setState(() => _selectedDifficulty = 'All')),
-                      if (_selectedDuration != 'All') _buildFilterChip(_selectedDuration, () => setState(() => _selectedDuration = 'All')),
-                      if (_showCertifiedOnly) _buildFilterChip('Certified', () => setState(() => _showCertifiedOnly = false)),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                        child: Text(
+                          catalogCountLabel,
+                          style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 SizedBox(height: 16.h),
-              ],
 
-              // MARKETPLACE GRID - All Programs
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'All Programs',
-                      style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF000000), fontWeight: FontWeight.w700),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                      child: Text(
-                        catalogCountLabel,
-                        style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 16.h),
-
-              // Programs Grid — `GET /marketplace/programs`
-              if (_browseProgramsLoading && _browsePrograms.isEmpty)
-                Padding(
-                  padding: EdgeInsets.symmetric(vertical: 48.h),
-                  child: const Center(child: CircularProgressIndicator(color: AppColors.accent)),
-                )
-              else if (_browseProgramsError != null && _browsePrograms.isEmpty)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 24.h),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text('Could not load programs.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
-                      SizedBox(height: 8.h),
-                      Text(
-                        _browseProgramsError!,
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-                      ),
-                      TextButton(
-                        onPressed: () => _loadBrowsePrograms(reset: true),
-                        child: Text(
-                          'Retry',
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else if (filteredPrograms.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(40.w),
+                // Programs Grid — `GET /marketplace/programs`
+                if (_browseProgramsLoading && _browsePrograms.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48.h),
+                    child: const Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                  )
+                else if (_browseProgramsError != null && _browsePrograms.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 24.h),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
-                        SizedBox(height: 16.h),
-                        Text(_browsePrograms.isEmpty ? 'No programs available' : 'No programs found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+                        Text('Could not load programs.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground)),
                         SizedBox(height: 8.h),
-                        if (_browsePrograms.isNotEmpty)
-                          TextButton(
-                            onPressed: () => setState(() {
-                              _selectedCategory = 'All';
-                              _selectedDifficulty = 'All';
-                              _selectedDuration = 'All';
-                              _sortBy = 'Featured';
-                              _showCertifiedOnly = false;
-                            }),
-                            child: const Text('Clear Filters'),
-                          )
-                        else
-                          TextButton(onPressed: () => _loadBrowsePrograms(reset: true), child: const Text('Retry')),
+                        Text(
+                          _browseProgramsError!,
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                        ),
+                        TextButton(
+                          onPressed: () => _loadBrowsePrograms(reset: true),
+                          child: Text(
+                            'Retry',
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildProgramsGrid(filteredPrograms),
-                    if (_browseProgramsLoadingMore)
-                      Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16.h),
-                        child: const Center(
-                          child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
-                        ),
+                  )
+                else if (filteredPrograms.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40.w),
+                      child: Column(
+                        children: [
+                          Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+                          SizedBox(height: 16.h),
+                          Text(_browsePrograms.isEmpty ? 'No programs available' : 'No programs found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+                          SizedBox(height: 8.h),
+                          if (_browsePrograms.isNotEmpty)
+                            TextButton(
+                              onPressed: () => setState(() {
+                                _selectedCategory = 'All';
+                                _selectedDifficulty = 'All';
+                                _selectedDuration = 'All';
+                                _sortBy = 'Featured';
+                                _showCertifiedOnly = false;
+                              }),
+                              child: const Text('Clear Filters'),
+                            )
+                          else
+                            TextButton(onPressed: () => _loadBrowsePrograms(reset: true), child: const Text('Retry')),
+                        ],
                       ),
-                  ],
-                ),
+                    ),
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildProgramsGrid(filteredPrograms),
+                      if (_browseProgramsLoadingMore)
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16.h),
+                          child: const Center(
+                            child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+                          ),
+                        ),
+                    ],
+                  ),
 
-              SizedBox(height: 24.h),
-            ],
+                SizedBox(height: 24.h),
+              ],
+            ),
           ),
         ),
       ),
