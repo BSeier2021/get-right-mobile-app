@@ -1,16 +1,14 @@
+import 'dart:async' show unawaited;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-
 import 'package:get/get.dart';
-
 import 'package:get_right/controllers/feed_publish_controller.dart';
 import 'package:get_right/models/feed_category_model.dart';
 import 'package:get_right/theme/color_constants.dart';
-
 import 'package:get_right/theme/text_styles.dart';
-
 import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
 
 /// Create Post Screen — media picker + form; publish logic in [FeedPublishController].
 
@@ -39,7 +37,77 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   bool _isVideo = false;
 
-  @override
+  VideoPlayerController? _videoPreviewController;
+  String? _videoPreviewPath;
+  String? _videoPreviewInitError;
+
+  void _videoPreviewListener() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _disposeVideoPreview() async {
+    final c = _videoPreviewController;
+    _videoPreviewController = null;
+    _videoPreviewPath = null;
+    _videoPreviewInitError = null;
+    if (c == null) return;
+    c.removeListener(_videoPreviewListener);
+    try {
+      await c.dispose();
+    } catch (_) {}
+  }
+
+  /// Local file preview for gallery/camera video (not [Image.file]).
+  Future<void> _syncVideoPreview() async {
+    final path = (_isVideo && _selectedMedia != null) ? _selectedMedia!.path.trim() : null;
+    if (path == null || path.isEmpty) {
+      await _disposeVideoPreview();
+      if (mounted) setState(() {});
+      return;
+    }
+    if (_videoPreviewPath == path && _videoPreviewController != null && _videoPreviewController!.value.isInitialized) {
+      return;
+    }
+
+    await _disposeVideoPreview();
+    _videoPreviewPath = path;
+    _videoPreviewInitError = null;
+
+    final controller = VideoPlayerController.file(File(path));
+    _videoPreviewController = controller;
+    controller.addListener(_videoPreviewListener);
+
+    try {
+      await controller.initialize();
+      if (!mounted || _videoPreviewPath != path || _videoPreviewController != controller) {
+        controller.removeListener(_videoPreviewListener);
+        await controller.dispose();
+        if (_videoPreviewController == controller) _videoPreviewController = null;
+        return;
+      }
+      await controller.setLooping(true);
+      if (mounted) setState(() {});
+    } catch (e) {
+      controller.removeListener(_videoPreviewListener);
+      await controller.dispose();
+      if (_videoPreviewController == controller) _videoPreviewController = null;
+      _videoPreviewPath = null;
+      _videoPreviewInitError = e.toString();
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _toggleVideoPreviewPlayback() {
+    final c = _videoPreviewController;
+    if (c == null || !c.value.isInitialized) return;
+    if (c.value.isPlaying) {
+      c.pause();
+    } else {
+      c.play();
+    }
+    setState(() {});
+  }
+
   void initState() {
     super.initState();
 
@@ -60,6 +128,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   void dispose() {
+    final c = _videoPreviewController;
+    _videoPreviewController = null;
+    if (c != null) {
+      c.removeListener(_videoPreviewListener);
+      unawaited(c.dispose());
+    }
+
     _titleController.dispose();
 
     _descriptionController.dispose();
@@ -79,6 +154,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
           _isVideo = false;
         });
+        unawaited(_disposeVideoPreview());
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to pick image: $e', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
@@ -95,6 +171,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
           _isVideo = true;
         });
+        await _syncVideoPreview();
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to pick video: $e', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
@@ -111,6 +188,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
           _isVideo = true;
         });
+        await _syncVideoPreview();
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to record video: $e', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
@@ -160,6 +238,74 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       }
       _tagsController.clear();
     });
+  }
+
+  Widget _buildVideoPreviewPanel() {
+    final err = _videoPreviewInitError;
+    if (err != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white54, size: 48),
+              const SizedBox(height: 12),
+              Text(
+                'Could not play preview',
+                style: AppTextStyles.titleSmall.copyWith(color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                err,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodySmall.copyWith(color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final c = _videoPreviewController;
+    if (c == null || !c.value.isInitialized) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+    }
+
+    final v = c.value;
+    final w = v.size.width;
+    final h = v.size.height;
+
+    final Widget videoChild;
+    if (w > 0 && h > 0) {
+      videoChild = FittedBox(
+        fit: BoxFit.contain,
+        child: SizedBox(width: w, height: h, child: VideoPlayer(c)),
+      );
+    } else {
+      final ar = v.aspectRatio;
+      videoChild = AspectRatio(aspectRatio: ar > 0 && !ar.isNaN ? ar : 16 / 9, child: VideoPlayer(c));
+    }
+
+    return GestureDetector(
+      onTap: _toggleVideoPreviewPlayback,
+      behavior: HitTestBehavior.opaque,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Center(child: videoChild),
+          if (!v.isPlaying)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(color: Colors.black.withOpacity(0.55), shape: BoxShape.circle),
+              child: const Icon(Icons.play_arrow, color: Colors.white, size: 50),
+            ),
+        ],
+      ),
+    );
   }
 
   String _phaseLabel(FeedPublishController c) {
@@ -287,29 +433,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
                             color: Colors.black,
 
-                            child: _isVideo
-                                ? Stack(
-                                    alignment: Alignment.center,
-
-                                    children: [
-                                      Image.file(
-                                        File(_selectedMedia!.path),
-
-                                        fit: BoxFit.contain,
-
-                                        errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.videocam, size: 100, color: Colors.white54)),
-                                      ),
-
-                                      Container(
-                                        padding: const EdgeInsets.all(20),
-
-                                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
-
-                                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 50),
-                                      ),
-                                    ],
-                                  )
-                                : Image.file(File(_selectedMedia!.path), fit: BoxFit.contain),
+                            child: _isVideo ? _buildVideoPreviewPanel() : Image.file(File(_selectedMedia!.path), fit: BoxFit.contain),
                           ),
 
                           Positioned(
