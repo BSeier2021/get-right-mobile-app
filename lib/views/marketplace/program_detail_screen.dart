@@ -98,8 +98,20 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   }
 
   void _syncEnrollmentFromProgram() {
-    final status = _safeProgram['status']?.toString().toLowerCase().trim();
-    _isEnrolled = _safeProgram['isEnrolled'] == true || _safeProgram['purchased'] == true || status == 'completed' || status == 'active' || status == 'scheduled';
+    if (_safeProgram['isEnrolled'] == true || _safeProgram['purchased'] == true) {
+      _isEnrolled = true;
+      return;
+    }
+    final enc = _safeProgram['enrollment'];
+    if (enc is Map) {
+      final id = enc['_id']?.toString().trim();
+      if (id != null && id.isNotEmpty && _mongoIdRe.hasMatch(id)) {
+        _isEnrolled = true;
+        return;
+      }
+    }
+    // Program catalog `status` (e.g. published / active listing) must not imply the viewer is enrolled.
+    _isEnrolled = false;
   }
 
   void _hydrateRatingFromProgram() {
@@ -161,7 +173,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     });
   }
 
-  bool get _isCompletedProgram => _safeProgram['status'] == 'completed';
+  bool get _isCompletedProgram =>
+      (_safeProgram['isEnrolled'] == true || _safeProgram['purchased'] == true) && _safeProgram['status']?.toString().toLowerCase().trim() == 'completed';
 
   String _formatScheduleDate(dynamic raw) {
     if (raw == null) return '—';

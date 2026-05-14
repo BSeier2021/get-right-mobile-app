@@ -312,7 +312,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       'price': _effectivePrice(m),
       'discount': m['discount'],
       'imageUrl': imageUrl,
-      'status': 'active',
+      // Do not set a fake enrollment-like status; [ProgramDetailScreen] uses flags + enrollment object only.
+      if (m['status'] != null) 'status': m['status'],
     };
   }
 
