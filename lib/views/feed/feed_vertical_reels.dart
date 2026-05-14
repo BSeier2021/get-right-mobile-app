@@ -41,7 +41,8 @@ class FeedVerticalReels extends StatefulWidget {
   final Widget Function(BuildContext context, Map<String, dynamic> post) backdropForPost;
 
   /// Gradient, actions, captions — paints above video.
-  final Widget Function(BuildContext context, Map<String, dynamic> post, int index) overlay;
+  /// [videoController] is the reel at [index] when initialized (same as video layer).
+  final Widget Function(BuildContext context, Map<String, dynamic> post, int index, VideoPlayerController? videoController) overlay;
 
   @override
   State<FeedVerticalReels> createState() => _FeedVerticalReelsState();
@@ -489,7 +490,7 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
                 ],
               ),
 
-            widget.overlay(context, post, index),
+            widget.overlay(context, post, index, hasVideo ? _controllers[index] : null),
 
             if (hasVideo && (_isPlaying[index] != true))
               Center(

@@ -382,7 +382,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           onNearEndIndex: _queueLoadMoreForYouIfNeeded,
           resolvePlaybackUrl: playbackUrlForFeedPost,
           backdropForPost: (ctx, post) => FeedReelBackdrop(post: post),
-          overlay: (ctx, post, index) => FeedReelChromeOverlay(post: post),
+          overlay: (ctx, post, index, controller) => FeedReelChromeOverlay(post: post, videoController: controller),
         );
       },
     );
@@ -423,7 +423,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           onNearEndIndex: _queueLoadMoreFollowingIfNeeded,
           resolvePlaybackUrl: playbackUrlForFeedPost,
           backdropForPost: (ctx, post) => FeedReelBackdrop(post: post),
-          overlay: (ctx, post, index) => FeedReelChromeOverlay(post: post),
+          overlay: (ctx, post, index, controller) => FeedReelChromeOverlay(post: post, videoController: controller),
         );
       },
     );

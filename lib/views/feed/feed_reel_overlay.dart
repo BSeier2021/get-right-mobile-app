@@ -7,6 +7,18 @@ import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:video_player/video_player.dart';
+
+/// Remaining playback time for the reel timer (e.g. `18s`, `1:05`).
+String formatFeedReelRemainingLabel(Duration remaining) {
+  final ms = remaining.inMilliseconds;
+  if (ms <= 0) return '0s';
+  final totalSec = (ms + 999) ~/ 1000;
+  if (totalSec < 60) return '${totalSec}s';
+  final m = totalSec ~/ 60;
+  final s = totalSec % 60;
+  return '$m:${s.toString().padLeft(2, '0')}';
+}
 
 String formatFeedInteractionCount(int count) {
   if (count >= 1000000) {
@@ -131,9 +143,10 @@ class FeedReelBackdrop extends StatelessWidget {
 
 /// Like / comment / caption overlay used on reels (tap-through gradient).
 class FeedReelChromeOverlay extends StatefulWidget {
-  const FeedReelChromeOverlay({super.key, required this.post});
+  const FeedReelChromeOverlay({super.key, required this.post, this.videoController});
 
   final Map<String, dynamic> post;
+  final VideoPlayerController? videoController;
 
   @override
   State<FeedReelChromeOverlay> createState() => _FeedReelChromeOverlayState();
@@ -299,6 +312,14 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     );
   }
 
+  Widget _playbackDurationBadge() {
+    final fallback = (_post['duration'] ?? '30s').toString();
+    return _FeedReelPlaybackTimer(
+      controller: widget.videoController,
+      fallbackText: fallback,
+    );
+  }
+
   Widget _buildVerticalInteractionSvgButton({required String assetPath, required int count, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
@@ -354,10 +375,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
               children: [
                 Image.asset('assets/images/play.png', width: 15),
                 SizedBox(width: 4.w),
-                Text(
-                  _post['duration'] ?? '30s',
-                  style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 15.sp, fontWeight: FontWeight.w600),
-                ),
+                _playbackDurationBadge(),
               ],
             ),
           ),
@@ -547,6 +565,61 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _FeedReelPlaybackTimer extends StatefulWidget {
+  const _FeedReelPlaybackTimer({required this.controller, required this.fallbackText});
+
+  final VideoPlayerController? controller;
+  final String fallbackText;
+
+  @override
+  State<_FeedReelPlaybackTimer> createState() => _FeedReelPlaybackTimerState();
+}
+
+class _FeedReelPlaybackTimerState extends State<_FeedReelPlaybackTimer> {
+  void _onVideoTick() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller?.addListener(_onVideoTick);
+  }
+
+  @override
+  void didUpdateWidget(_FeedReelPlaybackTimer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.removeListener(_onVideoTick);
+      widget.controller?.addListener(_onVideoTick);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller?.removeListener(_onVideoTick);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    String label = widget.fallbackText;
+    if (c != null && c.value.isInitialized) {
+      final d = c.value.duration;
+      if (d > Duration.zero) {
+        var rem = d - c.value.position;
+        if (rem.isNegative) rem = Duration.zero;
+        label = formatFeedReelRemainingLabel(rem);
+      }
+    }
+    return Text(
+      label,
+      style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 15.sp, fontWeight: FontWeight.w600),
     );
   }
 }

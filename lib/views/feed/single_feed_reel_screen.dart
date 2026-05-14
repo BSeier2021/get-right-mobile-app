@@ -135,7 +135,7 @@ class _SingleFeedReelScreenState extends State<SingleFeedReelScreen> {
                   onNearEndIndex: (_) {},
                   resolvePlaybackUrl: playbackUrlForFeedPost,
                   backdropForPost: (ctx, post) => FeedReelBackdrop(post: post),
-                  overlay: (ctx, post, index) => FeedReelChromeOverlay(post: post),
+                  overlay: (ctx, post, index, controller) => FeedReelChromeOverlay(post: post, videoController: controller),
                 ),
                 SafeArea(
                   child: Align(
