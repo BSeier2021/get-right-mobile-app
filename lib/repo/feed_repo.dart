@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:get_right/app_url.dart';
 import 'package:get_right/network/network_services.dart';
 
@@ -144,19 +146,46 @@ class FeedRepository {
     return _network.delete(AppUrl.feedCommentById(feedId, commentId));
   }
 
-  /// `POST /user/feed`
+  /// `POST /user/feed` — JSON body. Use [status] `Draft` when media is attached afterward (e.g. video multipart).
   Future<dynamic> createFeedRepo({
     required String title,
     required String description,
     required String categoryId,
     required List<String> tags,
+    String? status,
   }) async {
-    return _network.post(AppUrl.feedCreate, {
-      'title': title,
-      'description': description,
-      'category': categoryId,
+    final body = <String, dynamic>{
+      'title': title.trim(),
+      'description': description.trim(),
+      'category': categoryId.trim(),
       'tags': tags,
-    });
+    };
+    final st = status?.trim();
+    if (st != null && st.isNotEmpty) {
+      body['status'] = st;
+    }
+    return _network.post(AppUrl.feedCreate, body);
+  }
+
+  /// `POST /user/feed` — multipart when publishing with at least one image (backend rejects Published without media).
+  Future<dynamic> createFeedWithImagesMultipartRepo({
+    required String title,
+    required String description,
+    required String categoryId,
+    required List<String> tags,
+    required File imageFile,
+  }) async {
+    return _network.postMultipart(
+      url: AppUrl.feedCreate,
+      fields: <String, dynamic>{
+        'title': title.trim(),
+        'description': description.trim(),
+        'category': categoryId.trim(),
+        'tags[]': tags,
+        'status': 'Published',
+      },
+      files: <String, List<File>>{'images': <File>[imageFile]},
+    );
   }
 
   /// `POST /user/feed/:feedId/video/multipart/init`

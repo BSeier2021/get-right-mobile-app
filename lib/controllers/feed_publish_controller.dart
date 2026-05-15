@@ -8,6 +8,7 @@ import 'package:get_right/repo/auth_repo.dart';
 import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/controllers/feed_video_upload_controller.dart';
 import 'package:get_right/theme/color_constants.dart';
+import 'package:get_right/utils/feed_post_mapper.dart';
 
 List<String> parseFeedTagsInput(String raw) {
   return raw
@@ -88,7 +89,101 @@ class FeedPublishController extends GetxController {
     return s;
   }
 
-  /// Full publish: [isVideo] runs multipart pipeline after create; photos only create the feed draft.
+  Map<String, dynamic>? _feedDocFromGetResponse(dynamic response) {
+    if (response is! Map) return null;
+    final data = response['data'];
+    if (data is! Map) return null;
+    final feed = data['feed'];
+    if (feed is! Map) return null;
+    return Map<String, dynamic>.from(feed);
+  }
+
+  bool _feedVideoProcessingFailed(Map<String, dynamic> feed) {
+    final st = (feed['videoProcessingStatus'] ?? '').toString().toLowerCase();
+    if (st.isEmpty) return false;
+    return st.contains('fail') || st.contains('error') || st == 'cancelled' || st == 'canceled';
+  }
+
+  bool _feedVideoReadyForPublish(Map<String, dynamic> feed) {
+    final video = feed['video'];
+    if (video is Map) {
+      final vm = Map<String, dynamic>.from(video);
+      final url = extractFeedVideoUrl(feed, vm);
+      if (url != null && url.trim().isNotEmpty) return true;
+    }
+    final st = (feed['videoProcessingStatus'] ?? '').toString().toLowerCase().trim();
+    return st == 'ready' ||
+        st == 'completed' ||
+        st == 'complete' ||
+        st == 'succeeded' ||
+        st == 'success' ||
+        st == 'done';
+  }
+
+  /// Returns `true` if the reel is live (`Published`). `false` if we stopped waiting (still draft / processing).
+  Future<bool> _waitForVideoReadyThenPublish({
+    required String feedId,
+    required String title,
+    required String description,
+    required String categoryId,
+    required List<String> tags,
+  }) async {
+    const poll = Duration(seconds: 2);
+    const maxAttempts = 150;
+
+    publishPhase.value = 'processing';
+
+    for (var i = 0; i < maxAttempts; i++) {
+      if (i > 0) await Future<void>.delayed(poll);
+
+      Map<String, dynamic>? doc;
+      try {
+        final raw = await _feed.getFeedByIdRepo(feedId);
+        doc = _feedDocFromGetResponse(raw);
+      } catch (_) {
+        continue;
+      }
+      if (doc == null) continue;
+
+      if (_feedVideoProcessingFailed(doc)) {
+        throw StateError(
+          'Video processing failed. You can open this post from your profile to try again.',
+        );
+      }
+
+      final statusNorm = (doc['status'] ?? '').toString().toLowerCase().trim();
+      if (statusNorm == 'published') {
+        return true;
+      }
+
+      if (_feedVideoReadyForPublish(doc)) {
+        try {
+          await _feed.updateFeedRepo(
+            feedId: feedId,
+            title: title.trim(),
+            description: description.trim(),
+            categoryId: categoryId,
+            tags: tags,
+            status: 'Published',
+          );
+          return true;
+        } catch (e) {
+          final msg = e.toString();
+          if (msg.contains('Cannot set Published') || msg.contains('ready video')) {
+            continue;
+          }
+          rethrow;
+        }
+      }
+
+      uploadProgress.value = (0.92 + 0.07 * (i + 1) / maxAttempts).clamp(0.0, 0.99);
+    }
+
+    return false;
+  }
+
+  /// Full publish: video = JSON create as `Draft`, multipart upload, poll until video is ready, then `PATCH` to `Published`;
+  /// photo = multipart create with image file (required for Published without video).
   Future<void> publish({
     required String mediaPath,
     required bool isVideo,
@@ -139,12 +234,31 @@ class FeedPublishController extends GetxController {
     publishPhase.value = 'creating';
 
     try {
-      final createRes = await _feed.createFeedRepo(
-        title: title.trim(),
-        description: description.trim(),
-        categoryId: categoryId,
-        tags: tags,
-      );
+      final dynamic createRes;
+      if (isVideo) {
+        createRes = await _feed.createFeedRepo(
+          title: title.trim(),
+          description: description.trim(),
+          categoryId: categoryId,
+          tags: tags,
+          status: 'Draft',
+        );
+      } else {
+        final imageFile = File(mediaPath);
+        if (!await imageFile.exists()) {
+          throw StateError('Image file not found.');
+        }
+        if (await imageFile.length() <= 0) {
+          throw StateError('Image file is empty.');
+        }
+        createRes = await _feed.createFeedWithImagesMultipartRepo(
+          title: title.trim(),
+          description: description.trim(),
+          categoryId: categoryId,
+          tags: tags,
+          imageFile: imageFile,
+        );
+      }
 
       final feedId = _feedIdFromCreate(createRes);
       if (feedId == null) {
@@ -158,8 +272,8 @@ class FeedPublishController extends GetxController {
         publishPhase.value = '';
         Get.back();
         Get.snackbar(
-          'Post created',
-          'Your feed entry was created.',
+          'Post published',
+          'Your photo post was published.',
           backgroundColor: AppColors.completed,
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,
@@ -215,16 +329,26 @@ class FeedPublishController extends GetxController {
         parts: uploaded.map((e) => e.toCompleteApiJson()).toList(),
       );
 
+      final published = await _waitForVideoReadyThenPublish(
+        feedId: feedId,
+        title: title.trim(),
+        description: description.trim(),
+        categoryId: categoryId,
+        tags: tags,
+      );
+
       uploadProgress.value = 1.0;
       publishPhase.value = '';
       Get.back();
       Get.snackbar(
-        'Post published',
-        'Your video was uploaded and is processing.',
+        published ? 'Post published' : 'Video uploaded',
+        published
+            ? 'Your reel is live.'
+            : 'Encoding is taking longer than usual. The post stays as a draft until the video is ready—open it from your profile and set status to Published when processing finishes.',
         backgroundColor: AppColors.completed,
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 3),
+        duration: Duration(seconds: published ? 3 : 5),
       );
     } catch (e) {
       publishPhase.value = '';

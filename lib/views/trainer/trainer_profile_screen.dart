@@ -324,7 +324,13 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       imageUrl = promo['url']?.toString();
     }
     final id = (m['_id'] ?? m['id'])?.toString() ?? '';
-    return {'_id': id, 'id': id, 'title': (m['title'] ?? m['name'] ?? 'Bundle').toString(), 'price': _effectivePrice(m), 'imageUrl': imageUrl ?? m['imageUrl']?.toString()};
+    return {
+      '_id': id,
+      'id': id,
+      'title': (m['title'] ?? m['name'] ?? 'Bundle').toString(),
+      'price': _effectivePrice(m),
+      'imageUrl': imageUrl ?? m['imageUrl']?.toString(),
+    };
   }
 
   List<Map<String, dynamic>> _parseProgramsList(dynamic raw, {required String trainerName}) {
@@ -490,7 +496,9 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                         backgroundImage: (_avatarNetworkUrl != null && _avatarNetworkUrl!.startsWith('http'))
                             ? NetworkImage(ImageUrlSanitizer.asHttpUrlOrFallback(_avatarNetworkUrl!))
                             : null,
-                        child: (_avatarNetworkUrl == null || !_avatarNetworkUrl!.startsWith('http')) ? Icon(Icons.person, size: 50, color: AppColors.accent) : null,
+                        child: (_avatarNetworkUrl == null || !_avatarNetworkUrl!.startsWith('http'))
+                            ? Icon(Icons.person, size: 50, color: AppColors.accent)
+                            : null,
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -503,46 +511,52 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
               ],
             ),
           ),
-          const SizedBox(height: 24),
           // Bio Section
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _displayName,
-                      style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(_displayBio, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.8), height: 1.6)),
-                  ],
-                ),
-              ),
-              if (_showFollowButton)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: TextButton(
-                    onPressed: _followActionLoading ? null : _onFollowPressed,
-                    style: TextButton.styleFrom(
-                      backgroundColor: _isFollowedByMe ? AppColors.primaryGray.withOpacity(0.2) : AppColors.accent,
-                      foregroundColor: _isFollowedByMe ? AppColors.onSurface : AppColors.onAccent,
-                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    ),
-                    child: _followActionLoading
-                        ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _isFollowedByMe ? AppColors.accent : AppColors.onAccent))
-                        : Text(
-                            _isFollowedByMe ? 'Following' : 'Follow',
-                            style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
-                          ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Text(
+                    _displayName,
+                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: Get.width * 0.9,
+                    child: Text(_displayBio, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.8), height: 1.6)),
+                  ),
+                  if (_showFollowButton)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: TextButton(
+                        onPressed: _followActionLoading ? null : _onFollowPressed,
+                        style: TextButton.styleFrom(
+                          backgroundColor: _isFollowedByMe ? AppColors.primaryGray.withOpacity(0.2) : AppColors.accent,
+                          foregroundColor: _isFollowedByMe ? AppColors.onSurface : AppColors.onAccent,
+                          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        ),
+                        child: _followActionLoading
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: _isFollowedByMe ? AppColors.accent : AppColors.onAccent),
+                              )
+                            : Text(
+                                _isFollowedByMe ? 'Following' : 'Follow',
+                                style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
+                              ),
+                      ),
+                    ),
+                ],
+              ),
             ],
-          ),
+          ).paddingOnly(left: 30),
+
           const SizedBox(height: 24),
           // Posts Grid
           Padding(
@@ -619,14 +633,22 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Container(
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)]),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)],
+                            ),
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                       )
                     : Container(
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)]),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)],
+                          ),
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
@@ -687,7 +709,10 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                     height: 200.h,
                     child: bundlesToShow.isEmpty
                         ? Center(
-                            child: Text(id != null ? 'No bundles listed' : 'No bundles', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                            child: Text(
+                              id != null ? 'No bundles listed' : 'No bundles',
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+                            ),
                           )
                         : ListView.builder(
                             scrollDirection: Axis.horizontal,
@@ -984,7 +1009,10 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                                     style: AppTextStyles.titleLarge.copyWith(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                                   ),
                                   const SizedBox(height: 4),
-                                  Text('Get direct contact details', style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withOpacity(0.9), fontSize: 13)),
+                                  Text(
+                                    'Get direct contact details',
+                                    style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withOpacity(0.9), fontSize: 13),
+                                  ),
                                 ],
                               ),
                             ),
@@ -1494,7 +1522,12 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                 const SizedBox(height: 24),
                 _buildContactCard(Icons.phone_rounded, 'Phone', '+1 (555) 123-4567', AppColors.accent),
                 const SizedBox(height: 12),
-                _buildContactCard(Icons.email_rounded, 'Email', '${trainer['name'].toString().toLowerCase().replaceAll(' ', '.')}@fitness.com', AppColors.accentVariant),
+                _buildContactCard(
+                  Icons.email_rounded,
+                  'Email',
+                  '${trainer['name'].toString().toLowerCase().replaceAll(' ', '.')}@fitness.com',
+                  AppColors.accentVariant,
+                ),
                 const SizedBox(height: 12),
                 _buildContactCard(Icons.location_on_rounded, 'Location', '123 Fitness Street, Gym City, GC 12345', AppColors.completed),
                 const SizedBox(height: 24),
@@ -1609,8 +1642,18 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
   List<Map<String, dynamic>> _getMockBundles() {
     return [
-      {'id': '1', 'title': 'Strength & Conditioning Bundle', 'price': 49.99, 'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop'},
-      {'id': '2', 'title': 'Complete Fitness Package', 'price': 79.99, 'imageUrl': 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=300&fit=crop'},
+      {
+        'id': '1',
+        'title': 'Strength & Conditioning Bundle',
+        'price': 49.99,
+        'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
+      },
+      {
+        'id': '2',
+        'title': 'Complete Fitness Package',
+        'price': 79.99,
+        'imageUrl': 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=300&fit=crop',
+      },
     ];
   }
 

@@ -322,6 +322,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       case 'finishing':
         return 'Finishing…';
 
+      case 'processing':
+        return 'Processing video…';
+
       default:
         return '';
     }

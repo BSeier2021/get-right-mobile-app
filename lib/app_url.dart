@@ -15,7 +15,6 @@ class AppUrl {
   /// `POST` multipart — fields: fullName, dateofbirth, gender, phoneNumber; file: profilePicture.
   static String createProfile = '$baseUrl/customer/profile/create';
 
-  /// `POST /user/auth/login` — body: email, password, deviceType, deviceToken.
   static String signIn = '$baseUrl/user/auth/login';
 
   /// `POST /user/auth/forget` — body: `{ "email": "..." }`; OTP sent to registered email.
@@ -53,7 +52,8 @@ class AppUrl {
   /// `GET /user/feed-categories` → `data.categories[]` (feed post categories).
   static String get feedCategories => '$baseUrl/user/feed-categories';
 
-  /// `POST /user/feed` — body: `title`, `description`, `category` (id), `tags` (string array).
+  /// `POST /user/feed` — JSON: `title`, `description`, `category` (id), `tags`, optional `status` (`Draft`|`Published`).
+  /// Image posts may use multipart on the same path (e.g. file field `images`).
   static String get feedCreate => '$baseUrl/user/feed';
 
   /// `GET /user/feed/mine` — query: `page`, `limit`. Authenticated user's own feed posts.
