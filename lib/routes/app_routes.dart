@@ -99,6 +99,8 @@ class AppRoutes {
   static const String createPost = '/create-post';
   static const String postDetail = '/post-detail';
   static const String savedPosts = '/saved-posts';
+  /// Server-backed saved reels (`GET /user/feed/save`).
+  static const String savedReels = '/saved-reels';
   static const String videoReel = '/video-reel';
   /// One reel fetched by id (same UX as feed tab reels).
   static const String feedSingleReel = '/feed/single-reel';

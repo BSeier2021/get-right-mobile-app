@@ -71,6 +71,9 @@ class AppUrl {
   /// `POST /user/feed/:feedId/save` — save reel (`message`: `Feed saved`). `DELETE` same path — unsave.
   static String feedSave(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/save';
 
+  /// `GET /user/feed/save` — paginated saved reels (`data.savedFeeds[]` with nested `feed`, `hasNextPage`, …).
+  static String get feedSavedList => '$baseUrl/user/feed/save';
+
   /// `GET /user/feed/:feedId/comments` — query: `page`, `limit`. `POST` body: `{ "text" }` → `data.comment`.
   static String feedComments(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/comments';
 

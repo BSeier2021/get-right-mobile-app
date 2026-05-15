@@ -616,17 +616,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: isSaved ? Colors.white : Colors.transparent,
-              shape: BoxShape.circle,
-              border: isSaved ? Border.all(color: Colors.white, width: 0) : null,
-            ),
-            alignment: Alignment.center,
-            child: SvgPicture.asset('assets/icons/save.svg', width: 24, height: 24, colorFilter: ColorFilter.mode(isSaved ? AppColors.accent : Colors.white, BlendMode.srcIn)),
-          ),
+          Icon(isSaved ? Icons.bookmark : Icons.bookmark_border, size: 28, color: isSaved ? AppColors.accent : Colors.white),
           const SizedBox(height: 6),
           Text(
             formatFeedInteractionCount(count),

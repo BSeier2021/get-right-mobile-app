@@ -126,6 +126,14 @@ class _AppDrawerState extends State<AppDrawer> {
                       },
                     ),
                   ),
+                  _drawerItem(
+                    fallbackIcon: Icons.bookmark_added_outlined,
+                    title: 'Save Reels',
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed(AppRoutes.savedReels);
+                    },
+                  ),
 
                   const SizedBox(height: 24),
 

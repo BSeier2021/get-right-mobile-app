@@ -93,6 +93,14 @@ class FeedRepository {
     return _network.delete(AppUrl.feedSave(feedId));
   }
 
+  /// `GET /user/feed/save` — paginated saved reels (`data.savedFeeds[].feed`, `hasNextPage`, …).
+  Future<dynamic> getSavedFeedsRepo({required int page, required int limit}) async {
+    return _network.get(
+      AppUrl.feedSavedList,
+      params: <String, dynamic>{'page': page, 'limit': limit},
+    );
+  }
+
   /// `GET /user/feed/:feedId/comments` — paginated comments (`data.comments`, `hasNextPage`, …).
   Future<dynamic> getFeedCommentsRepo({
     required String feedId,
