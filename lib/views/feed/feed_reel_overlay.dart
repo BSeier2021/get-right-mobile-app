@@ -172,6 +172,30 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
 
   Map<String, dynamic> get _post => widget.post;
 
+  @override
+  void initState() {
+    super.initState();
+    _hydrateSaveStateFromStorage();
+  }
+
+  @override
+  void didUpdateWidget(FeedReelChromeOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((oldWidget.post['id'] ?? '').toString() != (_post['id'] ?? '').toString()) {
+      _hydrateSaveStateFromStorage();
+    }
+  }
+
+  void _hydrateSaveStateFromStorage() {
+    if (_post['isSaved'] == true) return;
+    final id = (_post['id'] ?? '').toString().trim();
+    if (id.isEmpty || !_storageService.isPostSaved(id)) return;
+    _post['isSaved'] = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
   void _navigateToCreatorProfile() {
     final String creatorName = (_post['creator'] ?? 'Creator').toString();
     final String initials = (_post['creatorImage'] ?? 'UT').toString();
@@ -494,7 +518,11 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SvgPicture.asset('assets/icons/heart.svg', width: 28, height: 28, colorFilter: ColorFilter.mode(isLiked ? Colors.red : Colors.white, BlendMode.srcIn)),
+          Icon(
+            isLiked ? Icons.favorite : Icons.favorite_border,
+            size: 28,
+            color: isLiked ? Colors.red : Colors.white,
+          ),
           const SizedBox(height: 6),
           Text(
             formatFeedInteractionCount(count),
@@ -571,6 +599,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     } catch (e) {
       if (!wasSaved && _isAlreadySavedError(e)) {
         await _storageService.addSavedPost(_post);
+        if (mounted) setState(() => _applySaveState(true, prevCount + 1));
         return;
       }
       if (mounted) {

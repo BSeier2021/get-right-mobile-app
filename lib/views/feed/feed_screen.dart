@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/repo/feed_repo.dart';
+import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/routes/app_route_observer.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -198,6 +199,17 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     return _pageControllers[tabIndex]!;
   }
 
+  Set<String> _savedFeedPostIds() {
+    if (!Get.isRegistered<StorageService>()) return <String>{};
+    return Get.find<StorageService>().getSavedFeedPostIds();
+  }
+
+  List<Map<String, dynamic>> _mapFeedDocuments(List<dynamic> feedsRaw) {
+    final mapped = feedsRaw.map((e) => mapApiFeedDocumentToUiPost(e)).where((p) => (p['id'] ?? '').toString().isNotEmpty).toList();
+    mergePersistedSaveStateOnFeedPosts(mapped, _savedFeedPostIds());
+    return mapped;
+  }
+
   bool _coerceBool(dynamic v) {
     if (v == true) return true;
     if (v == false) return false;
@@ -275,7 +287,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       final raw = await _feedRepo.getFeedsRepo(page: _pageForYou, limit: _perPage);
       final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data']) : <String, dynamic>{};
       final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds']) : const [];
-      final mapped = feedsRaw.map((e) => mapApiFeedDocumentToUiPost(e)).where((p) => (p['id'] ?? '').toString().isNotEmpty).toList();
+      final mapped = _mapFeedDocuments(feedsRaw);
 
       setState(() {
         _feedPosts.addAll(mapped);
@@ -318,7 +330,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       final raw = await _feedRepo.getFeedsRepo(page: _pageFollowing, limit: _perPage, type: 'following');
       final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data']) : <String, dynamic>{};
       final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds']) : const [];
-      final mapped = feedsRaw.map((e) => mapApiFeedDocumentToUiPost(e)).where((p) => (p['id'] ?? '').toString().isNotEmpty).toList();
+      final mapped = _mapFeedDocuments(feedsRaw);
 
       setState(() {
         _followingPosts.addAll(mapped);

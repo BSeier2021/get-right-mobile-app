@@ -435,6 +435,11 @@ class StorageService {
     return savedPosts.any((p) => p['id'] == postId);
   }
 
+  /// Feed post ids stored locally after save API success.
+  Set<String> getSavedFeedPostIds() {
+    return getSavedPosts().map((p) => (p['id'] ?? '').toString().trim()).where((id) => id.isNotEmpty).toSet();
+  }
+
   // Subscription methods
 
   /// Check if user has active subscription

@@ -1,5 +1,28 @@
 /// Maps API feed documents to the UI map shape used by [FeedScreen] and [FeedVerticalReels].
 
+bool coerceFeedApiBool(dynamic v) {
+  if (v == true) return true;
+  if (v == false) return false;
+  if (v is String) {
+    final s = v.trim().toLowerCase();
+    return s == 'true' || s == '1' || s == 'yes';
+  }
+  if (v is num) return v != 0;
+  return false;
+}
+
+/// List API often omits `savedByMe`; merge IDs the user saved locally (same session / device).
+void mergePersistedSaveStateOnFeedPosts(List<Map<String, dynamic>> posts, Set<String> savedPostIds) {
+  if (savedPostIds.isEmpty) return;
+  for (final post in posts) {
+    if (post['isSaved'] == true) continue;
+    final id = (post['id'] ?? '').toString();
+    if (savedPostIds.contains(id)) {
+      post['isSaved'] = true;
+    }
+  }
+}
+
 /// Returns null if string is null or empty after trim.
 String? firstNonEmptyUrlString(dynamic v) {
   final s = v?.toString().trim();
@@ -85,15 +108,21 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
   final thumb =
       firstNonEmptyUrlString(video['thumbnail']) ?? firstNonEmptyUrlString(video['poster']) ?? firstNonEmptyUrlString(m['thumbnail']) ?? '';
 
+  final viewer = (m['viewer'] is Map) ? Map<String, dynamic>.from(m['viewer'] as Map) : <String, dynamic>{};
+
   final liked =
-      m['likedByMe'] == true ||
-      m['isLiked'] == true ||
-      m['liked'] == true ||
+      coerceFeedApiBool(m['likedByMe']) ||
+      coerceFeedApiBool(m['isLikedByMe']) ||
+      coerceFeedApiBool(m['isLiked']) ||
+      coerceFeedApiBool(m['liked']) ||
+      coerceFeedApiBool(viewer['likedByMe']) ||
       likedByMe;
   final saved =
-      m['savedByMe'] == true ||
-      m['isSaved'] == true ||
-      m['saved'] == true ||
+      coerceFeedApiBool(m['savedByMe']) ||
+      coerceFeedApiBool(m['isSavedByMe']) ||
+      coerceFeedApiBool(m['isSaved']) ||
+      coerceFeedApiBool(m['saved']) ||
+      coerceFeedApiBool(viewer['savedByMe']) ||
       savedByMe;
 
   return <String, dynamic>{
