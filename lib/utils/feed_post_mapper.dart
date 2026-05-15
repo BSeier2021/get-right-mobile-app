@@ -60,6 +60,27 @@ Map<String, dynamic> _metadataMapFromFeed(Map<String, dynamic> m, Map<String, dy
   return <String, dynamic>{};
 }
 
+/// Parses API `metadata.aspectRatio` (`"4:5"`, `"9:16"`, `"1.778"`) to width/height as a single number (w/h).
+double? parseFeedMetadataAspectRatio(dynamic raw) {
+  if (raw == null) return null;
+  if (raw is num && raw > 0) {
+    final n = raw.toDouble();
+    if (!n.isNaN) return n;
+    return null;
+  }
+  final s = raw.toString().trim();
+  if (s.isEmpty) return null;
+  final colon = RegExp(r'\s*[:/]\s*').firstMatch(s);
+  if (colon != null) {
+    final a = double.tryParse(s.substring(0, colon.start));
+    final b = double.tryParse(s.substring(colon.end));
+    if (a != null && b != null && b > 0) return a / b;
+  }
+  final single = double.tryParse(s);
+  if (single != null && single > 0 && !single.isNaN) return single;
+  return null;
+}
+
 /// One feed item from list or detail APIs (`data.feeds[]` / `data.feed`).
 Map<String, dynamic> mapApiFeedDocumentToUiPost(
   dynamic raw, {
@@ -82,17 +103,54 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
       : fullName.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2).map((p) => p[0].toUpperCase()).join();
 
   final meta = _metadataMapFromFeed(m, video);
-  double? metaW;
-  double? metaH;
-  double? videoAspectRatio;
-  final rawMetaW = meta['width'];
-  final rawMetaH = meta['height'];
-  if (rawMetaW is num && rawMetaH is num) {
-    metaW = rawMetaW.toDouble();
-    metaH = rawMetaH.toDouble();
-    if (metaW > 0 && metaH > 0) {
-      videoAspectRatio = metaW / metaH;
+
+  // Prefer display / aspectRatio for how the reel is framed; encoded width×height is often the transcode size (e.g. 16:9) not the crop.
+  final rawDisplayW = meta['displayWidth'];
+  final rawDisplayH = meta['displayHeight'];
+  final rawEncW = meta['width'];
+  final rawEncH = meta['height'];
+
+  double? displayW;
+  double? displayH;
+  if (rawDisplayW is num && rawDisplayH is num) {
+    final dw = rawDisplayW.toDouble();
+    final dh = rawDisplayH.toDouble();
+    if (dw > 0 && dh > 0) {
+      displayW = dw;
+      displayH = dh;
     }
+  }
+
+  double? encW;
+  double? encH;
+  if (rawEncW is num && rawEncH is num) {
+    final ew = rawEncW.toDouble();
+    final eh = rawEncH.toDouble();
+    if (ew > 0 && eh > 0) {
+      encW = ew;
+      encH = eh;
+    }
+  }
+
+  final aspectFromMeta = parseFeedMetadataAspectRatio(meta['aspectRatio']);
+
+  double? videoAspectRatio;
+  if (aspectFromMeta != null) {
+    videoAspectRatio = aspectFromMeta;
+  } else if (displayW != null && displayH != null) {
+    videoAspectRatio = displayW / displayH;
+  } else if (encW != null && encH != null) {
+    videoAspectRatio = encW / encH;
+  }
+
+  double? frameW;
+  double? frameH;
+  if (displayW != null && displayH != null) {
+    frameW = displayW;
+    frameH = displayH;
+  } else if (encW != null && encH != null && aspectFromMeta == null) {
+    frameW = encW;
+    frameH = encH;
   }
 
   double? durationSeconds = (m['duration'] is num) ? (m['duration'] as num).toDouble() : (meta['duration'] is num ? (meta['duration'] as num).toDouble() : null);
@@ -147,8 +205,8 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
     'isSaved': saved,
     'duration': durationLabel,
     if (videoAspectRatio != null) 'videoAspectRatio': videoAspectRatio,
-    if (metaW != null) 'videoPixelWidth': metaW,
-    if (metaH != null) 'videoPixelHeight': metaH,
+    if (frameW != null) 'videoPixelWidth': frameW,
+    if (frameH != null) 'videoPixelHeight': frameH,
     if (meta['format'] != null) 'videoFormat': meta['format'].toString(),
     if (meta['qualities'] is List) 'videoQualities': (meta['qualities'] as List).map((e) => e.toString()).toList(),
   };

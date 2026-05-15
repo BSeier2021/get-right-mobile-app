@@ -374,7 +374,8 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
     setState(() {});
   }
 
-  /// Prefer [post] `videoPixelWidth` / `videoPixelHeight` from API metadata so crop matches source (e.g. 1004×2176).
+  /// Prefer [post] `videoPixelWidth` / `videoPixelHeight` when set (display size from API metadata, then encoded);
+  /// otherwise [post] `videoAspectRatio` (`metadata.aspectRatio` or derived from display/encoded dimensions).
   Widget _coverVideo(VideoPlayerController controller, Map<String, dynamic> post) {
     final apiW = post['videoPixelWidth'];
     final apiH = post['videoPixelHeight'];
