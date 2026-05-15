@@ -12,6 +12,7 @@ import 'package:get_right/utils/feed_post_mapper.dart';
 import 'package:get_right/views/feed/feed_reel_overlay.dart';
 import 'package:get_right/views/feed/feed_vertical_reels.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
+import 'package:video_player/video_player.dart';
 
 /// Community Feed - Social Media Platform for fitness content
 class FeedScreen extends StatefulWidget {
@@ -69,6 +70,30 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   void _disposePageControllerForTab(int tabIndex) {
     final c = _pageControllers.remove(tabIndex);
     c?.dispose();
+  }
+
+  /// Keeps like state in sync when the same post appears in For You and Following.
+  void _syncPostLikeState(String postId, bool isLiked, int likes) {
+    for (final post in [..._feedPosts, ..._followingPosts]) {
+      if ((post['id'] ?? '').toString() == postId) {
+        post['isLiked'] = isLiked;
+        post['likes'] = likes;
+      }
+    }
+  }
+
+  /// Keeps save state in sync when the same post appears in For You and Following.
+  void _syncPostSaveState(String postId, bool isSaved, int saves) {
+    for (final post in [..._feedPosts, ..._followingPosts]) {
+      if ((post['id'] ?? '').toString() == postId) {
+        post['isSaved'] = isSaved;
+        post['saves'] = saves;
+      }
+    }
+  }
+
+  Widget _feedReelOverlay(BuildContext ctx, Map<String, dynamic> post, int index, VideoPlayerController? controller) {
+    return FeedReelChromeOverlay(post: post, videoController: controller, onLikeStateChanged: _syncPostLikeState, onSaveStateChanged: _syncPostSaveState);
   }
 
   @override
@@ -423,7 +448,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           onNearEndIndex: _queueLoadMoreForYouIfNeeded,
           resolvePlaybackUrl: playbackUrlForFeedPost,
           backdropForPost: (ctx, post) => FeedReelBackdrop(post: post),
-          overlay: (ctx, post, index, controller) => FeedReelChromeOverlay(post: post, videoController: controller),
+          overlay: _feedReelOverlay,
         );
       },
     );
@@ -464,7 +489,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           onNearEndIndex: _queueLoadMoreFollowingIfNeeded,
           resolvePlaybackUrl: playbackUrlForFeedPost,
           backdropForPost: (ctx, post) => FeedReelBackdrop(post: post),
-          overlay: (ctx, post, index, controller) => FeedReelChromeOverlay(post: post, videoController: controller),
+          overlay: _feedReelOverlay,
         );
       },
     );

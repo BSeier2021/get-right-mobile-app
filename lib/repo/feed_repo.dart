@@ -73,6 +73,26 @@ class FeedRepository {
     return _network.delete(AppUrl.feedDelete(feedId));
   }
 
+  /// `POST /user/feed/:feedId/like` — like feed post.
+  Future<dynamic> likeFeedRepo(String feedId) async {
+    return _network.post(AppUrl.feedLike(feedId), <String, dynamic>{});
+  }
+
+  /// `DELETE /user/feed/:feedId/like` — remove like (`message`: `Like removed`).
+  Future<dynamic> unlikeFeedRepo(String feedId) async {
+    return _network.delete(AppUrl.feedLike(feedId));
+  }
+
+  /// `POST /user/feed/:feedId/save` — save feed post (`message`: `Feed saved`).
+  Future<dynamic> saveFeedRepo(String feedId) async {
+    return _network.post(AppUrl.feedSave(feedId), <String, dynamic>{});
+  }
+
+  /// `DELETE /user/feed/:feedId/save` — remove saved feed post.
+  Future<dynamic> unsaveFeedRepo(String feedId) async {
+    return _network.delete(AppUrl.feedSave(feedId));
+  }
+
   /// `POST /user/feed`
   Future<dynamic> createFeedRepo({
     required String title,

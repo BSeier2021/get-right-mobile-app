@@ -65,6 +65,12 @@ class AppUrl {
   /// `DELETE /user/feed/:feedId` — remove post (same path as [feedById], e.g. `/user/feed/69f8eaeb3447d7cba1700ec4`).
   static String feedDelete(String feedId) => feedById(feedId);
 
+  /// `POST /user/feed/:feedId/like` — like reel. `DELETE` same path — unlike (`message`: `Like removed`).
+  static String feedLike(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/like';
+
+  /// `POST /user/feed/:feedId/save` — save reel (`message`: `Feed saved`). `DELETE` same path — unsave.
+  static String feedSave(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/save';
+
   /// `POST /user/feed/:feedId/video/multipart/init` — `contentType`, `fileSize`.
   static String feedVideoMultipartInit(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/init';
 

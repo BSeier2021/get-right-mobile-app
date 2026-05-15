@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:get_right/network/network_services.dart';
+import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -143,10 +145,22 @@ class FeedReelBackdrop extends StatelessWidget {
 
 /// Like / comment / caption overlay used on reels (tap-through gradient).
 class FeedReelChromeOverlay extends StatefulWidget {
-  const FeedReelChromeOverlay({super.key, required this.post, this.videoController});
+  const FeedReelChromeOverlay({
+    super.key,
+    required this.post,
+    this.videoController,
+    this.onLikeStateChanged,
+    this.onSaveStateChanged,
+  });
 
   final Map<String, dynamic> post;
   final VideoPlayerController? videoController;
+
+  /// Syncs like state across duplicate posts (e.g. For You vs Following lists).
+  final void Function(String postId, bool isLiked, int likes)? onLikeStateChanged;
+
+  /// Syncs save state across duplicate posts (e.g. For You vs Following lists).
+  final void Function(String postId, bool isSaved, int saves)? onSaveStateChanged;
 
   @override
   State<FeedReelChromeOverlay> createState() => _FeedReelChromeOverlayState();
@@ -154,6 +168,9 @@ class FeedReelChromeOverlay extends StatefulWidget {
 
 class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
   final _storageService = Get.find<StorageService>();
+  final FeedRepository _feedRepo = FeedRepository();
+  bool _likeRequestInFlight = false;
+  bool _saveRequestInFlight = false;
 
   Map<String, dynamic> get _post => widget.post;
 
@@ -484,16 +501,58 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     );
   }
 
+  void _applyLikeState(bool isLiked, int likes) {
+    _post['isLiked'] = isLiked;
+    _post['likes'] = likes;
+    final postId = (_post['id'] ?? '').toString();
+    if (postId.isNotEmpty) {
+      widget.onLikeStateChanged?.call(postId, isLiked, likes);
+    }
+  }
+
+  bool _isAlreadyLikedError(Object e) {
+    final msg = e.toString().toLowerCase();
+    return msg.contains('already liked');
+  }
+
+  Future<void> _toggleLike() async {
+    if (_likeRequestInFlight) return;
+    final feedId = (_post['id'] ?? '').toString().trim();
+    if (feedId.isEmpty) return;
+
+    final wasLiked = _post['isLiked'] == true;
+    final prevCount = (_post['likes'] is num) ? (_post['likes'] as num).toInt() : 0;
+    final nextLiked = !wasLiked;
+    final nextCount = (prevCount + (nextLiked ? 1 : -1)).clamp(0, 1 << 30);
+
+    setState(() => _applyLikeState(nextLiked, nextCount));
+
+    _likeRequestInFlight = true;
+    try {
+      if (wasLiked) {
+        await _feedRepo.unlikeFeedRepo(feedId);
+      } else {
+        await _feedRepo.likeFeedRepo(feedId);
+      }
+    } catch (e) {
+      if (!wasLiked && _isAlreadyLikedError(e)) {
+        return;
+      }
+      if (mounted) {
+        setState(() => _applyLikeState(wasLiked, prevCount));
+        final message = e is BadRequestException ? e.toString() : 'Could not update like. Please try again.';
+        Get.snackbar('Like', message, snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 2));
+      }
+    } finally {
+      _likeRequestInFlight = false;
+    }
+  }
+
   Widget _likeButton(BuildContext context) {
     final bool isLiked = _post['isLiked'] ?? false;
-    final int count = _post['likes'] ?? 0;
+    final int count = (_post['likes'] is num) ? (_post['likes'] as num).toInt() : 0;
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _post['isLiked'] = !isLiked;
-          _post['likes'] = (_post['likes'] ?? 0) + ((_post['isLiked'] as bool) ? 1 : -1);
-        });
-      },
+      onTap: _toggleLike,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -536,22 +595,61 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     );
   }
 
+  void _applySaveState(bool isSaved, int saves) {
+    _post['isSaved'] = isSaved;
+    _post['saves'] = saves;
+    final postId = (_post['id'] ?? '').toString();
+    if (postId.isNotEmpty) {
+      widget.onSaveStateChanged?.call(postId, isSaved, saves);
+    }
+  }
+
+  bool _isAlreadySavedError(Object e) {
+    final msg = e.toString().toLowerCase();
+    return msg.contains('already saved');
+  }
+
+  Future<void> _toggleSave() async {
+    if (_saveRequestInFlight) return;
+    final feedId = (_post['id'] ?? '').toString().trim();
+    if (feedId.isEmpty) return;
+
+    final wasSaved = _post['isSaved'] == true;
+    final prevCount = (_post['saves'] is num) ? (_post['saves'] as num).toInt() : 0;
+    final nextSaved = !wasSaved;
+    final nextCount = (prevCount + (nextSaved ? 1 : -1)).clamp(0, 1 << 30);
+
+    setState(() => _applySaveState(nextSaved, nextCount));
+
+    _saveRequestInFlight = true;
+    try {
+      if (wasSaved) {
+        await _feedRepo.unsaveFeedRepo(feedId);
+        await _storageService.removeSavedPost(feedId);
+      } else {
+        await _feedRepo.saveFeedRepo(feedId);
+        await _storageService.addSavedPost(_post);
+      }
+    } catch (e) {
+      if (!wasSaved && _isAlreadySavedError(e)) {
+        await _storageService.addSavedPost(_post);
+        return;
+      }
+      if (mounted) {
+        setState(() => _applySaveState(wasSaved, prevCount));
+        final message = e is BadRequestException ? e.toString() : 'Could not update save. Please try again.';
+        Get.snackbar('Save', message, snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 2));
+      }
+    } finally {
+      _saveRequestInFlight = false;
+    }
+  }
+
   Widget _saveButton(BuildContext context) {
     final bool isSaved = _post['isSaved'] ?? false;
-    final int count = _post['saves'] ?? 0;
+    final int count = (_post['saves'] is num) ? (_post['saves'] as num).toInt() : 0;
     return GestureDetector(
-      onTap: () async {
-        final wasSaved = isSaved;
-        setState(() {
-          _post['isSaved'] = !wasSaved;
-          _post['saves'] = (_post['saves'] ?? 0) + (!wasSaved ? 1 : -1);
-        });
-        if (!wasSaved) {
-          await _storageService.addSavedPost(_post);
-        } else {
-          await _storageService.removeSavedPost(_post['id']);
-        }
-      },
+      onTap: _toggleSave,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

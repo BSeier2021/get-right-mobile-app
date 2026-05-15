@@ -85,6 +85,17 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
   final thumb =
       firstNonEmptyUrlString(video['thumbnail']) ?? firstNonEmptyUrlString(video['poster']) ?? firstNonEmptyUrlString(m['thumbnail']) ?? '';
 
+  final liked =
+      m['likedByMe'] == true ||
+      m['isLiked'] == true ||
+      m['liked'] == true ||
+      likedByMe;
+  final saved =
+      m['savedByMe'] == true ||
+      m['isSaved'] == true ||
+      m['saved'] == true ||
+      savedByMe;
+
   return <String, dynamic>{
     'id': (m['_id'] ?? '').toString(),
     'creatorId': (creator['_id'] ?? '').toString(),
@@ -103,8 +114,8 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
     'comments': (m['commentsCount'] is num) ? (m['commentsCount'] as num).toInt() : 0,
     'shares': (m['sharesCount'] is num) ? (m['sharesCount'] as num).toInt() : 0,
     'saves': (m['savesCount'] is num) ? (m['savesCount'] as num).toInt() : 0,
-    'isLiked': likedByMe,
-    'isSaved': savedByMe,
+    'isLiked': liked,
+    'isSaved': saved,
     'duration': durationLabel,
     if (videoAspectRatio != null) 'videoAspectRatio': videoAspectRatio,
     if (metaW != null) 'videoPixelWidth': metaW,
