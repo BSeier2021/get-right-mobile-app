@@ -71,6 +71,13 @@ class AppUrl {
   /// `POST /user/feed/:feedId/save` — save reel (`message`: `Feed saved`). `DELETE` same path — unsave.
   static String feedSave(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/save';
 
+  /// `GET /user/feed/:feedId/comments` — query: `page`, `limit`. `POST` body: `{ "text" }` → `data.comment`.
+  static String feedComments(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/comments';
+
+  /// `PATCH` / `DELETE /user/feed/:feedId/comments/:commentId` — edit or delete a comment.
+  static String feedCommentById(String feedId, String commentId) =>
+      '${feedComments(feedId)}/${Uri.encodeComponent(commentId.trim())}';
+
   /// `POST /user/feed/:feedId/video/multipart/init` — `contentType`, `fileSize`.
   static String feedVideoMultipartInit(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/init';
 

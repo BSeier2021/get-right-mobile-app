@@ -92,8 +92,23 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     }
   }
 
+  /// Keeps comment count in sync when the same post appears in For You and Following.
+  void _syncPostCommentCount(String postId, int commentCount) {
+    for (final post in [..._feedPosts, ..._followingPosts]) {
+      if ((post['id'] ?? '').toString() == postId) {
+        post['comments'] = commentCount;
+      }
+    }
+  }
+
   Widget _feedReelOverlay(BuildContext ctx, Map<String, dynamic> post, int index, VideoPlayerController? controller) {
-    return FeedReelChromeOverlay(post: post, videoController: controller, onLikeStateChanged: _syncPostLikeState, onSaveStateChanged: _syncPostSaveState);
+    return FeedReelChromeOverlay(
+      post: post,
+      videoController: controller,
+      onLikeStateChanged: _syncPostLikeState,
+      onSaveStateChanged: _syncPostSaveState,
+      onCommentCountChanged: _syncPostCommentCount,
+    );
   }
 
   @override

@@ -93,6 +93,43 @@ class FeedRepository {
     return _network.delete(AppUrl.feedSave(feedId));
   }
 
+  /// `GET /user/feed/:feedId/comments` — paginated comments (`data.comments`, `hasNextPage`, …).
+  Future<dynamic> getFeedCommentsRepo({
+    required String feedId,
+    required int page,
+    required int limit,
+  }) async {
+    return _network.get(
+      AppUrl.feedComments(feedId),
+      params: <String, dynamic>{'page': page, 'limit': limit},
+    );
+  }
+
+  /// `POST /user/feed/:feedId/comments` — body: `text` (`data.comment`, `message`: `Comment added successfully`).
+  Future<dynamic> postFeedCommentRepo({
+    required String feedId,
+    required String text,
+  }) async {
+    return _network.post(AppUrl.feedComments(feedId), <String, dynamic>{'text': text.trim()});
+  }
+
+  /// `PATCH /user/feed/:feedId/comments/:commentId` — body: `text`.
+  Future<dynamic> updateFeedCommentRepo({
+    required String feedId,
+    required String commentId,
+    required String text,
+  }) async {
+    return _network.patch(AppUrl.feedCommentById(feedId, commentId), <String, dynamic>{'text': text.trim()});
+  }
+
+  /// `DELETE /user/feed/:feedId/comments/:commentId`.
+  Future<dynamic> deleteFeedCommentRepo({
+    required String feedId,
+    required String commentId,
+  }) async {
+    return _network.delete(AppUrl.feedCommentById(feedId, commentId));
+  }
+
   /// `POST /user/feed`
   Future<dynamic> createFeedRepo({
     required String title,

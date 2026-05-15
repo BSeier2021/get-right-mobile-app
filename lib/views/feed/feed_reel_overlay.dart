@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/views/feed/feed_comments_sheet.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -145,13 +146,7 @@ class FeedReelBackdrop extends StatelessWidget {
 
 /// Like / comment / caption overlay used on reels (tap-through gradient).
 class FeedReelChromeOverlay extends StatefulWidget {
-  const FeedReelChromeOverlay({
-    super.key,
-    required this.post,
-    this.videoController,
-    this.onLikeStateChanged,
-    this.onSaveStateChanged,
-  });
+  const FeedReelChromeOverlay({super.key, required this.post, this.videoController, this.onLikeStateChanged, this.onSaveStateChanged, this.onCommentCountChanged});
 
   final Map<String, dynamic> post;
   final VideoPlayerController? videoController;
@@ -161,6 +156,9 @@ class FeedReelChromeOverlay extends StatefulWidget {
 
   /// Syncs save state across duplicate posts (e.g. For You vs Following lists).
   final void Function(String postId, bool isSaved, int saves)? onSaveStateChanged;
+
+  /// Syncs comment count when comments are fetched (uses `totalDocs` from API).
+  final void Function(String postId, int commentCount)? onCommentCountChanged;
 
   @override
   State<FeedReelChromeOverlay> createState() => _FeedReelChromeOverlayState();
@@ -208,82 +206,25 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
   }
 
   void _openCommentsSheet(BuildContext dialogContext) {
+    final feedId = (_post['id'] ?? '').toString().trim();
+    if (feedId.isEmpty) return;
+
+    final initialCount = (_post['comments'] is num) ? (_post['comments'] as num).toInt() : 0;
+
     showModalBottomSheet(
       context: dialogContext,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 16 + MediaQuery.of(context).viewInsets.bottom),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.4), borderRadius: BorderRadius.circular(2)),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text(
-                    'Comments',
-                    style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
-                  ),
-                  const Spacer(),
-                  Text(formatFeedInteractionCount(_post['comments'] ?? 0), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 220,
-                child: ListView.separated(
-                  itemBuilder: (_, i) => ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: AppColors.accent.withOpacity(0.2),
-                      child: Text('U', style: AppTextStyles.labelMedium),
-                    ),
-                    title: Text('Great tip! Thanks.', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
-                    subtitle: Text('2h ago', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                  ),
-                  separatorBuilder: (_, __) => const Divider(height: 8),
-                  itemCount: 6,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Add a comment...',
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: AppColors.accent),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.send, color: AppColors.accent),
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return FeedCommentsSheet(
+          feedId: feedId,
+          initialCommentCount: initialCount,
+          onCommentCountChanged: (count) {
+            _post['comments'] = count;
+            widget.onCommentCountChanged?.call(feedId, count);
+            if (mounted) setState(() {});
+          },
         );
       },
     );
@@ -331,10 +272,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
 
   Widget _playbackDurationBadge() {
     final fallback = (_post['duration'] ?? '30s').toString();
-    return _FeedReelPlaybackTimer(
-      controller: widget.videoController,
-      fallbackText: fallback,
-    );
+    return _FeedReelPlaybackTimer(controller: widget.videoController, fallbackText: fallback);
   }
 
   Widget _buildVerticalInteractionSvgButton({required String assetPath, required int count, required VoidCallback onTap}) {
