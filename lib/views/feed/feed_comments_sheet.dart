@@ -34,7 +34,10 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
   final FeedRepository _feedRepo = FeedRepository();
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _commentController = TextEditingController();
+  final FocusNode _commentFocusNode = FocusNode();
   final List<Map<String, dynamic>> _comments = <Map<String, dynamic>>[];
+  String? _replyParentId;
+  String? _replyParentAuthorName;
 
   static const int _perPage = 20;
 
@@ -63,7 +66,45 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
   void dispose() {
     _scrollController.dispose();
     _commentController.dispose();
+    _commentFocusNode.dispose();
     super.dispose();
+  }
+
+  void _startReply(int index) {
+    final comment = _comments[index];
+    final parentId = (comment['id'] ?? '').toString().trim();
+    if (parentId.isEmpty) return;
+    setState(() {
+      _replyParentId = parentId;
+      _replyParentAuthorName = (comment['authorName'] ?? 'User').toString();
+    });
+    _commentFocusNode.requestFocus();
+  }
+
+  void _cancelReply() {
+    if (_replyParentId == null) return;
+    setState(() {
+      _replyParentId = null;
+      _replyParentAuthorName = null;
+    });
+  }
+
+  void _insertCommentInList(Map<String, dynamic> mapped) {
+    final parentId = _replyParentId;
+    if (parentId != null && parentId.isNotEmpty) {
+      final parentIdx = _comments.indexWhere((c) => (c['id'] ?? '').toString() == parentId);
+      if (parentIdx >= 0) {
+        var insertAt = parentIdx + 1;
+        while (insertAt < _comments.length) {
+          final nextParent = (_comments[insertAt]['parentCommentId'] ?? '').toString();
+          if (nextParent != parentId) break;
+          insertAt++;
+        }
+        _comments.insert(insertAt, mapped);
+        return;
+      }
+    }
+    _comments.insert(0, mapped);
   }
 
   void _bumpCommentCount() {
@@ -161,15 +202,24 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     final text = _commentController.text.trim();
     if (text.isEmpty || _submittingComment) return;
 
+    final parentId = _replyParentId;
+
     setState(() => _submittingComment = true);
     try {
-      final raw = await _feedRepo.postFeedCommentRepo(feedId: widget.feedId, text: text);
+      final raw = await _feedRepo.postFeedCommentRepo(
+        feedId: widget.feedId,
+        text: text,
+        parentCommentId: parentId,
+      );
       final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data'] as Map) : <String, dynamic>{};
       final commentRaw = data['comment'];
       if (commentRaw == null) {
         throw Exception('Invalid comment response');
       }
       final mapped = mapApiFeedCommentToUi(commentRaw);
+      if (parentId != null && parentId.isNotEmpty && (mapped['parentCommentId'] ?? '').toString().isEmpty) {
+        mapped['parentCommentId'] = parentId;
+      }
       if ((mapped['id'] ?? '').toString().isEmpty) {
         throw Exception('Invalid comment response');
       }
@@ -178,14 +228,16 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
       setState(() {
         final exists = _comments.any((c) => (c['id'] ?? '').toString() == (mapped['id'] ?? '').toString());
         if (!exists) {
-          _comments.insert(0, mapped);
+          _insertCommentInList(mapped);
           _bumpCommentCount();
         }
         _commentController.clear();
+        _replyParentId = null;
+        _replyParentAuthorName = null;
         _error = null;
       });
 
-      if (_scrollController.hasClients) {
+      if (_scrollController.hasClients && (parentId == null || parentId.isEmpty)) {
         _scrollController.animateTo(0, duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
       }
     } catch (e) {
@@ -259,32 +311,37 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
 
   Widget _buildCommentTile(Map<String, dynamic> comment, int index) {
     final isOwn = _isOwnComment(comment);
+    final parentId = (comment['parentCommentId'] ?? '').toString();
+    final isReply = parentId.isNotEmpty;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildAvatar(comment),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      (comment['authorName'] ?? 'User').toString(),
-                      style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+    return Padding(
+      padding: EdgeInsets.only(left: isReply ? 28 : 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAvatar(comment),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        (comment['authorName'] ?? 'User').toString(),
+                        style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                      ),
                     ),
-                  ),
-                  if (isOwn)
                     PopupMenuButton<String>(
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                      enabled: !_commentActionInFlight,
+                      enabled: !_commentActionInFlight && !_submittingComment,
                       icon: Icon(Icons.more_vert, size: 20, color: AppColors.primaryGray.withOpacity(0.85)),
                       onSelected: (value) {
-                        if (value == 'edit') {
+                        if (value == 'reply') {
+                          _startReply(index);
+                        } else if (value == 'edit') {
                           _editComment(index);
                         } else if (value == 'delete') {
                           _confirmDeleteComment(index);
@@ -292,25 +349,32 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
                       },
                       itemBuilder: (context) => [
                         const PopupMenuItem<String>(
-                          value: 'edit',
-                          child: Text('Edit'),
+                          value: 'reply',
+                          child: Text('Reply'),
                         ),
-                        PopupMenuItem<String>(
-                          value: 'delete',
-                          child: Text('Delete', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
-                        ),
+                        if (isOwn) ...[
+                          const PopupMenuItem<String>(
+                            value: 'edit',
+                            child: Text('Edit'),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'delete',
+                            child: Text('Delete', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+                          ),
+                        ],
                       ],
                     ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text((comment['text'] ?? '').toString(), style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
-              const SizedBox(height: 2),
-              Text((comment['timestamp'] ?? '').toString(), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text((comment['text'] ?? '').toString(), style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
+                const SizedBox(height: 2),
+                Text((comment['timestamp'] ?? '').toString(), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -362,16 +426,43 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
             child: _buildCommentsBody(),
           ),
           const SizedBox(height: 12),
+          if (_replyParentId != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Replying to ${_replyParentAuthorName ?? 'comment'}',
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _cancelReply,
+                    child: Icon(Icons.close, size: 18, color: AppColors.primaryGray.withOpacity(0.9)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: _commentController,
+                  focusNode: _commentFocusNode,
                   enabled: !_submittingComment,
                   textInputAction: TextInputAction.send,
                   onSubmitted: (_) => _submitComment(),
                   decoration: InputDecoration(
-                    hintText: 'Add a comment...',
+                    hintText: _replyParentId != null ? 'Write a reply...' : 'Add a comment...',
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

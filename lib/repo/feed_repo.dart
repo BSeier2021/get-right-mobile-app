@@ -105,12 +105,18 @@ class FeedRepository {
     );
   }
 
-  /// `POST /user/feed/:feedId/comments` — body: `text` (`data.comment`, `message`: `Comment added successfully`).
+  /// `POST /user/feed/:feedId/comments` — body: `text`, optional `parentComment` for replies.
   Future<dynamic> postFeedCommentRepo({
     required String feedId,
     required String text,
+    String? parentCommentId,
   }) async {
-    return _network.post(AppUrl.feedComments(feedId), <String, dynamic>{'text': text.trim()});
+    final body = <String, dynamic>{'text': text.trim()};
+    final parent = parentCommentId?.trim();
+    if (parent != null && parent.isNotEmpty) {
+      body['parentComment'] = parent;
+    }
+    return _network.post(AppUrl.feedComments(feedId), body);
   }
 
   /// `PATCH /user/feed/:feedId/comments/:commentId` — body: `text`.

@@ -518,11 +518,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            isLiked ? Icons.favorite : Icons.favorite_border,
-            size: 28,
-            color: isLiked ? Colors.red : Colors.white,
-          ),
+          Icon(isLiked ? Icons.favorite : Icons.favorite_border, size: 28, color: isLiked ? Colors.red : Colors.white),
           const SizedBox(height: 6),
           Text(
             formatFeedInteractionCount(count),

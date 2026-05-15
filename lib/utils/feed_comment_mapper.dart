@@ -19,9 +19,15 @@ Map<String, dynamic> mapApiFeedCommentToUi(dynamic raw) {
   final createdAtRaw = (m['createdAt'] ?? '').toString();
   final createdAt = DateTime.tryParse(createdAtRaw);
 
+  final parentRaw = m['parentComment'];
+  final parentId = parentRaw is Map
+      ? (parentRaw['_id'] ?? '').toString()
+      : (parentRaw ?? m['parentCommentId'] ?? '').toString();
+
   return <String, dynamic>{
     'id': (m['_id'] ?? '').toString(),
     'authorId': (user['_id'] ?? '').toString(),
+    'parentCommentId': parentId.trim(),
     'text': (m['text'] ?? '').toString(),
     'authorName': displayName,
     'authorInitials': initials,
