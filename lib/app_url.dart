@@ -1,10 +1,10 @@
 class AppUrl {
-  static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
-  static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
+  // static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
+  // static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
   // development url
-  // static const String baseUrl = 'https://1x35v509-8000.asse.devtunnels.ms/api/v1';
-  // static const String imnageUrl = 'https://1x35v509-8000.asse.devtunnels.ms/api/v1';
-  // static const String socketUrl = 'http://getright.prodservers.com:9965/';
+  static const String baseUrl = 'http://getright.prodservers.com:8004/api/v1';
+  static const String imnageUrl = 'http://getright.prodservers.com:8004/api/v1';
+  // static const String socketUrl = 'http://getright.prodservers.com:8004/';
 
   static String signUp = '$baseUrl/user/auth/signup';
   static String verifyOTP = '$baseUrl/user/auth/verify-otp';
@@ -78,8 +78,7 @@ class AppUrl {
   static String feedComments(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/comments';
 
   /// `PATCH` / `DELETE /user/feed/:feedId/comments/:commentId` — edit or delete a comment.
-  static String feedCommentById(String feedId, String commentId) =>
-      '${feedComments(feedId)}/${Uri.encodeComponent(commentId.trim())}';
+  static String feedCommentById(String feedId, String commentId) => '${feedComments(feedId)}/${Uri.encodeComponent(commentId.trim())}';
 
   /// `POST /user/feed/:feedId/video/multipart/init` — `contentType`, `fileSize`.
   static String feedVideoMultipartInit(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/init';
