@@ -570,7 +570,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final raw = await _feedRepo.getMyFeedsRepo(page: 1, limit: 10);
       final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data']) : <String, dynamic>{};
       final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds']) : const [];
-      final mapped = feedsRaw.map((e) => _mapMineFeedToGridItem(Map<String, dynamic>.from(e as Map))).where((p) => (p['id'] ?? '').toString().isNotEmpty).toList();
+      final mapped = feedsRaw
+          .map((e) => _mapMineFeedToGridItem(Map<String, dynamic>.from(e as Map)))
+          .where((p) => (p['id'] ?? '').toString().isNotEmpty)
+          .toList();
 
       if (!mounted) return;
       setState(() {
@@ -597,6 +600,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Backend may send `thumbnail` as a string URL or `{ "url": "https://...", ... }` (feed-level or under `video`).
+  String? _thumbnailUrlFromApi(dynamic node) {
+    if (node == null) return null;
+    if (node is String) {
+      final s = node.trim();
+      return s.isEmpty ? null : s;
+    }
+    if (node is Map) {
+      final map = Map<String, dynamic>.from(node);
+      for (final key in <String>['url', 'thumbnail', 'src', 'fileUrl']) {
+        final v = map[key];
+        if (v is String && v.trim().isNotEmpty) return v.trim();
+      }
+    }
+    return null;
+  }
+
   Map<String, dynamic> _mapMineFeedToGridItem(Map<String, dynamic> m) {
     final id = (m['_id'] ?? '').toString();
     final creator = (m['creator'] is Map) ? Map<String, dynamic>.from(m['creator']) : <String, dynamic>{};
@@ -611,8 +631,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final categoryName = (category['name'] ?? '').toString();
     final categoryId = (category['_id'] ?? category['id'] ?? '').toString();
 
+    final feedThumbUrl = _thumbnailUrlFromApi(m['thumbnail']);
+    final videoThumbUrl = _thumbnailUrlFromApi(video['thumbnail']);
+    final videoPosterUrl = _thumbnailUrlFromApi(video['poster']);
+
+    final thumbRaw = (feedThumbUrl ?? videoThumbUrl ?? videoPosterUrl ?? '').trim();
     final videoUrl = (video['url'] ?? '').toString().trim();
-    final thumbRaw = (video['thumbnail'] ?? '').toString().trim();
     final isVideo = videoUrl.isNotEmpty;
 
     final thumb = thumbRaw.isNotEmpty
@@ -735,7 +759,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: Image.network(
-                      post['thumbnail'] as String,
+                      (post['thumbnail'] ?? '').toString(),
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
                         decoration: BoxDecoration(
@@ -752,7 +776,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Gradient overlay for engagement row
                   Container(
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.35)]),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Colors.black.withOpacity(0.35)],
+                      ),
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
@@ -875,7 +903,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Delete post?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-        content: Text('This removes the post from your profile. This cannot be undone.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+        content: Text(
+          'This removes the post from your profile. This cannot be undone.',
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
@@ -991,7 +1022,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildCreatePostOption({required IconData icon, required String title, required String subtitle, required Gradient gradient, required VoidCallback onTap}) {
+  Widget _buildCreatePostOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Gradient gradient,
+    required VoidCallback onTap,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Material(
@@ -1166,7 +1203,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
-                    Text('${record.value} ${record.unit} • ${dateFormat.format(record.date)}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                    Text(
+                      '${record.value} ${record.unit} • ${dateFormat.format(record.date)}',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                    ),
                   ],
                 ),
               ),
@@ -1347,7 +1387,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       children: [
                                         Text('Date', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
                                         const SizedBox(height: 4),
-                                        Text(DateFormat('MMM d, yyyy').format(selectedDate), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                                        Text(
+                                          DateFormat('MMM d, yyyy').format(selectedDate),
+                                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -1634,7 +1677,12 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
       });
     }
 
-    await widget.feedRepo.completeVideoMultipartRepo(feedId: feedId, key: init.key, uploadId: init.uploadId, parts: uploaded.map((e) => e.toCompleteApiJson()).toList());
+    await widget.feedRepo.completeVideoMultipartRepo(
+      feedId: feedId,
+      key: init.key,
+      uploadId: init.uploadId,
+      parts: uploaded.map((e) => e.toCompleteApiJson()).toList(),
+    );
 
     if (mounted) {
       setState(() => _saveUploadProgress = 1);
@@ -1712,7 +1760,9 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
     _descriptionController = TextEditingController(text: (p['description'] ?? '').toString());
     _committedTags
       ..clear()
-      ..addAll((p['tags'] as List<dynamic>?)?.map((e) => e.toString().replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).toList() ?? const <String>[]);
+      ..addAll(
+        (p['tags'] as List<dynamic>?)?.map((e) => e.toString().replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).toList() ?? const <String>[],
+      );
     _tagsController = TextEditingController();
     _status = _normalizeFeedPostStatus(p['status']?.toString());
     final cid = (p['categoryId'] ?? '').toString().trim();

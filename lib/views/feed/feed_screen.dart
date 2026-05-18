@@ -49,6 +49,9 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   int _forYouFeedEpoch = 0;
   int _followingFeedEpoch = 0;
 
+  /// Edge overscroll on first/last reel so [RefreshIndicator] works (especially Android).
+  static const ScrollPhysics _feedPagePhysics = PageScrollPhysics(parent: BouncingScrollPhysics());
+
   /// Home bottom nav uses IndexedStack — [initState] runs at app start. Defer API calls until Feed tab is selected (index 1).
   Worker? _homeTabWorker;
   bool _feedTabLazyBootstrapped = false;
@@ -133,6 +136,9 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         final nav = Get.find<HomeNavigationController>();
         _homeTabWorker = ever<int>(nav.currentIndexRx, (idx) {
           if (!mounted) return;
+          if (idx != 1) {
+            _clearFeedReelCaches(clearFullImageCache: false);
+          }
           setState(() {});
           if (idx == 1) _bootstrapFeedWhenTabSelected();
         });
@@ -182,6 +188,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    _clearFeedReelCaches(clearFullImageCache: true);
     appRouteObserver.unsubscribe(this);
     _homeTabWorker?.dispose();
     _tabController.dispose();
@@ -267,9 +274,22 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     });
   }
 
+  /// Drops decoded bitmaps for reel thumbnails. [clearFullImageCache] runs [ImageCache.clear] plus [clearLiveImages]; when false only [ImageCache.clearLiveImages] runs (e.g. leaving this tab while [IndexedStack] keeps the widget alive).
+  void _clearFeedReelCaches({required bool clearFullImageCache}) {
+    final cache = PaintingBinding.instance.imageCache;
+    cache.clearLiveImages();
+    if (clearFullImageCache) {
+      cache.clear();
+    }
+  }
+
   Future<void> _loadForYou({required bool reset}) async {
     if (_loadingForYou) return;
     if (!reset && !_hasNextForYou) return;
+
+    if (reset) {
+      _clearFeedReelCaches(clearFullImageCache: true);
+    }
 
     setState(() {
       _loadingForYou = true;
@@ -314,6 +334,10 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     if (_loadingFollowing) return;
     if (!reset && !_hasNextFollowing) return;
 
+    if (reset) {
+      _clearFeedReelCaches(clearFullImageCache: true);
+    }
+
     setState(() {
       _loadingFollowing = true;
       _errorFollowing = null;
@@ -354,11 +378,58 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     }
   }
 
+  /// Reloads the visible tab (`GET /user/feed`) — not `/user/feed/mine` (that is “my posts” on profile).
+  Future<void> _refreshActiveFeedTab() async {
+    if (_tabController.index == 0) {
+      await _loadForYou(reset: true);
+    } else {
+      await _loadFollowing(reset: true);
+    }
+  }
+
+  /// Lets pull-to-refresh listen to vertical reel [PageView] even when [ScrollNotification.depth] &gt; 0 (nested scrollables).
+  bool _feedVerticalRefreshNotificationPredicate(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return false;
+    return defaultScrollNotificationPredicate(notification) || notification.depth <= 2;
+  }
+
+  Widget _wrapFeedRefreshIndicator({required Future<void> Function() onRefresh, required Widget child}) {
+    return RefreshIndicator.adaptive(
+      color: AppColors.accentVariant,
+      backgroundColor: Colors.black,
+      displacement: 48,
+      strokeWidth: 3,
+      triggerMode: RefreshIndicatorTriggerMode.anywhere,
+      notificationPredicate: _feedVerticalRefreshNotificationPredicate,
+      onRefresh: onRefresh,
+      child: child,
+    );
+  }
+
+  /// [RefreshIndicator] needs a scrollable that can overscroll when content is short (errors, empty, loading).
+  Widget _refreshScrollableBody({required Widget child}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.backgroundColor, AppColors.backgroundColor, AppColors.backgroundColor]),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.backgroundColor, AppColors.backgroundColor, AppColors.backgroundColor],
+        ),
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -438,13 +509,31 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           ),
           centerTitle: true,
           actions: [
-            IconButton(
-              icon: Image.asset('assets/images/search-normal000.png', width: 20.w),
-
-              onPressed: () {
-                _showSearchScreen();
+            AnimatedBuilder(
+              animation: _tabController,
+              builder: (context, _) {
+                final onForYou = _tabController.index == 0;
+                final busy = onForYou ? _loadingForYou : _loadingFollowing;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Refresh feed',
+                      icon: busy
+                          ? SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentVariant))
+                          : Icon(Icons.refresh_rounded, color: AppColors.onSurface, size: 22),
+                      onPressed: busy ? null : () => _refreshActiveFeedTab(),
+                    ),
+                    IconButton(
+                      icon: Image.asset('assets/images/search-normal000.png', width: 20.w),
+                      onPressed: () {
+                        _showSearchScreen();
+                      },
+                    ).paddingOnly(right: 5),
+                  ],
+                );
               },
-            ).paddingOnly(right: 5),
+            ),
           ],
           bottom: PreferredSize(preferredSize: const Size.fromHeight(0), child: Container()),
         ),
@@ -458,67 +547,96 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
   Widget _buildForYouFeed() {
     if (_errorForYou != null && _feedPosts.isEmpty) {
-      return _buildFeedError(message: _errorForYou!, onRetry: () => _loadForYou(reset: true));
+      return _wrapFeedRefreshIndicator(
+        onRefresh: _refreshActiveFeedTab,
+        child: _refreshScrollableBody(
+          child: _buildFeedError(message: _errorForYou!, onRetry: () => _loadForYou(reset: true)),
+        ),
+      );
     }
     if (_loadingForYou && _feedPosts.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return _wrapFeedRefreshIndicator(
+        onRefresh: _refreshActiveFeedTab,
+        child: _refreshScrollableBody(child: const Center(child: CircularProgressIndicator())),
+      );
     }
-    return AnimatedBuilder(
-      animation: _tabController,
-      builder: (context, _) {
-        return FeedVerticalReels(
-          key: ValueKey<Object>('fy_$_forYouFeedEpoch'),
-          posts: _feedPosts,
-          pageController: _getPageController(0),
-          active: _reelsActiveForInnerTab(0),
-          onPageChangedIndex: (_) {},
-          onNearEndIndex: _queueLoadMoreForYouIfNeeded,
-          resolvePlaybackUrl: playbackUrlForFeedPost,
-          backdropForPost: (ctx, post) => FeedReelBackdrop(post: post),
-          overlay: _feedReelOverlay,
-        );
-      },
+    return _wrapFeedRefreshIndicator(
+      onRefresh: _refreshActiveFeedTab,
+      child: AnimatedBuilder(
+        animation: _tabController,
+        builder: (context, _) {
+          return FeedVerticalReels(
+            key: ValueKey<Object>('fy_$_forYouFeedEpoch'),
+            posts: _feedPosts,
+            pageController: _getPageController(0),
+            active: _reelsActiveForInnerTab(0),
+            onPageChangedIndex: (_) {},
+            onNearEndIndex: _queueLoadMoreForYouIfNeeded,
+            resolvePlaybackUrl: playbackUrlForFeedPost,
+            backdropForPost: (ctx, post) => FeedReelBackdrop(post: post),
+            overlay: _feedReelOverlay,
+            scrollPhysics: _feedPagePhysics,
+          );
+        },
+      ),
     );
   }
 
   Widget _buildFollowingFeed() {
     if (_errorFollowing != null && _followingPosts.isEmpty) {
-      return _buildFeedError(message: _errorFollowing!, onRetry: () => _loadFollowing(reset: true));
+      return _wrapFeedRefreshIndicator(
+        onRefresh: _refreshActiveFeedTab,
+        child: _refreshScrollableBody(
+          child: _buildFeedError(message: _errorFollowing!, onRetry: () => _loadFollowing(reset: true)),
+        ),
+      );
     }
     if (_loadingFollowing && _followingPosts.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return _wrapFeedRefreshIndicator(
+        onRefresh: _refreshActiveFeedTab,
+        child: _refreshScrollableBody(child: const Center(child: CircularProgressIndicator())),
+      );
     }
 
     if (_followingPosts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
-            const SizedBox(height: 16),
-            Text('No posts from followed creators', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
-            const SizedBox(height: 8),
-            TextButton(onPressed: () => _tabController.animateTo(0), child: const Text('Browse For You')),
-          ],
+      return _wrapFeedRefreshIndicator(
+        onRefresh: _refreshActiveFeedTab,
+        child: _refreshScrollableBody(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.people_outline, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+                const SizedBox(height: 16),
+                Text('No posts from followed creators', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+                const SizedBox(height: 8),
+                TextButton(onPressed: () => _tabController.animateTo(0), child: const Text('Browse For You')),
+              ],
+            ),
+          ),
         ),
       );
     }
 
-    return AnimatedBuilder(
-      animation: _tabController,
-      builder: (context, _) {
-        return FeedVerticalReels(
-          key: ValueKey<Object>('fl_$_followingFeedEpoch'),
-          posts: _followingPosts,
-          pageController: _getPageController(1),
-          active: _reelsActiveForInnerTab(1),
-          onPageChangedIndex: (_) {},
-          onNearEndIndex: _queueLoadMoreFollowingIfNeeded,
-          resolvePlaybackUrl: playbackUrlForFeedPost,
-          backdropForPost: (ctx, post) => FeedReelBackdrop(post: post),
-          overlay: _feedReelOverlay,
-        );
-      },
+    return _wrapFeedRefreshIndicator(
+      onRefresh: _refreshActiveFeedTab,
+      child: AnimatedBuilder(
+        animation: _tabController,
+        builder: (context, _) {
+          return FeedVerticalReels(
+            key: ValueKey<Object>('fl_$_followingFeedEpoch'),
+            posts: _followingPosts,
+            pageController: _getPageController(1),
+            active: _reelsActiveForInnerTab(1),
+            onPageChangedIndex: (_) {},
+            onNearEndIndex: _queueLoadMoreFollowingIfNeeded,
+            resolvePlaybackUrl: playbackUrlForFeedPost,
+            backdropForPost: (ctx, post) => FeedReelBackdrop(post: post),
+            overlay: _feedReelOverlay,
+            scrollPhysics: _feedPagePhysics,
+          );
+        },
+      ),
     );
   }
 
@@ -560,7 +678,8 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _SearchScreen(allPosts: _feedPosts, onPostTap: (post) => _showPostDetail(post), buildExploreGridItem: (post) => _buildExploreGridItem(post)),
+        builder: (context) =>
+            _SearchScreen(allPosts: _feedPosts, onPostTap: (post) => _showPostDetail(post), buildExploreGridItem: (post) => _buildExploreGridItem(post)),
       ),
     );
   }
@@ -653,7 +772,13 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   }
 
   void _showPostDetail(Map<String, dynamic> post) {
-    Get.snackbar('Post Detail', 'Opening ${post['title']}', backgroundColor: AppColors.accent, colorText: AppColors.onAccent, snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar(
+      'Post Detail',
+      'Opening ${post['title']}',
+      backgroundColor: AppColors.accent,
+      colorText: AppColors.onAccent,
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
   void _openVideoReel(Map<String, dynamic> post) {

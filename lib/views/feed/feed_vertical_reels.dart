@@ -22,10 +22,14 @@ class FeedVerticalReels extends StatefulWidget {
     required this.resolvePlaybackUrl,
     required this.backdropForPost,
     required this.overlay,
+    this.scrollPhysics,
   });
 
   final List<Map<String, dynamic>> posts;
   final PageController pageController;
+
+  /// When set (e.g. [PageScrollPhysics] + [BouncingScrollPhysics]), enables edge overscroll for [RefreshIndicator].
+  final ScrollPhysics? scrollPhysics;
 
   /// When false (other tab visible), all playback pauses.
   final bool active;
@@ -430,6 +434,7 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
     return PageView.builder(
       controller: widget.pageController,
       scrollDirection: Axis.vertical,
+      physics: widget.scrollPhysics,
       onPageChanged: _onPageChanged,
       itemCount: widget.posts.length,
       itemBuilder: (context, index) {

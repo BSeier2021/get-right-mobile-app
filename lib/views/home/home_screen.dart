@@ -82,22 +82,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     try {
       final newStatus = _hasSubscription();
-      debugPrint('🔄 Refreshing subscription: old=$_hasSubscriptionCache, new=$newStatus');
       if (_hasSubscriptionCache != newStatus) {
-        debugPrint('✅ Subscription status changed! Updating UI...');
+        debugPrint('Subscription status updated: $_hasSubscriptionCache → $newStatus');
         if (mounted) {
           setState(() {
             _hasSubscriptionCache = newStatus;
           });
-          // Trigger Obx rebuild by updating refresh trigger
           _navController.triggerRefresh();
-          debugPrint('✅ UI updated with new subscription status: $_hasSubscriptionCache');
         }
-      } else {
-        debugPrint('ℹ️ Subscription status unchanged: $_hasSubscriptionCache');
       }
     } catch (e) {
-      debugPrint('❌ Error refreshing subscription status: $e');
+      debugPrint('Error refreshing subscription status: $e');
     }
   }
 
@@ -117,15 +112,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       },
       child: Obx(() {
-        // Access refresh trigger to ensure Obx rebuilds when subscription changes
+        // Rebuild shell when subscription refresh trigger bumps (bottom nav key / premium UI).
         final _ = _navController.refreshTrigger.value;
-
-        // Refresh subscription status when Obx rebuilds (catches changes from payment screen)
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _refreshSubscriptionStatus();
-          }
-        });
 
         return Scaffold(
           backgroundColor: AppColors.backgroundColor,
@@ -270,7 +258,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 title,
                 style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
               ),
-              if (description.isNotEmpty) ...[const SizedBox(height: 2), Text(description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray))],
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray)),
+              ],
             ],
           ),
         ),
@@ -279,7 +270,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   /// Modern navigation item
-  Widget _buildNavItem({required String icon, required String activeIcon, required String label, required int index, required bool isSelected, bool isCenter = false}) {
+  Widget _buildNavItem({
+    required String icon,
+    required String activeIcon,
+    required String label,
+    required int index,
+    required bool isSelected,
+    bool isCenter = false,
+  }) {
     const greenAccent = Color(0xFF214E31);
     const blackPrimary = Color(0xFF000000);
     const textSecondary = Color(0xFF404040);
@@ -337,7 +335,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   return ScaleTransition(scale: animation, child: child);
                                 },
                                 child: isLocked
-                                    ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : greenAccent, size: isCenter ? 24 : 20)
+                                    ? Icon(
+                                        Icons.lock,
+                                        key: ValueKey('$index-$isSelected-$isLocked-lock'),
+                                        color: isCenter ? Colors.white : greenAccent,
+                                        size: isCenter ? 24 : 20,
+                                      )
                                     : _buildNavGraphic(
                                         activeIcon,
                                         isCenter: isCenter,
@@ -347,8 +350,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       ),
                               )
                             : isLocked
-                            ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : textSecondary, size: isCenter ? 24 : 20)
-                            : _buildNavGraphic(icon, isCenter: isCenter, isSelected: false, selectedColor: isCenter ? Colors.white : greenAccent, unselectedColor: textSecondary),
+                            ? Icon(
+                                Icons.lock,
+                                key: ValueKey('$index-$isSelected-$isLocked-lock'),
+                                color: isCenter ? Colors.white : textSecondary,
+                                size: isCenter ? 24 : 20,
+                              )
+                            : _buildNavGraphic(
+                                icon,
+                                isCenter: isCenter,
+                                isSelected: false,
+                                selectedColor: isCenter ? Colors.white : greenAccent,
+                                unselectedColor: textSecondary,
+                              ),
                       ),
                     ),
                   ),
@@ -381,7 +395,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final targetColor = isSelected ? selectedColor : unselectedColor;
     final size = isCenter ? 35.0 : 20.0;
     if (assetPath.toLowerCase().endsWith('.svg')) {
-      return SvgPicture.asset(assetPath, width: size, height: size, colorFilter: ColorFilter.mode(targetColor, BlendMode.srcIn), key: ValueKey('svg-$assetPath-$isSelected'));
+      return SvgPicture.asset(
+        assetPath,
+        width: size,
+        height: size,
+        colorFilter: ColorFilter.mode(targetColor, BlendMode.srcIn),
+        key: ValueKey('svg-$assetPath-$isSelected'),
+      );
     } else {
       return Image.asset(assetPath, width: size, height: size, key: ValueKey('img-$assetPath-$isSelected'));
     }

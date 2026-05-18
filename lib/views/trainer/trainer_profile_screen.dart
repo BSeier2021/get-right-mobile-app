@@ -42,13 +42,18 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   String? _programsLoadError;
   String? _bundlesLoadError;
 
+  /// Programs + Training tabs only when API / args indicate `Trainer`.
+  bool get _showProgramsTrainingTabs => (trainer['role'] ?? '').toString().trim().toLowerCase() == 'trainer';
+
+  int _tabLengthForRole() => _showProgramsTrainingTabs ? 3 : 1;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(_onProgramsTabShow);
     trainer = _argumentsToTrainerMap(Get.arguments);
     _mongoUserId = _extractMongoUserId(Get.arguments);
+    _tabController = TabController(length: _tabLengthForRole(), vsync: this);
+    _tabController.addListener(_onProgramsTabShow);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Arguments can be filled on the next frame in some navigations; re-resolve id once.
       _mongoUserId ??= _extractMongoUserId(Get.arguments);
@@ -67,6 +72,15 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       final m = Map<String, dynamic>.from(args);
       if (m['_id'] != null && (m['id'] == null || m['id'].toString().isEmpty)) {
         m['id'] = m['_id'];
+      }
+      if (m['role'] == null) {
+        for (final nestedKey in ['trainer', 'user', 'creator']) {
+          final nested = m[nestedKey];
+          if (nested is Map && nested['role'] != null) {
+            m['role'] = nested['role'];
+            break;
+          }
+        }
       }
       return m;
     }
@@ -155,6 +169,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       final detailRaw = await _trainerRepo.getProfileDetailsRepo(id);
       if (mounted) {
         setState(() => _applyDetailsResponse(detailRaw));
+        _ensureTabControllerMatchesRole();
       }
     } catch (e) {
       if (mounted) setState(() => _loadError = e.toString());
@@ -236,9 +251,24 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       'followingCount': user['followingCount'],
       'programCount': user['programCount'],
       'bundleCount': user['bundleCount'],
+      'role': user['role']?.toString() ?? trainer['role'],
     };
 
     _isFollowedByMe = user['isFollowedByMe'] == true;
+  }
+
+  /// Recreates [TabController] when API reveals Customer vs Trainer (length 1 vs 3).
+  void _ensureTabControllerMatchesRole() {
+    if (!mounted) return;
+    final want = _tabLengthForRole();
+    if (_tabController.length == want) return;
+    final prevIndex = _tabController.index;
+    _tabController.removeListener(_onProgramsTabShow);
+    _tabController.dispose();
+    final initialIndex = want == 3 ? prevIndex.clamp(0, 2) : 0;
+    _tabController = TabController(length: want, vsync: this, initialIndex: initialIndex);
+    _tabController.addListener(_onProgramsTabShow);
+    setState(() {});
   }
 
   List<Map<String, dynamic>> _parsePostsResponse(dynamic raw) {
@@ -251,6 +281,17 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       if (v is List) {
         list = v;
         break;
+      }
+      // Paginated shape: data.posts.feeds (GET /user/profiles/:id/posts)
+      if (v is Map) {
+        for (final innerKey in ['feeds', 'posts', 'items', 'list']) {
+          final inner = v[innerKey];
+          if (inner is List) {
+            list = inner;
+            break;
+          }
+        }
+        if (list != null) break;
       }
     }
     if (list == null) return [];
@@ -283,6 +324,9 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       for (final k in ['thumbnail', 'poster', 'url']) {
         final u = video[k];
         if (u is String && u.startsWith('http')) return u;
+        if (u is Map && u['url'] is String && (u['url'] as String).trim().startsWith('http')) {
+          return (u['url'] as String).trim();
+        }
       }
     }
     return '';
@@ -409,6 +453,29 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     super.dispose();
   }
 
+  /// Pull-to-refresh for tab bodies; [AlwaysScrollableScrollPhysics] keeps overscroll when content is short.
+  Widget _wrapTabRefresh({required Future<void> Function() onRefresh, required Widget child}) {
+    return RefreshIndicator.adaptive(
+      color: AppColors.accentVariant,
+      backgroundColor: AppColors.background,
+      displacement: 40,
+      strokeWidth: 2.5,
+      triggerMode: RefreshIndicatorTriggerMode.anywhere,
+      onRefresh: onRefresh,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -434,28 +501,33 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         title: Text(_displayName, style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
         centerTitle: true,
 
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(50),
-          child: Container(
-            color: AppColors.background,
-            child: TabBar(
-              controller: _tabController,
-              indicatorColor: AppColors.accent,
-              indicatorWeight: 3,
-              labelColor: AppColors.accent,
-              unselectedLabelColor: const Color.fromARGB(179, 61, 61, 63),
-              labelStyle: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.bold),
-              unselectedLabelStyle: AppTextStyles.titleSmall,
-              tabs: const [
-                Tab(text: 'Profile'),
-                Tab(text: 'Programs'),
-                Tab(text: 'Training'),
-              ],
-            ),
-          ),
-        ),
+        bottom: _showProgramsTrainingTabs
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(50),
+                child: Container(
+                  color: AppColors.background,
+                  child: TabBar(
+                    controller: _tabController,
+                    indicatorColor: AppColors.accent,
+                    indicatorWeight: 3,
+                    labelColor: AppColors.accent,
+                    unselectedLabelColor: const Color.fromARGB(179, 61, 61, 63),
+                    labelStyle: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.bold),
+                    unselectedLabelStyle: AppTextStyles.titleSmall,
+                    tabs: const [
+                      Tab(text: 'Profile'),
+                      Tab(text: 'Programs'),
+                      Tab(text: 'Training'),
+                    ],
+                  ),
+                ),
+              )
+            : null,
       ),
-      body: TabBarView(controller: _tabController, children: [_buildProfileTab(), _buildProgramsTab(), _buildTrainingTab()]),
+      body: TabBarView(
+        controller: _tabController,
+        children: _showProgramsTrainingTabs ? [_buildProfileTab(), _buildProgramsTab(), _buildTrainingTab()] : [_buildProfileTab()],
+      ),
     );
   }
 
@@ -465,7 +537,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     final followers = _statInt('followersCount');
     final following = _statInt('followingCount');
 
-    return SingleChildScrollView(
+    return _wrapTabRefresh(
+      onRefresh: _loadProfileFromApi,
       child: Column(
         children: [
           if (_bootstrapLoading) const LinearProgressIndicator(minHeight: 2),
@@ -672,86 +745,85 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   Widget _buildProgramsTab() {
     final id = _mongoUserId;
     if (id != null && _programsTabLoading && _programs.isEmpty && _bundles.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return _wrapTabRefresh(
+        onRefresh: _loadProgramsAndBundles,
+        child: const Center(
+          child: Padding(padding: EdgeInsets.only(top: 48), child: CircularProgressIndicator()),
+        ),
+      );
     }
 
     final programsToShow = id != null ? _programs : _getMockPrograms('all');
     final bundlesToShow = id != null ? _bundles : _getMockBundles();
 
-    return RefreshIndicator(
+    return _wrapTabRefresh(
       onRefresh: () async {
         if (id != null) await _loadProgramsAndBundles();
       },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            if (_programsLoadError != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(_programsLoadError!, style: AppTextStyles.bodySmall.copyWith(color: Colors.red.shade700)),
-              ),
-            // Bundles Section
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          if (_programsLoadError != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Bundles',
-                    style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                  ),
-                  if (_bundlesLoadError != null) Text(_bundlesLoadError!, style: AppTextStyles.bodySmall.copyWith(color: Colors.red.shade700)),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 200.h,
-                    child: bundlesToShow.isEmpty
-                        ? Center(
-                            child: Text(
-                              id != null ? 'No bundles listed' : 'No bundles',
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
-                            ),
-                          )
-                        : ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: bundlesToShow.length,
-                            itemBuilder: (context, index) {
-                              return _buildBundleCard(bundlesToShow[index]);
-                            },
-                          ),
-                  ),
-                ],
-              ),
+              child: Text(_programsLoadError!, style: AppTextStyles.bodySmall.copyWith(color: Colors.red.shade700)),
             ),
-            const SizedBox(height: 24),
-            // Programs Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Programs',
-                    style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  if (programsToShow.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Center(
-                        child: Text(id != null ? 'No programs listed' : '', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-                      ),
-                    )
-                  else
-                    ...programsToShow.map((program) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _buildProgramCardVertical(program))),
-                ],
-              ),
+          // Bundles Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Bundles',
+                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                ),
+                if (_bundlesLoadError != null) Text(_bundlesLoadError!, style: AppTextStyles.bodySmall.copyWith(color: Colors.red.shade700)),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 200.h,
+                  child: bundlesToShow.isEmpty
+                      ? Center(
+                          child: Text(id != null ? 'No bundles listed' : 'No bundles', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                        )
+                      : ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: bundlesToShow.length,
+                          itemBuilder: (context, index) {
+                            return _buildBundleCard(bundlesToShow[index]);
+                          },
+                        ),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-          ],
-        ),
+          ),
+          const SizedBox(height: 24),
+          // Programs Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Programs',
+                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                if (programsToShow.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Text(id != null ? 'No programs listed' : '', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                    ),
+                  )
+                else
+                  ...programsToShow.map((program) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _buildProgramCardVertical(program))),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }
@@ -868,7 +940,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
   // Training Tab
   Widget _buildTrainingTab() {
-    return SingleChildScrollView(
+    return _wrapTabRefresh(
+      onRefresh: _loadProfileFromApi,
       child: Column(
         children: [
           const SizedBox(height: 20),
@@ -1626,6 +1699,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       'completedPrograms': 12,
       'totalPrograms': 17,
       'location': '123 Fitness Street, Gym City, GC 12345',
+      'role': 'Trainer',
     };
   }
 

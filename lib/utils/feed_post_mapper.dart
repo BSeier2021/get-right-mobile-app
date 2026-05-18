@@ -163,8 +163,12 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
       : '${durationSeconds.toStringAsFixed(1)}s';
 
   final resolvedVideoUrl = extractFeedVideoUrl(m, video) ?? '';
-  final thumb =
-      firstNonEmptyUrlString(video['thumbnail']) ?? firstNonEmptyUrlString(video['poster']) ?? firstNonEmptyUrlString(m['thumbnail']) ?? '';
+  final vt = video['thumbnail'];
+  final ft = m['thumbnail'];
+  final thumb = firstNonEmptyUrlString(vt is Map ? vt['url'] : vt) ??
+      firstNonEmptyUrlString(video['poster']) ??
+      firstNonEmptyUrlString(ft is Map ? ft['url'] : ft) ??
+      '';
 
   final viewer = (m['viewer'] is Map) ? Map<String, dynamic>.from(m['viewer'] as Map) : <String, dynamic>{};
 
