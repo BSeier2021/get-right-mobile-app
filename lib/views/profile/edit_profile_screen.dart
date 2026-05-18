@@ -104,7 +104,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final bio = p?.bio?.trim();
     _bioController.text = (bio != null && bio.isNotEmpty) ? bio : (_storageService.getString('user_bio') ?? '');
 
-    _selectedGender = p?.gender?.trim().isNotEmpty == true ? p!.gender!.trim() : _storageService.getString('user_gender');
+    final rawGender = p?.gender?.trim().isNotEmpty == true ? p!.gender!.trim() : _storageService.getString('user_gender');
+    _selectedGender = GenderEnums.normalize(rawGender);
 
     _primaryFocusValue = null;
     if (p?.primaryFocus != null && p!.primaryFocus!.trim().isNotEmpty) {
@@ -603,6 +604,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       value: _selectedGender,
                       items: AppConstants.genderOptions,
                       icon: Icons.wc_outlined,
+                      itemLabel: GenderEnums.displayForApi,
                       onChanged: (value) => setState(() => _selectedGender = value),
                     ),
                     const SizedBox(height: 32),
@@ -862,6 +864,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required List<String> items,
     required IconData icon,
     required ValueChanged<String?> onChanged,
+    String Function(String value)? itemLabel,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -891,7 +894,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryGray),
         ),
         items: items.map((String item) {
-          return DropdownMenuItem<String>(value: item, child: Text(item));
+          final text = itemLabel != null ? itemLabel(item) : item;
+          return DropdownMenuItem<String>(value: item, child: Text(text));
         }).toList(),
         onChanged: onChanged,
       ),

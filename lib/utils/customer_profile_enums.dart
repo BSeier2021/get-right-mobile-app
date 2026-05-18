@@ -1,3 +1,51 @@
+/// Gender values for `POST /customer/profile/create` and profile update (`gender` field).
+abstract final class GenderEnums {
+  static const String male = 'Male';
+  static const String female = 'Female';
+  static const String other = 'Other';
+  static const String preferNotToSay = 'PreferNotToSay';
+
+  static const List<String> apiValues = [male, female, other, preferNotToSay];
+
+  static bool isValid(String? value) {
+    if (value == null) return false;
+    return apiValues.contains(value.trim());
+  }
+
+  /// UI label for dropdown / display.
+  static String displayForApi(String api) {
+    switch (api.trim()) {
+      case male:
+        return 'Male';
+      case female:
+        return 'Female';
+      case other:
+        return 'Other';
+      case preferNotToSay:
+        return 'Prefer not to say';
+      default:
+        return api;
+    }
+  }
+
+  /// Maps API value, legacy labels, or slugs to a valid [apiValues] entry.
+  static String? normalize(String? raw) {
+    if (raw == null) return null;
+    final s = raw.trim();
+    if (s.isEmpty) return null;
+    if (isValid(s)) return s;
+    final key = s.toLowerCase().replaceAll(RegExp(r'[\s_-]+'), '');
+    const map = <String, String>{
+      'male': male,
+      'female': female,
+      'other': other,
+      'prefernottosay': preferNotToSay,
+      'prefernotsay': preferNotToSay,
+    };
+    return map[key];
+  }
+}
+
 /// Allowed values for `POST /customer/profile/update` (backend validation).
 abstract final class CustomerProfileEnums {
   static const Set<String> primaryFocusValues = {

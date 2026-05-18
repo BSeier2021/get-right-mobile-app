@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:get_right/constants/app_constants.dart';
+import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -89,7 +90,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
       Get.snackbar('Profile', 'Please select your date of birth', snackPosition: SnackPosition.BOTTOM);
       return;
     }
-    if (_selectedGender == null || _selectedGender!.trim().isEmpty) {
+    if (!GenderEnums.isValid(_selectedGender)) {
       Get.snackbar('Profile', 'Please select your gender', snackPosition: SnackPosition.BOTTOM);
       return;
     }
@@ -268,6 +269,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                             value: _selectedGender,
                             items: AppConstants.genderOptions,
                             icon: null,
+                            itemLabel: GenderEnums.displayForApi,
                             onChanged: (value) => setState(() => _selectedGender = value),
                           ),
                           const SizedBox(height: 16),
@@ -425,7 +427,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
     );
   }
 
-  Widget _buildDropdownField({required String? label, required String? value, required List<String> items, required IconData? icon, required ValueChanged<String?> onChanged}) {
+  Widget _buildDropdownField({
+    required String? label,
+    required String? value,
+    required List<String> items,
+    required IconData? icon,
+    required ValueChanged<String?> onChanged,
+    String Function(String value)? itemLabel,
+  }) {
     return Container(
       height: 56,
       decoration: BoxDecoration(
@@ -470,7 +479,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
           style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 15, fontWeight: FontWeight.w400),
         ),
         items: items.map((String item) {
-          return DropdownMenuItem<String>(value: item, child: Text(item));
+          final label = itemLabel != null ? itemLabel(item) : item;
+          return DropdownMenuItem<String>(value: item, child: Text(label));
         }).toList(),
         onChanged: onChanged,
       ),

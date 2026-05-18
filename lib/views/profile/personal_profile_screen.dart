@@ -70,8 +70,9 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
 
   String _displayGender(CustomerProfileDto? p) {
     final g = p?.gender?.trim();
-    if (g != null && g.isNotEmpty) return g;
-    return _storageService.getString('user_gender') ?? 'Male';
+    final raw = (g != null && g.isNotEmpty) ? g : _storageService.getString('user_gender');
+    final api = GenderEnums.normalize(raw) ?? GenderEnums.male;
+    return GenderEnums.displayForApi(api);
   }
 
   String _displayBio(CustomerProfileDto? p) {

@@ -1,3 +1,5 @@
+import 'package:get_right/utils/customer_profile_enums.dart';
+
 /// App-wide constants for Get Right
 class AppConstants {
   AppConstants._(); // Private constructor
@@ -70,13 +72,8 @@ class AppConstants {
     'Sports',
   ];
 
-  // Gender Options
-  static const List<String> genderOptions = [
-    'Male',
-    'Female',
-    'Other',
-    'Prefer not to say',
-  ];
+  // Gender — API values (`Male`, `Female`, `Other`, `PreferNotToSay`). Use [GenderEnums.displayForApi] for labels.
+  static const List<String> genderOptions = GenderEnums.apiValues;
 
   // Activity Levels
   static const List<String> activityLevels = [
