@@ -15,12 +15,7 @@ String _formatCommentCount(int count) {
 
 /// Bottom sheet listing feed comments from `GET /user/feed/:feedId/comments`.
 class FeedCommentsSheet extends StatefulWidget {
-  const FeedCommentsSheet({
-    super.key,
-    required this.feedId,
-    required this.initialCommentCount,
-    this.onCommentCountChanged,
-  });
+  const FeedCommentsSheet({super.key, required this.feedId, required this.initialCommentCount, this.onCommentCountChanged});
 
   final String feedId;
   final int initialCommentCount;
@@ -125,9 +120,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
   }
 
   Future<void> _editComment(int index) async {
@@ -206,11 +199,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
 
     setState(() => _submittingComment = true);
     try {
-      final raw = await _feedRepo.postFeedCommentRepo(
-        feedId: widget.feedId,
-        text: text,
-        parentCommentId: parentId,
-      );
+      final raw = await _feedRepo.postFeedCommentRepo(feedId: widget.feedId, text: text, parentCommentId: parentId);
       final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data'] as Map) : <String, dynamic>{};
       final commentRaw = data['comment'];
       if (commentRaw == null) {
@@ -242,12 +231,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), behavior: SnackBarBehavior.floating));
     } finally {
       if (mounted) setState(() => _submittingComment = false);
     }
@@ -326,16 +310,15 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Text(
-                        (comment['authorName'] ?? 'User').toString(),
-                        style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                      ),
+                    Text(
+                      (comment['authorName'] ?? 'User').toString(),
+                      style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
                     ),
                     PopupMenuButton<String>(
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      constraints: const BoxConstraints(minWidth: 10, minHeight: 10),
                       enabled: !_commentActionInFlight && !_submittingComment,
                       icon: Icon(Icons.more_vert, size: 20, color: AppColors.primaryGray.withOpacity(0.85)),
                       onSelected: (value) {
@@ -348,15 +331,9 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
                         }
                       },
                       itemBuilder: (context) => [
-                        const PopupMenuItem<String>(
-                          value: 'reply',
-                          child: Text('Reply'),
-                        ),
+                        const PopupMenuItem<String>(value: 'reply', child: Text('Reply')),
                         if (isOwn) ...[
-                          const PopupMenuItem<String>(
-                            value: 'edit',
-                            child: Text('Edit'),
-                          ),
+                          const PopupMenuItem<String>(value: 'edit', child: Text('Edit')),
                           PopupMenuItem<String>(
                             value: 'delete',
                             child: Text('Delete', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
@@ -366,9 +343,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
                 Text((comment['text'] ?? '').toString(), style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
-                const SizedBox(height: 2),
                 Text((comment['timestamp'] ?? '').toString(), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
               ],
             ),
@@ -382,11 +357,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     final url = ImageUrlSanitizer.asHttpUrlOrNull((comment['avatarUrl'] ?? '').toString());
     final initials = (comment['authorInitials'] ?? 'U').toString();
     if (url != null) {
-      return CircleAvatar(
-        radius: 16,
-        backgroundColor: AppColors.accent.withOpacity(0.2),
-        backgroundImage: NetworkImage(url),
-      );
+      return CircleAvatar(radius: 16, backgroundColor: AppColors.accent.withOpacity(0.2), backgroundImage: NetworkImage(url));
     }
     return CircleAvatar(
       radius: 16,
@@ -421,18 +392,12 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
             ],
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 280,
-            child: _buildCommentsBody(),
-          ),
+          SizedBox(height: 280, child: _buildCommentsBody()),
           const SizedBox(height: 12),
           if (_replyParentId != null) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
+              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
               child: Row(
                 children: [
                   Expanded(
@@ -481,11 +446,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
               IconButton(
                 onPressed: _submittingComment ? null : _submitComment,
                 icon: _submittingComment
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
-                      )
+                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
                     : const Icon(Icons.send, color: AppColors.accent),
               ),
             ],
@@ -517,10 +478,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     }
     if (_comments.isEmpty) {
       return Center(
-        child: Text(
-          'No comments yet',
-          style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-        ),
+        child: Text('No comments yet', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
       );
     }
 
@@ -532,7 +490,9 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
         if (index >= _comments.length) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))),
+            child: Center(
+              child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+            ),
           );
         }
         final comment = _comments[index];
