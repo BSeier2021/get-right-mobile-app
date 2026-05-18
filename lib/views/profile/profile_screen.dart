@@ -11,6 +11,8 @@ import 'package:get_right/models/customer_profile_dto.dart';
 import 'package:get_right/models/feed_category_model.dart';
 import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/repo/feed_repo.dart';
+import 'package:get_right/repo/trainer_profile_repo.dart';
+import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -79,9 +81,13 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   List<PersonalRecord> _personalRecords = [];
   final FeedRepository _feedRepo = FeedRepository();
+  final TrainerProfileRepository _profileRepo = TrainerProfileRepository();
   List<Map<String, dynamic>> _myFeedPosts = [];
   bool _myFeedsLoading = true;
   String? _myFeedsError;
+  int? _postCount;
+  int? _followersCount;
+  int? _followingCount;
   Worker? _profileTabWorker;
   bool _lazyBootstrapped = false;
 
@@ -118,6 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (Get.isRegistered<AuthController>()) {
       Get.find<AuthController>().fetchCustomerProfile();
     }
+    _fetchProfileStats();
     _fetchMyFeeds();
   }
 
@@ -220,6 +227,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (Get.isRegistered<AuthController>()) {
                 await Get.find<AuthController>().fetchCustomerProfile();
               }
+              await _fetchProfileStats();
               await _fetchMyFeeds();
             },
             child: SingleChildScrollView(physics: const AlwaysScrollableScrollPhysics(), child: _buildPublicProfile(auth)),
@@ -350,11 +358,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Row(
             children: [
-              Expanded(child: _buildStatCard('06', 'Posts', _kStatPostsOrange)),
+              Expanded(child: _buildStatCard(_formatProfileStat(_postCount), 'Posts', _kStatPostsOrange)),
               const SizedBox(width: 10),
-              Expanded(child: _buildStatCard('1247', 'Followers', _kStatFollowersBlue, onTap: () => Get.toNamed(AppRoutes.followers))),
+              Expanded(child: _buildStatCard(_formatProfileStat(_followersCount), 'Followers', _kStatFollowersBlue, onTap: () => Get.toNamed(AppRoutes.followers))),
               const SizedBox(width: 10),
-              Expanded(child: _buildStatCard('342', 'Following', _kStatFollowingGreen, onTap: () => Get.toNamed(AppRoutes.following))),
+              Expanded(child: _buildStatCard(_formatProfileStat(_followingCount), 'Following', _kStatFollowingGreen, onTap: () => Get.toNamed(AppRoutes.following))),
             ],
           ),
         ),
@@ -562,6 +570,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  String? _resolvedUserId() {
+    if (Get.isRegistered<AuthController>()) {
+      final id = Get.find<AuthController>().customerProfile?.userId.trim();
+      if (id != null && id.isNotEmpty) return id;
+    }
+    if (Get.isRegistered<StorageService>()) {
+      final id = Get.find<StorageService>().getUserId()?.trim();
+      if (id != null && id.isNotEmpty) return id;
+    }
+    return null;
+  }
+
+  static int _statIntFrom(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v?.toString() ?? '') ?? 0;
+  }
+
+  void _applyUserStatsFromResponse(dynamic raw) {
+    if (raw is! Map) return;
+    final data = raw['data'];
+    if (data is! Map) return;
+    final user = data['user'];
+    if (user is! Map) return;
+    final u = Map<String, dynamic>.from(user);
+    setState(() {
+      _postCount = _statIntFrom(u['postCount']);
+      _followersCount = _statIntFrom(u['followersCount']);
+      _followingCount = _statIntFrom(u['followingCount']);
+    });
+  }
+
+  String _formatProfileStat(int? value) => value != null ? '$value' : '…';
+
+  /// Loads `postCount`, `followersCount`, `followingCount` from profile API (`data.user`).
+  Future<void> _fetchProfileStats() async {
+    final id = _resolvedUserId();
+    if (id == null) return;
+    try {
+      final raw = await _profileRepo.getProfileDetailsRepo(id);
+      if (!mounted) return;
+      _applyUserStatsFromResponse(raw);
+    } catch (_) {
+      try {
+        final raw = await _profileRepo.getProfilePostsRepo(id, page: 1, limit: 1);
+        if (!mounted) return;
+        _applyUserStatsFromResponse(raw);
+      } catch (_) {
+        /* keep previous counts or placeholder */
+      }
+    }
+  }
+
   Future<void> _fetchMyFeeds() async {
     setState(() {
       _myFeedsLoading = true;
@@ -571,10 +632,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final raw = await _feedRepo.getMyFeedsRepo(page: 1, limit: 10);
       final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data']) : <String, dynamic>{};
       final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds']) : const [];
-      final mapped = feedsRaw
-          .map((e) => _mapMineFeedToGridItem(Map<String, dynamic>.from(e as Map)))
-          .where((p) => (p['id'] ?? '').toString().isNotEmpty)
-          .toList();
+      final mapped = feedsRaw.map((e) => _mapMineFeedToGridItem(Map<String, dynamic>.from(e as Map))).where((p) => (p['id'] ?? '').toString().isNotEmpty).toList();
 
       if (!mounted) return;
       setState(() {
@@ -667,11 +725,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildPostGridThumbnailPlaceholder() {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_kProfileForestGreen.withOpacity(0.35), _kProfileForestGreen.withOpacity(0.15)],
-        ),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_kProfileForestGreen.withOpacity(0.35), _kProfileForestGreen.withOpacity(0.15)]),
         borderRadius: BorderRadius.circular(10),
       ),
     );
@@ -748,11 +802,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Gradient overlay for engagement row
                   Container(
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black.withOpacity(0.35)],
-                      ),
+                      gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.35)]),
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
@@ -858,7 +908,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             post: post,
             feedRepo: _feedRepo,
             onSaved: () async {
-              await _fetchMyFeeds();
+              await Future.wait([_fetchProfileStats(), _fetchMyFeeds()]);
             },
           ),
         );
@@ -875,10 +925,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Delete post?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-        content: Text(
-          'This removes the post from your profile. This cannot be undone.',
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
-        ),
+        content: Text('This removes the post from your profile. This cannot be undone.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
@@ -894,7 +941,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       await _feedRepo.deleteFeedRepo(id);
-      await _fetchMyFeeds();
+      await Future.wait([_fetchProfileStats(), _fetchMyFeeds()]);
       if (!mounted) return;
       Get.snackbar('Deleted', 'Post removed', snackPosition: SnackPosition.BOTTOM, backgroundColor: _kProfileForestGreen, colorText: Colors.white);
     } catch (e) {
@@ -994,13 +1041,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildCreatePostOption({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Gradient gradient,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildCreatePostOption({required IconData icon, required String title, required String subtitle, required Gradient gradient, required VoidCallback onTap}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Material(
@@ -1175,10 +1216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      '${record.value} ${record.unit} • ${dateFormat.format(record.date)}',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-                    ),
+                    Text('${record.value} ${record.unit} • ${dateFormat.format(record.date)}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                   ],
                 ),
               ),
@@ -1359,10 +1397,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       children: [
                                         Text('Date', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
                                         const SizedBox(height: 4),
-                                        Text(
-                                          DateFormat('MMM d, yyyy').format(selectedDate),
-                                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
-                                        ),
+                                        Text(DateFormat('MMM d, yyyy').format(selectedDate), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
                                       ],
                                     ),
                                   ),
@@ -1649,12 +1684,7 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
       });
     }
 
-    await widget.feedRepo.completeVideoMultipartRepo(
-      feedId: feedId,
-      key: init.key,
-      uploadId: init.uploadId,
-      parts: uploaded.map((e) => e.toCompleteApiJson()).toList(),
-    );
+    await widget.feedRepo.completeVideoMultipartRepo(feedId: feedId, key: init.key, uploadId: init.uploadId, parts: uploaded.map((e) => e.toCompleteApiJson()).toList());
 
     if (mounted) {
       setState(() => _saveUploadProgress = 1);
@@ -1732,9 +1762,7 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
     _descriptionController = TextEditingController(text: (p['description'] ?? '').toString());
     _committedTags
       ..clear()
-      ..addAll(
-        (p['tags'] as List<dynamic>?)?.map((e) => e.toString().replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).toList() ?? const <String>[],
-      );
+      ..addAll((p['tags'] as List<dynamic>?)?.map((e) => e.toString().replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).toList() ?? const <String>[]);
     _tagsController = TextEditingController();
     _status = _normalizeFeedPostStatus(p['status']?.toString());
     final cid = (p['categoryId'] ?? '').toString().trim();

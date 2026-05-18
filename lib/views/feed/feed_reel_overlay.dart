@@ -151,14 +151,7 @@ class FeedReelBackdrop extends StatelessWidget {
 
 /// Like / comment / caption overlay used on reels (tap-through gradient).
 class FeedReelChromeOverlay extends StatefulWidget {
-  const FeedReelChromeOverlay({
-    super.key,
-    required this.post,
-    this.videoController,
-    this.onLikeStateChanged,
-    this.onSaveStateChanged,
-    this.onCommentCountChanged,
-  });
+  const FeedReelChromeOverlay({super.key, required this.post, this.videoController, this.onLikeStateChanged, this.onSaveStateChanged, this.onCommentCountChanged});
 
   final Map<String, dynamic> post;
   final VideoPlayerController? videoController;
@@ -325,10 +318,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: Text('Repost reel?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-        content: Text(
-          'This will share the reel on your profile for your followers to see.',
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
-        ),
+        content: Text('This will share the reel on your profile for your followers to see.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
@@ -388,11 +378,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildShareIcon(Icons.message, 'Message', () {}),
-                _buildShareIcon(Icons.link, 'Copy Link', () {}),
-                _buildShareIcon(Icons.share, 'More', () {}),
-              ],
+              children: [_buildShareIcon(Icons.message, 'Message', () {}), _buildShareIcon(Icons.link, 'Copy Link', () {}), _buildShareIcon(Icons.share, 'More', () {})],
             ),
             const SizedBox(height: 16),
           ],

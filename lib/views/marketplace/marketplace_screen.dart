@@ -8,6 +8,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
+import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 
 /// Marketplace screen - browse trainer programs
 class MarketplaceScreen extends StatefulWidget {
@@ -1047,13 +1048,46 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   String? _programTrainerAvatarUrl(Map<String, dynamic> program) {
+    final direct = ImageUrlSanitizer.asHttpUrlOrNull(program['trainerImageUrl']?.toString());
+    if (direct != null) return direct;
+
     final p = _programRaw(program);
     if (p == null) return null;
+
+    final display = p['display'];
+    if (display is Map) {
+      final fromDisplay = ImageUrlSanitizer.asHttpUrlOrNull(display['instructor_avatar_url']?.toString());
+      if (fromDisplay != null) return fromDisplay;
+    }
+
     final t = p['trainer'];
     if (t is! Map) return null;
     final pic = t['profilePicture'];
-    if (pic is Map) return ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+    if (pic is Map) {
+      final url = ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+      if (url != null) return url;
+    }
+    final prof = t['profile'];
+    if (prof is Map) {
+      final profPic = prof['profilePicture'];
+      if (profPic is Map) return ImageUrlSanitizer.asHttpUrlOrNull(profPic['url']?.toString());
+    }
     return null;
+  }
+
+  Widget _programTrainerAvatarChip(Map<String, dynamic> program, {required double size}) {
+    final url = _programTrainerAvatarUrl(program);
+    final initials = (program['trainerImage'] ?? 'T').toString();
+    final radius = size / 2;
+    return SafeCircleNetworkAvatar(
+      radius: radius,
+      imageUrl: url,
+      backgroundColor: AppColors.accent.withOpacity(0.15),
+      fallback: Text(
+        initials.length > 2 ? initials.substring(0, 1).toUpperCase() : initials.toUpperCase(),
+        style: TextStyle(color: AppColors.accent, fontSize: radius * 0.85, fontWeight: FontWeight.w700),
+      ),
+    );
   }
 
   int? _programReviewCount(Map<String, dynamic> program) {
@@ -1926,7 +1960,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       // Instructor with Certification Badge
                       Row(
                         children: [
-                          Image.asset('assets/images/avatar.png', height: 23.h),
+                          _programTrainerAvatarChip(program, size: 23.h),
                           SizedBox(width: 6.w),
                           // Trainer Name
                           Flexible(
@@ -2226,7 +2260,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       // Instructor with Certification Badge
                       Row(
                         children: [
-                          Image.asset('assets/images/avatar.png', height: 23.h),
+                          _programTrainerAvatarChip(program, size: 23.h),
                           SizedBox(width: 6.w),
                           // Trainer Name
                           Flexible(
@@ -2310,7 +2344,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final totalRatings = programs.isNotEmpty ? programs.map((p) => ((p['students'] as num?) ?? 0).toInt()).reduce((a, b) => a + b) : 0;
 
     // Get primary trainer (first program's trainer)
-    final primaryTrainer = programs.isNotEmpty ? programs[0]['trainer'] : 'Trainer';
+    final primaryProgram = programs.isNotEmpty ? programs[0] : null;
+    final primaryTrainer = primaryProgram != null ? primaryProgram['trainer'] : 'Trainer';
     final isHot = bundle['isHot'] == true;
     final isCertified = bundle['isCertified'] == true || (programs.isNotEmpty && programs.every((p) => p['certified'] == true));
 
@@ -2364,7 +2399,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             // Profile Picture
-                            Image.asset('assets/images/avatar.png', height: 20.h),
+                            if (primaryProgram != null)
+                              _programTrainerAvatarChip(primaryProgram, size: 20.h)
+                            else
+                              _programTrainerAvatarChip(<String, dynamic>{'trainerImage': 'T'}, size: 20.h),
 
                             SizedBox(width: 6.w),
                             // Trainer Name
@@ -2652,7 +2690,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     // Instructor with Certification Badge
                     Row(
                       children: [
-                        Image.asset('assets/images/avatar.png', height: 23.h),
+                        _programTrainerAvatarChip(program, size: 23.h),
                         SizedBox(width: 6.w),
                         // Trainer Name
                         Flexible(

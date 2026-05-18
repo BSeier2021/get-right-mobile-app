@@ -292,6 +292,23 @@ class MarketplaceRepository {
       return null;
     }();
 
+    String? trainerAvatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(display['instructor_avatar_url']?.toString());
+    if (trainerAvatarUrl == null && t is Map) {
+      final pic = t['profilePicture'];
+      if (pic is Map) {
+        trainerAvatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+      }
+      if (trainerAvatarUrl == null) {
+        final prof = t['profile'];
+        if (prof is Map) {
+          final profPic = prof['profilePicture'];
+          if (profPic is Map) {
+            trainerAvatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(profPic['url']?.toString());
+          }
+        }
+      }
+    }
+
     return {
       'id': p['_id']?.toString(),
       'title': p['title']?.toString() ?? '',
@@ -301,6 +318,7 @@ class MarketplaceRepository {
       'trainer': trainer,
       if (trainerMongoId != null) 'trainerId': trainerMongoId,
       'trainerImage': _initials(trainer),
+      if (trainerAvatarUrl != null) 'trainerImageUrl': trainerAvatarUrl,
       'price': price,
       'duration': duration,
       'category': focus.isNotEmpty ? _titleCaseSlug(focus) : 'Program',
