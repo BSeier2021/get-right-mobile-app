@@ -95,6 +95,11 @@ class FeedRepository {
     return _network.delete(AppUrl.feedSave(feedId));
   }
 
+  /// `POST /user/feed/:feedId/repost` — repost reel.
+  Future<dynamic> repostFeedRepo(String feedId) async {
+    return _network.post(AppUrl.feedRepost(feedId), <String, dynamic>{});
+  }
+
   /// `GET /user/feed/save` — paginated saved reels (`data.savedFeeds[].feed`, `hasNextPage`, …).
   Future<dynamic> getSavedFeedsRepo({required int page, required int limit}) async {
     return _network.get(

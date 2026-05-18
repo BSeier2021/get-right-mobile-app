@@ -120,9 +120,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         _recordVideo();
       } else if (args['type'] == 'video') {
         _pickVideo();
-      } else {
-        _pickImage();
       }
+      // 'image': show create screen first; user picks from Add Media / Photo (no auto gallery).
     }
   }
 
@@ -144,9 +143,116 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
+  void _pickImage() {
+    Get.dialog(
+      Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Add Photo',
+                style: AppTextStyles.headlineMedium.copyWith(color: AppColors.onBackground, fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 24),
+              InkWell(
+                onTap: () {
+                  Get.back();
+                  unawaited(_pickImageFromSource(ImageSource.gallery));
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                        child: const Icon(Icons.photo_library_rounded, color: AppColors.accent, size: 24),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Gallery',
+                              style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 2),
+                            Text('Choose from your photos', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, color: AppColors.primaryGray),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () {
+                  Get.back();
+                  unawaited(_pickImageFromSource(ImageSource.camera));
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                        child: const Icon(Icons.camera_alt_rounded, color: AppColors.accent, size: 24),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Camera',
+                              style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 2),
+                            Text('Take a new photo', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, color: AppColors.primaryGray),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Get.back(),
+                child: Text(
+                  'Cancel',
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImageFromSource(ImageSource source) async {
     try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      final XFile? image = await _picker.pickImage(source: source, imageQuality: 85);
 
       if (image != null) {
         setState(() {
@@ -197,14 +303,26 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Future<void> _publishPost() async {
     if (_selectedMedia == null) {
-      Get.snackbar('Media Required', 'Please select an image or video', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Media Required',
+        'Please select an image or video',
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
 
       return;
     }
 
     if (_feed.isPublishing.value) return;
 
-    await _feed.publish(mediaPath: _selectedMedia!.path, isVideo: _isVideo, title: _titleController.text, description: _descriptionController.text, tagsRaw: _combinedTagsRaw());
+    await _feed.publish(
+      mediaPath: _selectedMedia!.path,
+      isVideo: _isVideo,
+      title: _titleController.text,
+      description: _descriptionController.text,
+      tagsRaw: _combinedTagsRaw(),
+    );
   }
 
   /// Tags sent to the API: committed chips plus any text still in the field.
@@ -357,7 +475,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 onPressed: busy ? null : _publishPost,
 
                 child: busy
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent)))
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent)),
+                      )
                     : Text(
                         'Publish',
 

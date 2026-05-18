@@ -29,6 +29,48 @@ String? firstNonEmptyUrlString(dynamic v) {
   return (s != null && s.isNotEmpty) ? s : null;
 }
 
+/// API media node: plain URL string or `{ "url": "https://...", ... }`.
+String? feedMediaUrlFromApiNode(dynamic node) {
+  if (node == null) return null;
+  if (node is String) {
+    final s = node.trim();
+    return s.isEmpty ? null : s;
+  }
+  if (node is Map) {
+    final map = Map<String, dynamic>.from(node);
+    for (final key in ['url', 'thumbnail', 'src', 'fileUrl']) {
+      final v = map[key];
+      if (v is String && v.trim().isNotEmpty) return v.trim();
+      final nested = feedMediaUrlFromApiNode(v);
+      if (nested != null) return nested;
+    }
+  }
+  return null;
+}
+
+/// First image URL from `images[]` on photo posts (`POST` multipart field `images`).
+String? firstFeedImageUrlFromApiList(dynamic images) {
+  if (images is! List) return null;
+  for (final item in images) {
+    final u = feedMediaUrlFromApiNode(item);
+    if (u != null) return u;
+  }
+  return null;
+}
+
+/// Feed grid / reel thumbnail: feed `thumbnail`, video thumb/poster, or `images[0]`.
+String extractFeedThumbnailUrl(Map<String, dynamic> m, {Map<String, dynamic>? video}) {
+  final v = video ?? (m['video'] is Map ? Map<String, dynamic>.from(m['video'] as Map) : <String, dynamic>{});
+  return feedMediaUrlFromApiNode(m['thumbnail']) ??
+      feedMediaUrlFromApiNode(v['thumbnail']) ??
+      feedMediaUrlFromApiNode(v['poster']) ??
+      firstFeedImageUrlFromApiList(m['images']) ??
+      feedMediaUrlFromApiNode(m['image']) ??
+      feedMediaUrlFromApiNode(m['cover']) ??
+      feedMediaUrlFromApiNode(m['poster']) ??
+      '';
+}
+
 /// Resolves playback URL from various backend shapes (HLS or progressive).
 String? extractFeedVideoUrl(Map<String, dynamic> m, Map<String, dynamic> video) {
   const videoKeys = ['playbackUrl', 'hlsUrl', 'manifestUrl', 'streamUrl', 'm3u8Url', 'url', 'src', 'fileUrl', 'videoUrl', 'link'];
@@ -163,12 +205,7 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
       : '${durationSeconds.toStringAsFixed(1)}s';
 
   final resolvedVideoUrl = extractFeedVideoUrl(m, video) ?? '';
-  final vt = video['thumbnail'];
-  final ft = m['thumbnail'];
-  final thumb = firstNonEmptyUrlString(vt is Map ? vt['url'] : vt) ??
-      firstNonEmptyUrlString(video['poster']) ??
-      firstNonEmptyUrlString(ft is Map ? ft['url'] : ft) ??
-      '';
+  final thumb = extractFeedThumbnailUrl(m, video: video);
 
   final viewer = (m['viewer'] is Map) ? Map<String, dynamic>.from(m['viewer'] as Map) : <String, dynamic>{};
 
@@ -187,6 +224,9 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
       coerceFeedApiBool(viewer['savedByMe']) ||
       savedByMe;
 
+  final isVideo = resolvedVideoUrl.isNotEmpty;
+  final thumbSanitized = thumb.trim().isNotEmpty ? thumb.trim() : '';
+
   return <String, dynamic>{
     'id': (m['_id'] ?? '').toString(),
     'creatorId': (creator['_id'] ?? '').toString(),
@@ -199,8 +239,10 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
     'description': (m['description'] ?? '').toString(),
     'category': (category['name'] ?? '').toString(),
     'tags': tags,
+    'isVideo': isVideo,
     'videoUrl': resolvedVideoUrl,
-    'thumbnail': thumb,
+    'thumbnail': thumbSanitized,
+    if (!isVideo && thumbSanitized.isNotEmpty) 'imageUrl': thumbSanitized,
     'likes': (m['likesCount'] is num) ? (m['likesCount'] as num).toInt() : 0,
     'comments': (m['commentsCount'] is num) ? (m['commentsCount'] as num).toInt() : 0,
     'shares': (m['sharesCount'] is num) ? (m['sharesCount'] as num).toInt() : 0,

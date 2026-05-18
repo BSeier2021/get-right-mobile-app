@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get_right/models/hls_video_quality.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/feed_media_url.dart';
 import 'package:get_right/utils/hls_master_playlist_parser.dart';
 import 'package:video_player/video_player.dart';
 
@@ -259,6 +260,7 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
 
     final resolved = widget.resolvePlaybackUrl(widget.posts[index]);
     if (resolved == null || resolved.isEmpty) {
+      if (feedPostIsPhotoOnly(widget.posts[index])) return;
       setState(() => _errors[index] = 'No video for this post');
       return;
     }
@@ -441,6 +443,7 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
         final post = widget.posts[index];
         final hasVideo = _controllers.containsKey(index) && _controllers[index]!.value.isInitialized;
         final loadError = _errors[index];
+        final isPhotoOnly = feedPostIsPhotoOnly(post);
 
         return Stack(
           fit: StackFit.expand,
@@ -455,6 +458,8 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
                   child: ClipRect(child: _coverVideo(_controllers[index]!, post)),
                 ),
               )
+            else if (isPhotoOnly)
+              SizedBox.expand(child: widget.backdropForPost(context, post))
             else if (loadError != null)
               GestureDetector(
                 onTap: () => _retry(index),

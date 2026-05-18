@@ -24,3 +24,19 @@ String? playbackUrlForFeedPost(Map<String, dynamic> post) {
       firstNonEmptyUrlString(post['streamUrl']);
   return resolveFeedMediaUrl(raw);
 }
+
+/// Image-only post (e.g. multipart `images[]`) — show full-screen photo, not video player.
+bool feedPostIsPhotoOnly(Map<String, dynamic> post) {
+  if (post['isVideo'] == true) return false;
+  if (post['isVideo'] == false) {
+    return feedPostDisplayImageUrl(post) != null;
+  }
+  if (playbackUrlForFeedPost(post) != null) return false;
+  return feedPostDisplayImageUrl(post) != null;
+}
+
+/// Thumbnail / first image URL for grid and photo reel backdrop.
+String? feedPostDisplayImageUrl(Map<String, dynamic> post) {
+  return ImageUrlSanitizer.asHttpUrlOrNull((post['thumbnail'] ?? '').toString()) ??
+      ImageUrlSanitizer.asHttpUrlOrNull((post['imageUrl'] ?? '').toString());
+}

@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -9,6 +11,7 @@ import 'package:get_right/views/feed/feed_comments_sheet.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/feed_media_url.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:video_player/video_player.dart';
 
@@ -34,6 +37,9 @@ String formatFeedInteractionCount(int count) {
 }
 
 String resolveFeedReelThumbnailUrl(Map<String, dynamic> post) {
+  final fromApi = feedPostDisplayImageUrl(post);
+  if (fromApi != null) return fromApi;
+
   final String category = (post['category'] ?? '').toString().toLowerCase();
   switch (category) {
     case 'workout':
@@ -71,8 +77,7 @@ String resolveFeedReelThumbnailUrl(Map<String, dynamic> post) {
     case 'mental health':
       return 'https://images.unsplash.com/photo-1511295742362-92c96b1a3d52?w=1200&auto=format&fit=crop&q=80';
     default:
-      final raw = (post['thumbnail'] ?? '').toString();
-      return ImageUrlSanitizer.asHttpUrlOrFallback(raw, fallback: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80');
+      return 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80';
   }
 }
 
@@ -146,7 +151,14 @@ class FeedReelBackdrop extends StatelessWidget {
 
 /// Like / comment / caption overlay used on reels (tap-through gradient).
 class FeedReelChromeOverlay extends StatefulWidget {
-  const FeedReelChromeOverlay({super.key, required this.post, this.videoController, this.onLikeStateChanged, this.onSaveStateChanged, this.onCommentCountChanged});
+  const FeedReelChromeOverlay({
+    super.key,
+    required this.post,
+    this.videoController,
+    this.onLikeStateChanged,
+    this.onSaveStateChanged,
+    this.onCommentCountChanged,
+  });
 
   final Map<String, dynamic> post;
   final VideoPlayerController? videoController;
@@ -169,6 +181,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
   final FeedRepository _feedRepo = FeedRepository();
   bool _likeRequestInFlight = false;
   bool _saveRequestInFlight = false;
+  bool _repostRequestInFlight = false;
 
   Map<String, dynamic> get _post => widget.post;
 
@@ -254,6 +267,113 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     );
   }
 
+  Widget _reelTopActionChip({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.accentVariant,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildReelOverflowMenu(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'More options',
+      padding: EdgeInsets.zero,
+      offset: const Offset(0, 40),
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (value) {
+        if (value == 'repost') {
+          unawaited(_repostReel(context));
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'repost',
+          enabled: !_repostRequestInFlight,
+          child: Row(
+            children: [
+              Icon(Icons.repeat_rounded, size: 22, color: _repostRequestInFlight ? AppColors.primaryGray : AppColors.accent),
+              const SizedBox(width: 12),
+              Text(
+                'Repost reel',
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ],
+      child: _reelTopActionChip(
+        child: _repostRequestInFlight
+            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.more_horiz, color: Colors.white, size: 24),
+      ),
+    );
+  }
+
+  Future<void> _repostReel(BuildContext context) async {
+    final feedId = (_post['id'] ?? '').toString().trim();
+    if (feedId.isEmpty) return;
+    if (_repostRequestInFlight) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Repost reel?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+        content: Text(
+          'This will share the reel on your profile for your followers to see.',
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Repost',
+              style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _repostRequestInFlight = true);
+    try {
+      await _feedRepo.repostFeedRepo(feedId);
+      final shares = (_post['shares'] is num) ? (_post['shares'] as num).toInt() : 0;
+      _post['shares'] = shares + 1;
+      if (!mounted) return;
+      setState(() {});
+      Get.snackbar(
+        'Reposted',
+        'Reel reposted to your profile',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.accent,
+        colorText: AppColors.onAccent,
+        margin: const EdgeInsets.all(16),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar(
+        'Could not repost',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+      );
+    } finally {
+      if (mounted) setState(() => _repostRequestInFlight = false);
+    }
+  }
+
   void _showShareOptions(BuildContext ctx) {
     showModalBottomSheet(
       context: ctx,
@@ -268,7 +388,11 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [_buildShareIcon(Icons.message, 'Message', () {}), _buildShareIcon(Icons.link, 'Copy Link', () {}), _buildShareIcon(Icons.share, 'More', () {})],
+              children: [
+                _buildShareIcon(Icons.message, 'Message', () {}),
+                _buildShareIcon(Icons.link, 'Copy Link', () {}),
+                _buildShareIcon(Icons.share, 'More', () {}),
+              ],
             ),
             const SizedBox(height: 16),
           ],
@@ -342,21 +466,24 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
         Positioned(
           top: 55,
           right: 16,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.accentVariant,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset('assets/images/play.png', width: 15),
-                SizedBox(width: 4.w),
-                _playbackDurationBadge(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildReelOverflowMenu(context),
+              if (_post['isVideo'] == true) ...[
+                const SizedBox(height: 8),
+                _reelTopActionChip(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(width: 4.w),
+                      _playbackDurationBadge(),
+                    ],
+                  ),
+                ),
               ],
-            ),
+            ],
           ),
         ),
         Positioned(
@@ -446,19 +573,20 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
             ],
           ),
         ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: SafeArea(
-            top: false,
-            minimum: const EdgeInsets.only(bottom: 4),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: _FeedReelVideoProgressBar(controller: widget.videoController),
+        if (_post['isVideo'] == true)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.only(bottom: 4),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: _FeedReelVideoProgressBar(controller: widget.videoController),
+              ),
             ),
           ),
-        ),
       ],
     );
   }

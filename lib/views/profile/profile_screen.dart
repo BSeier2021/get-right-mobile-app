@@ -15,6 +15,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/customer_profile_enums.dart';
+import 'package:get_right/utils/feed_post_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
@@ -589,34 +590,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  static const String _kMineFeedThumbFallback = 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400';
-
-  String _fallbackThumbnailForCategory(String? categoryName) {
-    switch (categoryName?.toLowerCase().trim()) {
-      case 'nutrition':
-        return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
-      default:
-        return _kMineFeedThumbFallback;
-    }
-  }
-
-  /// Backend may send `thumbnail` as a string URL or `{ "url": "https://...", ... }` (feed-level or under `video`).
-  String? _thumbnailUrlFromApi(dynamic node) {
-    if (node == null) return null;
-    if (node is String) {
-      final s = node.trim();
-      return s.isEmpty ? null : s;
-    }
-    if (node is Map) {
-      final map = Map<String, dynamic>.from(node);
-      for (final key in <String>['url', 'thumbnail', 'src', 'fileUrl']) {
-        final v = map[key];
-        if (v is String && v.trim().isNotEmpty) return v.trim();
-      }
-    }
-    return null;
-  }
-
   Map<String, dynamic> _mapMineFeedToGridItem(Map<String, dynamic> m) {
     final id = (m['_id'] ?? '').toString();
     final creator = (m['creator'] is Map) ? Map<String, dynamic>.from(m['creator']) : <String, dynamic>{};
@@ -631,17 +604,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final categoryName = (category['name'] ?? '').toString();
     final categoryId = (category['_id'] ?? category['id'] ?? '').toString();
 
-    final feedThumbUrl = _thumbnailUrlFromApi(m['thumbnail']);
-    final videoThumbUrl = _thumbnailUrlFromApi(video['thumbnail']);
-    final videoPosterUrl = _thumbnailUrlFromApi(video['poster']);
-
-    final thumbRaw = (feedThumbUrl ?? videoThumbUrl ?? videoPosterUrl ?? '').trim();
-    final videoUrl = (video['url'] ?? '').toString().trim();
+    final thumbRaw = extractFeedThumbnailUrl(m, video: video).trim();
+    final thumb = ImageUrlSanitizer.asHttpUrlOrNull(thumbRaw) ?? '';
+    final videoUrl = extractFeedVideoUrl(m, video) ?? '';
     final isVideo = videoUrl.isNotEmpty;
-
-    final thumb = thumbRaw.isNotEmpty
-        ? ImageUrlSanitizer.asHttpUrlOrFallback(thumbRaw, fallback: _fallbackThumbnailForCategory(categoryName))
-        : _fallbackThumbnailForCategory(categoryName);
 
     final tagsRaw = (m['tags'] is List) ? List.from(m['tags']) : const [];
     final tags = tagsRaw.map((e) {
@@ -678,6 +644,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'id': id,
       'isVideo': isVideo,
       'thumbnail': thumb,
+      if (!isVideo && thumb.isNotEmpty) 'imageUrl': thumb,
       'videoUrl': videoUrl,
       'title': (m['title'] ?? '').toString(),
       'description': (m['description'] ?? '').toString(),
@@ -695,6 +662,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'status': (m['status'] ?? '').toString(),
       'videoProcessingStatus': (m['videoProcessingStatus'] ?? '').toString(),
     };
+  }
+
+  Widget _buildPostGridThumbnailPlaceholder() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_kProfileForestGreen.withOpacity(0.35), _kProfileForestGreen.withOpacity(0.15)],
+        ),
+        borderRadius: BorderRadius.circular(10),
+      ),
+    );
+  }
+
+  Widget _buildPostGridThumbnail(Map<String, dynamic> post) {
+    final thumbUrl = ImageUrlSanitizer.asHttpUrlOrNull((post['thumbnail'] ?? '').toString());
+    if (thumbUrl == null) {
+      return _buildPostGridThumbnailPlaceholder();
+    }
+    return Image.network(thumbUrl, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => _buildPostGridThumbnailPlaceholder());
   }
 
   Widget _buildPostsGrid() {
@@ -755,24 +743,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Post Image/Thumbnail
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      (post['thumbnail'] ?? '').toString(),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [_kProfileForestGreen.withOpacity(0.35), _kProfileForestGreen.withOpacity(0.15)],
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ),
+                  // Post thumbnail from API (`thumbnail.url`, video thumb, or `images[0]`).
+                  ClipRRect(borderRadius: BorderRadius.circular(10), child: _buildPostGridThumbnail(post)),
                   // Gradient overlay for engagement row
                   Container(
                     decoration: BoxDecoration(
