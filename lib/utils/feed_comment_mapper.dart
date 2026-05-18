@@ -19,6 +19,9 @@ Map<String, dynamic> mapApiFeedCommentToUi(dynamic raw) {
   final parentRaw = m['parentComment'];
   final parentId = parentRaw is Map ? (parentRaw['_id'] ?? '').toString() : (parentRaw ?? m['parentCommentId'] ?? '').toString();
 
+  final repliesCount = m['repliesCount'] ?? m['replyCount'];
+  final replyCountInt = repliesCount is num ? repliesCount.toInt() : null;
+
   return <String, dynamic>{
     'id': (m['_id'] ?? '').toString(),
     'authorId': (user['_id'] ?? '').toString(),
@@ -28,6 +31,7 @@ Map<String, dynamic> mapApiFeedCommentToUi(dynamic raw) {
     'authorInitials': initials,
     'avatarUrl': (profilePicture['url'] ?? '').toString(),
     'timestamp': createdAt != null ? Helpers.getRelativeTime(createdAt.toLocal()) : '',
+    if (replyCountInt != null && replyCountInt > 0) 'repliesCount': replyCountInt,
   };
 }
 

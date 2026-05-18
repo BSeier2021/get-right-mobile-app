@@ -120,6 +120,18 @@ class FeedRepository {
     );
   }
 
+  /// `GET /user/feed/comments/:commentId/replies` — paginated replies for a top-level comment.
+  Future<dynamic> getFeedCommentRepliesRepo({
+    required String commentId,
+    required int page,
+    required int limit,
+  }) async {
+    return _network.get(
+      AppUrl.feedCommentReplies(commentId),
+      params: <String, dynamic>{'page': page, 'limit': limit},
+    );
+  }
+
   /// `POST /user/feed/:feedId/comments` — body: `text`, optional `parentComment` for replies.
   Future<dynamic> postFeedCommentRepo({
     required String feedId,

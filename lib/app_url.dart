@@ -83,6 +83,9 @@ class AppUrl {
   /// `PATCH` / `DELETE /user/feed/:feedId/comments/:commentId` — edit or delete a comment.
   static String feedCommentById(String feedId, String commentId) => '${feedComments(feedId)}/${Uri.encodeComponent(commentId.trim())}';
 
+  /// `GET /user/feed/comments/:commentId/replies` — paginated replies (`data.comments`, `hasNextPage`, …).
+  static String feedCommentReplies(String commentId) => '$baseUrl/user/feed/comments/${Uri.encodeComponent(commentId.trim())}/replies';
+
   /// `POST /user/feed/:feedId/video/multipart/init` — `contentType`, `fileSize`.
   static String feedVideoMultipartInit(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/init';
 
