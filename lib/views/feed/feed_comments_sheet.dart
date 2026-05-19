@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_right/repo/feed_repo.dart';
+import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -126,6 +127,34 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     return authorId.isNotEmpty && myId.isNotEmpty && authorId == myId;
   }
 
+  void _openCommentAuthorProfile(Map<String, dynamic> comment) {
+    final authorId = (comment['authorId'] ?? '').toString().trim();
+    final authorName = (comment['authorName'] ?? 'User').toString().trim();
+    if (authorId.isEmpty && authorName.isEmpty) return;
+
+    final initials = (comment['authorInitials'] ?? 'U').toString();
+    final avatarUrl = (comment['avatarUrl'] ?? '').toString().trim();
+
+    final profileData = <String, dynamic>{
+      if (authorId.isNotEmpty) '_id': authorId,
+      if (authorId.isNotEmpty) 'id': authorId,
+      if (authorId.isEmpty) 'id': authorName.toLowerCase().replaceAll(' ', '_'),
+      'name': authorName.isNotEmpty ? authorName : 'User',
+      'initials': initials,
+      if (avatarUrl.isNotEmpty) 'avatarUrl': avatarUrl,
+      'bio': 'Fitness enthusiast sharing content with the community.',
+      'specialties': <String>['Fitness', 'Training'],
+      'yearsOfExperience': 2,
+      'certified': false,
+      'hourlyRate': 75.0,
+      'rating': 4.8,
+      'totalReviews': 0,
+      'students': 0,
+    };
+
+    Get.toNamed(AppRoutes.trainerProfile, arguments: profileData);
+  }
+
   void _showSnack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
@@ -165,9 +194,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
       builder: (ctx) => AlertDialog(
         title: const Text('Delete comment'),
         content: Text(
-          replyHint > 0
-              ? 'This will delete your comment and all $replyHint ${replyHint == 1 ? 'reply' : 'replies'}.'
-              : 'Are you sure you want to delete this comment?',
+          replyHint > 0 ? 'This will delete your comment and all $replyHint ${replyHint == 1 ? 'reply' : 'replies'}.' : 'Are you sure you want to delete this comment?',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -452,7 +479,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildAvatar(comment),
+        GestureDetector(onTap: () => _openCommentAuthorProfile(comment), behavior: HitTestBehavior.opaque, child: _buildAvatar(comment)),
         const SizedBox(width: 10),
         Expanded(
           child: Row(
@@ -462,9 +489,13 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      (comment['authorName'] ?? 'User').toString(),
-                      style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600, height: 1.2),
+                    GestureDetector(
+                      onTap: () => _openCommentAuthorProfile(comment),
+                      behavior: HitTestBehavior.opaque,
+                      child: Text(
+                        (comment['authorName'] ?? 'User').toString(),
+                        style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600, height: 1.2),
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text((comment['text'] ?? '').toString(), style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, height: 1.25)),
@@ -481,13 +512,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     );
   }
 
-  Widget _buildCommentMenu({
-    required bool showReplyOption,
-    required VoidCallback onReply,
-    VoidCallback? onEdit,
-    VoidCallback? onDelete,
-    String deleteLabel = 'Delete',
-  }) {
+  Widget _buildCommentMenu({required bool showReplyOption, required VoidCallback onReply, VoidCallback? onEdit, VoidCallback? onDelete, String deleteLabel = 'Delete'}) {
     return SizedBox(
       width: 28,
       height: 28,

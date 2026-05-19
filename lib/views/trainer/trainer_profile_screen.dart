@@ -34,6 +34,9 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
   bool _isFollowedByMe = false;
   bool _followActionLoading = false;
+  bool _bioExpanded = false;
+
+  static const int _bioCollapsedMaxLines = 2;
 
   List<Map<String, dynamic>> _posts = [];
   List<Map<String, dynamic>> _programs = [];
@@ -235,6 +238,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
     final name = (profile['fullName'] ?? user['email'] ?? _displayName).toString();
     final bio = (profile['bio'] ?? trainer['bio'] ?? '').toString();
+    if (bio != _displayBio) _bioExpanded = false;
 
     trainer = {
       ...trainer,
@@ -368,13 +372,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       imageUrl = promo['url']?.toString();
     }
     final id = (m['_id'] ?? m['id'])?.toString() ?? '';
-    return {
-      '_id': id,
-      'id': id,
-      'title': (m['title'] ?? m['name'] ?? 'Bundle').toString(),
-      'price': _effectivePrice(m),
-      'imageUrl': imageUrl ?? m['imageUrl']?.toString(),
-    };
+    return {'_id': id, 'id': id, 'title': (m['title'] ?? m['name'] ?? 'Bundle').toString(), 'price': _effectivePrice(m), 'imageUrl': imageUrl ?? m['imageUrl']?.toString()};
   }
 
   List<Map<String, dynamic>> _parseProgramsList(dynamic raw, {required String trainerName}) {
@@ -437,6 +435,105 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     } finally {
       if (mounted) setState(() => _followActionLoading = false);
     }
+  }
+
+  void _onMessagePressed() {
+    final id = _mongoUserId ?? trainer['id']?.toString().trim();
+    if (id == null || id.isEmpty) return;
+    Get.toNamed(AppRoutes.chatRoom, arguments: <String, dynamic>{'trainerId': id, 'trainerName': _displayName});
+  }
+
+  Widget _buildFollowButton({bool compact = false}) {
+    // Set a fixed width for both buttons
+    final buttonWidth = 120.0;
+    return SizedBox(
+      width: buttonWidth,
+      child: TextButton(
+        onPressed: _followActionLoading ? null : _onFollowPressed,
+        style: TextButton.styleFrom(
+          backgroundColor: _isFollowedByMe ? AppColors.primaryGray.withOpacity(0.2) : AppColors.accent,
+          foregroundColor: _isFollowedByMe ? AppColors.onSurface : AppColors.onAccent,
+          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 5),
+          minimumSize: Size(buttonWidth, 36),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        child: _followActionLoading
+            ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _isFollowedByMe ? AppColors.accent : AppColors.onAccent))
+            : Text(
+                _isFollowedByMe ? 'Following' : 'Follow',
+                style: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildMessageButton({bool compact = false}) {
+    // Set the same fixed width as the follow button
+    final buttonWidth = 120.0;
+    return SizedBox(
+      width: buttonWidth,
+      child: TextButton.icon(
+        onPressed: _onMessagePressed,
+        style: TextButton.styleFrom(
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.accent,
+          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 5),
+          minimumSize: Size(buttonWidth, 36),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: AppColors.accent),
+          ),
+        ),
+        icon: Icon(Icons.chat_bubble_outline_rounded, size: compact ? 16 : 18, color: AppColors.accent),
+        label: Text(
+          'Message',
+          style: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w700, color: AppColors.accent),
+        ),
+      ),
+    );
+  }
+
+  TextStyle _bioTextStyle() {
+    return AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.8), fontSize: 14, height: 1.4);
+  }
+
+  Widget _buildExpandableBio() {
+    final bio = _displayBio.trim();
+    if (bio.isEmpty) return const SizedBox.shrink();
+
+    final textStyle = _bioTextStyle();
+    final actionStyle = textStyle.copyWith(fontWeight: FontWeight.w700, color: AppColors.accent);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final overflowPainter = TextPainter(
+          text: TextSpan(text: bio, style: textStyle),
+          maxLines: _bioCollapsedMaxLines,
+          textDirection: Directionality.of(context),
+        )..layout(maxWidth: constraints.maxWidth);
+
+        final canExpand = overflowPainter.didExceedMaxLines;
+        final showToggle = canExpand || _bioExpanded;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(bio, maxLines: _bioExpanded ? null : _bioCollapsedMaxLines, overflow: _bioExpanded ? TextOverflow.visible : TextOverflow.ellipsis, style: textStyle),
+            if (showToggle)
+              GestureDetector(
+                onTap: () => setState(() => _bioExpanded = !_bioExpanded),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(_bioExpanded ? 'View less' : 'View more', style: actionStyle),
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 
   int _statInt(dynamic key) {
@@ -524,10 +621,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
               )
             : null,
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: _showProgramsTrainingTabs ? [_buildProfileTab(), _buildProgramsTab(), _buildTrainingTab()] : [_buildProfileTab()],
-      ),
+      body: TabBarView(controller: _tabController, children: _showProgramsTrainingTabs ? [_buildProfileTab(), _buildProgramsTab(), _buildTrainingTab()] : [_buildProfileTab()]),
     );
   }
 
@@ -564,14 +658,12 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                         border: Border.all(color: AppColors.accent, width: 3),
                       ),
                       child: CircleAvatar(
-                        radius: 45,
+                        radius: 40,
                         backgroundColor: AppColors.surface,
                         backgroundImage: (_avatarNetworkUrl != null && _avatarNetworkUrl!.startsWith('http'))
                             ? NetworkImage(ImageUrlSanitizer.asHttpUrlOrFallback(_avatarNetworkUrl!))
                             : null,
-                        child: (_avatarNetworkUrl == null || !_avatarNetworkUrl!.startsWith('http'))
-                            ? Icon(Icons.person, size: 50, color: AppColors.accent)
-                            : null,
+                        child: (_avatarNetworkUrl == null || !_avatarNetworkUrl!.startsWith('http')) ? Icon(Icons.person, size: 40, color: AppColors.accent) : null,
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -585,50 +677,29 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             ),
           ),
           // Bio Section
-          Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Text(
-                    _displayName,
-                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: Get.width * 0.9,
-                    child: Text(_displayBio, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.8), height: 1.6)),
-                  ),
-                  if (_showFollowButton)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: TextButton(
-                        onPressed: _followActionLoading ? null : _onFollowPressed,
-                        style: TextButton.styleFrom(
-                          backgroundColor: _isFollowedByMe ? AppColors.primaryGray.withOpacity(0.2) : AppColors.accent,
-                          foregroundColor: _isFollowedByMe ? AppColors.onSurface : AppColors.onAccent,
-                          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        ),
-                        child: _followActionLoading
-                            ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: _isFollowedByMe ? AppColors.accent : AppColors.onAccent),
-                              )
-                            : Text(
-                                _isFollowedByMe ? 'Following' : 'Follow',
-                                style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
-                              ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _displayName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                       ),
                     ),
-                ],
-              ),
-            ],
-          ).paddingOnly(left: 30),
+                    if (_showFollowButton) ...[const SizedBox(width: 4), _buildFollowButton(compact: true), const SizedBox(width: 8), _buildMessageButton(compact: true)],
+                  ],
+                ),
+                if (_displayBio.trim().isNotEmpty) ...[const SizedBox(height: 8), _buildExpandableBio()],
+              ],
+            ),
+          ),
 
           const SizedBox(height: 24),
           // Posts Grid
@@ -706,22 +777,14 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Container(
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)],
-                            ),
+                            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)]),
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                       )
                     : Container(
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)],
-                          ),
+                          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)]),
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
@@ -1082,10 +1145,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                                     style: AppTextStyles.titleLarge.copyWith(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    'Get direct contact details',
-                                    style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withOpacity(0.9), fontSize: 13),
-                                  ),
+                                  Text('Get direct contact details', style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withOpacity(0.9), fontSize: 13)),
                                 ],
                               ),
                             ),
@@ -1595,12 +1655,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                 const SizedBox(height: 24),
                 _buildContactCard(Icons.phone_rounded, 'Phone', '+1 (555) 123-4567', AppColors.accent),
                 const SizedBox(height: 12),
-                _buildContactCard(
-                  Icons.email_rounded,
-                  'Email',
-                  '${trainer['name'].toString().toLowerCase().replaceAll(' ', '.')}@fitness.com',
-                  AppColors.accentVariant,
-                ),
+                _buildContactCard(Icons.email_rounded, 'Email', '${trainer['name'].toString().toLowerCase().replaceAll(' ', '.')}@fitness.com', AppColors.accentVariant),
                 const SizedBox(height: 12),
                 _buildContactCard(Icons.location_on_rounded, 'Location', '123 Fitness Street, Gym City, GC 12345', AppColors.completed),
                 const SizedBox(height: 24),
@@ -1716,18 +1771,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
   List<Map<String, dynamic>> _getMockBundles() {
     return [
-      {
-        'id': '1',
-        'title': 'Strength & Conditioning Bundle',
-        'price': 49.99,
-        'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
-      },
-      {
-        'id': '2',
-        'title': 'Complete Fitness Package',
-        'price': 79.99,
-        'imageUrl': 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=300&fit=crop',
-      },
+      {'id': '1', 'title': 'Strength & Conditioning Bundle', 'price': 49.99, 'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop'},
+      {'id': '2', 'title': 'Complete Fitness Package', 'price': 79.99, 'imageUrl': 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=300&fit=crop'},
     ];
   }
 

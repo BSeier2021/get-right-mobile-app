@@ -175,6 +175,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
   bool _likeRequestInFlight = false;
   bool _saveRequestInFlight = false;
   bool _repostRequestInFlight = false;
+  bool _descriptionExpanded = false;
 
   Map<String, dynamic> get _post => widget.post;
 
@@ -188,6 +189,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
   void didUpdateWidget(FeedReelChromeOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     if ((oldWidget.post['id'] ?? '').toString() != (_post['id'] ?? '').toString()) {
+      _descriptionExpanded = false;
       _hydrateSaveStateFromStorage();
     }
   }
@@ -236,6 +238,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
   }
 
   void _openCommentsSheet(BuildContext dialogContext) {
+    if (!dialogContext.mounted) return;
     final feedId = (_post['id'] ?? '').toString().trim();
     if (feedId.isEmpty) return;
 
@@ -272,6 +275,58 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     );
   }
 
+  static const int _descriptionCollapsedMaxLines = 2;
+
+  TextStyle _descriptionTextStyle() {
+    return AppTextStyles.bodyMedium.copyWith(
+      color: Colors.white,
+      fontSize: 14,
+      shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+    );
+  }
+
+  Widget _buildPostDescription(BuildContext context) {
+    final description = (_post['description'] ?? '').toString().trim();
+    if (description.isEmpty) return const SizedBox.shrink();
+
+    final textStyle = _descriptionTextStyle();
+    final actionStyle = textStyle.copyWith(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.white.withValues(alpha: 0.92));
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final overflowPainter = TextPainter(
+          text: TextSpan(text: description, style: textStyle),
+          maxLines: _descriptionCollapsedMaxLines,
+          textDirection: Directionality.of(context),
+        )..layout(maxWidth: constraints.maxWidth);
+
+        final canExpand = overflowPainter.didExceedMaxLines;
+        final showToggle = canExpand || _descriptionExpanded;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              description,
+              maxLines: _descriptionExpanded ? null : _descriptionCollapsedMaxLines,
+              overflow: _descriptionExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              style: textStyle,
+            ),
+            if (showToggle)
+              GestureDetector(
+                onTap: () => setState(() => _descriptionExpanded = !_descriptionExpanded),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(_descriptionExpanded ? 'View less' : 'View more', style: actionStyle),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildReelOverflowMenu(BuildContext context) {
     return PopupMenuButton<String>(
       tooltip: 'More options',
@@ -281,7 +336,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onSelected: (value) {
         if (value == 'repost') {
-          unawaited(_repostReel(context));
+          unawaited(_repostReel());
         }
       },
       itemBuilder: (context) => [
@@ -308,13 +363,16 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     );
   }
 
-  Future<void> _repostReel(BuildContext context) async {
+  Future<void> _repostReel() async {
     final feedId = (_post['id'] ?? '').toString().trim();
     if (feedId.isEmpty) return;
     if (_repostRequestInFlight) return;
 
+    final dialogContext = Get.context;
+    if (dialogContext == null || !dialogContext.mounted) return;
+
     final confirmed = await showDialog<bool>(
-      context: context,
+      context: dialogContext,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: Text('Repost reel?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
@@ -365,6 +423,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
   }
 
   void _showShareOptions(BuildContext ctx) {
+    if (!ctx.mounted) return;
     showModalBottomSheet(
       context: ctx,
       backgroundColor: AppColors.surface,
@@ -495,7 +554,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
         ),
         Positioned(
           left: 16,
-          bottom: 64,
+          bottom: 30,
           right: 100,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,15 +586,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
                   ),
                 ),
               ],
-              const SizedBox(height: 8),
-              Text(
-                _post['description'] ?? '',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: Colors.white,
-                  fontSize: 14,
-                  shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
-                ),
-              ),
+              if (((_post['description'] ?? '').toString().trim()).isNotEmpty) ...[const SizedBox(height: 8), _buildPostDescription(context)],
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -759,7 +810,15 @@ class _FeedReelPlaybackTimer extends StatefulWidget {
 
 class _FeedReelPlaybackTimerState extends State<_FeedReelPlaybackTimer> {
   void _onVideoTick() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final c = widget.controller;
+    if (c == null) return;
+    try {
+      if (!c.value.isInitialized) return;
+    } catch (_) {
+      return;
+    }
+    setState(() {});
   }
 
   @override
@@ -817,7 +876,7 @@ class _FeedReelVideoProgressBarState extends State<_FeedReelVideoProgressBar> {
   double? _scrubFrac;
 
   void _onVideoTick() {
-    if (_scrubbing || !mounted) return;
+    if (!mounted || _scrubbing) return;
     setState(() {});
   }
 
@@ -854,6 +913,7 @@ class _FeedReelVideoProgressBarState extends State<_FeedReelVideoProgressBar> {
 
   @override
   Widget build(BuildContext context) {
+    if (!mounted) return const SizedBox.shrink();
     final c = widget.controller;
     if (c == null || !c.value.isInitialized) {
       return const SizedBox.shrink();

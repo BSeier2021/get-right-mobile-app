@@ -71,10 +71,26 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
   Future<void> _disposeControllerQuiet(VideoPlayerController? controller) async {
     if (controller == null) return;
     try {
+      if (controller.value.isInitialized) {
+        await controller.pause();
+      }
       await controller.dispose();
     } catch (e, st) {
       debugPrint('FeedReel: controller.dispose failed → $e\n$st');
     }
+  }
+
+  /// Pause immediately; dispose after the overlay subtree drops listeners (avoids setState on deactivated widgets).
+  void _pauseAndScheduleDisposeAllControllers() {
+    for (final c in _controllers.values) {
+      if (c.value.isInitialized) {
+        c.pause();
+      }
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.active) return;
+      _disposeAllControllers();
+    });
   }
 
   Future<Uri> _resolveReelPlaybackUri(String rawUrl) async {
@@ -156,8 +172,8 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
   void didUpdateWidget(FeedVerticalReels oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!widget.active && oldWidget.active) {
-      // Free decoder / texture buffers when tab not visible.
-      _disposeAllControllers();
+      // Free decoder / texture buffers when tab not visible (defer dispose so reel overlays remove listeners first).
+      _pauseAndScheduleDisposeAllControllers();
     } else if (widget.active && !oldWidget.active) {
       _playIndex(_currentIndex);
       _preloadAround(_currentIndex);
@@ -225,7 +241,10 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
   }
 
   void _trimControllers(int center) {
-    unawaited(_trimControllersSync(center));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_trimControllersSync(center));
+    });
   }
 
   void _playIndex(int index) {
@@ -274,7 +293,7 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
         playbackUri = Uri.parse(resolved.trim());
       }
 
-      if (!mounted) {
+      if (!mounted || !widget.active) {
         _pending.remove(index);
         return;
       }
@@ -290,7 +309,7 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
           return false;
         }
 
-        if (!mounted) {
+        if (!mounted || !widget.active) {
           await _disposeControllerQuiet(controller);
           return false;
         }
@@ -319,9 +338,9 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
 
       _pending.remove(index);
 
-      if (!ok && mounted) {
+      if (!ok && mounted && widget.active) {
         setState(() => _errors[index] = 'Could not load video');
-      } else if (mounted) {
+      } else if (mounted && widget.active) {
         _playIndex(_currentIndex);
         setState(() {});
       }

@@ -66,6 +66,15 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     return Get.find<HomeNavigationController>().currentIndex == 1;
   }
 
+  void _openHomeDrawer() {
+    if (Get.isRegistered<HomeNavigationController>()) {
+      Get.find<HomeNavigationController>().openDrawer();
+      return;
+    }
+    final scaffold = Scaffold.maybeOf(context);
+    scaffold?.openDrawer();
+  }
+
   /// Reels autoplay only when Feed tab + inner tab selected and this route is not covered.
   bool _reelsActiveForInnerTab(int innerTabIndex) {
     return _feedHostRouteVisible && _isHomeFeedTabSelected() && _tabController.index == innerTabIndex;
@@ -291,6 +300,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       _clearFeedReelCaches(clearFullImageCache: true);
     }
 
+    if (!mounted) return;
     setState(() {
       _loadingForYou = true;
       _errorForYou = null;
@@ -305,16 +315,19 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
     try {
       final raw = await _feedRepo.getFeedsRepo(page: _pageForYou, limit: _perPage);
+      if (!mounted) return;
       final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data']) : <String, dynamic>{};
       final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds']) : const [];
       final mapped = _mapFeedDocuments(feedsRaw);
 
+      if (!mounted) return;
       setState(() {
         _feedPosts.addAll(mapped);
         _hasNextForYou = _readHasNextPage(data);
         _pageForYou = _pageForYou + 1;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorForYou = e.toString();
         if (_feedPosts.isNotEmpty) {
@@ -338,6 +351,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       _clearFeedReelCaches(clearFullImageCache: true);
     }
 
+    if (!mounted) return;
     setState(() {
       _loadingFollowing = true;
       _errorFollowing = null;
@@ -352,10 +366,12 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
     try {
       final raw = await _feedRepo.getFeedsRepo(page: _pageFollowing, limit: _perPage, type: 'following');
+      if (!mounted) return;
       final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data']) : <String, dynamic>{};
       final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds']) : const [];
       final mapped = _mapFeedDocuments(feedsRaw);
 
+      if (!mounted) return;
       setState(() {
         _followingPosts.addAll(mapped);
         _hasNextFollowing = _readHasNextPage(data);
@@ -363,6 +379,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       });
     } catch (e) {
       debugPrint('[FeedScreen] Error loading following: $e');
+      if (!mounted) return;
       setState(() {
         _errorFollowing = e.toString();
         if (_followingPosts.isNotEmpty) {
@@ -444,7 +461,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
               children: [
                 IconButton(
                   icon: Image.asset('assets/images/humburger.png', width: 25.w),
-                  onPressed: () => Scaffold.of(context).openDrawer(),
+                  onPressed: _openHomeDrawer,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ).paddingOnly(left: 10),
