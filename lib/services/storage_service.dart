@@ -136,6 +136,16 @@ class StorageService {
     return getString(AppConstants.keyUserName);
   }
 
+  /// Save profile picture URL (from login / profile API).
+  Future<bool> saveProfilePictureUrl(String url) async {
+    return await saveString(AppConstants.keyUserPhotoUrl, url);
+  }
+
+  /// Get profile picture URL
+  String? getProfilePictureUrl() {
+    return getString(AppConstants.keyUserPhotoUrl);
+  }
+
   /// Check if onboarding is complete
   bool isOnboardingComplete() {
     return getBool(AppConstants.keyOnboardingComplete) ?? false;
@@ -152,6 +162,7 @@ class StorageService {
     await remove(AppConstants.keyUserId);
     await remove(AppConstants.keyUserEmail);
     await remove(AppConstants.keyUserName);
+    await remove(AppConstants.keyUserPhotoUrl);
     return await saveBool(AppConstants.keyIsLoggedIn, false);
   }
 

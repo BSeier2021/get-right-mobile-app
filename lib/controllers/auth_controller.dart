@@ -539,6 +539,47 @@ class AuthController extends GetxController {
     if (dto.exerciseFrequency != null && dto.exerciseFrequency!.trim().isNotEmpty) {
       await _storageService.saveExerciseFrequency(dto.exerciseFrequency!.trim());
     }
+    if (dto.profilePictureUrl != null && dto.profilePictureUrl!.trim().isNotEmpty) {
+      await _storageService.saveProfilePictureUrl(dto.profilePictureUrl!.trim());
+    }
+  }
+
+  /// Persists login/auto-login `data` into [customerProfile] + [StorageService] for drawer/header UI.
+  Future<void> _applyLoginSessionFromData(Map<String, dynamic> data) async {
+    final dto = CustomerProfileDto.fromLoginData(data);
+    if (dto != null) {
+      _customerProfile = dto;
+      await _persistCustomerProfileLocal(dto);
+      update();
+      return;
+    }
+
+    final user = data['user'];
+    if (user is! Map<String, dynamic>) return;
+
+    final id = user['_id']?.toString().trim();
+    if (id != null && id.isNotEmpty) {
+      await _storageService.saveUserId(id);
+    }
+    final email = user['email']?.toString().trim();
+    if (email != null && email.isNotEmpty) {
+      await _storageService.saveEmail(email);
+    }
+    final profile = user['profile'];
+    if (profile is Map<String, dynamic>) {
+      final name = profile['fullName']?.toString().trim();
+      if (name != null && name.isNotEmpty) {
+        await _storageService.saveName(name);
+      }
+      final pic = CustomerProfileDto.tryParse(<String, dynamic>{
+        'success': true,
+        'data': data,
+      })?.profilePictureUrl;
+      if (pic != null && pic.isNotEmpty) {
+        await _storageService.saveProfilePictureUrl(pic);
+      }
+    }
+    update();
   }
 
   /// Loads `GET /customer/profile` and parses into [customerProfile]; syncs key fields to [StorageService].
@@ -1256,6 +1297,8 @@ class AuthController extends GetxController {
       var needsEmailVerification = false;
       var needsProfileSetup = false;
       if (data is Map<String, dynamic>) {
+        await _applyLoginSessionFromData(data);
+
         needsEmailVerification = _isExplicitlyFalse(data['isVerified']) || _isExplicitlyFalse(data['is_verified']);
         if (!needsEmailVerification) {
           needsProfileSetup = _isExplicitlyFalse(data['isProfileCompleted']) || _isExplicitlyFalse(data['is_profile_completed']);
@@ -1265,22 +1308,15 @@ class AuthController extends GetxController {
         if (user is Map<String, dynamic>) {
           final id = user['_id']?.toString();
           if (id != null && id.isNotEmpty) {
-            await _storageService.saveUserId(id);
             final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
             ls.saveuserid(id);
           }
           emailToStore = user['email']?.toString();
-          final profile = user['profile'];
-          if (profile is Map<String, dynamic>) {
-            final name = profile['fullName']?.toString();
-            if (name != null && name.isNotEmpty) {
-              await _storageService.saveName(name);
-            }
-          }
 
           needsEmailVerification = needsEmailVerification || _isExplicitlyFalse(user['isVerified']) || _isExplicitlyFalse(user['is_verified']);
           if (!needsEmailVerification) {
             needsProfileSetup = needsProfileSetup || _isExplicitlyFalse(user['isProfileCompleted']) || _isExplicitlyFalse(user['is_profile_completed']);
+            final profile = user['profile'];
             if (profile is Map<String, dynamic>) {
               needsProfileSetup = needsProfileSetup || _isExplicitlyFalse(profile['isProfileCompleted']) || _isExplicitlyFalse(profile['is_profile_completed']);
             }
@@ -1383,6 +1419,8 @@ class AuthController extends GetxController {
     var needsEmailVerification = false;
     var needsProfileSetup = false;
     if (data is Map<String, dynamic>) {
+      await _applyLoginSessionFromData(data);
+
       needsEmailVerification = _isExplicitlyFalse(data['isVerified']) || _isExplicitlyFalse(data['is_verified']);
       if (!needsEmailVerification) {
         needsProfileSetup = _isExplicitlyFalse(data['isProfileCompleted']) || _isExplicitlyFalse(data['is_profile_completed']);
@@ -1392,22 +1430,15 @@ class AuthController extends GetxController {
       if (user is Map<String, dynamic>) {
         final id = user['_id']?.toString();
         if (id != null && id.isNotEmpty) {
-          await _storageService.saveUserId(id);
           final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
           ls.saveuserid(id);
         }
         emailToStore = user['email']?.toString();
-        final profile = user['profile'];
-        if (profile is Map<String, dynamic>) {
-          final name = profile['fullName']?.toString();
-          if (name != null && name.isNotEmpty) {
-            await _storageService.saveName(name);
-          }
-        }
 
         needsEmailVerification = needsEmailVerification || _isExplicitlyFalse(user['isVerified']) || _isExplicitlyFalse(user['is_verified']);
         if (!needsEmailVerification) {
           needsProfileSetup = needsProfileSetup || _isExplicitlyFalse(user['isProfileCompleted']) || _isExplicitlyFalse(user['is_profile_completed']);
+          final profile = user['profile'];
           if (profile is Map<String, dynamic>) {
             needsProfileSetup = needsProfileSetup || _isExplicitlyFalse(profile['isProfileCompleted']) || _isExplicitlyFalse(profile['is_profile_completed']);
           }
@@ -2348,10 +2379,13 @@ class AuthController extends GetxController {
     } catch (e) {
       debugPrint('Logout API: $e');
     } finally {
+      _customerProfile = null;
+      _customerProfileError = null;
       await _storageService.logout();
       if (Get.isRegistered<LocalStorage>()) {
         Get.find<LocalStorage>().deleteAccessToken();
       }
+      update();
       _scheduleGetNavigation(() => Get.offAllNamed(AppRoutes.login));
     }
   }

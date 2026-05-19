@@ -20,6 +20,7 @@ class AppConstants {
   static const String keyUserToken = 'user_token';
   static const String keyUserEmail = 'user_email';
   static const String keyUserName = 'user_name';
+  static const String keyUserPhotoUrl = 'user_photo_url';
   static const String keyOnboardingComplete = 'onboarding_complete';
   static const String keyUserPreference = 'user_preference';
   static const String keyUserGoals = 'user_goals';

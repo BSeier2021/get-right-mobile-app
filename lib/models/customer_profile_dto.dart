@@ -184,6 +184,11 @@ class CustomerProfileDto {
     return false;
   }
 
+  /// Builds from login / auto-login `data` object (`data.user`, `data.user.profile`, …).
+  static CustomerProfileDto? fromLoginData(Map<String, dynamic> data) {
+    return tryParse(<String, dynamic>{'success': true, 'data': data});
+  }
+
   /// Returns null if [response] is not a successful profile payload.
   static CustomerProfileDto? tryParse(dynamic response) {
     if (response is! Map) return null;

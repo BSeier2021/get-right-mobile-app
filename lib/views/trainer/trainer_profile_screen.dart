@@ -190,6 +190,18 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     if (mounted) setState(() => _bootstrapLoading = false);
   }
 
+  /// Reloads `GET /user/profiles/:userId/details` only (counts, follow state) — e.g. after follow/unfollow.
+  Future<void> _refreshProfileDetails() async {
+    final id = _mongoUserId;
+    if (id == null || !mounted) return;
+    try {
+      final detailRaw = await _trainerRepo.getProfileDetailsRepo(id);
+      if (mounted) setState(() => _applyDetailsResponse(detailRaw));
+    } catch (_) {
+      /* keep existing counts on refresh failure */
+    }
+  }
+
   Future<void> _loadProgramsAndBundles() async {
     final id = _mongoUserId;
     if (id == null) return;
@@ -258,7 +270,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       'role': user['role']?.toString() ?? trainer['role'],
     };
 
-    _isFollowedByMe = user['isFollowedByMe'] == true;
+    _isFollowedByMe = user['isFollowedByMe'] == true || user['isFollowing'] == true || data['isFollowing'] == true;
   }
 
   /// Recreates [TabController] when API reveals Customer vs Trainer (length 1 vs 3).
@@ -412,21 +424,18 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     if (id == null || _followActionLoading) return;
     setState(() => _followActionLoading = true);
     final was = _isFollowedByMe;
-    setState(() => _isFollowedByMe = !was);
     try {
-      if (!was) {
-        await _trainerRepo.followUserRepo(id);
-      } else {
-        await _trainerRepo.unfollowUserRepo(id);
-      }
-      if (mounted) {
-        Get.snackbar(
-          was ? 'Unfollowed' : 'Following',
-          was ? 'You unfollowed $_displayName' : 'You are now following $_displayName',
-          snackPosition: SnackPosition.BOTTOM,
-          duration: const Duration(seconds: 2),
-        );
-      }
+      final isFollowing = was ? await _trainerRepo.unfollowUserRepo(id) : await _trainerRepo.followUserRepo(id);
+      if (!mounted) return;
+      setState(() => _isFollowedByMe = isFollowing);
+      await _refreshProfileDetails();
+      if (!mounted) return;
+      Get.snackbar(
+        isFollowing ? 'Following' : 'Unfollowed',
+        isFollowing ? 'You are now following $_displayName' : 'You unfollowed $_displayName',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
     } catch (e) {
       if (mounted) {
         setState(() => _isFollowedByMe = was);
@@ -445,13 +454,13 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
   Widget _buildFollowButton({bool compact = false}) {
     // Set a fixed width for both buttons
-    final buttonWidth = 120.0;
+    final buttonWidth = 110.0;
     return SizedBox(
       width: buttonWidth,
       child: TextButton(
         onPressed: _followActionLoading ? null : _onFollowPressed,
         style: TextButton.styleFrom(
-          backgroundColor: _isFollowedByMe ? AppColors.primaryGray.withOpacity(0.2) : AppColors.accent,
+          backgroundColor: _isFollowedByMe ? AppColors.accent : AppColors.accent,
           foregroundColor: _isFollowedByMe ? AppColors.onSurface : AppColors.onAccent,
           padding: EdgeInsets.symmetric(horizontal: 0, vertical: 5),
           minimumSize: Size(buttonWidth, 36),
@@ -461,7 +470,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         child: _followActionLoading
             ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _isFollowedByMe ? AppColors.accent : AppColors.onAccent))
             : Text(
-                _isFollowedByMe ? 'Following' : 'Follow',
+                _isFollowedByMe ? 'Unfollow' : 'Follow',
                 style: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
               ),
       ),
@@ -470,7 +479,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
   Widget _buildMessageButton({bool compact = false}) {
     // Set the same fixed width as the follow button
-    final buttonWidth = 120.0;
+    final buttonWidth = 110.0;
     return SizedBox(
       width: buttonWidth,
       child: TextButton.icon(
@@ -690,10 +699,10 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                         _displayName,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                        style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold, fontSize: 17.sp),
                       ),
                     ),
-                    if (_showFollowButton) ...[const SizedBox(width: 4), _buildFollowButton(compact: true), const SizedBox(width: 8), _buildMessageButton(compact: true)],
+                    if (_showFollowButton) ...[const SizedBox(width: 2), _buildFollowButton(compact: true), const SizedBox(width: 8), _buildMessageButton(compact: true)],
                   ],
                 ),
                 if (_displayBio.trim().isNotEmpty) ...[const SizedBox(height: 8), _buildExpandableBio()],

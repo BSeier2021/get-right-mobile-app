@@ -21,11 +21,26 @@ class TrainerProfileRepository {
     return _network.get(AppUrl.profileUserBundles(userId), params: {'page': page, 'limit': limit});
   }
 
-  Future<dynamic> followUserRepo(String userId) async {
-    return _network.post(AppUrl.profileUserFollow(userId), <String, dynamic>{});
+  /// `POST /user/follow/:userId` → `data.isFollowing` (true).
+  Future<bool> followUserRepo(String userId) async {
+    final raw = await _network.post(AppUrl.userFollow(userId), <String, dynamic>{});
+    return _parseIsFollowing(raw, expected: true);
   }
 
-  Future<dynamic> unfollowUserRepo(String userId) async {
-    return _network.post(AppUrl.profileUserUnfollow(userId), <String, dynamic>{});
+  /// `DELETE /user/follow/:userId` → `data.isFollowing` (false).
+  Future<bool> unfollowUserRepo(String userId) async {
+    final raw = await _network.delete(AppUrl.userFollow(userId));
+    return _parseIsFollowing(raw, expected: false);
+  }
+
+  bool _parseIsFollowing(dynamic raw, {required bool expected}) {
+    if (raw is Map) {
+      final data = raw['data'];
+      if (data is Map) {
+        final v = data['isFollowing'];
+        if (v is bool) return v;
+      }
+    }
+    return expected;
   }
 }

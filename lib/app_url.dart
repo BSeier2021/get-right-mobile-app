@@ -41,11 +41,9 @@ class AppUrl {
   /// `GET /user/profiles/:userId/bundles` — paginated `data.bundles.bundles[]` (mirror of programs shape).
   static String profileUserBundles(String userId) => '$baseUrl/user/profiles/${Uri.encodeComponent(userId.trim())}/bundles';
 
-  /// `POST /user/profiles/:userId/follow` — follow trainer (Bearer).
-  static String profileUserFollow(String userId) => '$baseUrl/user/profiles/${Uri.encodeComponent(userId.trim())}/follow';
-
-  /// `POST /user/profiles/:userId/unfollow` — unfollow (Bearer). Adjust if backend uses DELETE on [profileUserFollow].
-  static String profileUserUnfollow(String userId) => '$baseUrl/user/profiles/${Uri.encodeComponent(userId.trim())}/unfollow';
+  /// `POST /user/follow/:userId` — follow user (Bearer). Response: `data.isFollowing`.
+  /// `DELETE /user/follow/:userId` — unfollow (Bearer). Response: `data.isFollowing`.
+  static String userFollow(String userId) => '$baseUrl/user/follow/${Uri.encodeComponent(userId.trim())}';
 
   static String exerciseCategories = '$baseUrl/user/exercise-categories';
 

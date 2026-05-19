@@ -44,9 +44,12 @@ class _AppDrawerState extends State<AppDrawer> {
     return storage.getEmail()?.trim().isNotEmpty == true ? storage.getEmail()!.trim() : 'demo@getright.com';
   }
 
-  String? _photoUrl(CustomerProfileDto? p) {
-    final u = p?.profilePictureUrl?.trim();
-    return (u != null && u.isNotEmpty) ? u : null;
+  String? _photoUrl(CustomerProfileDto? p, StorageService? storage) {
+    final fromProfile = p?.profilePictureUrl?.trim();
+    if (fromProfile != null && fromProfile.isNotEmpty) return fromProfile;
+    final fromStorage = storage?.getProfilePictureUrl()?.trim();
+    if (fromStorage != null && fromStorage.isNotEmpty) return fromStorage;
+    return null;
   }
 
   @override
@@ -69,8 +72,9 @@ class _AppDrawerState extends State<AppDrawer> {
                 final p = auth.customerProfile;
                 final name = storage != null ? _displayName(p, storage) : (p?.fullName?.trim().isNotEmpty == true ? p!.fullName!.trim() : 'Demo User');
                 final email = storage != null ? _displayEmail(p, storage) : (p?.email.trim().isNotEmpty == true ? p!.email.trim() : 'demo@getright.com');
-                final photo = _photoUrl(p);
-                return _buildUserHeader(name, email, photo, auth.customerProfileLoading && p == null);
+                final photo = _photoUrl(p, storage);
+                final loadingHeader = auth.customerProfileLoading && p == null && (storage?.getName()?.trim().isEmpty ?? true);
+                return _buildUserHeader(name, email, photo, loadingHeader);
               },
             ),
 
