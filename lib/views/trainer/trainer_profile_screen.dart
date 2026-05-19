@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/repo/trainer_profile_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/services/api_service.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -452,6 +454,202 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     Get.toNamed(AppRoutes.chatRoom, arguments: <String, dynamic>{'trainerId': id, 'trainerName': _displayName});
   }
 
+  Widget _buildProfileOverflowMenu() {
+    return PopupMenuButton<String>(
+      tooltip: 'More options',
+      padding: const EdgeInsets.only(right: 8),
+      icon: Icon(Icons.more_vert_rounded, color: AppColors.onBackground, size: 24),
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (value) {
+        if (value == 'report') {
+          _showReportUserDialog();
+        } else if (value == 'block') {
+          _showBlockUserDialog();
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'report',
+          child: Row(
+            children: [
+              Icon(Icons.flag_outlined, size: 20, color: AppColors.error),
+              const SizedBox(width: 12),
+              Text(
+                'Report',
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'block',
+          child: Row(
+            children: [
+              Icon(Icons.block_flipped, size: 20, color: AppColors.error),
+              const SizedBox(width: 12),
+              Text(
+                'Block',
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showReportUserDialog() async {
+    final reportedId = _mongoUserId;
+    final reporterId = _currentUserIdOrNull();
+    if (reportedId == null || reporterId == null) return;
+
+    final descriptionController = TextEditingController();
+    String? selectedReason;
+
+    await Get.dialog<void>(
+      Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Padding(
+              padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 24 + MediaQuery.of(context).viewInsets.bottom),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Report $_displayName', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Reason',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    ...ReportReasons.all.map(
+                      (reason) => RadioListTile<String>(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(ReportReasons.getDisplayName(reason), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                        value: reason,
+                        groupValue: selectedReason,
+                        onChanged: (value) => setDialogState(() => selectedReason = value),
+                        activeColor: AppColors.accent,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: InputDecoration(
+                        labelText: 'Additional details (optional)',
+                        labelStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                        ),
+                      ),
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: selectedReason == null
+                              ? null
+                              : () async {
+                                  Get.back();
+                                  try {
+                                    final api = await ApiService.getInstance();
+                                    await api.reportTrainer(
+                                      conversationId: '',
+                                      reporterId: reporterId,
+                                      reportedUserId: reportedId,
+                                      reason: selectedReason!,
+                                      description: descriptionController.text.trim().isEmpty ? null : descriptionController.text.trim(),
+                                    );
+                                    Get.snackbar('Report submitted', 'Thank you for your feedback.', snackPosition: SnackPosition.BOTTOM);
+                                  } catch (e) {
+                                    Get.snackbar('Could not report', e.toString(), snackPosition: SnackPosition.BOTTOM);
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.onAccent),
+                          child: const Text('Submit'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    descriptionController.dispose();
+  }
+
+  Future<void> _showBlockUserDialog() async {
+    final blockedId = _mongoUserId;
+    final blockerId = _currentUserIdOrNull();
+    if (blockedId == null || blockerId == null) return;
+
+    final confirmed = await Get.dialog<bool>(
+      Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Block $_displayName?', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
+              const SizedBox(height: 12),
+              Text(
+                'You will no longer see content from this user. You can unblock them later from settings.',
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => Get.back(result: true),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+                    child: const Text('Block'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final api = await ApiService.getInstance();
+      await api.blockUser(blockerId: blockerId, blockedUserId: blockedId);
+      Get.snackbar('Blocked', '$_displayName has been blocked.', snackPosition: SnackPosition.BOTTOM);
+      if (Get.key.currentState?.canPop() ?? false) {
+        Get.back();
+      } else if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      Get.snackbar('Could not block', e.toString(), snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
   Widget _buildFollowButton({bool compact = false}) {
     // Set a fixed width for both buttons
     final buttonWidth = 110.0;
@@ -604,8 +802,14 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             child: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 18),
           ),
         ),
-        title: Text(_displayName, style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold)),
+        title: Text(
+          _displayName,
+          style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         centerTitle: true,
+        actions: _showFollowButton ? [_buildProfileOverflowMenu()] : null,
 
         bottom: _showProgramsTrainingTabs
             ? PreferredSize(
@@ -680,8 +884,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                 ),
                 const SizedBox(width: 20),
                 _buildStatColumn(_mongoUserId != null ? '$postsCount' : '…', 'Posts'),
-                _buildStatColumn(_mongoUserId != null ? '$followers' : '…', 'Followers'),
-                _buildStatColumn(_mongoUserId != null ? '$following' : '…', 'Following'),
+                _buildStatColumn(_mongoUserId != null ? '$followers' : '…', 'Followers', onTap: _mongoUserId != null ? () => _openFollowersList() : null),
+                _buildStatColumn(_mongoUserId != null ? '$following' : '…', 'Following', onTap: _mongoUserId != null ? () => _openFollowingList() : null),
               ],
             ),
           ),
@@ -702,7 +906,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                         style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold, fontSize: 17.sp),
                       ),
                     ),
-                    if (_showFollowButton) ...[const SizedBox(width: 2), _buildFollowButton(compact: true), const SizedBox(width: 8), _buildMessageButton(compact: true)],
+                    if (_showFollowButton) ...[_buildFollowButton(compact: true), const SizedBox(width: 8), _buildMessageButton(compact: true)],
                   ],
                 ),
                 if (_displayBio.trim().isNotEmpty) ...[const SizedBox(height: 8), _buildExpandableBio()],
@@ -732,8 +936,20 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     );
   }
 
-  Widget _buildStatColumn(String count, String label) {
-    return Column(
+  void _openFollowersList() {
+    final id = _mongoUserId;
+    if (id == null || id.isEmpty) return;
+    Get.toNamed(AppRoutes.followers, arguments: <String, dynamic>{'userId': id, 'profileName': _displayName});
+  }
+
+  void _openFollowingList() {
+    final id = _mongoUserId;
+    if (id == null || id.isEmpty) return;
+    Get.toNamed(AppRoutes.following, arguments: <String, dynamic>{'userId': id, 'profileName': _displayName});
+  }
+
+  Widget _buildStatColumn(String count, String label, {VoidCallback? onTap}) {
+    final column = Column(
       children: [
         Text(
           count,
@@ -743,6 +959,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         Text(label, style: AppTextStyles.bodySmall.copyWith(color: const Color.fromARGB(255, 55, 56, 58))),
       ],
     );
+    if (onTap == null) return column;
+    return GestureDetector(onTap: onTap, behavior: HitTestBehavior.opaque, child: column);
   }
 
   Widget _buildPostsGrid() {

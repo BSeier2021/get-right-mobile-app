@@ -45,6 +45,12 @@ class AppUrl {
   /// `DELETE /user/follow/:userId` — unfollow (Bearer). Response: `data.isFollowing`.
   static String userFollow(String userId) => '$baseUrl/user/follow/${Uri.encodeComponent(userId.trim())}';
 
+  /// `GET /user/follow/:userId/followers` — paginated `data.followers.follows[]`.
+  static String userFollowers(String userId) => '${userFollow(userId)}/followers';
+
+  /// `GET /user/follow/:userId/following` — paginated `data.following.follows[]`.
+  static String userFollowing(String userId) => '${userFollow(userId)}/following';
+
   static String exerciseCategories = '$baseUrl/user/exercise-categories';
 
   /// `GET /user/feed-categories` → `data.categories[]` (feed post categories).

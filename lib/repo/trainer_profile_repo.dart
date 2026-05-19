@@ -33,6 +33,14 @@ class TrainerProfileRepository {
     return _parseIsFollowing(raw, expected: false);
   }
 
+  Future<dynamic> getFollowersRepo(String userId, {int page = 1, int limit = 20}) async {
+    return _network.get(AppUrl.userFollowers(userId), params: {'page': page, 'limit': limit});
+  }
+
+  Future<dynamic> getFollowingRepo(String userId, {int page = 1, int limit = 20}) async {
+    return _network.get(AppUrl.userFollowing(userId), params: {'page': page, 'limit': limit});
+  }
+
   bool _parseIsFollowing(dynamic raw, {required bool expected}) {
     if (raw is Map) {
       final data = raw['data'];
