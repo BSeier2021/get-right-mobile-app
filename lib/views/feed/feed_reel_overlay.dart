@@ -218,6 +218,8 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       if (creatorId.isNotEmpty) '_id': creatorId,
       if (creatorId.isNotEmpty) 'id': creatorId,
       if (creatorId.isEmpty) 'id': creatorName.toLowerCase().replaceAll(' ', '_'),
+      if (isTrainer) 'role': 'Trainer',
+      'isTrainer': isTrainer,
       'name': creatorName,
       'initials': initials,
       'bio': isTrainer

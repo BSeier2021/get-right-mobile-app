@@ -23,6 +23,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
 
   late TabController _tabController;
+  TabController? _tabControllerPendingDispose;
   final TrainerProfileRepository _trainerRepo = TrainerProfileRepository();
   final BlocksRepository _blocksRepo = BlocksRepository();
   final _storageService = Get.find<StorageService>();
@@ -49,8 +50,38 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   String? _programsLoadError;
   String? _bundlesLoadError;
 
-  /// Programs + Training tabs only when API / args indicate `Trainer`.
-  bool get _showProgramsTrainingTabs => (trainer['role'] ?? '').toString().trim().toLowerCase() == 'trainer';
+  /// Normalizes API role (`Trainer`, nested `{ name }`, etc.).
+  static String? _normalizeRole(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is String) {
+      final s = raw.trim();
+      return s.isEmpty ? null : s;
+    }
+    if (raw is Map) {
+      for (final k in ['name', 'title', 'value', 'role', 'type']) {
+        final nested = _normalizeRole(raw[k]);
+        if (nested != null) return nested;
+      }
+      return null;
+    }
+    final s = raw.toString().trim();
+    if (s.isEmpty || s.startsWith('{')) return null;
+    return s;
+  }
+
+  /// Programs + Training tabs for trainers; hidden only when role is explicitly `Customer`.
+  bool get _showProgramsTrainingTabs {
+    final role = _normalizeRole(trainer['role']);
+    if (role != null) {
+      final r = role.toLowerCase();
+      if (r == 'customer') return false;
+      if (r == 'trainer') return true;
+    }
+    if (trainer['isTrainer'] == true) return true;
+    if (_statInt('programCount') > 0 || _statInt('bundleCount') > 0) return true;
+    // Trainer profile route: show tabs until API proves the user is a customer.
+    return true;
+  }
 
   int _tabLengthForRole() => _showProgramsTrainingTabs ? 3 : 1;
 
@@ -69,6 +100,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   }
 
   void _onProgramsTabShow() {
+    if (!mounted) return;
     if (!_tabController.indexIsChanging && _tabController.index == 1 && _mongoUserId != null && !_programsTabLoading && _programs.isEmpty && _bundles.isEmpty) {
       _loadProgramsAndBundles();
     }
@@ -278,10 +310,30 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       'followingCount': user['followingCount'],
       'programCount': user['programCount'],
       'bundleCount': user['bundleCount'],
-      'role': user['role']?.toString() ?? trainer['role'],
+      'role': _normalizeRole(user['role'] ?? profile['role'] ?? data['role']) ?? trainer['role'],
     };
 
     _isFollowedByMe = user['isFollowedByMe'] == true || user['isFollowing'] == true || data['isFollowing'] == true;
+  }
+
+  /// Disposes a replaced controller after TabBar/TabBarView detach (avoids double-dispose crash).
+  void _scheduleTabControllerDispose(TabController old) {
+    _tabControllerPendingDispose = old;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        _disposeReplacedTabController();
+        return;
+      }
+      _disposeReplacedTabController();
+    });
+  }
+
+  void _disposeReplacedTabController() {
+    final old = _tabControllerPendingDispose;
+    _tabControllerPendingDispose = null;
+    if (old == null || identical(old, _tabController)) return;
+    old.removeListener(_onProgramsTabShow);
+    old.dispose();
   }
 
   /// Recreates [TabController] when API reveals Customer vs Trainer (length 1 vs 3).
@@ -291,11 +343,12 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     final want = _tabLengthForRole();
     if (_tabController.length == want) return;
     final prevIndex = _tabController.index;
-    _tabController.removeListener(_onProgramsTabShow);
-    _tabController.dispose();
+    final old = _tabController;
+    old.removeListener(_onProgramsTabShow);
     final initialIndex = want == 3 ? prevIndex.clamp(0, 2) : 0;
     _tabController = TabController(length: want, vsync: this, initialIndex: initialIndex);
     _tabController.addListener(_onProgramsTabShow);
+    _scheduleTabControllerDispose(old);
   }
 
   List<Map<String, dynamic>> _parsePostsResponse(dynamic raw) {
@@ -769,6 +822,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   void dispose() {
     _tabController.removeListener(_onProgramsTabShow);
     _tabController.dispose();
+    _disposeReplacedTabController();
     super.dispose();
   }
 
@@ -826,7 +880,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         centerTitle: true,
         actions: _showFollowButton ? [_buildProfileOverflowMenu()] : null,
 
-        bottom: _tabController.length == 3
+        bottom: _showProgramsTrainingTabs
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(50),
                 child: Container(
@@ -850,7 +904,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
               )
             : null,
       ),
-      body: _tabController.length == 3
+      body: _showProgramsTrainingTabs
           ? TabBarView(key: ValueKey<int>(_tabController.hashCode), controller: _tabController, children: [_buildProfileTab(), _buildProgramsTab(), _buildTrainingTab()])
           : _buildProfileTab(),
     );
@@ -866,7 +920,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       onRefresh: _loadProfileFromApi,
       child: Column(
         children: [
-          if (_bootstrapLoading) const LinearProgressIndicator(minHeight: 2),
+          // if (_bootstrapLoading) const LinearProgressIndicator(minHeight: 2),
           // if (_loadError != null && _mongoUserId != null)
           //   Padding(
           //     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -1420,13 +1474,17 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.favorite_rounded, color: AppColors.accent, size: 24),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      'Subscribe for \$9.99/month',
-                                      style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                    Icon(Icons.favorite_rounded, color: AppColors.accent, size: 22),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Subscribe for \$9.99/month',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -1515,13 +1573,17 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                             child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(Icons.message_rounded, color: Colors.white, size: 20),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    'Message About In-Person Training',
-                                    style: AppTextStyles.labelLarge.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                                  Expanded(
+                                    child: Text(
+                                      'Message About In-Person Training',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: AppTextStyles.labelLarge.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                                    ),
                                   ),
                                 ],
                               ),

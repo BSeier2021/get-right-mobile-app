@@ -1,6 +1,34 @@
 import 'package:get_right/app_url.dart';
+import 'package:get_right/models/exercise_category_option.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+
+/// Query params for `GET /customer/program` (browse / filter).
+class CustomerProgramsQuery {
+  final int page;
+  final int limit;
+  final String? type;
+  final String? sort;
+  final List<String> categories;
+  final List<String> difficulties;
+  final int? durationMin;
+  final int? durationMax;
+  final bool certifiedOnly;
+  final String? title;
+
+  const CustomerProgramsQuery({
+    this.page = 1,
+    this.limit = 10,
+    this.type,
+    this.sort,
+    this.categories = const [],
+    this.difficulties = const [],
+    this.durationMin,
+    this.durationMax,
+    this.certifiedOnly = false,
+    this.title,
+  });
+}
 
 /// Query `type` values supported by `GET /customer/program`.
 abstract final class MarketplaceSection {
@@ -57,10 +85,53 @@ class MarketplaceRepository {
     return _parseProgramsList(raw);
   }
 
-  /// `GET /customer/program` with `type=All`.
-  Future<MarketplaceProgramsPage> fetchBrowsePrograms({int page = 1, int perPage = 10}) async {
+  /// `GET /user/exercise-categories` → category chips for filters.
+  Future<List<ExerciseCategoryOption>> fetchExerciseCategories() async {
+    final raw = await _network.get(AppUrl.exerciseCategories);
+    if (!_isOk(raw)) return [];
+    final root = Map<String, dynamic>.from(raw as Map);
+    final data = root['data'];
+    List<dynamic>? items;
+    if (data is Map) {
+      final m = Map<String, dynamic>.from(data);
+      if (m['categories'] is List) {
+        items = m['categories'] as List<dynamic>;
+      } else if (m['data'] is List) {
+        items = m['data'] as List<dynamic>;
+      }
+    } else if (data is List) {
+      items = data;
+    }
+    if (items == null) return [];
+    final out = <ExerciseCategoryOption>[];
+    for (final item in items) {
+      if (item is! Map) continue;
+      final opt = ExerciseCategoryOption.fromJson(Map<String, dynamic>.from(item));
+      if (opt.id.isNotEmpty && opt.name.isNotEmpty) out.add(opt);
+    }
+    return out;
+  }
+
+  /// `GET /customer/program` — browse list with optional filters ([query]).
+  Future<MarketplaceProgramsPage> fetchBrowsePrograms({
+    int page = 1,
+    int perPage = 10,
+    CustomerProgramsQuery? query,
+  }) async {
+    final q = query ?? const CustomerProgramsQuery();
     final raw = await _network.get(
-      AppUrl.customerPrograms(page: page, limit: perPage, type: MarketplaceSection.all),
+      AppUrl.customerPrograms(
+        page: page,
+        limit: perPage,
+        type: q.type ?? MarketplaceSection.all,
+        sort: q.sort,
+        categories: q.categories,
+        difficulties: q.difficulties,
+        durationMin: q.durationMin,
+        durationMax: q.durationMax,
+        certifiedOnly: q.certifiedOnly ? true : null,
+        title: q.title,
+      ),
     );
     return _parseBrowseProgramsPage(raw, page, perPage);
   }

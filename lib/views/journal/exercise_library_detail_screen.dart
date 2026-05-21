@@ -36,7 +36,7 @@ class ExerciseLibraryDetailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
           icon: Container(
@@ -56,7 +56,7 @@ class ExerciseLibraryDetailScreen extends StatelessWidget {
             Container(
               margin: const EdgeInsets.all(16),
               height: 180,
-              decoration: BoxDecoration(color: AppColors.primaryGrayLight, borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(color: const Color.fromARGB(255, 238, 252, 210), borderRadius: BorderRadius.circular(16)),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,

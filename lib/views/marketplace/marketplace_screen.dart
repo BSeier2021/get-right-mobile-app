@@ -1,9 +1,14 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/notification_controller.dart';
+import 'package:get_right/models/exercise_category_option.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/services/storage_service.dart';
+import 'package:get_right/utils/customer_profile_enums.dart';
+import 'package:get_right/utils/marketplace_user_filter_prefs.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
@@ -19,11 +24,13 @@ class MarketplaceScreen extends StatefulWidget {
 }
 
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
-  String _selectedCategory = 'All';
-  String _selectedDifficulty = 'All';
+  final Set<String> _selectedCategoryIds = {};
+  final Set<String> _selectedDifficulties = {};
   String _selectedDuration = 'All';
-  String _sortBy = 'Featured'; // Featured, Newest, Highest Rated, Price Low-High, Price High-Low
+  String _sortBy = 'Featured';
   bool _showCertifiedOnly = false;
+  List<ExerciseCategoryOption> _exerciseCategories = [];
+  bool _userQuizFiltersApplied = false;
 
   final MarketplaceRepository _marketplaceRepo = MarketplaceRepository();
   List<Map<String, dynamic>> _featuredSectionPrograms = [];
@@ -67,9 +74,97 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     _marketTabLazyBootstrapped = true;
     Future(() async {
       if (!mounted) return;
+      await _loadExerciseCategories();
+      if (!mounted) return;
+      await _applyUserQuizDefaultsToFilters();
       await Future.wait([_loadMarketplaceSections(), _loadBrowsePrograms(reset: true)]);
       if (mounted) await _loadMarketplaceBundles();
     });
+  }
+
+  Future<void> _loadExerciseCategories() async {
+    try {
+      final list = await _marketplaceRepo.fetchExerciseCategories();
+      if (!mounted) return;
+      setState(() => _exerciseCategories = list);
+    } catch (_) {
+      if (!mounted) return;
+    }
+  }
+
+  Future<void> _applyUserQuizDefaultsToFilters() async {
+    if (_userQuizFiltersApplied) return;
+    _userQuizFiltersApplied = true;
+
+    final auth = Get.find<AuthController>();
+    final profile = auth.customerProfile;
+    final storage = await StorageService.getInstance();
+
+    final fitness = profile?.fitnessLevel ?? storage.getFitnessLevel();
+    final difficulty = MarketplaceUserFilterPrefs.difficultyFromFitnessLevel(fitness);
+    if (difficulty != null) _selectedDifficulties.add(difficulty);
+
+    final preferenceName = profile?.preferencesName ?? profile?.primaryFocus ?? storage.getUserPreference();
+    final primarySlug = CustomerProfileEnums.normalizePrimaryFocus(profile?.primaryFocus) ?? CustomerProfileEnums.primaryFocusFromDisplayName(preferenceName);
+    final goals = profile?.mainGoals.isNotEmpty == true ? profile!.mainGoals : storage.getUserGoals();
+
+    _selectedCategoryIds.addAll(
+      MarketplaceUserFilterPrefs.categoryIdsFromUserContext(categories: _exerciseCategories, preferenceName: preferenceName, primaryFocusSlug: primarySlug, goalNames: goals),
+    );
+  }
+
+  String? get _apiSort {
+    switch (_sortBy) {
+      case 'Newest':
+        return 'Newest';
+      case 'Price Low-High':
+        return 'PriceAsc';
+      case 'Price High-Low':
+        return 'PriceDesc';
+      case 'Featured':
+        return 'Featured';
+      default:
+        return null;
+    }
+  }
+
+  (int?, int?)? _durationWeeksRange() {
+    switch (_selectedDuration) {
+      case '0-4 weeks':
+        return (0, 4);
+      case '5-8 weeks':
+        return (5, 8);
+      case '9-12 weeks':
+        return (9, 12);
+      case '13+ weeks':
+        return (13, 520);
+      default:
+        return null;
+    }
+  }
+
+  CustomerProgramsQuery _buildProgramsQuery({required int page, required int perPage}) {
+    final range = _durationWeeksRange();
+    return CustomerProgramsQuery(
+      page: page,
+      limit: perPage,
+      type: MarketplaceSection.all,
+      sort: _apiSort,
+      categories: _selectedCategoryIds.toList(),
+      difficulties: _selectedDifficulties.toList(),
+      durationMin: range?.$1,
+      durationMax: range?.$2,
+      certifiedOnly: _showCertifiedOnly,
+    );
+  }
+
+  bool get _hasActiveFilters => _selectedCategoryIds.isNotEmpty || _selectedDifficulties.isNotEmpty || _selectedDuration != 'All' || _sortBy != 'Featured' || _showCertifiedOnly;
+
+  String _categoryLabel(String id) {
+    for (final c in _exerciseCategories) {
+      if (c.id == id) return c.name;
+    }
+    return id;
   }
 
   /// Pull-to-refresh: reload featured / new releases, browse programs, then bundles (uses updated catalog).
@@ -109,7 +204,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }
     final page = reset ? 1 : _browseNextPage;
     try {
-      final result = await _marketplaceRepo.fetchBrowsePrograms(page: page, perPage: _browseProgramsPerPage);
+      final result = await _marketplaceRepo.fetchBrowsePrograms(
+        page: page,
+        perPage: _browseProgramsPerPage,
+        query: _buildProgramsQuery(page: page, perPage: _browseProgramsPerPage),
+      );
       if (!mounted) return;
       setState(() {
         if (reset) {
@@ -140,7 +239,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     setState(() => _browseProgramsLoadingMore = true);
     final page = _browseNextPage;
     try {
-      final result = await _marketplaceRepo.fetchBrowsePrograms(page: page, perPage: _browseProgramsPerPage);
+      final result = await _marketplaceRepo.fetchBrowsePrograms(
+        page: page,
+        perPage: _browseProgramsPerPage,
+        query: _buildProgramsQuery(page: page, perPage: _browseProgramsPerPage),
+      );
       if (!mounted) return;
       setState(() {
         _browsePrograms.addAll(result.programs);
@@ -261,43 +364,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }
   }
 
-  List<Map<String, dynamic>> get _filteredPrograms {
-    double ratingOf(Map<String, dynamic> p) => ((p['rating'] as num?) ?? 0).toDouble();
-    double priceOf(Map<String, dynamic> p) => ((p['price'] as num?) ?? 0).toDouble();
-
-    var filtered = _browsePrograms.where((program) {
-      if (_selectedCategory != 'All' && program['category'] != _selectedCategory) return false;
-      if (_selectedDifficulty != 'All' && program['difficulty'] != _selectedDifficulty) return false;
-      if (_selectedDuration != 'All') {
-        final duration = program['duration']?.toString() ?? '';
-        if (_selectedDuration == '0-4 weeks' && !duration.contains(RegExp(r'[1-4]\s+week'))) return false;
-        if (_selectedDuration == '5-8 weeks' && !duration.contains(RegExp(r'[5-8]\s+week'))) return false;
-        if (_selectedDuration == '9-12 weeks' && !duration.contains(RegExp(r'(9|10|11|12)\s+week'))) return false;
-        if (_selectedDuration == '13+ weeks' && !duration.contains(RegExp(r'(1[3-9]|[2-9]\d)\s+week'))) return false;
-      }
-      if (_showCertifiedOnly && program['certified'] != true) return false;
-      return true;
-    }).toList();
-
-    switch (_sortBy) {
-      case 'Newest':
-        filtered = filtered.reversed.toList();
-        break;
-      case 'Highest Rated':
-        filtered.sort((a, b) => ratingOf(b).compareTo(ratingOf(a)));
-        break;
-      case 'Price Low-High':
-        filtered.sort((a, b) => priceOf(a).compareTo(priceOf(b)));
-        break;
-      case 'Price High-Low':
-        filtered.sort((a, b) => priceOf(b).compareTo(priceOf(a)));
-        break;
-      default:
-        break;
-    }
-
-    return filtered;
-  }
+  List<Map<String, dynamic>> get _filteredPrograms => _browsePrograms;
 
   List<Map<String, dynamic>> get _filteredBundles {
     return _apiBundles.where((bundle) {
@@ -367,7 +434,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: ['Featured', 'Newest', 'Highest Rated', 'Price Low-High', 'Price High-Low'].map((sort) {
+                    children: ['Featured', 'Newest', 'Price Low-High', 'Price High-Low'].map((sort) {
                       final isSelected = _sortBy == sort;
                       return GestureDetector(
                         onTap: () {
@@ -410,31 +477,40 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: ['All', 'Strength', 'Cardio', 'Flexibility', 'Bodyweight', 'Running', 'Core', 'Fat Loss', 'Hypertrophy', 'Sports-Specific'].map((category) {
-                      final isSelected = _selectedCategory == category;
-                      return GestureDetector(
-                        onTap: () {
-                          setModalState(() {
-                            _selectedCategory = category;
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: isSelected ? AppColors.accent : AppColors.surface,
-                            borderRadius: BorderRadius.circular(50),
-                            border: Border.all(color: isSelected ? AppColors.accent : AppColors.primaryGray, width: isSelected ? 2 : 1),
-                          ),
-                          child: Text(
-                            category,
-                            style: AppTextStyles.labelMedium.copyWith(
-                              color: isSelected ? AppColors.onAccent : AppColors.onBackground,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    children: [
+                      if (_exerciseCategories.isEmpty)
+                        Text('Loading categories…', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray))
+                      else
+                        ..._exerciseCategories.map((category) {
+                          final isSelected = _selectedCategoryIds.contains(category.id);
+                          return GestureDetector(
+                            onTap: () {
+                              setModalState(() {
+                                if (isSelected) {
+                                  _selectedCategoryIds.remove(category.id);
+                                } else {
+                                  _selectedCategoryIds.add(category.id);
+                                }
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.accent : AppColors.surface,
+                                borderRadius: BorderRadius.circular(50),
+                                border: Border.all(color: isSelected ? AppColors.accent : AppColors.primaryGray, width: isSelected ? 2 : 1),
+                              ),
+                              child: Text(
+                                category.name,
+                                style: AppTextStyles.labelMedium.copyWith(
+                                  color: isSelected ? AppColors.onAccent : AppColors.onBackground,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                          );
+                        }),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -453,12 +529,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: ['All', 'Beginner', 'Intermediate', 'Advanced'].map((difficulty) {
-                      final isSelected = _selectedDifficulty == difficulty;
+                    children: ['Beginner', 'Intermediate', 'Advanced', 'Professional'].map((difficulty) {
+                      final isSelected = _selectedDifficulties.contains(difficulty);
                       return GestureDetector(
                         onTap: () {
                           setModalState(() {
-                            _selectedDifficulty = difficulty;
+                            if (isSelected) {
+                              _selectedDifficulties.remove(difficulty);
+                            } else {
+                              _selectedDifficulties.add(difficulty);
+                            }
                           });
                         },
                         child: Container(
@@ -576,8 +656,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         child: OutlinedButton.icon(
                           onPressed: () {
                             setModalState(() {
-                              _selectedCategory = 'All';
-                              _selectedDifficulty = 'All';
+                              _selectedCategoryIds.clear();
+                              _selectedDifficulties.clear();
                               _selectedDuration = 'All';
                               _sortBy = 'Featured';
                               _showCertifiedOnly = false;
@@ -599,8 +679,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         height: 56,
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            setState(() {});
                             Navigator.pop(context);
+                            _loadBrowsePrograms(reset: true);
                           },
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 0),
@@ -1445,8 +1525,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final featuredPrograms = _featuredSectionPrograms;
     final newReleases = _newReleasesSectionPrograms;
 
-    final hasActiveFilters = _selectedCategory != 'All' || _selectedDifficulty != 'All' || _selectedDuration != 'All' || _sortBy != 'Featured' || _showCertifiedOnly;
-    final catalogCountLabel = hasActiveFilters ? '${filteredPrograms.length}' : (_browseProgramsTotal > 0 ? '$_browseProgramsTotal' : '${filteredPrograms.length}');
+    final hasActiveFilters = _hasActiveFilters;
+    final catalogCountLabel = _browseProgramsTotal > 0 ? '$_browseProgramsTotal' : '${filteredPrograms.length}';
 
     return Container(
       decoration: const BoxDecoration(
@@ -1611,11 +1691,31 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           'Active Filters: ',
                           style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                         ),
-                        if (_sortBy != 'Featured') _buildFilterChip(_sortBy, () => setState(() => _sortBy = 'Featured')),
-                        if (_selectedCategory != 'All') _buildFilterChip(_selectedCategory, () => setState(() => _selectedCategory = 'All')),
-                        if (_selectedDifficulty != 'All') _buildFilterChip(_selectedDifficulty, () => setState(() => _selectedDifficulty = 'All')),
-                        if (_selectedDuration != 'All') _buildFilterChip(_selectedDuration, () => setState(() => _selectedDuration = 'All')),
-                        if (_showCertifiedOnly) _buildFilterChip('Certified', () => setState(() => _showCertifiedOnly = false)),
+                        if (_sortBy != 'Featured')
+                          _buildFilterChip(_sortBy, () {
+                            setState(() => _sortBy = 'Featured');
+                            _loadBrowsePrograms(reset: true);
+                          }),
+                        for (final id in _selectedCategoryIds)
+                          _buildFilterChip(_categoryLabel(id), () {
+                            setState(() => _selectedCategoryIds.remove(id));
+                            _loadBrowsePrograms(reset: true);
+                          }),
+                        for (final d in _selectedDifficulties)
+                          _buildFilterChip(d, () {
+                            setState(() => _selectedDifficulties.remove(d));
+                            _loadBrowsePrograms(reset: true);
+                          }),
+                        if (_selectedDuration != 'All')
+                          _buildFilterChip(_selectedDuration, () {
+                            setState(() => _selectedDuration = 'All');
+                            _loadBrowsePrograms(reset: true);
+                          }),
+                        if (_showCertifiedOnly)
+                          _buildFilterChip('Certified', () {
+                            setState(() => _showCertifiedOnly = false);
+                            _loadBrowsePrograms(reset: true);
+                          }),
                       ],
                     ),
                   ),
@@ -1687,13 +1787,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(height: 8.h),
                           if (_browsePrograms.isNotEmpty)
                             TextButton(
-                              onPressed: () => setState(() {
-                                _selectedCategory = 'All';
-                                _selectedDifficulty = 'All';
-                                _selectedDuration = 'All';
-                                _sortBy = 'Featured';
-                                _showCertifiedOnly = false;
-                              }),
+                              onPressed: () {
+                                setState(() {
+                                  _selectedCategoryIds.clear();
+                                  _selectedDifficulties.clear();
+                                  _selectedDuration = 'All';
+                                  _sortBy = 'Featured';
+                                  _showCertifiedOnly = false;
+                                });
+                                _loadBrowsePrograms(reset: true);
+                              },
                               child: const Text('Clear Filters'),
                             )
                           else
@@ -2848,6 +2951,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     // Create trainer data from program info (real _id required for GET /user/profiles/:id/details)
     final trainerData = <String, dynamic>{
       if (trainerMongoId != null && trainerMongoId.isNotEmpty) ...{'_id': trainerMongoId, 'id': trainerMongoId},
+      'role': 'Trainer',
+      'isTrainer': true,
       'name': program['trainer'],
       'initials': program['trainerImage'],
       'bio': 'Certified personal trainer with years of experience helping clients achieve their fitness goals. Specializing in ${program['category']} and ${program['goal']}.',

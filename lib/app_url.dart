@@ -121,10 +121,37 @@ class AppUrl {
   /// `POST /user/auth/logout` — body: `{ "deviceToken": "..." }` (Bearer).
   static String get logout => '$baseUrl/user/auth/logout';
 
-  /// `GET /customer/program` — paginated customer programs (`page`, `limit`, `type`).
-  static String customerPrograms({required int page, required int limit, required String type}) {
-    final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit', 'type': type}).query;
-    return '$baseUrl/customer/program?$q';
+  /// `GET /customer/program` — paginated customer programs with optional filters.
+  static String customerPrograms({
+    required int page,
+    required int limit,
+    String? type,
+    String? sort,
+    List<String> categories = const [],
+    List<String> difficulties = const [],
+    int? durationMin,
+    int? durationMax,
+    bool? certifiedOnly,
+    String? title,
+  }) {
+    final parts = <String>['page=$page', 'limit=$limit'];
+    void add(String key, String value) => parts.add('$key=${Uri.encodeQueryComponent(value)}');
+
+    if (type != null && type.trim().isNotEmpty) add('type', type.trim());
+    if (sort != null && sort.trim().isNotEmpty) add('sort', sort.trim());
+    for (final id in categories) {
+      final t = id.trim();
+      if (t.isNotEmpty) add('categories', t);
+    }
+    for (final d in difficulties) {
+      final t = d.trim();
+      if (t.isNotEmpty) add('difficulties', t);
+    }
+    if (durationMin != null) parts.add('durationMin=$durationMin');
+    if (durationMax != null) parts.add('durationMax=$durationMax');
+    if (certifiedOnly == true) parts.add('certifiedOnly=true');
+    if (title != null && title.trim().isNotEmpty) add('title', title.trim());
+    return '$baseUrl/customer/program?${parts.join('&')}';
   }
 
   /// `GET /marketplace/programs/:programId` — full program (`data.data`).
