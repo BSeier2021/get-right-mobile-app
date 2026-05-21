@@ -154,6 +154,18 @@ class AuthController extends GetxController {
     return false;
   }
 
+  /// Customer app must not sign in trainer accounts (`role`: `Trainer` on login/auto-login payloads).
+  bool _loginDataIsTrainerRole(Map<String, dynamic> data) {
+    final role = data['role']?.toString().trim();
+    if (role != null && role.isNotEmpty && role.toLowerCase() == 'trainer') return true;
+    final user = data['user'];
+    if (user is Map<String, dynamic>) {
+      final userRole = user['role']?.toString().trim();
+      if (userRole != null && userRole.isNotEmpty && userRole.toLowerCase() == 'trainer') return true;
+    }
+    return false;
+  }
+
   void _persistRememberMeCredentials(bool rememberMe, String email, String password) {
     final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
     if (rememberMe) {
@@ -1293,6 +1305,11 @@ class AuthController extends GetxController {
       }
 
       final data = response['data'];
+      if (data is Map<String, dynamic> && _loginDataIsTrainerRole(data)) {
+        _snackError('Login', 'Trainer accounts cannot sign in here. Please use a customer account.');
+        return;
+      }
+
       String? emailToStore;
       var needsEmailVerification = false;
       var needsProfileSetup = false;
@@ -1419,6 +1436,11 @@ class AuthController extends GetxController {
     var needsEmailVerification = false;
     var needsProfileSetup = false;
     if (data is Map<String, dynamic>) {
+      if (_loginDataIsTrainerRole(data)) {
+        await _clearLocalAuthSession();
+        return AppRoutes.onboarding;
+      }
+
       await _applyLoginSessionFromData(data);
 
       needsEmailVerification = _isExplicitlyFalse(data['isVerified']) || _isExplicitlyFalse(data['is_verified']);
