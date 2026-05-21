@@ -1214,11 +1214,12 @@ class AuthController extends GetxController {
     final weeks = attrs['duration_weeks'] ?? inner['durationWeeks'] ?? inner['duration'];
     final duration = (durationLabel != null && durationLabel.isNotEmpty) ? durationLabel : (weeks != null ? '$weeks weeks' : '—');
 
-    var rating = (stats['average_rating'] as num?)?.toDouble() ?? 0.0;
+    var rating = (stats['average_rating'] as num?)?.toDouble() ?? (inner['ratingAvg'] as num?)?.toDouble() ?? 0.0;
     if (rating == 0.0 && prSum['average_rating'] != null) {
       rating = (prSum['average_rating'] as num).toDouble();
     }
-    final reviewCount = (stats['review_count'] as num?)?.toInt() ?? (prSum['review_count'] as num?)?.toInt() ?? 0;
+    final reviewCount =
+        (stats['review_count'] as num?)?.toInt() ?? (inner['ratingCount'] as num?)?.toInt() ?? (prSum['review_count'] as num?)?.toInt() ?? 0;
     final students = (stats['enrollment_count'] as num?)?.toInt() ?? (ext['student_count'] as num?)?.toInt() ?? 0;
 
     String? img = ImageUrlSanitizer.asHttpUrlOrNull(inner['coverImageUrl']?.toString());

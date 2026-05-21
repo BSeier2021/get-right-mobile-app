@@ -1204,10 +1204,30 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   int? _programReviewCount(Map<String, dynamic> program) {
+    final fromCard = (program['reviews'] as num?)?.toInt();
     final p = _programRaw(program);
-    if (p == null) return null;
-    final d = p['display'];
-    if (d is Map) return (d['review_count'] as num?)?.toInt();
+    if (p != null) {
+      final rc = (p['ratingCount'] as num?)?.toInt();
+      if (rc != null) return rc;
+      final d = p['display'];
+      if (d is Map) {
+        final fromDisplay = (d['review_count'] as num?)?.toInt();
+        if (fromDisplay != null) return fromDisplay;
+      }
+    }
+    return fromCard;
+  }
+
+  static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
+
+  String? _programMongoId(Map<String, dynamic> program) {
+    for (final key in ['id', '_id']) {
+      final v = program[key]?.toString().trim();
+      if (v != null && v.isNotEmpty && _mongoIdRe.hasMatch(v)) return v;
+    }
+    final raw = _programRaw(program);
+    final fromApi = raw?['_id']?.toString().trim();
+    if (fromApi != null && fromApi.isNotEmpty && _mongoIdRe.hasMatch(fromApi)) return fromApi;
     return null;
   }
 
@@ -1267,10 +1287,20 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   void _showProgramDetail(Map<String, dynamic> program) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => _MarketplaceProgramPreviewSheet(initialProgram: program, hostState: this),
+    );
+  }
+
+  Widget _buildProgramDetailSheetContent(BuildContext sheetContext, Map<String, dynamic> program, ScrollController scrollController) {
     final subtitle = program['subtitle']?.toString().trim();
     final desc = program['description']?.toString().trim();
     final descriptionText = (desc != null && desc.isNotEmpty) ? desc : 'No description available.';
-    final difficulty = program['difficulty']?.toString().trim();
+    final difficulty = (program['difficulty'] ?? program['goal'])?.toString().trim();
     final statusLabel = _programStatusLabel(program);
     final reviewCount = _programReviewCount(program);
     final discountPct = _programDiscountPercent(program);
@@ -1280,6 +1310,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final exercisePreview = _programExercisePreview(program);
     final trainerAvatar = _programTrainerAvatarUrl(program);
     final initials = (program['trainerImage'] ?? 'T').toString();
+    final ratingVal = ((program['rating'] as num?) ?? 0).toDouble();
 
     final chipRows = <Widget>[
       _buildInfoChip(Icons.schedule, '${program['duration']}'),
@@ -1293,221 +1324,210 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       chipRows.add(_buildInfoChip(Icons.verified_outlined, _titleCaseWords(statusLabel.replaceAll('_', ' '))));
     }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) => Padding(
-          padding: const EdgeInsets.all(24),
-          child: ListView(
-            controller: scrollController,
-            children: [
-              _programSheetHeroImage(program),
-              const SizedBox(height: 20),
-              GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                  _navigateToTrainerProfile(program);
-                },
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: ListView(
+        controller: scrollController,
+        children: [
+          _programSheetHeroImage(program),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: () {
+              Navigator.pop(sheetContext);
+              _navigateToTrainerProfile(program);
+            },
+            child: Row(
+              children: [
+                SafeCircleNetworkAvatar(
+                  radius: 30,
+                  imageUrl: trainerAvatar,
+                  backgroundColor: AppColors.accent,
+                  fallback: Text(initials, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent)),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${program['trainer']}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+                      Row(
+                        children: [
+                          Icon(Icons.star, color: AppColors.upcoming, size: 16),
+                          const SizedBox(width: 4),
+                          Text(ratingVal.toStringAsFixed(1), style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
+                          const SizedBox(width: 8),
+                          if ((program['students'] as num?) != null && (program['students'] as num) > 0)
+                            Text('${program['students']} enrolled', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                          if (reviewCount != null) ...[
+                            if ((program['students'] as num?) != null && (program['students'] as num) > 0)
+                              Text(' · ', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                            Text('$reviewCount reviews', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                          ],
+                        ],
+                      ),
+                      if (program['certified'] == true)
+                        Row(
+                          children: [
+                            Icon(Icons.verified, color: AppColors.completed, size: 16),
+                            const SizedBox(width: 4),
+                            Text('Certified Trainer', style: AppTextStyles.labelSmall.copyWith(color: AppColors.completed)),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: AppColors.accent),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text('${program['title']}', style: AppTextStyles.headlineMedium.copyWith(color: AppColors.onSurface)),
+          if (subtitle != null && subtitle.isNotEmpty) ...[const SizedBox(height: 8), Text(subtitle, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray))],
+          const SizedBox(height: 12),
+          Text(descriptionText, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, height: 1.45)),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(spacing: 12, runSpacing: 8, children: chipRows),
+          ),
+          const SizedBox(height: 28),
+          Text('What\'s included', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+          const SizedBox(height: 12),
+          if (whatsLines.isNotEmpty)
+            ...whatsLines.map((line) => _buildDetailItem(Icons.check_circle_outline, line))
+          else ...[
+            _buildDetailItem(Icons.fitness_center, 'Full workout plans and schedules'),
+            _buildDetailItem(Icons.video_library, 'Video demonstrations for exercises'),
+            _buildDetailItem(Icons.track_changes, 'Progress tracking and analytics'),
+            _buildDetailItem(Icons.chat, 'Direct messaging with trainer'),
+            _buildDetailItem(Icons.library_books, 'Nutrition guide included'),
+          ],
+          if (exercisePreview.isNotEmpty) ...[
+            const SizedBox(height: 28),
+            Text('Sample exercises', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+            const SizedBox(height: 12),
+            ...exercisePreview.map((ex) {
+              final name = ex['name']?.toString().trim().isNotEmpty == true ? ex['name'].toString() : 'Exercise';
+              final sets = ex['sets'];
+              final reps = ex['reps'];
+              final rest = ex['restTime'];
+              final bits = <String>[];
+              if (sets != null) bits.add('$sets sets');
+              if (reps != null) bits.add('$reps reps');
+              if (rest != null) bits.add('${rest}s rest');
+              final sub = bits.join(' · ');
+              return Padding(
+                padding: EdgeInsets.only(bottom: 8.h),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: AppColors.accent,
-                      backgroundImage: trainerAvatar != null ? NetworkImage(trainerAvatar) : null,
-                      onBackgroundImageError: trainerAvatar != null ? (_, __) {} : null,
-                      child: trainerAvatar == null ? Text(initials, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent)) : null,
-                    ),
-                    const SizedBox(width: 16),
+                    Icon(Icons.sports_gymnastics, color: AppColors.accent, size: 20.sp),
+                    SizedBox(width: 12.w),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('${program['trainer']}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-                          Row(
-                            children: [
-                              Icon(Icons.star, color: AppColors.upcoming, size: 16),
-                              const SizedBox(width: 4),
-                              Text(((program['rating'] as num?) ?? 0).toDouble().toStringAsFixed(1), style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
-                              const SizedBox(width: 8),
-                              Text('${program['students']} enrolled', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                              if (reviewCount != null && reviewCount > 0) ...[
-                                Text(' · ', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                                Text('$reviewCount reviews', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                              ],
-                            ],
+                          Text(
+                            name,
+                            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
                           ),
-                          if (program['certified'] == true)
-                            Row(
-                              children: [
-                                Icon(Icons.verified, color: AppColors.completed, size: 16),
-                                const SizedBox(width: 4),
-                                Text('Certified Trainer', style: AppTextStyles.labelSmall.copyWith(color: AppColors.completed)),
-                              ],
+                          if (sub.isNotEmpty)
+                            Text(
+                              sub,
+                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 11.sp),
                             ),
                         ],
                       ),
                     ),
-                    Icon(Icons.chevron_right, color: AppColors.accent),
                   ],
                 ),
-              ),
-              const SizedBox(height: 20),
-              Text('${program['title']}', style: AppTextStyles.headlineMedium.copyWith(color: AppColors.onSurface)),
-              if (subtitle != null && subtitle.isNotEmpty) ...[const SizedBox(height: 8), Text(subtitle, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray))],
-              const SizedBox(height: 12),
-              Text(descriptionText, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, height: 1.45)),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: Wrap(spacing: 12, runSpacing: 8, children: chipRows),
-              ),
-              const SizedBox(height: 28),
-              Text('What\'s included', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-              const SizedBox(height: 12),
-              if (whatsLines.isNotEmpty)
-                ...whatsLines.map((line) => _buildDetailItem(Icons.check_circle_outline, line))
-              else ...[
-                _buildDetailItem(Icons.fitness_center, 'Full workout plans and schedules'),
-                _buildDetailItem(Icons.video_library, 'Video demonstrations for exercises'),
-                _buildDetailItem(Icons.track_changes, 'Progress tracking and analytics'),
-                _buildDetailItem(Icons.chat, 'Direct messaging with trainer'),
-                _buildDetailItem(Icons.library_books, 'Nutrition guide included'),
-              ],
-              if (exercisePreview.isNotEmpty) ...[
-                const SizedBox(height: 28),
-                Text('Sample exercises', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-                const SizedBox(height: 12),
-                ...exercisePreview.map((ex) {
-                  final name = ex['name']?.toString().trim().isNotEmpty == true ? ex['name'].toString() : 'Exercise';
-                  final sets = ex['sets'];
-                  final reps = ex['reps'];
-                  final rest = ex['restTime'];
-                  final bits = <String>[];
-                  if (sets != null) bits.add('$sets sets');
-                  if (reps != null) bits.add('$reps reps');
-                  if (rest != null) bits.add('${rest}s rest');
-                  final sub = bits.join(' · ');
-                  return Padding(
-                    padding: EdgeInsets.only(bottom: 8.h),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.sports_gymnastics, color: AppColors.accent, size: 20.sp),
-                        SizedBox(width: 12.w),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                name,
-                                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                              ),
-                              if (sub.isNotEmpty)
-                                Text(
-                                  sub,
-                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 11.sp),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-              const SizedBox(height: 28),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.accent, width: 2),
-                ),
-                child: Column(
+              );
+            }),
+          ],
+          const SizedBox(height: 28),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.accent, width: 2),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Price', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
-                              if (discountPct != null && discountPct > 0 && priceVal > 0) ...[
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                                  textBaseline: TextBaseline.alphabetic,
-                                  children: [
-                                    Text(
-                                      '\$${payable.toStringAsFixed(2)}',
-                                      style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '\$${priceVal.toStringAsFixed(2)}',
-                                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, decoration: TextDecoration.lineThrough),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Price', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
+                          if (discountPct != null && discountPct > 0 && priceVal > 0) ...[
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
                                 Text(
-                                  '${discountPct.toStringAsFixed(0)}% off',
-                                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
-                                ),
-                              ] else
-                                Text(
-                                  '\$${priceVal.toStringAsFixed(2)}',
+                                  '\$${payable.toStringAsFixed(2)}',
                                   style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
                                 ),
-                            ],
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            Get.toNamed(AppRoutes.programDetail, arguments: program);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.accent,
-                            foregroundColor: AppColors.onAccent,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                          ),
-                          child: const Text('View Details'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _showAddToCalendarModal(program, isBundle: false);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.accent, width: 2),
-                          foregroundColor: AppColors.accent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                        ),
-                        icon: const Icon(Icons.calendar_today, size: 20),
-                        label: Text('Add to Calendar', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.accent)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '\$${priceVal.toStringAsFixed(2)}',
+                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, decoration: TextDecoration.lineThrough),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${discountPct.toStringAsFixed(0)}% off',
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                            ),
+                          ] else
+                            Text(
+                              '\$${priceVal.toStringAsFixed(2)}',
+                              style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
+                            ),
+                        ],
                       ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        Get.toNamed(AppRoutes.programDetail, arguments: program);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.onAccent,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                      ),
+                      child: const Text('View Details'),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _showAddToCalendarModal(program, isBundle: false);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.accent, width: 2),
+                      foregroundColor: AppColors.accent,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    ),
+                    icon: const Icon(Icons.calendar_today, size: 20),
+                    label: Text('Add to Calendar', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.accent)),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -2970,5 +2990,63 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     };
 
     Get.toNamed(AppRoutes.trainerProfile, arguments: trainerData);
+  }
+}
+
+/// Loads `GET /customer/program/:id` then renders marketplace program preview sheet.
+class _MarketplaceProgramPreviewSheet extends StatefulWidget {
+  final Map<String, dynamic> initialProgram;
+  final _MarketplaceScreenState hostState;
+
+  const _MarketplaceProgramPreviewSheet({required this.initialProgram, required this.hostState});
+
+  @override
+  State<_MarketplaceProgramPreviewSheet> createState() => _MarketplaceProgramPreviewSheetState();
+}
+
+class _MarketplaceProgramPreviewSheetState extends State<_MarketplaceProgramPreviewSheet> {
+  late Map<String, dynamic> _program;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _program = Map<String, dynamic>.from(widget.initialProgram);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadProgramDetail());
+  }
+
+  Future<void> _loadProgramDetail() async {
+    final id = widget.hostState._programMongoId(_program);
+    if (id == null || !Get.isRegistered<AuthController>()) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    final detail = await Get.find<AuthController>().fetchMarketplaceProgramDetail(id);
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      if (detail != null) {
+        _program = Map<String, dynamic>.from(detail);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) {
+        if (_loading) {
+          return const SizedBox(
+            height: 280,
+            child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+          );
+        }
+        return widget.hostState._buildProgramDetailSheetContent(context, _program, scrollController);
+      },
+    );
   }
 }

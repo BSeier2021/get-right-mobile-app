@@ -8,7 +8,9 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/favorites_controller.dart';
 import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/repo/feed_repo.dart';
+import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -26,6 +28,7 @@ class ProgramDetailScreen extends StatefulWidget {
 class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   final FavoritesController _favoritesController = Get.put(FavoritesController());
   final FeedRepository _feedRepo = FeedRepository();
+  final MarketplaceRepository _marketplaceRepo = MarketplaceRepository();
   final _reviewFormKey = GlobalKey<FormState>();
   final _reviewCommentController = TextEditingController();
   bool _isEnrolled = false;
@@ -40,6 +43,10 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   double _rating = 0.0;
   bool _hasSubmittedRating = false;
   bool _reportInFlight = false;
+
+  List<Map<String, dynamic>> _programReviews = [];
+  bool _reviewsLoading = false;
+  String? _reviewsError;
 
   final String _fallbackPdfUrl = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
 
@@ -60,8 +67,69 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     final loadCatalog = !loadEnrolled && _apiProgramId != null && _apiProgramId!.isNotEmpty;
     if (loadEnrolled || loadCatalog) {
       _loadingDetail = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _loadProgramDetail());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadProgramDetail();
+        _loadProgramReviews();
+      });
+    } else if (_apiProgramId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadProgramReviews());
     }
+  }
+
+  Future<void> _loadProgramReviews() async {
+    final pid = _apiProgramId;
+    if (pid == null || !_mongoIdRe.hasMatch(pid)) return;
+    if (!mounted) return;
+    setState(() {
+      _reviewsLoading = true;
+      _reviewsError = null;
+    });
+    try {
+      final page = await _marketplaceRepo.fetchProgramReviews(pid, page: 1, limit: 10);
+      if (!mounted) return;
+      setState(() {
+        _programReviews = page.reviews;
+        _reviewsLoading = false;
+        if (page.ratingAvg != null) {
+          _safeProgram['rating'] = page.ratingAvg;
+        }
+        final count = page.ratingCount ?? page.total;
+        _safeProgram['reviews'] = count;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _reviewsLoading = false;
+        _reviewsError = e.toString();
+      });
+    }
+  }
+
+  void _onAddReviewTap() {
+    if (!_isCompletedProgram || !_isEnrolled) {
+      Get.snackbar('Review', 'Complete this program to leave a review.', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.primaryGrayDark, colorText: Colors.white);
+      return;
+    }
+    if (_hasSubmittedRating || _safeProgram['hasRating'] == true) {
+      Get.snackbar(
+        'Review',
+        'You have already submitted a review for this program.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.primaryGrayDark,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 16),
+        child: SingleChildScrollView(child: _buildRatingForm()),
+      ),
+    );
   }
 
   String? _extractEnrollmentMongoId(Map<String, dynamic> program) {
@@ -161,6 +229,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         final pid = detail['id'] ?? detail['_id'];
         if (pid != null && _mongoIdRe.hasMatch(pid.toString().trim())) {
           _apiProgramId = pid.toString().trim();
+          _loadProgramReviews();
         }
         if (wasEnrolled) {
           _safeProgram['isEnrolled'] = true;
@@ -746,23 +815,62 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
 
                     // Student Reviews
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          'Student Reviews',
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                        Expanded(
+                          child: Text(
+                            'Reviews',
+                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        Icon(Icons.star, color: AppColors.upcoming, size: 20),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            '${(_safeProgram['rating'] as num?)?.toStringAsFixed(1) ?? '0.0'} (${_safeProgram['reviews']} reviews)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                          ),
                         ),
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Icon(Icons.star, color: AppColors.upcoming, size: 20),
-                            const SizedBox(width: 4),
-                            Text('${_safeProgram['rating']} (${_safeProgram['reviews']} reviews)', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                            IconButton(
+                              tooltip: 'Add review',
+                              onPressed: _onAddReviewTap,
+                              icon: const Icon(Icons.add_circle_outline, color: AppColors.accent, size: 26),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                            ),
                           ],
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    ..._getMockReviews().take(2).map((review) => _buildReviewCard(review)),
+                    if (_reviewsLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
+                      )
+                    else if (_reviewsError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text('Could not load reviews.', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                            TextButton(onPressed: _loadProgramReviews, child: const Text('Retry')),
+                          ],
+                        ),
+                      )
+                    else if (_programReviews.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text('No reviews yet.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                      )
+                    else
+                      ..._programReviews.map(_buildReviewCard),
                     const SizedBox(height: 20), // Space for bottom bar
                   ],
                 ),
@@ -1039,6 +1147,10 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   }
 
   Widget _buildReviewCard(Map<String, dynamic> review) {
+    final starCount = (review['rating'] as num?)?.toInt() ?? 0;
+    final avatarUrl = review['avatarUrl']?.toString();
+    final initials = (review['userInitials'] ?? 'U').toString();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -1051,32 +1163,55 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: AppColors.accent,
-                child: Text(review['userInitials'], style: AppTextStyles.labelMedium.copyWith(color: AppColors.onAccent)),
-              ),
+              if (avatarUrl != null && avatarUrl.isNotEmpty)
+                SafeCircleNetworkAvatar(
+                  imageUrl: avatarUrl,
+                  radius: 20,
+                  backgroundColor: AppColors.accent,
+                  fallback: Text(initials, style: AppTextStyles.labelMedium.copyWith(color: AppColors.onAccent)),
+                )
+              else
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppColors.accent,
+                  child: Text(initials, style: AppTextStyles.labelMedium.copyWith(color: AppColors.onAccent)),
+                ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(review['userName'], style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
-                    Row(children: List.generate(5, (index) => Icon(index < review['rating'] ? Icons.star : Icons.star_border, size: 14, color: AppColors.upcoming))),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            review['userName']?.toString() ?? 'User',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface),
+                          ),
+                        ),
+                        if ((review['date']?.toString() ?? '').isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            review['date'].toString(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
+                          ),
+                        ],
+                      ],
+                    ),
+                    Row(children: List.generate(5, (index) => Icon(index < starCount ? Icons.star : Icons.star_border, size: 14, color: AppColors.upcoming))),
                   ],
                 ),
               ),
-              Text(review['date'], style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            review['comment'],
-            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
+          Text(review['comment']?.toString() ?? '', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
         ],
       ),
     );
@@ -1119,25 +1254,6 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       'completedPrograms': 12,
       'totalPrograms': 17,
     };
-  }
-
-  List<Map<String, dynamic>> _getMockReviews() {
-    return [
-      {
-        'userName': 'John Doe',
-        'userInitials': 'JD',
-        'rating': 5.0,
-        'comment': 'Amazing program! I gained 15 pounds of muscle and my strength skyrocketed. Best investment I\'ve made.',
-        'date': '1 week ago',
-      },
-      {
-        'userName': 'Emily Davis',
-        'userInitials': 'ED',
-        'rating': 5.0,
-        'comment': 'The program is challenging but the results speak for themselves. Sarah is always available for questions.',
-        'date': '2 weeks ago',
-      },
-    ];
   }
 
   void _playDemoVideo() {
@@ -1430,6 +1546,10 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       _safeProgram['review'] = _reviewCommentController.text;
     });
 
+    if (Get.isBottomSheetOpen ?? false) {
+      Navigator.of(context).pop();
+    }
+
     Get.snackbar(
       'Review Submitted',
       'Thank you for your feedback!',
@@ -1438,5 +1558,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       colorText: Colors.white,
       duration: const Duration(seconds: 2),
     );
+
+    _loadProgramReviews();
   }
 }

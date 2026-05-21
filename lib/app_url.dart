@@ -160,6 +160,12 @@ class AppUrl {
   /// `GET /customer/program/:programId` — full program (`data.program`).
   static String customerProgramDetail(String programId) => '$baseUrl/customer/program/${Uri.encodeComponent(programId.trim())}';
 
+  /// `GET /customer/program/:programId/reviews` — query: `page`, `limit`.
+  static String customerProgramReviews(String programId, {required int page, required int limit}) {
+    final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;
+    return '$baseUrl/customer/program/${Uri.encodeComponent(programId.trim())}/reviews?$q';
+  }
+
   /// `POST /customer/program/enroll` — body: `{ "id": "<programOrBundleId>", "isBundle": bool }` → `data.enrollment` (program) or `data.enrollments` (bundle).
   static String get customerProgramEnroll => '$baseUrl/customer/program/enroll';
 

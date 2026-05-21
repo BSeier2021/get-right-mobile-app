@@ -1,7 +1,28 @@
+import 'package:intl/intl.dart';
+
 import 'package:get_right/app_url.dart';
 import 'package:get_right/models/exercise_category_option.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+
+/// One page from `GET /customer/program/:id/reviews`.
+class ProgramReviewsPage {
+  final List<Map<String, dynamic>> reviews;
+  final int total;
+  final int page;
+  final bool hasMore;
+  final double? ratingAvg;
+  final int? ratingCount;
+
+  const ProgramReviewsPage({
+    required this.reviews,
+    required this.total,
+    required this.page,
+    required this.hasMore,
+    this.ratingAvg,
+    this.ratingCount,
+  });
+}
 
 /// Query params for `GET /customer/program` (browse / filter).
 class CustomerProgramsQuery {
@@ -453,5 +474,108 @@ class MarketplaceRepository {
       out.add(card);
     }
     return out;
+  }
+
+  /// `GET /customer/program/:programId/reviews`.
+  Future<ProgramReviewsPage> fetchProgramReviews(String programId, {int page = 1, int limit = 10}) async {
+    final raw = await _network.get(AppUrl.customerProgramReviews(programId, page: page, limit: limit));
+    return _parseProgramReviewsPage(raw, page, limit);
+  }
+
+  static ProgramReviewsPage _parseProgramReviewsPage(dynamic response, int page, int limit) {
+    const empty = ProgramReviewsPage(reviews: [], total: 0, page: 1, hasMore: false);
+    if (!_isOk(response)) return empty;
+    final root = Map<String, dynamic>.from(response as Map);
+    final data = root['data'];
+    if (data is! Map) return empty;
+    final dataMap = Map<String, dynamic>.from(data);
+
+    final summary = dataMap['summary'];
+    double? ratingAvg;
+    int? ratingCount;
+    if (summary is Map) {
+      final sm = Map<String, dynamic>.from(summary);
+      ratingAvg = (sm['ratingAvg'] as num?)?.toDouble();
+      ratingCount = (sm['ratingCount'] as num?)?.toInt();
+    }
+
+    final items = dataMap['reviews'];
+    final reviews = <Map<String, dynamic>>[];
+    if (items is List) {
+      for (final item in items) {
+        if (item is! Map) continue;
+        reviews.add(_reviewCardFromApi(Map<String, dynamic>.from(item)));
+      }
+    }
+
+    int total = (dataMap['totalDocs'] as num?)?.toInt() ?? reviews.length;
+    final bool? hasNext = dataMap['hasNextPage'] is bool ? dataMap['hasNextPage'] as bool : null;
+    final hasMore = hasNext ?? (reviews.length == limit && (page * limit) < total);
+
+    return ProgramReviewsPage(
+      reviews: reviews,
+      total: total,
+      page: page,
+      hasMore: hasMore,
+      ratingAvg: ratingAvg,
+      ratingCount: ratingCount,
+    );
+  }
+
+  static Map<String, dynamic> _reviewCardFromApi(Map<String, dynamic> r) {
+    var name = 'User';
+    var initials = 'U';
+    String? avatarUrl;
+
+    final user = r['user'];
+    if (user is Map) {
+      final um = Map<String, dynamic>.from(user);
+      final prof = um['profile'];
+      if (prof is Map) {
+        final pm = Map<String, dynamic>.from(prof);
+        final fn = pm['fullName']?.toString().trim();
+        if (fn != null && fn.isNotEmpty) name = fn;
+        final pic = pm['profilePicture'];
+        if (pic is Map) {
+          avatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+        }
+      }
+      if (name == 'User') {
+        final email = um['email']?.toString().trim();
+        if (email != null && email.isNotEmpty) {
+          name = email.split('@').first;
+        }
+      }
+    }
+
+    final parts = name.split(RegExp(r'[\s_\-]+')).where((s) => s.isNotEmpty).toList();
+    if (parts.length >= 2) {
+      initials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    } else if (parts.isNotEmpty) {
+      final s = parts[0];
+      initials = s.length >= 2 ? s.substring(0, 2).toUpperCase() : s[0].toUpperCase();
+    }
+
+    final rating = (r['rating'] as num?)?.toInt() ?? 0;
+    final comment = (r['description'] ?? r['comment'] ?? '').toString();
+
+    var dateLabel = '';
+    final created = r['createdAt']?.toString();
+    if (created != null && created.isNotEmpty) {
+      final dt = DateTime.tryParse(created);
+      if (dt != null) {
+        dateLabel = DateFormat.yMMMd().format(dt.toLocal());
+      }
+    }
+
+    return {
+      'id': r['_id']?.toString(),
+      'userName': name,
+      'userInitials': initials,
+      if (avatarUrl != null) 'avatarUrl': avatarUrl,
+      'rating': rating,
+      'comment': comment,
+      'date': dateLabel,
+    };
   }
 }
