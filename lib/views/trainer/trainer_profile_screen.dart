@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/report_block_model.dart';
+import 'package:get_right/repo/blocks_repo.dart';
 import 'package:get_right/repo/trainer_profile_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
-import 'package:get_right/services/api_service.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -24,6 +24,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
   late TabController _tabController;
   final TrainerProfileRepository _trainerRepo = TrainerProfileRepository();
+  final BlocksRepository _blocksRepo = BlocksRepository();
   final _storageService = Get.find<StorageService>();
 
   Map<String, dynamic> trainer = {};
@@ -36,6 +37,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
   bool _isFollowedByMe = false;
   bool _followActionLoading = false;
+  bool _blockInFlight = false;
   bool _bioExpanded = false;
 
   static const int _bioCollapsedMaxLines = 2;
@@ -173,8 +175,10 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     try {
       final detailRaw = await _trainerRepo.getProfileDetailsRepo(id);
       if (mounted) {
-        setState(() => _applyDetailsResponse(detailRaw));
-        _ensureTabControllerMatchesRole();
+        setState(() {
+          _applyDetailsResponse(detailRaw);
+          _syncTabControllerToRole();
+        });
       }
     } catch (e) {
       if (mounted) setState(() => _loadError = e.toString());
@@ -198,7 +202,12 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     if (id == null || !mounted) return;
     try {
       final detailRaw = await _trainerRepo.getProfileDetailsRepo(id);
-      if (mounted) setState(() => _applyDetailsResponse(detailRaw));
+      if (mounted) {
+        setState(() {
+          _applyDetailsResponse(detailRaw);
+          _syncTabControllerToRole();
+        });
+      }
     } catch (_) {
       /* keep existing counts on refresh failure */
     }
@@ -276,7 +285,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   }
 
   /// Recreates [TabController] when API reveals Customer vs Trainer (length 1 vs 3).
-  void _ensureTabControllerMatchesRole() {
+  /// Must run inside [setState] before the next frame so TabBar/TabBarView stay in sync.
+  void _syncTabControllerToRole() {
     if (!mounted) return;
     final want = _tabLengthForRole();
     if (_tabController.length == want) return;
@@ -286,7 +296,6 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     final initialIndex = want == 3 ? prevIndex.clamp(0, 2) : 0;
     _tabController = TabController(length: want, vsync: this, initialIndex: initialIndex);
     _tabController.addListener(_onProgramsTabShow);
-    setState(() {});
   }
 
   List<Map<String, dynamic>> _parsePostsResponse(dynamic raw) {
@@ -461,6 +470,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       icon: Icon(Icons.more_vert_rounded, color: AppColors.onBackground, size: 24),
       color: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      enabled: !_blockInFlight,
       onSelected: (value) {
         if (value == 'report') {
           _showReportUserDialog();
@@ -501,8 +511,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
   Future<void> _showReportUserDialog() async {
     final reportedId = _mongoUserId;
-    final reporterId = _currentUserIdOrNull();
-    if (reportedId == null || reporterId == null) return;
+    if (reportedId == null || _currentUserIdOrNull() == null) return;
 
     final descriptionController = TextEditingController();
     String? selectedReason;
@@ -552,6 +561,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                       ),
                       style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
                       maxLines: 3,
+                      maxLength: 2000,
                     ),
                     const SizedBox(height: 20),
                     Row(
@@ -563,15 +573,15 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                           onPressed: selectedReason == null
                               ? null
                               : () async {
+                                  final apiReason = ReportReasons.getApiValue(selectedReason!);
+                                  final details = descriptionController.text.trim();
                                   Get.back();
                                   try {
-                                    final api = await ApiService.getInstance();
-                                    await api.reportTrainer(
-                                      conversationId: '',
-                                      reporterId: reporterId,
-                                      reportedUserId: reportedId,
-                                      reason: selectedReason!,
-                                      description: descriptionController.text.trim().isEmpty ? null : descriptionController.text.trim(),
+                                    await _trainerRepo.reportUserRepo(
+                                      reportRef: reportedId,
+                                      reason: apiReason,
+                                      details: details.isEmpty ? null : details,
+                                      reportRefType: ReportRefType.auth,
                                     );
                                     Get.snackbar('Report submitted', 'Thank you for your feedback.', snackPosition: SnackPosition.BOTTOM);
                                   } catch (e) {
@@ -591,13 +601,15 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         ),
       ),
     );
-    descriptionController.dispose();
+    // Dialog route may rebuild the TextField once more while closing; dispose next frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      descriptionController.dispose();
+    });
   }
 
   Future<void> _showBlockUserDialog() async {
     final blockedId = _mongoUserId;
-    final blockerId = _currentUserIdOrNull();
-    if (blockedId == null || blockerId == null) return;
+    if (blockedId == null || _currentUserIdOrNull() == null) return;
 
     final confirmed = await Get.dialog<bool>(
       Dialog(
@@ -636,10 +648,11 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
     if (confirmed != true || !mounted) return;
 
+    setState(() => _blockInFlight = true);
     try {
-      final api = await ApiService.getInstance();
-      await api.blockUser(blockerId: blockerId, blockedUserId: blockedId);
-      Get.snackbar('Blocked', '$_displayName has been blocked.', snackPosition: SnackPosition.BOTTOM);
+      final raw = await _blocksRepo.blockUserRepo(blockedId);
+      final message = raw is Map ? (raw['message']?.toString() ?? 'User blocked successfully') : 'User blocked successfully';
+      Get.snackbar('Blocked', message, snackPosition: SnackPosition.BOTTOM);
       if (Get.key.currentState?.canPop() ?? false) {
         Get.back();
       } else if (Navigator.of(context).canPop()) {
@@ -647,6 +660,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       }
     } catch (e) {
       Get.snackbar('Could not block', e.toString(), snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      if (mounted) setState(() => _blockInFlight = false);
     }
   }
 
@@ -811,12 +826,13 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         centerTitle: true,
         actions: _showFollowButton ? [_buildProfileOverflowMenu()] : null,
 
-        bottom: _showProgramsTrainingTabs
+        bottom: _tabController.length == 3
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(50),
                 child: Container(
                   color: AppColors.background,
                   child: TabBar(
+                    key: ValueKey<int>(_tabController.hashCode),
                     controller: _tabController,
                     indicatorColor: AppColors.accent,
                     indicatorWeight: 3,
@@ -834,7 +850,9 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
               )
             : null,
       ),
-      body: TabBarView(controller: _tabController, children: _showProgramsTrainingTabs ? [_buildProfileTab(), _buildProgramsTab(), _buildTrainingTab()] : [_buildProfileTab()]),
+      body: _tabController.length == 3
+          ? TabBarView(key: ValueKey<int>(_tabController.hashCode), controller: _tabController, children: [_buildProfileTab(), _buildProgramsTab(), _buildTrainingTab()])
+          : _buildProfileTab(),
     );
   }
 
@@ -849,11 +867,11 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       child: Column(
         children: [
           if (_bootstrapLoading) const LinearProgressIndicator(minHeight: 2),
-          if (_loadError != null && _mongoUserId != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Text(_loadError!, style: AppTextStyles.bodySmall.copyWith(color: Colors.red.shade700)),
-            ),
+          // if (_loadError != null && _mongoUserId != null)
+          //   Padding(
+          //     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          //     child: Text(_loadError!, style: AppTextStyles.bodySmall.copyWith(color: Colors.red.shade700)),
+          //   ),
           const SizedBox(height: 20),
           // Stats Row
           Padding(

@@ -124,6 +124,24 @@ class MarketplaceRepository {
     return 'Trainer';
   }
 
+  static String? _trainerAvatarUrlFromBundleApi(Map<String, dynamic> b) {
+    final tr = b['trainer'];
+    if (tr is! Map) return null;
+    final t = Map<String, dynamic>.from(tr);
+    final pic = t['profilePicture'];
+    if (pic is Map) {
+      return ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+    }
+    final prof = t['profile'];
+    if (prof is Map) {
+      final profPic = prof['profilePicture'];
+      if (profPic is Map) {
+        return ImageUrlSanitizer.asHttpUrlOrNull(profPic['url']?.toString());
+      }
+    }
+    return ImageUrlSanitizer.asHttpUrlOrNull(t['profilePictureUrl']?.toString());
+  }
+
   static String? _bundleImageUrlFromApi(Map<String, dynamic> b) {
     final direct = ImageUrlSanitizer.asHttpUrlOrNull(b['coverImageUrl']?.toString());
     if (direct != null && direct.isNotEmpty) return direct;
@@ -139,6 +157,7 @@ class MarketplaceRepository {
     final bundlePrice = (b['bundlePrice'] as num?)?.toDouble() ?? (b['price'] as num?)?.toDouble() ?? 0.0;
     final bundleCertified = b['isCertified'] == true;
     final trainerName = _trainerNameFromBundleApi(b);
+    final trainerAvatarUrl = _trainerAvatarUrlFromBundleApi(b);
     final rawPrograms = b['programs'];
     final resolved = <Map<String, dynamic>>[];
 
@@ -161,6 +180,7 @@ class MarketplaceRepository {
             'title': 'Program',
             'trainer': trainerName,
             'trainerImage': _initials(trainerName),
+            if (trainerAvatarUrl != null) 'trainerImageUrl': trainerAvatarUrl,
             'price': 0.0,
             'duration': '—',
             'category': 'Program',
@@ -197,6 +217,9 @@ class MarketplaceRepository {
       'totalValue': totalValue,
       'bundlePrice': bundlePrice,
       'imageUrl': _bundleImageUrlFromApi(b) ?? '',
+      'trainer': trainerName,
+      'trainerImage': _initials(trainerName),
+      if (trainerAvatarUrl != null) 'trainerImageUrl': trainerAvatarUrl,
       'programs': resolved,
       'isHot': b['isHot'] == true,
       'isCertified': bundleCertified,

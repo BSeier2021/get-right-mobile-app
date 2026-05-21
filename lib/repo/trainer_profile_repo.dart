@@ -41,6 +41,26 @@ class TrainerProfileRepository {
     return _network.get(AppUrl.userFollowing(userId), params: {'page': page, 'limit': limit});
   }
 
+  /// `POST /user/report/:reportRef` — report a user/profile (`reportRefType`: `Auth`).
+  Future<dynamic> reportUserRepo({
+    required String reportRef,
+    required String reason,
+    String? details,
+    String reportRefType = 'Auth',
+  }) async {
+    final ref = reportRef.trim();
+    final body = <String, dynamic>{
+      'reason': reason,
+      'reportRef': ref,
+      'reportRefType': reportRefType,
+    };
+    final trimmedDetails = details?.trim();
+    if (trimmedDetails != null && trimmedDetails.isNotEmpty) {
+      body['details'] = trimmedDetails.length > 2000 ? trimmedDetails.substring(0, 2000) : trimmedDetails;
+    }
+    return _network.post(AppUrl.userReport(ref), body);
+  }
+
   bool _parseIsFollowing(dynamic raw, {required bool expected}) {
     if (raw is Map) {
       final data = raw['data'];

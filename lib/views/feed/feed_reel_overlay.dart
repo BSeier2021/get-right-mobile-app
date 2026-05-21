@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -175,6 +176,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
   bool _likeRequestInFlight = false;
   bool _saveRequestInFlight = false;
   bool _repostRequestInFlight = false;
+  bool _reportRequestInFlight = false;
   bool _descriptionExpanded = false;
 
   Map<String, dynamic> get _post => widget.post;
@@ -337,18 +339,20 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       onSelected: (value) {
         if (value == 'repost') {
           unawaited(_repostReel());
+        } else if (value == 'report') {
+          unawaited(_showReportReelDialog());
         }
       },
       itemBuilder: (context) => [
         PopupMenuItem<String>(
-          value: 'repost',
-          enabled: !_repostRequestInFlight,
+          value: 'report',
+          enabled: !_reportRequestInFlight,
           child: Row(
             children: [
-              Icon(Icons.repeat_rounded, size: 22, color: _repostRequestInFlight ? AppColors.primaryGray : AppColors.accent),
+              Icon(Icons.flag_outlined, size: 22, color: _reportRequestInFlight ? AppColors.primaryGray : AppColors.error),
               const SizedBox(width: 12),
               Text(
-                'Repost reel',
+                'Report reel',
                 style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
               ),
             ],
@@ -361,6 +365,124 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
             : const Icon(Icons.more_horiz, color: Colors.white, size: 24),
       ),
     );
+  }
+
+  String? _currentUserIdOrNull() => _storageService.getUserId()?.trim();
+
+  String? _reelCreatorUserId() => (_post['creatorId'] ?? '').toString().trim();
+
+  /// Hide overflow (⋯) when the logged-in user owns this reel.
+  bool _isOwnReel() {
+    final me = _currentUserIdOrNull();
+    final creator = _reelCreatorUserId();
+    if (me == null || me.isEmpty || creator == null || creator.isEmpty) return false;
+    return me == creator;
+  }
+
+  Future<void> _showReportReelDialog() async {
+    final feedId = (_post['id'] ?? '').toString().trim();
+    final creatorUserId = _reelCreatorUserId();
+    if (feedId.isEmpty || creatorUserId == null || creatorUserId.isEmpty || _currentUserIdOrNull() == null) {
+      if (feedId.isNotEmpty && (creatorUserId == null || creatorUserId.isEmpty)) {
+        Get.snackbar('Could not report', 'Creator information is missing for this reel.', snackPosition: SnackPosition.BOTTOM);
+      }
+      return;
+    }
+
+    final descriptionController = TextEditingController();
+    String? selectedReason;
+
+    await Get.dialog<void>(
+      Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Padding(
+              padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 24 + MediaQuery.of(context).viewInsets.bottom),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Report reel', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Reason',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    ...ReportReasons.all.map(
+                      (reason) => RadioListTile<String>(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(ReportReasons.getDisplayName(reason), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                        value: reason,
+                        groupValue: selectedReason,
+                        onChanged: (value) => setDialogState(() => selectedReason = value),
+                        activeColor: AppColors.accent,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: InputDecoration(
+                        labelText: 'Additional details (optional)',
+                        labelStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                        ),
+                      ),
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                      maxLines: 3,
+                      maxLength: 2000,
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: selectedReason == null
+                              ? null
+                              : () async {
+                                  final apiReason = ReportReasons.getApiValue(selectedReason!);
+                                  final details = descriptionController.text.trim();
+                                  Get.back();
+                                  await _submitReportReel(creatorUserId: creatorUserId, feedId: feedId, reason: apiReason, details: details.isEmpty ? null : details);
+                                },
+                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.onAccent),
+                          child: const Text('Submit'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      descriptionController.dispose();
+    });
+  }
+
+  Future<void> _submitReportReel({required String creatorUserId, required String feedId, required String reason, String? details}) async {
+    if (_reportRequestInFlight) return;
+    setState(() => _reportRequestInFlight = true);
+    try {
+      await _feedRepo.reportFeedRepo(creatorUserId: creatorUserId, feedId: feedId, reason: reason, details: details, reportRefType: ReportRefType.feeds);
+      Get.snackbar('Report submitted', 'Thank you for your feedback.', snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      Get.snackbar('Could not report', e.toString(), snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      if (mounted) setState(() => _reportRequestInFlight = false);
+    }
   }
 
   Future<void> _repostReel() async {
@@ -515,7 +637,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildReelOverflowMenu(context),
+              if (!_isOwnReel()) _buildReelOverflowMenu(context),
               if (_post['isVideo'] == true) ...[
                 const SizedBox(height: 8),
                 _reelTopActionChip(

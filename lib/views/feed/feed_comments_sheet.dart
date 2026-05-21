@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
@@ -56,6 +57,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
   bool _loadingMore = false;
   bool _submittingComment = false;
   bool _commentActionInFlight = false;
+  bool _reportInFlight = false;
   bool _hasNext = true;
   String? _error;
   int _page = 1;
@@ -125,6 +127,116 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     final authorId = (comment['authorId'] ?? '').toString().trim();
     final myId = (_currentUserId ?? '').toString().trim();
     return authorId.isNotEmpty && myId.isNotEmpty && authorId == myId;
+  }
+
+  bool _canReportComment(Map<String, dynamic> comment) {
+    if (_isOwnComment(comment)) return false;
+    final myId = (_currentUserId ?? '').toString().trim();
+    return myId.isNotEmpty;
+  }
+
+  Future<void> _showReportCommentDialog(Map<String, dynamic> comment) async {
+    final commentId = (comment['id'] ?? '').toString().trim();
+    final authorId = (comment['authorId'] ?? '').toString().trim();
+    if (commentId.isEmpty || authorId.isEmpty) {
+      Get.snackbar('Could not report', 'Comment information is missing.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    final descriptionController = TextEditingController();
+    String? selectedReason;
+
+    await Get.dialog<void>(
+      Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Padding(
+              padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 24 + MediaQuery.of(context).viewInsets.bottom),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Report comment', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Reason',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    ...ReportReasons.all.map(
+                      (reason) => RadioListTile<String>(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(ReportReasons.getDisplayName(reason), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                        value: reason,
+                        groupValue: selectedReason,
+                        onChanged: (value) => setDialogState(() => selectedReason = value),
+                        activeColor: AppColors.accent,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: InputDecoration(
+                        labelText: 'Additional details (optional)',
+                        labelStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                        ),
+                      ),
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                      maxLines: 3,
+                      maxLength: 2000,
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: selectedReason == null
+                              ? null
+                              : () async {
+                                  final apiReason = ReportReasons.getApiValue(selectedReason!);
+                                  final details = descriptionController.text.trim();
+                                  Get.back();
+                                  await _submitReportComment(authorId: authorId, commentId: commentId, reason: apiReason, details: details.isEmpty ? null : details);
+                                },
+                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.onAccent),
+                          child: const Text('Submit'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      descriptionController.dispose();
+    });
+  }
+
+  Future<void> _submitReportComment({required String authorId, required String commentId, required String reason, String? details}) async {
+    if (_reportInFlight) return;
+    setState(() => _reportInFlight = true);
+    try {
+      await _feedRepo.reportFeedRepo(creatorUserId: authorId, feedId: commentId, reason: reason, details: details, reportRefType: ReportRefType.feedComment);
+      Get.snackbar('Report submitted', 'Thank you for your feedback.', snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      Get.snackbar('Could not report', e.toString(), snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      if (mounted) setState(() => _reportInFlight = false);
+    }
   }
 
   void _openCommentAuthorProfile(Map<String, dynamic> comment) {
@@ -474,6 +586,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     required VoidCallback onReply,
     VoidCallback? onEdit,
     VoidCallback? onDelete,
+    VoidCallback? onReport,
     String deleteMenuLabel = 'Delete',
   }) {
     return Row(
@@ -504,7 +617,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
                   ],
                 ),
               ),
-              _buildCommentMenu(showReplyOption: showReplyOption, onReply: onReply, onEdit: onEdit, onDelete: onDelete, deleteLabel: deleteMenuLabel),
+              _buildCommentMenu(showReplyOption: showReplyOption, onReply: onReply, onEdit: onEdit, onDelete: onDelete, onReport: onReport, deleteLabel: deleteMenuLabel),
             ],
           ),
         ),
@@ -512,7 +625,14 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     );
   }
 
-  Widget _buildCommentMenu({required bool showReplyOption, required VoidCallback onReply, VoidCallback? onEdit, VoidCallback? onDelete, String deleteLabel = 'Delete'}) {
+  Widget _buildCommentMenu({
+    required bool showReplyOption,
+    required VoidCallback onReply,
+    VoidCallback? onEdit,
+    VoidCallback? onDelete,
+    VoidCallback? onReport,
+    String deleteLabel = 'Delete',
+  }) {
     return SizedBox(
       width: 28,
       height: 28,
@@ -521,15 +641,25 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
         splashRadius: 18,
         offset: const Offset(0, 28),
         constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-        enabled: !_commentActionInFlight && !_submittingComment,
+        enabled: !_commentActionInFlight && !_submittingComment && !_reportInFlight,
         icon: Icon(Icons.more_vert, size: 18, color: AppColors.primaryGray.withOpacity(0.85)),
         onSelected: (value) {
           if (value == 'reply') onReply();
+          if (value == 'report') onReport?.call();
           if (value == 'edit') onEdit?.call();
           if (value == 'delete') onDelete?.call();
         },
         itemBuilder: (context) => [
-          if (showReplyOption) const PopupMenuItem<String>(value: 'reply', child: Text('Reply')),
+          if (showReplyOption)
+            PopupMenuItem<String>(
+              value: 'reply',
+              child: Text('Reply', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
+            ),
+          if (onReport != null)
+            PopupMenuItem<String>(
+              value: 'report',
+              child: Text('Report', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+            ),
           if (onEdit != null) const PopupMenuItem<String>(value: 'edit', child: Text('Edit')),
           if (onDelete != null)
             PopupMenuItem<String>(
@@ -554,6 +684,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
           comment: comment,
           showReplyOption: true,
           onReply: () => _startReplyToComment(commentId, authorName),
+          onReport: _canReportComment(comment) ? () => _showReportCommentDialog(comment) : null,
           onEdit: isOwn ? () => _editComment(comment, onUpdated: (m) => setState(() => _comments[index] = m)) : null,
           onDelete: isOwn ? () => _confirmDeleteTopLevel(index) : null,
         ),
@@ -638,6 +769,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
       comment: reply,
       showReplyOption: true,
       onReply: () => _startReplyToComment(parentId, replyToName),
+      onReport: _canReportComment(reply) ? () => _showReportCommentDialog(reply) : null,
       onEdit: isOwnReply ? () => _editComment(reply, onUpdated: (m) => setState(() => _threadFor(parentId).replies[replyIndex] = m)) : null,
       onDelete: canDeleteReply ? () => _confirmDeleteReply(parentId, replyIndex, asCommentOwner: isParentOwner && !isOwnReply) : null,
       deleteMenuLabel: isParentOwner && !isOwnReply ? 'Remove' : 'Delete',

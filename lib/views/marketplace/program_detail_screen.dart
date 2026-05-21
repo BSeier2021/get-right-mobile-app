@@ -6,7 +6,10 @@ import 'package:intl/intl.dart';
 import 'package:get_right/app_url.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/favorites_controller.dart';
+import 'package:get_right/models/report_block_model.dart';
+import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
@@ -22,6 +25,7 @@ class ProgramDetailScreen extends StatefulWidget {
 
 class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   final FavoritesController _favoritesController = Get.put(FavoritesController());
+  final FeedRepository _feedRepo = FeedRepository();
   final _reviewFormKey = GlobalKey<FormState>();
   final _reviewCommentController = TextEditingController();
   bool _isEnrolled = false;
@@ -35,6 +39,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   bool _isHandlingBack = false;
   double _rating = 0.0;
   bool _hasSubmittedRating = false;
+  bool _reportInFlight = false;
 
   final String _fallbackPdfUrl = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
 
@@ -226,6 +231,139 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     return null;
   }
 
+  String? _programTrainerUserId() {
+    var tid = (_safeProgram['trainerId'] ?? '').toString().trim();
+    if (tid.isEmpty && _safeProgram['_apiProgram'] is Map) {
+      final tr = (Map<String, dynamic>.from(_safeProgram['_apiProgram'] as Map))['trainer'];
+      if (tr is Map) {
+        tid = (tr['_id'] ?? tr['id'] ?? '').toString().trim();
+      }
+    }
+    if (tid.isNotEmpty && _mongoIdRe.hasMatch(tid)) return tid;
+    return null;
+  }
+
+  String? _currentUserIdOrNull() {
+    if (!Get.isRegistered<StorageService>()) return null;
+    return Get.find<StorageService>().getUserId()?.trim();
+  }
+
+  bool _isOwnProgram() {
+    final trainerId = _programTrainerUserId();
+    final myId = _currentUserIdOrNull();
+    if (trainerId == null || myId == null || myId.isEmpty) return false;
+    return trainerId == myId;
+  }
+
+  bool get _showProgramOverflowMenu {
+    if (_isOwnProgram()) return false;
+    return _programTrainerUserId() != null && _programEnrollMongoId() != null && (_currentUserIdOrNull()?.isNotEmpty ?? false);
+  }
+
+  Future<void> _showReportProgramDialog() async {
+    final programId = _programEnrollMongoId();
+    final trainerId = _programTrainerUserId();
+    if (programId == null || trainerId == null || _currentUserIdOrNull() == null) {
+      Get.snackbar('Could not report', 'Program information is missing.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    final descriptionController = TextEditingController();
+    String? selectedReason;
+
+    await Get.dialog<void>(
+      Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Padding(
+              padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 24 + MediaQuery.of(context).viewInsets.bottom),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Report program', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Reason',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    ...ReportReasons.all.map(
+                      (reason) => RadioListTile<String>(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(ReportReasons.getDisplayName(reason), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                        value: reason,
+                        groupValue: selectedReason,
+                        onChanged: (value) => setDialogState(() => selectedReason = value),
+                        activeColor: AppColors.accent,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: InputDecoration(
+                        labelText: 'Additional details (optional)',
+                        labelStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                        ),
+                      ),
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                      maxLines: 3,
+                      maxLength: 2000,
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: selectedReason == null
+                              ? null
+                              : () async {
+                                  final apiReason = ReportReasons.getApiValue(selectedReason!);
+                                  final details = descriptionController.text.trim();
+                                  Get.back();
+                                  await _submitReportProgram(trainerId: trainerId, programId: programId, reason: apiReason, details: details.isEmpty ? null : details);
+                                },
+                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.onAccent),
+                          child: const Text('Submit'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      descriptionController.dispose();
+    });
+  }
+
+  Future<void> _submitReportProgram({required String trainerId, required String programId, required String reason, String? details}) async {
+    if (_reportInFlight) return;
+    setState(() => _reportInFlight = true);
+    try {
+      await _feedRepo.reportFeedRepo(creatorUserId: trainerId, feedId: programId, reason: reason, details: details, reportRefType: ReportRefType.programs);
+      Get.snackbar('Report submitted', 'Thank you for your feedback.', snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      Get.snackbar('Could not report', e.toString(), snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      if (mounted) setState(() => _reportInFlight = false);
+    }
+  }
+
   Future<void> _enrollAndOpenCheckout() async {
     final enrollId = _programEnrollMongoId();
     if (enrollId == null || !Get.isRegistered<AuthController>()) {
@@ -329,6 +467,36 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
             ),
             onPressed: () => Get.back(),
           ),
+          actions: [
+            if (_showProgramOverflowMenu)
+              PopupMenuButton<String>(
+                tooltip: 'More options',
+                padding: EdgeInsets.zero,
+                offset: const Offset(0, 40),
+                color: AppColors.surface,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                enabled: !_reportInFlight,
+                icon: Icon(Icons.more_vert_rounded, color: AppColors.onBackground, size: 24),
+                onSelected: (value) {
+                  if (value == 'report') _showReportProgramDialog();
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem<String>(
+                    value: 'report',
+                    child: Row(
+                      children: [
+                        Icon(Icons.flag_outlined, size: 20, color: AppColors.error),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Report',
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+          ],
         ),
         body: CustomScrollView(
           slivers: [

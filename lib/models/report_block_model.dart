@@ -117,26 +117,80 @@ class BlockModel {
   }
 }
 
-/// Report reasons constants
+/// `reportRefType` values for `POST /user/report/:reportRef`.
+class ReportRefType {
+  static const String auth = 'Auth';
+  static const String post = 'Post';
+  static const String feedComment = 'FeedComment';
+  /// Backend enum for feed/reel reports (`POST /user/report/:feedId`).
+  static const String feeds = 'Feeds';
+  static const String programs = 'Programs';
+}
+
+/// Report reasons — UI keys map to API enum via [getApiValue].
 class ReportReasons {
-  static const String inappropriateContent = 'inappropriate_content';
-  static const String harassment = 'harassment';
   static const String spam = 'spam';
-  static const String fakeProfile = 'fake_profile';
+  static const String harassment = 'harassment';
+  static const String impersonation = 'impersonation';
+  static const String inappropriateContent = 'inappropriate_content';
+  static const String scam = 'scam';
   static const String other = 'other';
 
-  static List<String> get all => [inappropriateContent, harassment, spam, fakeProfile, other];
+  /// API: `Spam` | `Harassment` | `Impersonation` | `InappropriateContent` | `Scam` | `Other`
+  static List<String> get all => [spam, harassment, impersonation, inappropriateContent, scam, other];
 
   static String getDisplayName(String reason) {
     switch (reason) {
-      case inappropriateContent:
-        return 'Inappropriate Content';
-      case harassment:
-        return 'Harassment';
       case spam:
         return 'Spam';
-      case fakeProfile:
-        return 'Fake Profile';
+      case harassment:
+        return 'Harassment';
+      case impersonation:
+        return 'Impersonation';
+      case inappropriateContent:
+        return 'Inappropriate Content';
+      case scam:
+        return 'Scam';
+      case other:
+        return 'Other';
+      default:
+        return 'Other';
+    }
+  }
+
+  /// Human-readable label for API enum values in lists (e.g. `InappropriateContent`).
+  static String displayLabelFromApi(String apiReason) {
+    switch (apiReason) {
+      case 'Spam':
+        return 'Spam';
+      case 'Harassment':
+        return 'Harassment';
+      case 'Impersonation':
+        return 'Impersonation';
+      case 'InappropriateContent':
+        return 'Inappropriate Content';
+      case 'Scam':
+        return 'Scam';
+      case 'Other':
+        return 'Other';
+      default:
+        return apiReason.replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}');
+    }
+  }
+
+  /// Exact `reason` string for `POST /user/report/:reportRef`.
+  static String getApiValue(String reason) {
+    switch (reason) {
+      case spam:
+        return 'Spam';
+      case harassment:
+        return 'Harassment';
+      case impersonation:
+        return 'Impersonation';
+      case inappropriateContent:
+        return 'InappropriateContent';
+      case scam:
+        return 'Scam';
       case other:
         return 'Other';
       default:

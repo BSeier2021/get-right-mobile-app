@@ -5,20 +5,27 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 
-class BlockedUsersScreen extends StatelessWidget {
+class BlockedUsersScreen extends StatefulWidget {
   const BlockedUsersScreen({super.key});
 
-  // Placeholder avatar URLs for demo
-  static const _avatars = {
-    'u_1': 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-    'u_2': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
-    'u_3': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-  };
+  @override
+  State<BlockedUsersScreen> createState() => _BlockedUsersScreenState();
+}
+
+class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
+  late final SafetyCenterController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.isRegistered<SafetyCenterController>() ? Get.find<SafetyCenterController>() : Get.put(SafetyCenterController());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.loadBlockedUsers(showLoading: controller.blockedUsers.isEmpty);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final SafetyCenterController controller = Get.put(SafetyCenterController());
-
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
@@ -26,13 +33,13 @@ class BlockedUsersScreen extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: AppColors.accent.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.accent.withOpacity(0.15), width: 1),
             ),
-            child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 20),
+            child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 25),
           ),
           onPressed: () => Get.back(),
         ),
@@ -44,59 +51,63 @@ class BlockedUsersScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // ── Search bar ───────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: TextField(
-              onChanged: (v) => controller.blockedQuery.value = v,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: AppColors.white,
-                hintText: 'Search blocked users',
-                hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, fontSize: 14),
-                suffixIcon: const Icon(Icons.search, color: AppColors.primaryGrayDark),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(50),
-                  borderSide: BorderSide(color: const Color(0xFFE6F0DA), width: 1),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(50),
-                  borderSide: BorderSide(color: const Color(0xFFE6F0DA), width: 1),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(50),
-                  borderSide: BorderSide(color: AppColors.accent, width: 1),
-                ),
-              ),
-            ),
-          ),
-
-          // ── User list ────────────────────────────────────────
           Expanded(
             child: Obx(() {
-              final users = controller.filteredBlockedUsers;
-              if (users.isEmpty) {
+              if (controller.blockedLoading.value && controller.blockedUsers.isEmpty) {
+                return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+              }
+
+              if (controller.blockedError.value != null && controller.blockedUsers.isEmpty) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Text(
-                      'No blocked users.',
-                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
-                      textAlign: TextAlign.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          controller.blockedError.value!,
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(onPressed: () => controller.loadBlockedUsers(), child: const Text('Retry')),
+                      ],
                     ),
                   ),
                 );
               }
 
-              return ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                itemCount: users.length,
-                itemBuilder: (context, i) {
-                  final u = users[i];
-                  return _userCard(u, controller);
-                },
+              final users = controller.filteredBlockedUsers;
+
+              if (users.isEmpty) {
+                return RefreshIndicator(
+                  color: AppColors.accent,
+                  onRefresh: () => controller.loadBlockedUsers(showLoading: false),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                      Center(
+                        child: Text(
+                          'No blocked users.',
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return RefreshIndicator(
+                color: AppColors.accent,
+                onRefresh: () => controller.loadBlockedUsers(showLoading: false),
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  itemCount: users.length,
+                  itemBuilder: (context, i) => _userCard(users[i]),
+                ),
               );
             }),
           ),
@@ -105,10 +116,7 @@ class BlockedUsersScreen extends StatelessWidget {
     );
   }
 
-  // ── User card ──────────────────────────────────────────────
-  Widget _userCard(BlockedUser u, SafetyCenterController controller) {
-    final avatarUrl = _avatars[u.id];
-
+  Widget _userCard(BlockedUser u) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Container(
@@ -120,10 +128,9 @@ class BlockedUsersScreen extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Avatar
             SafeCircleNetworkAvatar(
               radius: 22,
-              imageUrl: avatarUrl,
+              imageUrl: u.avatarUrl,
               backgroundColor: AppColors.accent.withOpacity(0.15),
               fallback: Text(
                 _initials(u.name),
@@ -131,7 +138,6 @@ class BlockedUsersScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            // Name + username
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,12 +151,8 @@ class BlockedUsersScreen extends StatelessWidget {
                 ],
               ),
             ),
-            // Unblock pill button
             GestureDetector(
-              onTap: () async {
-                final confirm = await _confirm(title: 'Unblock user?', message: 'They will be able to view and interact with you again.', confirmText: 'Unblock');
-                if (confirm == true) controller.unblock(u.id);
-              },
+              onTap: () => _onUnblockTap(u),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                 decoration: BoxDecoration(color: AppColors.accentVariant, borderRadius: BorderRadius.circular(50)),
@@ -164,6 +166,18 @@ class BlockedUsersScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _onUnblockTap(BlockedUser u) async {
+    final confirm = await _confirm(title: 'Unblock user?', message: 'They will be able to view and interact with you again.', confirmText: 'Unblock');
+    if (confirm != true) return;
+
+    try {
+      await controller.unblock(u.id);
+      Get.snackbar('Unblocked', '${u.name} has been unblocked.', snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      Get.snackbar('Could not unblock', e.toString(), snackPosition: SnackPosition.BOTTOM);
+    }
   }
 
   String _initials(String name) {

@@ -442,11 +442,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.backgroundColor, AppColors.backgroundColor, AppColors.backgroundColor],
-        ),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.backgroundColor, AppColors.backgroundColor, AppColors.backgroundColor]),
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -695,8 +691,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            _SearchScreen(allPosts: _feedPosts, onPostTap: (post) => _showPostDetail(post), buildExploreGridItem: (post) => _buildExploreGridItem(post)),
+        builder: (context) => _SearchScreen(allPosts: _feedPosts, onPostTap: (post) => _showPostDetail(post), buildExploreGridItem: (post) => _buildExploreGridItem(post)),
       ),
     );
   }
@@ -789,13 +784,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   }
 
   void _showPostDetail(Map<String, dynamic> post) {
-    Get.snackbar(
-      'Post Detail',
-      'Opening ${post['title']}',
-      backgroundColor: AppColors.accent,
-      colorText: AppColors.onAccent,
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    Get.snackbar('Post Detail', 'Opening ${post['title']}', backgroundColor: AppColors.accent, colorText: AppColors.onAccent, snackPosition: SnackPosition.BOTTOM);
   }
 
   void _openVideoReel(Map<String, dynamic> post) {

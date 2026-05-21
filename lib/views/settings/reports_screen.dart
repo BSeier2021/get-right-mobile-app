@@ -14,18 +14,25 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  final SafetyCenterController controller = Get.put(SafetyCenterController());
-  int _selectedTab = 0; // 0 = Users, 1 = Posts
+  final SafetyCenterController controller = Get.isRegistered<SafetyCenterController>() ? Get.find<SafetyCenterController>() : Get.put(SafetyCenterController());
+  int _selectedTab = 0; // 0 Users, 1 Posts, 2 Programs, 3 FeedComment
 
-  // Placeholder avatars for demo
-  static const _userAvatars = {
-    'r_u_1': 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-    'r_u_2': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
-  };
-  static const _postAvatars = {
-    'r_p_1': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-    'r_p_2': 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
-  };
+  static const List<({String label, ReportType type})> _tabs = [
+    (label: 'Users', type: ReportType.user),
+    (label: 'Posts', type: ReportType.post),
+    (label: 'Programs', type: ReportType.programs),
+    (label: 'FeedComment', type: ReportType.feedComment),
+  ];
+
+  ReportType get _activeReportType => _tabs[_selectedTab].type;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.loadReports(showLoading: controller.reportsCacheEmpty);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,13 +43,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: AppColors.accent.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.accent.withOpacity(0.15), width: 1),
             ),
-            child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 20),
+            child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 25),
           ),
           onPressed: () => Get.back(),
         ),
@@ -57,7 +64,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
           // ── Pill tab selector ─────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [_tabChip('Users', 0), const SizedBox(width: 12), _tabChip('Posts', 1)]),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var i = 0; i < _tabs.length; i++) ...[if (i > 0) const SizedBox(width: 8), _tabChip(_tabs[i].label, i)],
+                ],
+              ),
+            ),
           ),
 
           // ── Search bar ────────────────────────────────────────
@@ -91,32 +105,62 @@ class _ReportsScreenState extends State<ReportsScreen> {
           // ── Report list ───────────────────────────────────────
           Expanded(
             child: Obx(() {
-              final type = _selectedTab == 0 ? ReportType.user : ReportType.post;
-              final items = controller.filteredReportsFor(type);
+              if (controller.reportsLoading.value && controller.reportsCacheEmpty) {
+                return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+              }
 
-              if (items.isEmpty) {
+              if (controller.reportsError.value != null && controller.reportsCacheEmpty) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Text(
-                      type == ReportType.user ? 'No reported users.' : 'No reported posts.',
-                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
-                      textAlign: TextAlign.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          controller.reportsError.value!,
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(onPressed: () => controller.loadReports(), child: const Text('Retry')),
+                      ],
                     ),
                   ),
                 );
               }
 
-              final avatars = type == ReportType.user ? _userAvatars : _postAvatars;
+              final type = _activeReportType;
+              final items = controller.filteredReportsFor(type);
 
-              return ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                itemCount: items.length,
-                itemBuilder: (context, i) {
-                  final r = items[i];
-                  return _reportCard(r, type, avatars[r.id]);
-                },
+              if (items.isEmpty) {
+                return RefreshIndicator(
+                  color: AppColors.accent,
+                  onRefresh: () => controller.loadReports(showLoading: false),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                      Center(
+                        child: Text(
+                          _emptyMessageFor(type),
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return RefreshIndicator(
+                color: AppColors.accent,
+                onRefresh: () => controller.loadReports(showLoading: false),
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  itemCount: items.length,
+                  itemBuilder: (context, i) => _reportCard(items[i], type),
+                ),
               );
             }),
           ),
@@ -125,13 +169,39 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
+  String _emptyMessageFor(ReportType type) {
+    switch (type) {
+      case ReportType.user:
+        return 'No reported users.';
+      case ReportType.post:
+        return 'No reported posts.';
+      case ReportType.programs:
+        return 'No reported programs.';
+      case ReportType.feedComment:
+        return 'No reported feed comments.';
+    }
+  }
+
+  IconData _iconForReportType(ReportType type) {
+    switch (type) {
+      case ReportType.user:
+        return Icons.person_outline;
+      case ReportType.post:
+        return Icons.article_outlined;
+      case ReportType.programs:
+        return Icons.fitness_center_outlined;
+      case ReportType.feedComment:
+        return Icons.chat_bubble_outline;
+    }
+  }
+
   // ── Pill tab chip ──────────────────────────────────────────
   Widget _tabChip(String label, int index) {
     final selected = _selectedTab == index;
     return GestureDetector(
       onTap: () => setState(() => _selectedTab = index),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 60.w, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 10),
         decoration: BoxDecoration(color: selected ? AppColors.accentVariant : Colors.transparent, borderRadius: BorderRadius.circular(50)),
         child: Text(
           label,
@@ -146,7 +216,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   // ── Report card ────────────────────────────────────────────
-  Widget _reportCard(ReportItem r, ReportType type, String? avatarUrl) {
+  Widget _reportCard(ReportItem r, ReportType type) {
     final isPending = r.status.toLowerCase() == 'pending';
     final statusColor = isPending ? AppColors.accent : AppColors.accent;
 
@@ -165,9 +235,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             // Avatar
             SafeCircleNetworkAvatar(
               radius: 22,
-              imageUrl: avatarUrl,
+              imageUrl: r.avatarUrl,
               backgroundColor: AppColors.accent.withOpacity(0.15),
-              fallback: Icon(type == ReportType.user ? Icons.person_outline : Icons.article_outlined, color: AppColors.accent, size: 20),
+              fallback: Icon(_iconForReportType(type), color: AppColors.accent, size: 20),
             ),
             const SizedBox(width: 12),
             // Content
@@ -186,18 +256,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ],
               ),
             ),
+
             // Delete button
-            GestureDetector(
-              onTap: () async {
-                final confirm = await _confirm(
-                  title: 'Remove report?',
-                  message: "This will remove it from your list. (It won't undo the report on the server if already submitted.)",
-                  confirmText: 'Remove',
-                );
-                if (confirm == true) controller.removeReport(type: type, reportId: r.id);
-              },
-              child: Padding(padding: const EdgeInsets.only(left: 8, top: 4), child: Image.asset('assets/images/trash333.png', width: 22, height: 22)),
-            ),
           ],
         ),
       ),

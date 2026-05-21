@@ -51,6 +51,18 @@ class AppUrl {
   /// `GET /user/follow/:userId/following` — paginated `data.following.follows[]`.
   static String userFollowing(String userId) => '${userFollow(userId)}/following';
 
+  /// `GET /user/report` — paginated `data.result.reports[]` (current user's submitted reports).
+  static String get userReports => '$baseUrl/user/report';
+
+  /// `POST /user/report/:id` — path id is reported user for `Auth`; reel creator id for `Feeds` (body `reportRef` = feed id).
+  static String userReport(String reportRef) => '$baseUrl/user/report/${Uri.encodeComponent(reportRef.trim())}';
+
+  /// `GET /user/block` — paginated `data.blocked.blocked[]`. `POST`/`DELETE` same collection + `/:userId`.
+  static String get userBlocks => '$baseUrl/user/block';
+
+  /// `POST /user/block/:userId` — block. `DELETE` — unblock.
+  static String userBlock(String userId) => '${userBlocks}/${Uri.encodeComponent(userId.trim())}';
+
   static String exerciseCategories = '$baseUrl/user/exercise-categories';
 
   /// `GET /user/feed-categories` → `data.categories[]` (feed post categories).

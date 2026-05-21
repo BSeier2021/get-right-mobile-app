@@ -217,6 +217,30 @@ class FeedRepository {
     });
   }
 
+  /// `POST /user/report/:creatorUserId` — report feed/reel/comment.
+  ///
+  /// Path uses the content author's user id; body `reportRef` is the target id (`Feeds`, `FeedComment`, …).
+  Future<dynamic> reportFeedRepo({
+    required String creatorUserId,
+    required String feedId,
+    required String reason,
+    String? details,
+    String reportRefType = 'Feeds',
+  }) async {
+    final userRef = creatorUserId.trim();
+    final feedRef = feedId.trim();
+    final body = <String, dynamic>{
+      'reason': reason,
+      'reportRef': feedRef,
+      'reportRefType': reportRefType,
+    };
+    final trimmedDetails = details?.trim();
+    if (trimmedDetails != null && trimmedDetails.isNotEmpty) {
+      body['details'] = trimmedDetails.length > 2000 ? trimmedDetails.substring(0, 2000) : trimmedDetails;
+    }
+    return _network.post(AppUrl.userReport(userRef), body);
+  }
+
   /// `POST /user/feed/:feedId/video/multipart/complete`
   Future<dynamic> completeVideoMultipartRepo({
     required String feedId,

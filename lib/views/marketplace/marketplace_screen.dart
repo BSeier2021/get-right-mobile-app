@@ -1047,6 +1047,39 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return null;
   }
 
+  String? _trainerAvatarUrlFromBundle(Map<String, dynamic> bundle) {
+    final fromCard = ImageUrlSanitizer.asHttpUrlOrNull(bundle['trainerImageUrl']?.toString());
+    if (fromCard != null) return fromCard;
+
+    final api = bundle['_apiBundle'];
+    if (api is Map) {
+      final tr = api['trainer'];
+      if (tr is Map) {
+        final t = Map<String, dynamic>.from(tr);
+        final pic = t['profilePicture'];
+        if (pic is Map) {
+          final url = ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+          if (url != null) return url;
+        }
+        final prof = t['profile'];
+        if (prof is Map) {
+          final profPic = prof['profilePicture'];
+          if (profPic is Map) {
+            return ImageUrlSanitizer.asHttpUrlOrNull(profPic['url']?.toString());
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _bundleTrainerChipPayload(Map<String, dynamic> bundle, Map<String, dynamic>? primaryProgram) {
+    final trainerName = (bundle['trainer'] ?? primaryProgram?['trainer'] ?? 'Trainer').toString();
+    final url = (primaryProgram != null ? _programTrainerAvatarUrl(primaryProgram) : null) ?? _trainerAvatarUrlFromBundle(bundle);
+    final initials = (primaryProgram?['trainerImage'] ?? bundle['trainerImage'] ?? 'T').toString();
+    return {'trainer': trainerName, 'trainerImageUrl': url, 'trainerImage': initials};
+  }
+
   String? _programTrainerAvatarUrl(Map<String, dynamic> program) {
     final direct = ImageUrlSanitizer.asHttpUrlOrNull(program['trainerImageUrl']?.toString());
     if (direct != null) return direct;
@@ -2343,9 +2376,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final avgRating = programs.isNotEmpty ? programs.map((p) => ((p['rating'] as num?) ?? 0).toDouble()).reduce((a, b) => a + b) / programs.length : 0.0;
     final totalRatings = programs.isNotEmpty ? programs.map((p) => ((p['students'] as num?) ?? 0).toInt()).reduce((a, b) => a + b) : 0;
 
-    // Get primary trainer (first program's trainer)
+    // Get primary trainer (bundle API trainer, else first program)
     final primaryProgram = programs.isNotEmpty ? programs[0] : null;
-    final primaryTrainer = primaryProgram != null ? primaryProgram['trainer'] : 'Trainer';
+    final primaryTrainer = (bundle['trainer'] ?? primaryProgram?['trainer'] ?? 'Trainer').toString();
     final isHot = bundle['isHot'] == true;
     final isCertified = bundle['isCertified'] == true || (programs.isNotEmpty && programs.every((p) => p['certified'] == true));
 
@@ -2398,18 +2431,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [
-                            // Profile Picture
-                            if (primaryProgram != null)
-                              _programTrainerAvatarChip(primaryProgram, size: 20.h)
-                            else
-                              _programTrainerAvatarChip(<String, dynamic>{'trainerImage': 'T'}, size: 20.h),
+                            // Profile Picture (bundle trainer from API, then program catalog)
+                            _programTrainerAvatarChip(_bundleTrainerChipPayload(bundle, primaryProgram), size: 20.h),
 
                             SizedBox(width: 6.w),
                             // Trainer Name
                             Text(
                               primaryTrainer.toString().replaceAll(' ', '\n'),
                               style: TextStyle(color: const Color(0xFF333333), fontSize: 12.sp, height: 1.0, fontWeight: FontWeight.w600),
-                              maxLines: 2,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             SizedBox(width: 4.w),
@@ -2542,7 +2572,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget _buildSeeMoreCard() {
     return GestureDetector(
       onTap: () {
-        Get.toNamed(AppRoutes.allBundles, arguments: _apiBundles);
+        Get.toNamed(AppRoutes.allBundles, arguments: <String, dynamic>{'programCatalog': _browsePrograms, if (_apiBundles.isNotEmpty) 'bundles': _apiBundles});
       },
       child: Container(
         width: MediaQuery.of(context).size.width * 0.4,

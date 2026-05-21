@@ -1,4 +1,6 @@
+import 'package:get_right/app_url.dart';
 import 'package:get_right/constants/app_constants.dart';
+import 'package:get_right/network/network_services.dart';
 import 'package:get_right/services/storage_service.dart';
 
 /// API Service for backend communication
@@ -338,24 +340,17 @@ class ApiService {
     return {'success': true, 'id': 'report_${DateTime.now().millisecondsSinceEpoch}', 'message': 'Report submitted successfully'};
   }
 
-  /// Block a user
+  /// `POST /user/block/:blockedUserId`
   Future<Map<String, dynamic>> blockUser({required String blockerId, required String blockedUserId, String? reason}) async {
-    // TODO: Implement actual API call
-    await Future.delayed(const Duration(seconds: 1));
-    return {'success': true, 'id': 'block_${DateTime.now().millisecondsSinceEpoch}'};
-  }
-
-  /// Unblock a user
-  Future<Map<String, dynamic>> unblockUser({required String blockerId, required String blockedUserId}) async {
-    // TODO: Implement actual API call
-    await Future.delayed(const Duration(seconds: 1));
+    final raw = await NetworkApiService().post(AppUrl.userBlock(blockedUserId), <String, dynamic>{});
+    if (raw is Map) return Map<String, dynamic>.from(raw);
     return {'success': true};
   }
 
-  /// Get blocked users
-  Future<List<String>> getBlockedUsers(String userId) async {
-    // TODO: Implement actual API call
-    await Future.delayed(const Duration(milliseconds: 500));
-    return [];
+  /// `DELETE /user/block/:blockedUserId`
+  Future<Map<String, dynamic>> unblockUser({required String blockerId, required String blockedUserId}) async {
+    final raw = await NetworkApiService().delete(AppUrl.userBlock(blockedUserId));
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return {'success': true};
   }
 }
