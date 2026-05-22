@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/models/exercise_set_model.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
+import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -21,6 +22,9 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   bool _isSuperset = false;
   bool _isEditing = false;
   bool _hasAskedWarmupWorkout = false;
+  bool _isSaving = false;
+  String? _workoutJournalId;
+  final WorkoutRepository _workoutRepo = WorkoutRepository();
   final TextEditingController _nameController = TextEditingController();
   List<_Config> _configs = [];
   String? _focusedFieldType; // 'reps' or 'weight'
@@ -36,6 +40,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       _isManual = args['isManual'] ?? false;
       _isSuperset = args['isSuperset'] ?? false;
       _hasAskedWarmupWorkout = args['isWarmup'] != null; // If isWarmup is provided, we've already asked
+      _workoutJournalId = args['workoutJournalId']?.toString() ?? args['workoutJournal']?.toString();
 
       // Handle editing existing exercise
       if (args['existingExercise'] != null) {
@@ -192,10 +197,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   }
 
   void _openExerciseSelectionForCard(int cardIndex) {
-    Get.toNamed(
-      AppRoutes.exerciseSelection,
-      arguments: {'isWarmup': _isWarmup, 'isSuperset': false}, // Don't pass superset flag for individual card selection
-    )?.then((result) {
+    Get.toNamed(AppRoutes.exerciseSelection, arguments: {'isWarmup': _isWarmup, 'isSuperset': false, 'workoutJournalId': _workoutJournalId})?.then((result) {
       if (result != null && result['exercise'] != null) {
         final ex = result['exercise'] as ExerciseLibraryModel;
         setState(() {
@@ -222,7 +224,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     super.dispose();
   }
 
-  void _onSave() {
+  Future<void> _onSave() async {
     final List<WorkoutExerciseModel> exercises = [];
     final now = DateTime.now();
     for (var cfg in _configs) {
@@ -231,6 +233,41 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         Get.snackbar('Error', 'Please enter exercise name', backgroundColor: AppColors.error, colorText: AppColors.onError);
         return;
       }
+    }
+
+    if (!_isEditing) {
+      final journalId = _workoutJournalId?.trim();
+      if (journalId == null || journalId.isEmpty) {
+        Get.snackbar('Error', 'Workout journal not found', backgroundColor: AppColors.error, colorText: AppColors.onError);
+        return;
+      }
+
+      setState(() => _isSaving = true);
+      try {
+        for (var i = 0; i < _configs.length; i++) {
+          final cfg = _configs[i];
+          final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
+          final body = <String, dynamic>{'workoutJournal': journalId, 'name': name, 'exercise': _buildApiExerciseSets(cfg)};
+          final refId = cfg.id.trim();
+          if (refId.isNotEmpty && !refId.startsWith('manual_')) {
+            body['refExercise'] = refId;
+          }
+          if (_isSuperset) {
+            body['supersetIdentifier'] = 'A${i + 1}';
+          }
+          await _workoutRepo.createWorkout(body);
+        }
+      } catch (e) {
+        if (mounted) setState(() => _isSaving = false);
+        Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+        return;
+      }
+      if (mounted) setState(() => _isSaving = false);
+    }
+
+    final supersetId = _isSuperset ? 'ss_${now.millisecondsSinceEpoch}' : null;
+    for (var cfg in _configs) {
+      final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
       final sets = cfg.sets.asMap().entries.map((e) {
         final i = e.key;
         final s = e.value;
@@ -253,7 +290,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           exerciseId: cfg.id,
           sets: sets,
           isSuperset: _isSuperset,
-          supersetId: _isSuperset ? 'ss_${now.millisecondsSinceEpoch}' : null,
+          supersetId: supersetId,
           supersetOrder: _isSuperset ? exercises.length : null,
           date: now,
           createdAt: now,
@@ -261,6 +298,49 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       );
     }
     Get.back(result: {'exercises': exercises, 'isWarmup': _isWarmup});
+  }
+
+  List<Map<String, dynamic>> _buildApiExerciseSets(_Config cfg) {
+    const defaultRestTime = 90;
+    final sets = <Map<String, dynamic>>[];
+
+    for (var i = 0; i < cfg.sets.length; i++) {
+      final s = cfg.sets[i];
+      if (!_setHasData(s, cfg)) continue;
+
+      final entry = <String, dynamic>{'sets': i + 1, 'restTime': defaultRestTime};
+
+      if (cfg.mainType == 'Time') {
+        entry['reps'] = s.time;
+      } else if (s.repsType == 'FAILURE') {
+        entry['reps'] = 'FAILURE';
+      } else if (s.repsType == 'AMRAP') {
+        entry['reps'] = 'AMRAP';
+      } else {
+        entry['reps'] = s.reps;
+      }
+
+      if (cfg.extraType == 'Weight' && !s.isBodyweight && s.weight > 0) {
+        entry['weight'] = s.weight % 1 == 0 ? s.weight.toInt() : s.weight;
+      }
+
+      sets.add(entry);
+    }
+
+    if (sets.isEmpty) {
+      sets.add({'sets': 1, 'reps': 0, 'restTime': defaultRestTime});
+    }
+
+    return sets;
+  }
+
+  bool _setHasData(_SetData setData, _Config cfg) {
+    if (cfg.mainType == 'Time') return setData.time > 0;
+    if (setData.repsType == 'FAILURE' || setData.repsType == 'AMRAP') return true;
+    if (setData.reps > 0) return true;
+    if (cfg.extraType == 'Weight' && (setData.weight > 0 || setData.isBodyweight)) return true;
+    if (cfg.extraType == 'Distance' && setData.distance > 0) return true;
+    return false;
   }
 
   void _showPercentageCalc(int cfgIdx, int setIdx) {
@@ -693,10 +773,12 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton.icon(
-                    onPressed: _onSave,
-                    icon: const Icon(Icons.check_rounded, size: 22),
+                    onPressed: _isSaving ? null : _onSave,
+                    icon: _isSaving
+                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
+                        : const Icon(Icons.check_rounded, size: 22),
                     label: Text(
-                      'Save Exercise',
+                      _isSaving ? 'Saving...' : 'Save Exercise',
                       style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     style: ElevatedButton.styleFrom(

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/models/exercise_library_category.dart';
+import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 
-/// Library screen - exercise library organized by muscle groups
+/// Library screen — exercise categories from `GET /user/exercise-categories`.
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
 
@@ -14,38 +17,111 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
+  final MarketplaceRepository _repo = MarketplaceRepository();
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
   String _searchQuery = '';
+  List<ExerciseLibraryCategory> _categories = [];
+  bool _loading = false;
+  bool _loadingMore = false;
+  String? _error;
+  int _page = 1;
+  bool _hasMore = true;
+  static const int _limit = 20;
 
-  // ─── Muscle‑group data with PNG asset paths ─────────────────────────────
-  final List<Map<String, dynamic>> _muscleGroups = [
-    {'id': 'chest', 'name': 'Chest', 'exerciseCount': 25, 'image': 'assets/images/1. Chest 2.png'},
-    {'id': 'back', 'name': 'Back', 'exerciseCount': 25, 'image': 'assets/images/2. Back 1.png'},
-    {'id': 'shoulders', 'name': 'Shoulders', 'exerciseCount': 25, 'image': 'assets/images/3. Shoulders 1.png'},
-    {'id': 'quads', 'name': 'Quads', 'exerciseCount': 24, 'image': 'assets/images/4. Quads 1.png'},
-    {'id': 'hamstrings', 'name': 'Hamstrings', 'exerciseCount': 20, 'image': 'assets/images/5. Hamstring 1.png'},
-    {'id': 'triceps', 'name': 'Triceps', 'exerciseCount': 25, 'image': 'assets/images/6. Triceps 1.png'},
-    {'id': 'biceps', 'name': 'Biceps', 'exerciseCount': 24, 'image': 'assets/images/7. Biceps 1.png'},
-    {'id': 'core', 'name': 'Core', 'exerciseCount': 30, 'image': 'assets/images/8. core.png'},
-    {'id': 'glutes', 'name': 'Glutes', 'exerciseCount': 18, 'image': 'assets/images/9. Glutes 1.png'},
-    {'id': 'calves', 'name': 'Calves', 'exerciseCount': 12, 'image': 'assets/images/10. Calves 1.png'},
-    {'id': 'forearms', 'name': 'Forearms', 'exerciseCount': 15, 'image': 'assets/images/11. Forearms 1.png'},
-  ];
+  static const Map<String, String> _assetFallbackByName = {
+    'chest': 'assets/images/1. Chest 2.png',
+    'back': 'assets/images/2. Back 1.png',
+    'shoulders': 'assets/images/3. Shoulders 1.png',
+    'quads': 'assets/images/4. Quads 1.png',
+    'hamstrings': 'assets/images/5. Hamstring 1.png',
+    'triceps': 'assets/images/6. Triceps 1.png',
+    'biceps': 'assets/images/7. Biceps 1.png',
+    'core': 'assets/images/8. core.png',
+    'glutes': 'assets/images/9. Glutes 1.png',
+    'calves': 'assets/images/10. Calves 1.png',
+    'forearms': 'assets/images/11. Forearms 1.png',
+  };
 
-  List<Map<String, dynamic>> get _filteredMuscleGroups {
-    if (_searchQuery.isEmpty) return _muscleGroups;
-    return _muscleGroups.where((g) => g['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+  List<ExerciseLibraryCategory> get _filteredCategories {
+    if (_searchQuery.isEmpty) return _categories;
+    final q = _searchQuery.toLowerCase();
+    return _categories.where((c) => c.name.toLowerCase().contains(q)).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    _loadCategories(reset: true);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_searchQuery.isNotEmpty) return;
+    if (!_hasMore || _loadingMore || _loading) return;
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      _loadCategories(reset: false);
+    }
+  }
+
+  Future<void> _loadCategories({required bool reset}) async {
+    if (reset) {
+      setState(() {
+        _loading = true;
+        _error = null;
+        _page = 1;
+        _hasMore = true;
+        _categories = [];
+      });
+    } else {
+      if (!_hasMore || _loadingMore) return;
+      setState(() => _loadingMore = true);
+    }
+
+    final pageToLoad = reset ? 1 : _page + 1;
+    try {
+      final result = await _repo.fetchExerciseCategoriesPage(page: pageToLoad, limit: _limit);
+      if (!mounted) return;
+      setState(() {
+        if (reset) {
+          _categories = result.categories;
+        } else {
+          final existing = _categories.map((c) => c.id).toSet();
+          _categories.addAll(result.categories.where((c) => !existing.contains(c.id)));
+        }
+        _page = result.page;
+        _hasMore = result.hasMore;
+        _loading = false;
+        _loadingMore = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadingMore = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  String? _assetFallbackFor(String name) {
+    final key = name.toLowerCase().trim();
+    return _assetFallbackByName[key];
   }
 
   @override
   Widget build(BuildContext context) {
-    final groups = _filteredMuscleGroups;
+    final groups = _filteredCategories;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
@@ -67,47 +143,66 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ),
       body: Column(
         children: [
-          // ── Search bar ────────────────────────────────────────────────
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (v) => setState(() => _searchQuery = v),
-              style: AppTextStyles.bodyMedium.copyWith(color: Colors.black),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: AppColors.white,
-                hintText: 'Search exercise',
-                hintStyle: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF9E9E9E)),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Color(0xFF9E9E9E)),
-                        onPressed: () => setState(() {
-                          _searchController.clear();
-                          _searchQuery = '';
-                        }),
-                      )
-                    : const Icon(Icons.search, color: Color(0xFF9E9E9E)),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(50),
-                  borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(50),
-                  borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(50),
-                  borderSide: const BorderSide(color: AppColors.accent, width: 1),
-                ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
-              ),
-            ),
-          ),
-
-          // ── Grid ──────────────────────────────────────────────────────
+          // Padding(
+          //   padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
+          //   child: TextField(
+          //     controller: _searchController,
+          //     onChanged: (v) => setState(() => _searchQuery = v),
+          //     style: AppTextStyles.bodyMedium.copyWith(color: Colors.black),
+          //     decoration: InputDecoration(
+          //       filled: true,
+          //       fillColor: AppColors.white,
+          //       hintText: 'Search exercise',
+          //       hintStyle: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF9E9E9E)),
+          //       suffixIcon: _searchQuery.isNotEmpty
+          //           ? IconButton(
+          //               icon: const Icon(Icons.clear, color: Color(0xFF9E9E9E)),
+          //               onPressed: () => setState(() {
+          //                 _searchController.clear();
+          //                 _searchQuery = '';
+          //               }),
+          //             )
+          //           : const Icon(Icons.search, color: Color(0xFF9E9E9E)),
+          //       border: OutlineInputBorder(
+          //         borderRadius: BorderRadius.circular(50),
+          //         borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+          //       ),
+          //       enabledBorder: OutlineInputBorder(
+          //         borderRadius: BorderRadius.circular(50),
+          //         borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+          //       ),
+          //       focusedBorder: OutlineInputBorder(
+          //         borderRadius: BorderRadius.circular(50),
+          //         borderSide: const BorderSide(color: AppColors.accent, width: 1),
+          //       ),
+          //       contentPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
+          //     ),
+          //   ),
+          // ),
           Expanded(
-            child: groups.isEmpty
+            child: _loading && _categories.isEmpty
+                ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                : _error != null && _categories.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24.w),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('Could not load categories', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+                          SizedBox(height: 8.h),
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                          ),
+                          SizedBox(height: 16.h),
+                          TextButton(onPressed: () => _loadCategories(reset: true), child: const Text('Retry')),
+                        ],
+                      ),
+                    ),
+                  )
+                : groups.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -118,11 +213,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ],
                     ),
                   )
-                : GridView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, mainAxisSpacing: 16.h, crossAxisSpacing: 8.w, childAspectRatio: 0.72),
-                    itemCount: groups.length,
-                    itemBuilder: (context, i) => _buildMuscleGroupTile(groups[i]),
+                : RefreshIndicator(
+                    color: AppColors.accent,
+                    onRefresh: () => _loadCategories(reset: true),
+                    child: GridView.builder(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, mainAxisSpacing: 16.h, crossAxisSpacing: 8.w, childAspectRatio: 0.72),
+                      itemCount: groups.length + (_loadingMore ? 1 : 0),
+                      itemBuilder: (context, i) {
+                        if (i >= groups.length) {
+                          return const Center(
+                            child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+                          );
+                        }
+                        return _buildMuscleGroupTile(groups[i]);
+                      },
+                    ),
                   ),
           ),
         ],
@@ -130,35 +238,29 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // ─── Single grid tile ─────────────────────────────────────────────────
-  Widget _buildMuscleGroupTile(Map<String, dynamic> group) {
-    final imagePath = group['image'] as String;
+  Widget _buildMuscleGroupTile(ExerciseLibraryCategory category) {
+    final iconUrl = ImageUrlSanitizer.asHttpUrlOrNull(category.iconUrl);
+    final assetPath = _assetFallbackFor(category.name);
 
     return GestureDetector(
-      onTap: () => Get.toNamed(AppRoutes.exerciseList, arguments: group),
+      onTap: () => Get.toNamed(AppRoutes.exerciseList, arguments: category.toRouteArgs()),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Circular image container
           Container(
             width: 68.w,
             height: 68.w,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFE8EFE6)),
+            decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFE8EFE6)),
             child: ClipOval(
               child: Padding(
                 padding: EdgeInsets.all(8.w),
-                child: Image.asset(
-                  imagePath,
-                  fit: BoxFit.contain,
-                  errorBuilder: (c, e, s) => Icon(Icons.fitness_center, color: AppColors.accent, size: 28.w),
-                ),
+                child: iconUrl != null ? Image.network(iconUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => _assetOrIcon(assetPath)) : _assetOrIcon(assetPath),
               ),
             ),
           ),
           SizedBox(height: 8.h),
-          // Label
           Text(
-            group['name'],
+            category.name,
             style: AppTextStyles.bodySmall.copyWith(color: Colors.black87, fontWeight: FontWeight.w500, fontSize: 11.5.sp),
             textAlign: TextAlign.center,
             maxLines: 1,
@@ -167,5 +269,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ],
       ),
     );
+  }
+
+  Widget _assetOrIcon(String? assetPath) {
+    if (assetPath != null) {
+      return Image.asset(
+        assetPath,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Icon(Icons.fitness_center, color: AppColors.accent, size: 28.w),
+      );
+    }
+    return Icon(Icons.fitness_center, color: AppColors.accent, size: 28.w);
   }
 }

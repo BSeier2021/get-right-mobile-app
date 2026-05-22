@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/favorites_controller.dart';
+import 'package:get_right/models/exercise_detail.dart';
+import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/views/marketplace/program_hls_player_screen.dart';
 
-/// Exercise detail screen - shows comprehensive information about an exercise
+/// Exercise detail screen — data from `GET /user/exercises/:exerciseId`.
 class ExerciseDetailScreen extends StatefulWidget {
   const ExerciseDetailScreen({super.key});
 
@@ -14,18 +17,58 @@ class ExerciseDetailScreen extends StatefulWidget {
 }
 
 class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
-  late Map<String, dynamic> exercise;
+  final MarketplaceRepository _repo = MarketplaceRepository();
   final FavoritesController _favoritesController = Get.put(FavoritesController());
-  late String exerciseId;
+
+  late Map<String, dynamic> _routeArgs;
+  late String _exerciseId;
+
+  ExerciseDetail? _detail;
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    exercise = Get.arguments as Map<String, dynamic>;
-    exerciseId = exercise['id']?.toString() ?? exercise['name']?.toString() ?? '';
+    _routeArgs = Get.arguments as Map<String, dynamic>;
+    _exerciseId = _routeArgs['_id']?.toString() ?? _routeArgs['id']?.toString() ?? '';
+    _loadDetail();
   }
 
-  bool get isFavorite => _favoritesController.isFavorite(exerciseId);
+  Future<void> _loadDetail() async {
+    if (_exerciseId.isEmpty) {
+      setState(() {
+        _loading = false;
+        _error = 'Invalid exercise';
+      });
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final detail = await _repo.fetchExerciseDetail(_exerciseId);
+      if (!mounted) return;
+      setState(() {
+        _detail = detail;
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  String get _displayName => _detail?.name ?? _routeArgs['name']?.toString() ?? '';
+
+  bool get isFavorite => _favoritesController.isFavorite(_exerciseId);
 
   Color _getDifficultyColor(String difficulty) {
     switch (difficulty.toLowerCase()) {
@@ -53,39 +96,22 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     }
   }
 
-  Map<String, dynamic> _getExerciseDetails(String exerciseName) {
-    return {
-      'why':
-          'This exercise targets the ${exercise['muscleGroup']} muscles effectively. It helps build strength, improve muscle definition, and enhance overall functional fitness. Perfect for both beginners and advanced athletes looking to develop this muscle group.',
-      'recommendedSets': '3–4',
-      'recommendedReps': '8–12',
-      'restTime': '60–90 sec',
-      'cues': [
-        'Keep your core engaged throughout the movement',
-        'Control the eccentric (lowering) phase',
-        'Breathe out during exertion, in during relaxation',
-        'Maintain proper form over heavy weight',
-        'Focus on mind-muscle connection',
-        'Keep your shoulders back and down',
-      ],
-      'primaryMuscles': [exercise['muscleGroup']],
-      'secondaryMuscles': ['Core', 'Stabilizers'],
-      'tips': [
-        'Start with lighter weights to master form',
-        'Gradually increase weight as you progress',
-        'Consider working with a spotter for safety',
-        'Warm up properly before attempting heavy sets',
-      ],
-    };
+  void _openVideo() {
+    final url = _detail?.videoUrl;
+    if (url == null || url.isEmpty) {
+      Get.snackbar('Video unavailable', 'No video for this exercise.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      Get.snackbar('Video unavailable', 'Invalid video URL.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    Get.to<void>(() => ProgramHlsPlayerScreen(videoUri: uri, title: _displayName));
   }
 
   @override
   Widget build(BuildContext context) {
-    final details = _getExerciseDetails(exercise['name']);
-    final difficultyColor = _getDifficultyColor(exercise['difficulty']);
-    final difficultyValue = _getDifficultyValue(exercise['difficulty']);
-    final imageUrl = exercise['image'] as String? ?? '';
-
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
@@ -100,241 +126,303 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
           onPressed: () => Get.back(),
         ),
         title: Text(
-          exercise['name'] ?? '',
+          _displayName,
           style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         centerTitle: true,
         actions: [
-          Obx(() {
-            final fav = _favoritesController.isFavorite(exerciseId);
-            return IconButton(
-              icon: Icon(fav ? Icons.favorite : Icons.favorite_border, color: fav ? AppColors.error : AppColors.onPrimary),
-              onPressed: () {
-                _favoritesController.toggleFavorite(exerciseId, {...exercise, 'type': 'exercise', 'id': exerciseId});
-                Get.snackbar(
-                  fav ? 'Removed from Favorites' : 'Added to Favorites',
-                  exercise['name'],
-                  backgroundColor: fav ? AppColors.primaryGray : AppColors.completed,
-                  colorText: Colors.white,
-                  snackPosition: SnackPosition.BOTTOM,
-                  duration: const Duration(seconds: 2),
-                );
-              },
-            );
-          }),
+          if (_detail != null)
+            Obx(() {
+              final fav = _favoritesController.isFavorite(_exerciseId);
+              return IconButton(
+                icon: Icon(fav ? Icons.favorite : Icons.favorite_border, color: fav ? AppColors.error : AppColors.onPrimary),
+                onPressed: () {
+                  _favoritesController.toggleFavorite(_exerciseId, _detail!.toFavoritePayload());
+                  Get.snackbar(
+                    fav ? 'Removed from Favorites' : 'Added to Favorites',
+                    _displayName,
+                    backgroundColor: fav ? AppColors.primaryGray : AppColors.completed,
+                    colorText: Colors.white,
+                    snackPosition: SnackPosition.BOTTOM,
+                    duration: const Duration(seconds: 2),
+                  );
+                },
+              );
+            }),
           IconButton(
             icon: const Icon(Icons.share_outlined, color: AppColors.onPrimary),
             onPressed: () {},
           ),
         ],
       ),
-
-      // ── Bottom CTA ──────────────────────────────────────────────────────
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 12.h),
-          child: SizedBox(
-            height: 52.h,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Get.snackbar(
-                  'Added to Workout',
-                  '${exercise['name']} has been added to your workout',
-                  backgroundColor: AppColors.completed,
-                  colorText: Colors.white,
-                  snackPosition: SnackPosition.BOTTOM,
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentVariant,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-              ),
-              icon: const Icon(Icons.add_circle_outline, size: 22),
-              label: Text(
-                'Add O Workout',
-                style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+      bottomNavigationBar: _detail == null
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 12.h),
+                child: SizedBox(
+                  height: 52.h,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Get.snackbar(
+                        'Added to Workout',
+                        '$_displayName has been added to your workout',
+                        backgroundColor: AppColors.completed,
+                        colorText: Colors.white,
+                        snackPosition: SnackPosition.BOTTOM,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentVariant,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    ),
+                    icon: const Icon(Icons.add_circle_outline, size: 22),
+                    label: Text(
+                      'Add O Workout',
+                      style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          : _error != null
+          ? Center(
+              child: Padding(
+                padding: EdgeInsets.all(24.w),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Could not load exercise', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+                    SizedBox(height: 8.h),
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                    ),
+                    SizedBox(height: 16.h),
+                    TextButton(onPressed: _loadDetail, child: const Text('Retry')),
+                  ],
+                ),
+              ),
+            )
+          : _buildContent(_detail!),
+    );
+  }
 
-      body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(horizontal: 20.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: 8.h),
+  Widget _buildContent(ExerciseDetail detail) {
+    final difficulty = detail.difficultyLabel;
+    final difficultyColor = _getDifficultyColor(difficulty);
+    final difficultyValue = _getDifficultyValue(difficulty);
+    final imageUrl = detail.displayImageUrl ?? detail.videoThumbnailUrl ?? detail.iconUrl ?? '';
+    final rec = detail.recommendations ?? const ExerciseRecommendations();
+    final whyText = detail.description?.isNotEmpty == true ? detail.description! : 'This exercise targets the ${detail.categoryLabel} muscles effectively.';
 
-            // ── Hero image card ───────────────────────────────────────────
-            ClipRRect(
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: 20.w),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: 8.h),
+          GestureDetector(
+            onTap: detail.videoUrl != null ? _openVideo : null,
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   imageUrl.isNotEmpty
-                      ? Image.network(imageUrl, width: double.infinity, height: 200.h, fit: BoxFit.cover, errorBuilder: (c, e, s) => _imagePlaceholder())
+                      ? Image.network(
+                          imageUrl,
+                          width: double.infinity,
+                          height: 200.h,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return _imagePlaceholder(showProgress: true);
+                          },
+                          errorBuilder: (c, e, s) => _imagePlaceholder(),
+                        )
                       : _imagePlaceholder(),
-                  Container(
-                    width: 48.w,
-                    height: 48.w,
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), shape: BoxShape.circle),
-                    child: Image.asset('assets/images/playbutton.png', width: 24.w, height: 24.h),
-                  ),
+                  if (detail.videoUrl != null)
+                    Container(
+                      width: 48.w,
+                      height: 48.w,
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), shape: BoxShape.circle),
+                      child: Image.asset('assets/images/playbutton.png', width: 24.w, height: 24.h),
+                    ),
                 ],
               ),
             ),
-
-            SizedBox(height: 20.h),
-
-            // ── Info stat cards (mint tiles: icon + label) ────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: _buildInfoStatCard(image: 'assets/images/Vector.png', label: '12 Weeks'),
-                ),
-                SizedBox(width: 10.w),
-                Expanded(
-                  child: _buildInfoStatCard(image: 'assets/images/1. bench press.png', label: '${exercise['muscleGroup'] ?? 'Muscle'}'),
-                ),
-                SizedBox(width: 10.w),
-                Expanded(
-                  child: _buildInfoStatCard(image: 'assets/images/intermidiate.png', label: '${exercise['difficulty'] ?? 'Level'}', accentIcon: true),
-                ),
-              ],
-            ),
-
-            SizedBox(height: 24.h),
-
-            // ── Difficulty Level ──────────────────────────────────────────
-            Text('Difficulty Level', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
-            SizedBox(height: 12.h),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(exercise['difficulty'], style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
-                Text('${(difficultyValue * 100).toInt()}%', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-              ],
-            ),
-            SizedBox(height: 8.h),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: difficultyValue,
-                minHeight: 8,
-                backgroundColor: AppColors.primaryGray.withOpacity(0.15),
-                valueColor: AlwaysStoppedAnimation<Color>(difficultyColor),
+          ),
+          SizedBox(height: 20.h),
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoStatCard(assetImage: 'assets/images/clock333.png', label: detail.durationLabel),
               ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: _buildInfoStatCard(assetImage: 'assets/images/1. bench press.png', networkImageUrl: detail.iconUrl, label: detail.categoryLabel),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: _buildInfoStatCard(assetImage: 'assets/images/intermidiate.png', label: difficulty, accentIcon: true),
+              ),
+            ],
+          ),
+          SizedBox(height: 24.h),
+          Text('Difficulty Level', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
+          SizedBox(height: 12.h),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(difficulty, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+              Text('${(difficultyValue * 100).toInt()}%', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+            ],
+          ),
+          SizedBox(height: 8.h),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: difficultyValue,
+              minHeight: 8,
+              backgroundColor: AppColors.primaryGray.withOpacity(0.15),
+              valueColor: AlwaysStoppedAnimation<Color>(difficultyColor),
             ),
-            SizedBox(height: 6.h),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Beginner', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                Text('Advanced', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-              ],
-            ),
-
-            SizedBox(height: 28.h),
-
-            // ── Why? ─────────────────────────────────────────────────────
-            Text('Why?', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
-            SizedBox(height: 10.h),
-            Text(details['why'], style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, height: 1.6)),
-
-            SizedBox(height: 28.h),
-
-            // ── Recommended Programming ───────────────────────────────────
-            Text('Recommended Programming', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
-            SizedBox(height: 14.h),
-            Row(
-              children: [
-                Expanded(child: _buildStatCard('assets/images/sets111.png', 'Sets', details['recommendedSets'], const Color(0xFFF5E6C8))),
-                SizedBox(width: 10.w),
-                Expanded(child: _buildStatCard('assets/images/infinity.png', 'Reps', details['recommendedReps'], const Color(0xFFCCDFF3))),
-                SizedBox(width: 10.w),
-                Expanded(child: _buildStatCard('assets/images/clock333.png', 'Rest Time', details['restTime'], const Color(0xFFD6E8D0))),
-              ],
-            ),
-
-            SizedBox(height: 28.h),
-
-            // ── Key Form Cues (pale mint card, matches design mock) ──────
-            _buildKeyFormCuesCard((details['cues'] as List).cast<String>()),
-
-            SizedBox(height: 24.h),
-
-            // ── Targeted Muscles ─────────────────────────────────────────
-            Text('Targeted Muscles', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
+          ),
+          SizedBox(height: 6.h),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Beginner', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+              Text('Advanced', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+            ],
+          ),
+          SizedBox(height: 28.h),
+          Text('Why?', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
+          SizedBox(height: 10.h),
+          Text(whyText, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, height: 1.6)),
+          SizedBox(height: 28.h),
+          Text('Recommended Programming', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
+          SizedBox(height: 14.h),
+          Row(
+            children: [
+              Expanded(child: _buildStatCard('assets/images/sets111.png', 'Sets', rec.setsLabel, const Color(0xFFF5E6C8))),
+              SizedBox(width: 10.w),
+              Expanded(child: _buildStatCard('assets/images/infinity.png', 'Reps', rec.repsLabel, const Color(0xFFCCDFF3))),
+              SizedBox(width: 10.w),
+              Expanded(child: _buildStatCard('assets/images/clock333.png', 'Rest Time', rec.restTimeLabel, const Color(0xFFD6E8D0))),
+            ],
+          ),
+          if (rec.weightLabel != null) ...[
             SizedBox(height: 12.h),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Primary
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Primary:',
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontWeight: FontWeight.w600),
-                      ),
-                      SizedBox(height: 6.h),
-                      Wrap(spacing: 6, runSpacing: 6, children: (details['primaryMuscles'] as List).cast<String>().map((m) => _buildMuscleChip(m, true)).toList()),
-                    ],
-                  ),
-                ),
-                SizedBox(width: 16.w),
-                // Secondary
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Secondary:',
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontWeight: FontWeight.w600),
-                      ),
-                      SizedBox(height: 6.h),
-                      Wrap(spacing: 6, runSpacing: 6, children: (details['secondaryMuscles'] as List).cast<String>().map((m) => _buildMuscleChip(m, false)).toList()),
-                    ],
-                  ),
-                ),
-              ],
+            Text(
+              'Suggested weight: ${rec.weightLabel}',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
             ),
-
+          ],
+          if (detail.formCues.isNotEmpty) ...[SizedBox(height: 28.h), _buildKeyFormCuesCard(detail.formCues)],
+          SizedBox(height: 24.h),
+          Text('Targeted Muscles', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
+          SizedBox(height: 12.h),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Primary:',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontWeight: FontWeight.w600),
+                    ),
+                    SizedBox(height: 6.h),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: detail.targetMuscles.isEmpty ? [_buildMuscleChip('—', true)] : detail.targetMuscles.map((m) => _buildMuscleChip(m, true)).toList(),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Secondary:',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontWeight: FontWeight.w600),
+                    ),
+                    SizedBox(height: 6.h),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: detail.secondaryMuscles.isEmpty ? [_buildMuscleChip('—', false)] : detail.secondaryMuscles.map((m) => _buildMuscleChip(m, false)).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (detail.tagNames.isNotEmpty) ...[
+            SizedBox(height: 20.h),
+            Text('Equipment', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
+            SizedBox(height: 10.h),
+            Wrap(spacing: 6, runSpacing: 6, children: detail.tagNames.map((t) => _buildMuscleChip(t, false)).toList()),
+          ],
+          if (detail.proTips.isNotEmpty) ...[
             SizedBox(height: 28.h),
-
-            // ── Pro Tips ─────────────────────────────────────────────────
             Text('Pro Tips', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w800)),
             SizedBox(height: 10.h),
-            ...(details['tips'] as List).cast<String>().asMap().entries.map((e) => _buildTipItem(e.key + 1, e.value)),
-
-            SizedBox(height: 24.h),
+            ...detail.proTips.asMap().entries.map((e) => _buildTipItem(e.key + 1, e.value)),
           ],
-        ),
+          SizedBox(height: 24.h),
+        ],
       ),
     );
   }
 
-  // ─── Helpers ─────────────────────────────────────────────────────────
-
-  Widget _imagePlaceholder() {
+  Widget _imagePlaceholder({bool showProgress = false}) {
     return Container(
       width: double.infinity,
       height: 200.h,
       decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.08), borderRadius: BorderRadius.circular(16)),
-      child: const Center(child: Icon(Icons.fitness_center, color: AppColors.accent, size: 40)),
+      child: Center(
+        child: showProgress
+            ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
+            : const Icon(Icons.fitness_center, color: AppColors.accent, size: 40),
+      ),
     );
   }
 
   static const Color _kInfoCardText = Color(0xFF3D3D3D);
 
-  /// Rounded mint card: centered icon + bold label (matches library detail mock).
-  Widget _buildInfoStatCard({required String image, required String label, bool accentIcon = false}) {
+  Widget _buildInfoStatCard({required String label, String? assetImage, String? networkImageUrl, bool accentIcon = false}) {
+    final networkUrl = networkImageUrl?.trim();
+    Widget iconWidget;
+    if (networkUrl != null && networkUrl.isNotEmpty) {
+      iconWidget = Image.network(
+        networkUrl,
+        fit: BoxFit.contain,
+        width: 30.w,
+        height: 30.h,
+        errorBuilder: (_, __, ___) => assetImage != null
+            ? Image.asset(assetImage, fit: BoxFit.contain, width: 30.w, height: 30.h)
+            : Icon(Icons.fitness_center, size: 30.sp, color: accentIcon ? AppColors.accent : _kInfoCardText),
+      );
+    } else if (assetImage != null) {
+      iconWidget = Image.asset(assetImage, fit: BoxFit.contain, width: 30.w, height: 30.h);
+    } else {
+      iconWidget = Icon(Icons.fitness_center, size: 30.sp, color: accentIcon ? AppColors.accent : _kInfoCardText);
+    }
+
     return Container(
       padding: EdgeInsets.symmetric(vertical: 18.h, horizontal: 6.w),
       decoration: BoxDecoration(
@@ -346,7 +434,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Image.asset(image, fit: BoxFit.contain, width: 30.w, height: 30.h),
+          iconWidget,
           SizedBox(height: 10.h),
           Text(
             label,
@@ -360,7 +448,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  /// Recommended programming rounded card
   Widget _buildStatCard(String image, String label, String value, Color iconBg) {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 8.w),
@@ -433,7 +520,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  /// Numbered pro-tip card
   Widget _buildTipItem(int index, String tip) {
     final numberStr = index.toString().padLeft(2, '0');
     final Color numberColor = _tipNumberColor(index);
@@ -450,15 +536,9 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                numberStr,
-                style: AppTextStyles.titleMedium.copyWith(color: numberColor, fontWeight: FontWeight.w800),
-              ),
-            ],
+          Text(
+            numberStr,
+            style: AppTextStyles.titleMedium.copyWith(color: numberColor, fontWeight: FontWeight.w800),
           ),
           SizedBox(width: 12.w),
           Expanded(
@@ -470,13 +550,10 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   }
 
   Color _tipNumberColor(int index) {
-    // 01 orange, 02 blue, 03 green, 04 purple (repeat afterwards)
     const List<Color> palette = [Color(0xFFF39C12), Color(0xFF2E86DE), Color(0xFF27AE60), Color(0xFF8E44AD)];
-    final idx = (index - 1) % palette.length;
-    return palette[idx];
+    return palette[(index - 1) % palette.length];
   }
 
-  /// Muscle group chip
   Widget _buildMuscleChip(String muscle, bool isPrimary) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),

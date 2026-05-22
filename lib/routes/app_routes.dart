@@ -37,7 +37,6 @@ class AppRoutes {
   static const String addExercise = '/add-exercise';
   static const String exerciseSelection = '/exercise-selection';
   static const String exerciseConfiguration = '/exercise-configuration';
-  static const String exerciseLibraryDetail = '/exercise-library-detail';
   static const String addNotes = '/add-notes';
   static const String videoWalkthrough = '/video-walkthrough';
   static const String reorderExercises = '/reorder-exercises';

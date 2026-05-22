@@ -2,6 +2,10 @@ import 'package:intl/intl.dart';
 
 import 'package:get_right/app_url.dart';
 import 'package:get_right/models/exercise_category_option.dart';
+import 'package:get_right/models/exercise_detail.dart';
+import 'package:get_right/models/exercise_library_category.dart';
+import 'package:get_right/models/exercise_library_item.dart';
+import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
@@ -106,31 +110,204 @@ class MarketplaceRepository {
     return _parseProgramsList(raw);
   }
 
-  /// `GET /user/exercise-categories` → category chips for filters.
-  Future<List<ExerciseCategoryOption>> fetchExerciseCategories() async {
-    final raw = await _network.get(AppUrl.exerciseCategories);
-    if (!_isOk(raw)) return [];
-    final root = Map<String, dynamic>.from(raw as Map);
-    final data = root['data'];
-    List<dynamic>? items;
-    if (data is Map) {
-      final m = Map<String, dynamic>.from(data);
-      if (m['categories'] is List) {
-        items = m['categories'] as List<dynamic>;
-      } else if (m['data'] is List) {
-        items = m['data'] as List<dynamic>;
-      }
-    } else if (data is List) {
-      items = data;
-    }
-    if (items == null) return [];
-    final out = <ExerciseCategoryOption>[];
+  /// Guest token headers for `/user/exercise-categories` (Bearer JWT returns 410).
+  static Map<String, String> get _exerciseCategoryAuthHeaders => {
+        'skipAuth': 'true',
+        'Authorization': NetworkApiService.guestAuthToken,
+      };
+
+  /// `GET /user/exercise-categories` → paginated library categories.
+  Future<ExerciseCategoriesPage> fetchExerciseCategoriesPage({int page = 1, int limit = 50}) async {
+    const empty = ExerciseCategoriesPage(categories: [], total: 0, page: 1, hasMore: false);
+    final raw = await _network.get(
+      AppUrl.exerciseCategories(page: page, limit: limit),
+      headers: _exerciseCategoryAuthHeaders,
+    );
+    if (!_isOk(raw)) return empty;
+
+    final items = _exerciseCategoryItemsFromResponse(raw);
+    if (items == null) return empty;
+
+    final categories = <ExerciseLibraryCategory>[];
     for (final item in items) {
       if (item is! Map) continue;
-      final opt = ExerciseCategoryOption.fromJson(Map<String, dynamic>.from(item));
-      if (opt.id.isNotEmpty && opt.name.isNotEmpty) out.add(opt);
+      final cat = ExerciseLibraryCategory.fromJson(Map<String, dynamic>.from(item));
+      if (cat.id.isNotEmpty && cat.name.isNotEmpty) categories.add(cat);
     }
-    return out;
+
+    final root = Map<String, dynamic>.from(raw as Map);
+    final data = root['data'];
+    var total = categories.length;
+    var currentPage = page;
+    var hasMore = false;
+
+    if (data is Map) {
+      final m = Map<String, dynamic>.from(data);
+      final result = m['result'];
+      if (result is Map) {
+        final rm = Map<String, dynamic>.from(result);
+        total = (rm['totalDocs'] as num?)?.toInt() ?? total;
+        currentPage = (rm['currentPage'] as num?)?.toInt() ?? page;
+        final hasNext = rm['hasNextPage'];
+        hasMore = hasNext == true || (categories.length == limit && (currentPage * limit) < total);
+      } else {
+        total = (m['totalDocs'] as num?)?.toInt() ?? total;
+        final hasNext = m['hasNextPage'];
+        hasMore = hasNext == true;
+      }
+    }
+
+    return ExerciseCategoriesPage(categories: categories, total: total, page: currentPage, hasMore: hasMore);
+  }
+
+  /// `GET /user/exercise-categories` → category chips for filters.
+  Future<List<ExerciseCategoryOption>> fetchExerciseCategories() async {
+    final page = await fetchExerciseCategoriesPage(page: 1, limit: 100);
+    return page.categories.map((c) => ExerciseCategoryOption(id: c.id, name: c.name)).toList();
+  }
+
+  /// `GET /user/exercises/` → paginated exercises for journal exercise selection.
+  Future<UserExercisesPage> fetchUserExercisesPage({int page = 1, int limit = 50}) async {
+    const empty = UserExercisesPage(exercises: [], total: 0, page: 1, hasMore: false);
+    final raw = await _network.get(
+      AppUrl.userExercises(page: page, limit: limit),
+      headers: _exerciseCategoryAuthHeaders,
+    );
+    if (!_isOk(raw)) return empty;
+
+    final items = _exercisesByCategoryItemsFromResponse(raw);
+    if (items == null) return empty;
+
+    final exercises = <ExerciseLibraryModel>[];
+    for (final item in items) {
+      if (item is! Map) continue;
+      final ex = ExerciseLibraryModel.fromApiJson(Map<String, dynamic>.from(item));
+      if (ex.id.isNotEmpty && ex.name.isNotEmpty) exercises.add(ex);
+    }
+
+    final root = Map<String, dynamic>.from(raw as Map);
+    final data = root['data'];
+    var total = exercises.length;
+    var currentPage = page;
+    var hasMore = false;
+
+    if (data is Map) {
+      final m = Map<String, dynamic>.from(data);
+      final result = m['result'];
+      if (result is Map) {
+        final rm = Map<String, dynamic>.from(result);
+        total = (rm['totalDocs'] as num?)?.toInt() ?? total;
+        currentPage = (rm['currentPage'] as num?)?.toInt() ?? page;
+        final hasNext = rm['hasNextPage'];
+        hasMore = hasNext == true || (exercises.length == limit && (currentPage * limit) < total);
+      } else {
+        total = (m['totalDocs'] as num?)?.toInt() ?? total;
+        hasMore = m['hasNextPage'] == true;
+      }
+    }
+
+    return UserExercisesPage(exercises: exercises, total: total, page: currentPage, hasMore: hasMore);
+  }
+
+  /// `GET /user/exercises/category/:categoryId` → paginated exercises for library detail.
+  Future<ExercisesByCategoryPage> fetchExercisesByCategoryPage({
+    required String categoryId,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    const empty = ExercisesByCategoryPage(exercises: [], total: 0, page: 1, hasMore: false);
+    final id = categoryId.trim();
+    if (id.isEmpty) return empty;
+
+    final raw = await _network.get(
+      AppUrl.exerciseCategory(id, page: page, limit: limit),
+      headers: _exerciseCategoryAuthHeaders,
+    );
+    if (!_isOk(raw)) return empty;
+
+    final items = _exercisesByCategoryItemsFromResponse(raw);
+    if (items == null) return empty;
+
+    final exercises = <ExerciseLibraryItem>[];
+    for (final item in items) {
+      if (item is! Map) continue;
+      final ex = ExerciseLibraryItem.fromJson(Map<String, dynamic>.from(item));
+      if (ex.id.isNotEmpty && ex.name.isNotEmpty) exercises.add(ex);
+    }
+
+    final root = Map<String, dynamic>.from(raw as Map);
+    final data = root['data'];
+    var total = exercises.length;
+    var currentPage = page;
+    var hasMore = false;
+
+    if (data is Map) {
+      final m = Map<String, dynamic>.from(data);
+      final result = m['result'];
+      if (result is Map) {
+        final rm = Map<String, dynamic>.from(result);
+        total = (rm['totalDocs'] as num?)?.toInt() ?? total;
+        currentPage = (rm['currentPage'] as num?)?.toInt() ?? page;
+        final hasNext = rm['hasNextPage'];
+        hasMore = hasNext == true || (exercises.length == limit && (currentPage * limit) < total);
+      } else {
+        total = (m['totalDocs'] as num?)?.toInt() ?? total;
+        hasMore = m['hasNextPage'] == true;
+      }
+    }
+
+    return ExercisesByCategoryPage(exercises: exercises, total: total, page: currentPage, hasMore: hasMore);
+  }
+
+  /// `GET /user/exercises/:exerciseId` → full exercise detail for library.
+  Future<ExerciseDetail> fetchExerciseDetail(String exerciseId) async {
+    final id = exerciseId.trim();
+    if (id.isEmpty) throw Exception('Invalid exercise id');
+
+    final raw = await _network.get(
+      AppUrl.exerciseDetail(id),
+      headers: _exerciseCategoryAuthHeaders,
+    );
+    if (!_isOk(raw)) throw Exception('Could not load exercise');
+
+    final detail = ExerciseDetail.fromApiResponse(raw);
+    if (detail == null || detail.id.isEmpty || detail.name.isEmpty) {
+      throw Exception('Invalid exercise response');
+    }
+    return detail;
+  }
+
+  static List<dynamic>? _exercisesByCategoryItemsFromResponse(dynamic response) {
+    if (response is! Map) return null;
+    final root = Map<String, dynamic>.from(response);
+    final data = root['data'];
+    if (data is! Map) return null;
+    final m = Map<String, dynamic>.from(data);
+
+    final result = m['result'];
+    if (result is Map) {
+      final rm = Map<String, dynamic>.from(result);
+      if (rm['exercises'] is List) return rm['exercises'] as List<dynamic>;
+    }
+    if (m['exercises'] is List) return m['exercises'] as List<dynamic>;
+    return null;
+  }
+
+  static List<dynamic>? _exerciseCategoryItemsFromResponse(dynamic response) {
+    if (response is! Map) return null;
+    final root = Map<String, dynamic>.from(response);
+    final data = root['data'];
+    if (data is! Map) return null;
+    final m = Map<String, dynamic>.from(data);
+
+    final result = m['result'];
+    if (result is Map) {
+      final rm = Map<String, dynamic>.from(result);
+      if (rm['categories'] is List) return rm['categories'] as List<dynamic>;
+    }
+    if (m['categories'] is List) return m['categories'] as List<dynamic>;
+    if (m['data'] is List) return m['data'] as List<dynamic>;
+    return null;
   }
 
   /// `GET /customer/program` — browse list with optional filters ([query]).
@@ -144,7 +321,7 @@ class MarketplaceRepository {
       AppUrl.customerPrograms(
         page: page,
         limit: perPage,
-        type: q.type ?? MarketplaceSection.all,
+        type: q.type,
         sort: q.sort,
         categories: q.categories,
         difficulties: q.difficulties,
@@ -493,15 +670,42 @@ class MarketplaceRepository {
       {'rating': rating, 'description': description.trim()},
     );
     if (_isOk(raw)) return null;
+    return _apiErrorMessage(raw, 'Could not submit review');
+  }
+
+  /// `PUT /customer/program/:programId/reviews`. Returns `null` on success.
+  Future<String?> updateProgramReview({
+    required String programId,
+    required int rating,
+    required String description,
+  }) async {
+    final raw = await _network.put(
+      AppUrl.customerProgramReviewsSubmit(programId),
+      {'rating': rating, 'description': description.trim()},
+    );
+    if (_isOk(raw)) return null;
+    return _apiErrorMessage(raw, 'Could not update review');
+  }
+
+  /// `DELETE /customer/program/:programId/reviews`. Returns `null` on success.
+  Future<String?> deleteProgramReview({
+    required String programId,
+  }) async {
+    final raw = await _network.delete(AppUrl.customerProgramReviewsSubmit(programId));
+    if (_isOk(raw)) return null;
+    return _apiErrorMessage(raw, 'Could not delete review');
+  }
+
+  static String? _apiErrorMessage(dynamic raw, String fallback) {
     if (raw is Map) {
       final root = Map<String, dynamic>.from(raw);
       final msg = root['message'];
       if (msg is List && msg.isNotEmpty) {
         return msg.map((e) => e is Map ? (e['message'] ?? e).toString() : e.toString()).join('; ');
       }
-      return msg?.toString() ?? 'Could not submit review';
+      return msg?.toString() ?? fallback;
     }
-    return 'Could not submit review';
+    return fallback;
   }
 
   static ProgramReviewsPage _parseProgramReviewsPage(dynamic response, int page, int limit) {

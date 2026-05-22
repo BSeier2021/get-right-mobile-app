@@ -224,7 +224,10 @@ class AuthRepository {
   }
 
   Future<dynamic> getExerciseCategoriesRepo() async {
-    final response = await _network.get(headers: {"Authorization": "yNaHwJpGFSquIkXP"}, AppUrl.exerciseCategories);
+    final response = await _network.get(
+      AppUrl.exerciseCategories(),
+      headers: {'skipAuth': 'true', 'Authorization': NetworkApiService.guestAuthToken},
+    );
     return response;
   }
 
@@ -236,7 +239,10 @@ class AuthRepository {
   }
 
   Future<dynamic> getExercisesByCategoryRepo(String categoryId) async {
-    final response = await _network.get(headers: {"Authorization": "yNaHwJpGFSquIkXP"}, AppUrl.exerciseCategory(categoryId));
+    final response = await _network.get(
+      AppUrl.exerciseCategory(categoryId),
+      headers: {'skipAuth': 'true', 'Authorization': NetworkApiService.guestAuthToken},
+    );
     return response;
   }
 

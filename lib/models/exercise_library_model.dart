@@ -1,3 +1,5 @@
+import 'package:get_right/utils/image_url_sanitizer.dart';
+
 class ExerciseLibraryModel {
   final String id;
   final String name;
@@ -8,6 +10,7 @@ class ExerciseLibraryModel {
   final List<String> instructions;
   final List<String> tips;
   final String? videoUrl;
+  final String? iconUrl;
 
   ExerciseLibraryModel({
     required this.id,
@@ -19,6 +22,7 @@ class ExerciseLibraryModel {
     required this.instructions,
     this.tips = const [],
     this.videoUrl,
+    this.iconUrl,
   });
 
   factory ExerciseLibraryModel.fromJson(Map<String, dynamic> json) {
@@ -32,8 +36,80 @@ class ExerciseLibraryModel {
       instructions: (json['instructions'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       tips: (json['tips'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       videoUrl: json['videoUrl'],
+      iconUrl: json['iconUrl'],
     );
   }
+
+  /// Maps `GET /user/exercises/` (and category/detail) exercise objects.
+  factory ExerciseLibraryModel.fromApiJson(Map<String, dynamic> json) {
+    final category = json['category'];
+    String? categoryName;
+    if (category is Map) {
+      categoryName = Map<String, dynamic>.from(category)['name']?.toString().trim();
+    }
+
+    final targetMuscles = _namesFromList(json['targetMuscle']);
+    final secondaryMuscles = _namesFromList(json['secondaryMuscle']);
+    final equipment = _namesFromList(json['equipment']);
+    final tags = _namesFromList(json['tags']);
+
+    final video = json['video'];
+    String? videoUrl;
+    if (video is Map) {
+      videoUrl = ImageUrlSanitizer.resolveMediaUrl(_rawUrlFrom(video));
+    }
+
+    final primaryMuscle = targetMuscles.isNotEmpty
+        ? targetMuscles.first
+        : (categoryName?.isNotEmpty == true ? categoryName! : '');
+
+    return ExerciseLibraryModel(
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      name: json['name']?.toString().trim() ?? '',
+      primaryMuscle: primaryMuscle,
+      secondaryMuscle: secondaryMuscles.isNotEmpty ? secondaryMuscles.join(', ') : null,
+      difficulty: json['type']?.toString().trim() ?? 'Intermediate',
+      equipmentRequired: equipment.isNotEmpty ? equipment.join(', ') : (tags.isNotEmpty ? tags.join(', ') : null),
+      instructions: _stringList(json['formCue']),
+      tips: _stringList(json['proTips']),
+      videoUrl: videoUrl,
+      iconUrl: _mediaUrlFrom(json['icon']),
+    );
+  }
+
+  static String? _rawUrlFrom(dynamic media) {
+    if (media is! Map) return null;
+    return Map<String, dynamic>.from(media)['url']?.toString();
+  }
+
+  static String? _mediaUrlFrom(dynamic media) {
+    return ImageUrlSanitizer.resolveMediaUrl(_rawUrlFrom(media));
+  }
+
+  static List<String> _namesFromList(dynamic raw) {
+    if (raw is! List) return [];
+    final out = <String>[];
+    for (final item in raw) {
+      if (item is Map) {
+        final name = Map<String, dynamic>.from(item)['name']?.toString().trim();
+        if (name != null && name.isNotEmpty) out.add(name);
+      } else if (item is String && item.trim().isNotEmpty) {
+        out.add(item.trim());
+      }
+    }
+    return out;
+  }
+
+  static List<String> _stringList(dynamic raw) {
+    if (raw is! List) return [];
+    return raw.map((e) => e?.toString().trim() ?? '').where((s) => s.isNotEmpty).toList();
+  }
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || other is ExerciseLibraryModel && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -45,6 +121,7 @@ class ExerciseLibraryModel {
     'instructions': instructions,
     'tips': tips,
     'videoUrl': videoUrl,
+    'iconUrl': iconUrl,
   };
 }
 
@@ -206,4 +283,19 @@ class ExerciseLibraryData {
       tips: ['Keep your lower back pressed against the pad', 'Don\'t lock out at the top', 'Control the descent'],
     ),
   ];
+}
+
+/// One page from `GET /user/exercises/`.
+class UserExercisesPage {
+  const UserExercisesPage({
+    required this.exercises,
+    required this.total,
+    required this.page,
+    required this.hasMore,
+  });
+
+  final List<ExerciseLibraryModel> exercises;
+  final int total;
+  final int page;
+  final bool hasMore;
 }

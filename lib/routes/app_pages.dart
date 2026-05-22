@@ -31,7 +31,6 @@ import 'package:get_right/views/journal/add_workout_screen.dart';
 import 'package:get_right/views/journal/add_exercise_screen.dart';
 import 'package:get_right/views/journal/exercise_selection_screen.dart';
 import 'package:get_right/views/journal/exercise_configuration_screen.dart';
-import 'package:get_right/views/journal/exercise_library_detail_screen.dart';
 import 'package:get_right/views/journal/add_notes_screen.dart';
 import 'package:get_right/views/journal/video_walkthrough_screen.dart';
 import 'package:get_right/views/journal/reorder_exercises_screen.dart';
@@ -134,7 +133,6 @@ class AppPages {
     GetPage(name: AppRoutes.addExercise, page: () => const AddExerciseScreen(), transition: Transition.downToUp),
     GetPage(name: AppRoutes.exerciseSelection, page: () => const ExerciseSelectionScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.exerciseConfiguration, page: () => const ExerciseConfigurationScreen(), transition: Transition.rightToLeft),
-    GetPage(name: AppRoutes.exerciseLibraryDetail, page: () => const ExerciseLibraryDetailScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.addNotes, page: () => const AddNotesScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.videoWalkthrough, page: () => const VideoWalkthroughScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.reorderExercises, page: () => const ReorderExercisesScreen(), transition: Transition.fade),
@@ -159,7 +157,7 @@ class AppPages {
     // Marketplace Pages
     GetPage(name: AppRoutes.marketplace, page: () => const MarketplaceScreen(), transition: Transition.fade),
     GetPage(name: AppRoutes.programDetail, page: () => const ProgramDetailScreen(), transition: Transition.rightToLeft),
-    GetPage(name: AppRoutes.programSendReview, page: () => const ProgramSendReviewScreen(), transition: Transition.rightToLeft),
+    GetPage(name: AppRoutes.programSendReview, page: () => ProgramSendReviewScreen.fromArguments(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.purchaseDetails, page: () => const PurchaseDetailsScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.paymentForm, page: () => const PaymentFormScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.programTerms, page: () => const ProgramTermsScreen(), transition: Transition.rightToLeft),

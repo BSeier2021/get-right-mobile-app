@@ -147,13 +147,13 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
   String _formatTime(int s) => '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
-  void _onAddWarmup() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {'isWarmup': true})?.then((r) {
+  void _onAddWarmup() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {'isWarmup': true, 'workoutJournalId': _workout?.id})?.then((r) {
     if (r != null && r['exercises'] != null)
       setState(() {
         _workout = _workout!.copyWith(warmupExercises: [..._workout!.warmupExercises, ...r['exercises'] as List<WorkoutExerciseModel>]);
       });
   });
-  void _onAddWorkout() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {'isWarmup': false})?.then((r) {
+  void _onAddWorkout() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {'isWarmup': false, 'workoutJournalId': _workout?.id})?.then((r) {
     if (r != null && r['exercises'] != null)
       setState(() {
         _workout = _workout!.copyWith(workoutExercises: [..._workout!.workoutExercises, ...r['exercises'] as List<WorkoutExerciseModel>]);
@@ -913,7 +913,12 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               ListTile(
                 onTap: () {
                   Get.back();
-                  Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {'isEditing': true, 'existingExercise': ex, 'isWarmup': isWarmup});
+                  Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {
+                    'isEditing': true,
+                    'existingExercise': ex,
+                    'isWarmup': isWarmup,
+                    'workoutJournalId': _workout?.id,
+                  });
                 },
                 title: Center(
                   child: Text(

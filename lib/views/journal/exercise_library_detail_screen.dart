@@ -4,8 +4,8 @@ import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 
-class ExerciseLibraryDetailScreen extends StatelessWidget {
-  const ExerciseLibraryDetailScreen({super.key});
+class ExerciseLibraryDetailScreenss extends StatelessWidget {
+  const ExerciseLibraryDetailScreenss({super.key});
 
   @override
   Widget build(BuildContext context) {

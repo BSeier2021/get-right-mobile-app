@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/models/exercise_library_item.dart';
+import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -10,7 +12,7 @@ const Color _kLibraryListBg = Color(0xFFF8FAF0);
 const Color _kLibraryCardBorder = Color(0xFFE8EBDC);
 const Color _kLibraryTagBg = Color(0xFFE8F4E0);
 
-/// Exercise list screen - shows exercises for a specific muscle group
+/// Exercise list screen — exercises for a category from `GET /user/exercises/category/:id`.
 class ExerciseListScreen extends StatefulWidget {
   const ExerciseListScreen({super.key});
 
@@ -19,165 +21,107 @@ class ExerciseListScreen extends StatefulWidget {
 }
 
 class _ExerciseListScreenState extends State<ExerciseListScreen> {
+  final MarketplaceRepository _repo = MarketplaceRepository();
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
   String _searchQuery = '';
   late Map<String, dynamic> muscleGroup;
+  late String _categoryId;
 
-  List<Map<String, dynamic>> _exercises = [];
+  List<ExerciseLibraryItem> _exercises = [];
+  bool _loading = false;
+  bool _loadingMore = false;
+  String? _error;
+  int _page = 1;
+  bool _hasMore = true;
+  static const int _limit = 20;
+
+  List<ExerciseLibraryItem> get _filteredExercises {
+    if (_searchQuery.isEmpty) return _exercises;
+    final q = _searchQuery.toLowerCase();
+    return _exercises.where((e) => e.name.toLowerCase().contains(q)).toList();
+  }
 
   @override
   void initState() {
     super.initState();
     muscleGroup = Get.arguments as Map<String, dynamic>;
-    _loadExercises();
+    _categoryId = muscleGroup['_id']?.toString() ?? muscleGroup['id']?.toString() ?? '';
+    _scrollController.addListener(_onScroll);
+    _loadExercises(reset: true);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  // ─── Load mock exercises ──────────────────────────────────────────────
-  void _loadExercises() {
-    final groupId = muscleGroup['id'] as String;
-    final count = muscleGroup['exerciseCount'] as int? ?? 8;
-    _exercises = _getExercisesForMuscleGroup(groupId, count);
+  void _onScroll() {
+    if (_searchQuery.isNotEmpty) return;
+    if (!_hasMore || _loadingMore || _loading) return;
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      _loadExercises(reset: false);
+    }
   }
 
-  List<Map<String, dynamic>> _getExercisesForMuscleGroup(String groupId, int count) {
-    final Map<String, List<Map<String, String>>> exercisesByGroup = {
-      'chest': [
-        {'name': 'Incline Dumbbell Press', 'equipment': 'Dumbbells', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400'},
-        {'name': 'Cable Flyes', 'equipment': 'Cable', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400'},
-        {'name': 'Dips', 'equipment': 'Bodyweight', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1597452485669-2c7bb5fef90d?w=400'},
-        {'name': 'Decline Bench Press', 'equipment': 'Bodyweight', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400'},
-        {'name': 'Chest Press Machine', 'equipment': 'Machine', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400'},
-        {'name': 'Dumbbell Flyes', 'equipment': 'Dumbbells', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400'},
-      ],
-      'back': [
-        {'name': 'Pull-Ups', 'equipment': 'Bodyweight', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1598971457999-ca4ef48a9a71?w=400'},
-        {'name': 'Barbell Rows', 'equipment': 'Barbell', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1603287681836-b174ce5074c2?w=400'},
-        {'name': 'Lat Pulldowns', 'equipment': 'Cable', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400'},
-        {'name': 'Deadlifts', 'equipment': 'Barbell', 'difficulty': 'Advanced', 'image': 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=400'},
-        {'name': 'Seated Cable Rows', 'equipment': 'Cable', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400'},
-        {'name': 'T-Bar Rows', 'equipment': 'Barbell', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400'},
-        {'name': 'Face Pulls', 'equipment': 'Cable', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400'},
-        {'name': 'Dumbbell Rows', 'equipment': 'Dumbbells', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400'},
-      ],
-      'shoulders': [
-        {'name': 'Overhead Press', 'equipment': 'Barbell', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1532029837206-abbe2b7620e3?w=400'},
-        {'name': 'Lateral Raises', 'equipment': 'Dumbbells', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400'},
-        {'name': 'Front Raises', 'equipment': 'Dumbbells', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400'},
-        {'name': 'Arnold Press', 'equipment': 'Dumbbells', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400'},
-        {'name': 'Face Pulls', 'equipment': 'Cable', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400'},
-        {'name': 'Upright Rows', 'equipment': 'Barbell', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=400'},
-        {'name': 'Reverse Flyes', 'equipment': 'Dumbbells', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400'},
-        {'name': 'Cable Lateral Raises', 'equipment': 'Cable', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1597452485669-2c7bb5fef90d?w=400'},
-      ],
-      'quads': [
-        {'name': 'Barbell Squats', 'equipment': 'Barbell', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400'},
-        {'name': 'Leg Press', 'equipment': 'Machine', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400'},
-        {'name': 'Lunges', 'equipment': 'Dumbbells', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?w=400'},
-        {'name': 'Leg Extensions', 'equipment': 'Machine', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400'},
-        {'name': 'Bulgarian Split Squats', 'equipment': 'Dumbbells', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400'},
-        {'name': 'Front Squats', 'equipment': 'Barbell', 'difficulty': 'Advanced', 'image': 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=400'},
-        {'name': 'Goblet Squats', 'equipment': 'Dumbbell', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400'},
-        {'name': 'Hack Squats', 'equipment': 'Machine', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400'},
-      ],
-      'hamstrings': [
-        {'name': 'Romanian Deadlifts', 'equipment': 'Barbell', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=400'},
-        {'name': 'Leg Curls', 'equipment': 'Machine', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400'},
-        {'name': 'Nordic Curls', 'equipment': 'Bodyweight', 'difficulty': 'Advanced', 'image': 'https://images.unsplash.com/photo-1598971639058-a6a0e094e680?w=400'},
-        {'name': 'Good Mornings', 'equipment': 'Barbell', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400'},
-        {'name': 'Single-Leg Deadlifts', 'equipment': 'Dumbbells', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400'},
-        {'name': 'Glute Ham Raises', 'equipment': 'Machine', 'difficulty': 'Advanced', 'image': 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400'},
-        {'name': 'Swiss Ball Curls', 'equipment': 'Stability Ball', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400'},
-      ],
-      'triceps': [
-        {'name': 'Close-Grip Bench Press', 'equipment': 'Barbell', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1534368786749-b63e05c92717?w=400'},
-        {'name': 'Tricep Pushdowns', 'equipment': 'Cable', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400'},
-        {'name': 'Overhead Extensions', 'equipment': 'Dumbbell', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1532029837206-abbe2b7620e3?w=400'},
-        {'name': 'Dips', 'equipment': 'Bodyweight', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1597452485669-2c7bb5fef90d?w=400'},
-        {'name': 'Skull Crushers', 'equipment': 'Barbell', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400'},
-        {'name': 'Kickbacks', 'equipment': 'Dumbbells', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400'},
-        {'name': 'Diamond Push-Ups', 'equipment': 'Bodyweight', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1598971639058-a6a0e094e680?w=400'},
-      ],
-      'biceps': [
-        {'name': 'Barbell Curls', 'equipment': 'Barbell', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400'},
-        {'name': 'Hammer Curls', 'equipment': 'Dumbbells', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400'},
-        {'name': 'Preacher Curls', 'equipment': 'Barbell', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400'},
-        {'name': 'Cable Curls', 'equipment': 'Cable', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400'},
-        {'name': 'Concentration Curls', 'equipment': 'Dumbbell', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400'},
-        {'name': 'Incline Curls', 'equipment': 'Dumbbells', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=400'},
-        {'name': 'Spider Curls', 'equipment': 'Barbell', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1597452485669-2c7bb5fef90d?w=400'},
-      ],
-      'core': [
-        {'name': 'Planks', 'equipment': 'Bodyweight', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1566241142559-40e1dab266c6?w=400'},
-        {'name': 'Crunches', 'equipment': 'Bodyweight', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1598971639058-a6a0e094e680?w=400'},
-        {'name': 'Russian Twists', 'equipment': 'Medicine Ball', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400'},
-        {'name': 'Hanging Leg Raises', 'equipment': 'Pull-up Bar', 'difficulty': 'Advanced', 'image': 'https://images.unsplash.com/photo-1598971457999-ca4ef48a9a71?w=400'},
-        {'name': 'Cable Crunches', 'equipment': 'Cable', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400'},
-        {'name': 'Ab Wheel Rollouts', 'equipment': 'Ab Wheel', 'difficulty': 'Advanced', 'image': 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400'},
-        {'name': 'Dead Bugs', 'equipment': 'Bodyweight', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400'},
-        {'name': 'Bicycle Crunches', 'equipment': 'Bodyweight', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400'},
-      ],
-      'glutes': [
-        {'name': 'Hip Thrusts', 'equipment': 'Barbell', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400'},
-        {'name': 'Glute Bridges', 'equipment': 'Bodyweight', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1598971639058-a6a0e094e680?w=400'},
-        {'name': 'Cable Kickbacks', 'equipment': 'Cable', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400'},
-        {'name': 'Sumo Deadlifts', 'equipment': 'Barbell', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=400'},
-        {'name': 'Step-Ups', 'equipment': 'Dumbbells', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?w=400'},
-      ],
-      'calves': [
-        {'name': 'Standing Calf Raises', 'equipment': 'Machine', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400'},
-        {'name': 'Seated Calf Raises', 'equipment': 'Machine', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400'},
-        {'name': 'Donkey Calf Raises', 'equipment': 'Machine', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400'},
-        {'name': 'Jump Rope', 'equipment': 'Bodyweight', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?w=400'},
-      ],
-      'forearms': [
-        {'name': 'Wrist Curls', 'equipment': 'Barbell', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400'},
-        {'name': 'Reverse Wrist Curls', 'equipment': 'Barbell', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400'},
-        {'name': 'Farmer Walks', 'equipment': 'Dumbbells', 'difficulty': 'Intermediate', 'image': 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?w=400'},
-        {'name': 'Plate Pinches', 'equipment': 'Plates', 'difficulty': 'Beginner', 'image': 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=400'},
-      ],
-    };
+  Future<void> _loadExercises({required bool reset}) async {
+    if (_categoryId.isEmpty) {
+      setState(() {
+        _loading = false;
+        _loadingMore = false;
+        _error = 'Invalid category';
+      });
+      return;
+    }
 
-    final exercises = exercisesByGroup[groupId] ?? [];
-    return List.generate(count, (index) {
-      if (index < exercises.length) {
-        return {
-          'id': '${groupId}_$index',
-          'name': exercises[index]['name']!,
-          'equipment': exercises[index]['equipment']!,
-          'difficulty': exercises[index]['difficulty']!,
-          'image': exercises[index]['image']!,
-          'muscleGroup': muscleGroup['name'],
-          'isFavorite': false,
-        };
-      } else {
-        return {
-          'id': '${groupId}_$index',
-          'name': 'Exercise ${index + 1}',
-          'equipment': 'Various',
-          'difficulty': 'Beginner',
-          'image': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400',
-          'muscleGroup': muscleGroup['name'],
-          'isFavorite': false,
-        };
-      }
-    });
+    if (reset) {
+      setState(() {
+        _loading = true;
+        _error = null;
+        _page = 1;
+        _hasMore = true;
+        _exercises = [];
+      });
+    } else {
+      if (!_hasMore || _loadingMore) return;
+      setState(() => _loadingMore = true);
+    }
+
+    final pageToLoad = reset ? 1 : _page + 1;
+    try {
+      final result = await _repo.fetchExercisesByCategoryPage(categoryId: _categoryId, page: pageToLoad, limit: _limit);
+      if (!mounted) return;
+      setState(() {
+        if (reset) {
+          _exercises = result.exercises;
+        } else {
+          final existing = _exercises.map((e) => e.id).toSet();
+          _exercises.addAll(result.exercises.where((e) => !existing.contains(e.id)));
+        }
+        _page = result.page;
+        _hasMore = result.hasMore;
+        _loading = false;
+        _loadingMore = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadingMore = false;
+        _error = e.toString();
+      });
+    }
   }
 
-  List<Map<String, dynamic>> get _filteredExercises {
-    if (_searchQuery.isEmpty) return _exercises;
-    return _exercises.where((e) => e['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-  }
-
-  // ─── Build ────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final exercises = _filteredExercises;
+    final muscleGroupName = muscleGroup['name']?.toString() ?? 'Exercises';
 
     return Scaffold(
       backgroundColor: _kLibraryListBg,
@@ -193,82 +137,82 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
           ).paddingAll(8),
         ),
         title: Text(
-          muscleGroup['name'] ?? 'Exercises',
+          muscleGroupName,
           style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w900),
         ),
       ),
-      body: Column(
-        children: [
-          // ── Search bar ──────────────────────────────────────────────
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (v) => setState(() => _searchQuery = v),
-              style: AppTextStyles.bodyMedium.copyWith(color: Colors.black),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: AppColors.white,
-                hintText: 'Search exercise',
-                hintStyle: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF9E9E9E)),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Color(0xFF9E9E9E)),
-                        onPressed: () => setState(() {
-                          _searchController.clear();
-                          _searchQuery = '';
-                        }),
-                      )
-                    : const Icon(Icons.search, color: Color(0xFF9E9E9E)),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(50),
-                  borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(50),
-                  borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(50),
-                  borderSide: const BorderSide(color: AppColors.accent, width: 1),
-                ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
-              ),
-            ),
-          ),
-
-          // ── Grid ────────────────────────────────────────────────────
-          Expanded(
-            child: exercises.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
-                        const SizedBox(height: 16),
-                        Text('No exercises found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
-                      ],
-                    ),
-                  )
-                : GridView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14.h, crossAxisSpacing: 12.w, childAspectRatio: 0.70),
-                    itemCount: exercises.length,
-                    itemBuilder: (context, i) => _buildExerciseCard(exercises[i]),
-                  ),
-          ),
-        ],
+      body: Padding(
+        padding: EdgeInsets.only(top: 16.h),
+        child: _buildBody(exercises, muscleGroupName),
       ),
     );
   }
 
-  // ─── Exercise card ────────────────────────────────────────────────────
-  Widget _buildExerciseCard(Map<String, dynamic> exercise) {
-    final imageUrl = exercise['image'] as String? ?? '';
+  Widget _buildBody(List<ExerciseLibraryItem> exercises, String muscleGroupName) {
+    if (_loading && _exercises.isEmpty) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+    }
+    if (_error != null && _exercises.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(24.w),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Could not load exercises', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+              SizedBox(height: 8.h),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+              ),
+              SizedBox(height: 16.h),
+              TextButton(onPressed: () => _loadExercises(reset: true), child: const Text('Retry')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (exercises.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+            const SizedBox(height: 16),
+            Text('No exercises found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppColors.accent,
+      onRefresh: () => _loadExercises(reset: true),
+      child: GridView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 16.h),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14.h, crossAxisSpacing: 12.w, childAspectRatio: 0.72),
+        itemCount: exercises.length + (_loadingMore ? 1 : 0),
+        itemBuilder: (context, i) {
+          if (i >= exercises.length) {
+            return const Center(
+              child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+            );
+          }
+          return _buildExerciseCard(exercises[i], muscleGroupName);
+        },
+      ),
+    );
+  }
+
+  Widget _buildExerciseCard(ExerciseLibraryItem exercise, String muscleGroupName) {
+    final imageUrl = exercise.displayImageUrl ?? exercise.videoThumbnailUrl ?? exercise.iconUrl ?? '';
     const double cardRadius = 18;
 
     return GestureDetector(
-      onTap: () => Get.toNamed(AppRoutes.exerciseDetail, arguments: exercise),
+      onTap: () => Get.toNamed(AppRoutes.exerciseDetail, arguments: exercise.toRouteArgs(muscleGroupName: muscleGroupName)),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.white,
@@ -309,7 +253,7 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
                             ),
                           ),
                   ),
-                  Center(child: _libraryPlayButton()),
+                  if (exercise.hasVideo) Center(child: _libraryPlayButton()),
                 ],
               ),
             ),
@@ -317,17 +261,15 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
               padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 14.h),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    exercise['name'] ?? '',
+                    exercise.name,
                     style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w800, color: AppColors.black, fontSize: 13.5.sp, height: 1.25),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: 10.h),
-                  _libraryTagPill(exercise['equipment'] ?? ''),
-                  SizedBox(height: 6.h),
-                  _libraryTagPill(exercise['difficulty'] ?? ''),
+                  if (exercise.tagNames.isNotEmpty) ...[SizedBox(height: 10.h), ...exercise.tagNames.take(2).map(_libraryTagPill)],
                 ],
               ),
             ),
@@ -344,14 +286,17 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
 
   Widget _libraryTagPill(String text) {
     if (text.isEmpty) return const SizedBox.shrink();
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 5.h),
-        decoration: BoxDecoration(color: _kLibraryTagBg, borderRadius: BorderRadius.circular(50)),
-        child: Text(
-          text,
-          style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent, fontSize: 11.sp, fontWeight: FontWeight.w500),
+    return Padding(
+      padding: EdgeInsets.only(bottom: 6.h),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 5.h),
+          decoration: BoxDecoration(color: _kLibraryTagBg, borderRadius: BorderRadius.circular(50)),
+          child: Text(
+            text,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent, fontSize: 11.sp, fontWeight: FontWeight.w500),
+          ),
         ),
       ),
     );

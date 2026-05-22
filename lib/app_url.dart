@@ -63,7 +63,10 @@ class AppUrl {
   /// `POST /user/block/:userId` — block. `DELETE` — unblock.
   static String userBlock(String userId) => '${userBlocks}/${Uri.encodeComponent(userId.trim())}';
 
-  static String exerciseCategories = '$baseUrl/user/exercise-categories';
+  static String exerciseCategories({int page = 1, int limit = 50}) {
+    final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;
+    return '$baseUrl/user/exercise-categories?$q';
+  }
 
   /// `GET /user/feed-categories` → `data.categories[]` (feed post categories).
   static String get feedCategories => '$baseUrl/user/feed-categories';
@@ -108,8 +111,19 @@ class AppUrl {
   /// `POST /user/feed/:feedId/video/multipart/complete` — `key`, `uploadId`, `parts` (PartNumber, ETag).
   static String feedVideoMultipartComplete(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/video/multipart/complete';
 
-  static String exerciseCategory(String categoryId) => '$baseUrl/user/exercises/category/$categoryId';
-  static String exerciseDetail(String exerciseId) => '$baseUrl/user/exercises/$exerciseId';
+  /// `GET /user/exercises/` — all exercises for journal selection; query: `page`, `limit`.
+  static String userExercises({int page = 1, int limit = 50}) {
+    final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;
+    return '$baseUrl/user/exercises/?$q';
+  }
+
+  /// `GET /user/exercises/category/:categoryId` — query: `page`, `limit`.
+  static String exerciseCategory(String categoryId, {int page = 1, int limit = 20}) {
+    final id = Uri.encodeComponent(categoryId.trim());
+    return '$baseUrl/user/exercises/category/$id?page=$page&limit=$limit';
+  }
+  static String exerciseDetail(String exerciseId) =>
+      '$baseUrl/user/exercises/${Uri.encodeComponent(exerciseId.trim())}';
 
   // static String AllPlans = '$baseUrl/get-all-plans';
   /// `GET /user/auth/auto-login` — Bearer JWT; refreshes session (`data.user`, `data.token`).
@@ -166,7 +180,7 @@ class AppUrl {
     return '$baseUrl/customer/program/${Uri.encodeComponent(programId.trim())}/reviews?$q';
   }
 
-  /// `POST /customer/program/:programId/reviews` — body: `{ "rating", "description" }`.
+  /// `POST` / `PUT` / `DELETE /customer/program/:programId/reviews` — body (POST/PUT): `{ "rating", "description" }`.
   static String customerProgramReviewsSubmit(String programId) =>
       '$baseUrl/customer/program/${Uri.encodeComponent(programId.trim())}/reviews';
 
@@ -226,4 +240,7 @@ class AppUrl {
     final q = Uri(queryParameters: {'mealId': mealId.trim()}).query;
     return '$path?$q';
   }
+
+  /// `POST /customer/workout` — body: `workoutJournal`, `name`, `exercise[]`, optional `refExercise`, `supersetIdentifier`.
+  static String get customerWorkout => '$baseUrl/customer/workout';
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/exercise_library_model.dart';
+import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -26,11 +26,23 @@ class ExerciseSelectionScreen extends StatefulWidget {
 
 class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final MarketplaceRepository _repo = MarketplaceRepository();
+
   bool _isWarmup = false;
   bool _selectOnly = false;
-  List<ExerciseLibraryModel> _filtered = ExerciseLibraryData.exercises;
+  String? _workoutJournalId;
+  List<ExerciseLibraryModel> _allExercises = [];
+  List<ExerciseLibraryModel> _filtered = [];
   final Set<ExerciseLibraryModel> _selected = {};
   bool _isSuperset = false;
+
+  bool _loading = false;
+  bool _loadingMore = false;
+  String? _error;
+  int _page = 1;
+  bool _hasMore = true;
+  static const int _limit = 50;
 
   @override
   void initState() {
@@ -39,19 +51,81 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
     if (args != null) {
       _isWarmup = args['isWarmup'] ?? false;
       _selectOnly = args['selectOnly'] ?? false;
+      _workoutJournalId = args['workoutJournalId']?.toString() ?? args['workoutJournal']?.toString();
     }
     _searchCtrl.addListener(_filter);
+    _scrollController.addListener(_onScroll);
+    _loadExercises(reset: true);
   }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  void _filter() {
+  void _onScroll() {
+    if (_searchCtrl.text.isNotEmpty) return;
+    if (!_hasMore || _loadingMore || _loading) return;
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      _loadExercises(reset: false);
+    }
+  }
+
+  Future<void> _loadExercises({required bool reset}) async {
+    if (reset) {
+      setState(() {
+        _loading = true;
+        _error = null;
+        _page = 1;
+        _hasMore = true;
+        _allExercises = [];
+        _filtered = [];
+      });
+    } else {
+      if (!_hasMore || _loadingMore) return;
+      setState(() => _loadingMore = true);
+    }
+
+    final pageToLoad = reset ? 1 : _page + 1;
+    try {
+      final result = await _repo.fetchUserExercisesPage(page: pageToLoad, limit: _limit);
+      if (!mounted) return;
+      setState(() {
+        if (reset) {
+          _allExercises = result.exercises;
+        } else {
+          final existing = _allExercises.map((e) => e.id).toSet();
+          _allExercises.addAll(result.exercises.where((e) => !existing.contains(e.id)));
+        }
+        _page = result.page;
+        _hasMore = result.hasMore;
+        _loading = false;
+        _loadingMore = false;
+        _error = null;
+        _applyFilter();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadingMore = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  void _filter() => _applyFilter();
+
+  void _applyFilter() {
     final q = _searchCtrl.text.toLowerCase();
-    setState(() => _filtered = ExerciseLibraryData.exercises.where((e) => e.name.toLowerCase().contains(q) || e.primaryMuscle.toLowerCase().contains(q)).toList());
+    setState(() {
+      _filtered = q.isEmpty
+          ? List<ExerciseLibraryModel>.from(_allExercises)
+          : _allExercises.where((e) => e.name.toLowerCase().contains(q) || e.primaryMuscle.toLowerCase().contains(q)).toList();
+    });
   }
 
   void _toggleSelect(ExerciseLibraryModel ex) {
@@ -91,6 +165,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
       arguments: {
         'isWarmup': _isWarmup,
         'isSuperset': _isSuperset,
+        'workoutJournalId': _workoutJournalId,
         'exercise': _selected.length == 1 ? _selected.first : null,
         'exercises': _isSuperset ? _selected.toList() : null,
       },
@@ -99,44 +174,156 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
     });
   }
 
-  void _onManual() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {'isWarmup': _isWarmup, 'isManual': true})?.then((r) {
+  void _onManual() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {
+        'isWarmup': _isWarmup,
+        'isManual': true,
+        'workoutJournalId': _workoutJournalId,
+      })?.then((r) {
     if (r != null) Get.back(result: r);
   });
 
-  // Resolve exercise-specific image asset by exercise name
-  String _getExerciseAsset(ExerciseLibraryModel exercise) {
-    final name = exercise.name.toLowerCase().replaceAll('-', ' ').trim();
-    // Map normalized names to assets provided by user
-    const Map<String, String> map = {
-      'bench press': 'assets/images/1. bench press.png',
-      'squat': 'assets/images/2. squat.png',
-      'deadlift': 'assets/images/3. deadlift.png',
-      'overhead press': 'assets/images/4. overhead press.png',
-      'pull up': 'assets/images/5. pull up.png',
-      'plank': 'assets/images/6. plank.png',
-      'front squat': 'assets/images/7. front squat.png',
-      'lat pulldown': 'assets/images/8. lat pulldown.png',
-      'dumbbell curl': 'assets/images/9.  dumbell curl.png', // handle common spelling
-      'dumbell curl': 'assets/images/9.  dumbell curl.png',
-      'triceps pushdown': 'assets/images/10. tricep pushdown.png',
-      'tricep pushdown': 'assets/images/10. tricep pushdown.png',
-      'lunges': 'assets/images/11. lunges.png',
-      'leg press': 'assets/images/12. Leg press.png',
-    };
+  Color _iconBackgroundForIndex(int index) => _kIconPastels[index % _kIconPastels.length];
 
-    // Try exact match
-    if (map.containsKey(name)) return map[name]!;
-
-    // Try relaxed contains matching for safety
-    for (final entry in map.entries) {
-      if (name.contains(entry.key)) return entry.value;
-    }
-
-    // Fallback to a neutral placeholder (uses accent icon background with no image)
-    return '';
+  Widget _buildExerciseIcon(ExerciseLibraryModel exercise, Color iconBg) {
+    final iconUrl = exercise.iconUrl;
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: iconBg,
+        shape: BoxShape.circle,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: iconUrl != null && iconUrl.isNotEmpty
+          ? Padding(
+              padding: const EdgeInsets.all(6),
+              child: Image.network(
+                iconUrl,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Center(child: Icon(Icons.fitness_center, color: _kExerciseNameColor.withOpacity(0.55), size: 20)),
+              ),
+            )
+          : Center(child: Icon(Icons.fitness_center, color: _kExerciseNameColor.withOpacity(0.55), size: 20)),
+    );
   }
 
-  Color _iconBackgroundForIndex(int index) => _kIconPastels[index % _kIconPastels.length];
+  Widget _buildExerciseList(bool showButtons) {
+    if (_loading && _allExercises.isEmpty) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+    }
+    if (_error != null && _allExercises.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(24.w),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Could not load exercises', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+              SizedBox(height: 8.h),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+              ),
+              SizedBox(height: 16.h),
+              TextButton(onPressed: () => _loadExercises(reset: true), child: const Text('Retry')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+            const SizedBox(height: 16),
+            Text('No exercises found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppColors.accent,
+      onRefresh: () => _loadExercises(reset: true),
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.only(bottom: showButtons ? 140 : 0),
+        itemCount: _filtered.length + (_loadingMore ? 1 : 0),
+        itemBuilder: (ctx, i) {
+          if (i >= _filtered.length) {
+            return Padding(
+              padding: EdgeInsets.symmetric(vertical: 16.h),
+              child: const Center(child: CircularProgressIndicator(color: AppColors.accent)),
+            );
+          }
+
+          final ex = _filtered[i];
+          final sel = _selected.contains(ex);
+          final iconBg = _iconBackgroundForIndex(i);
+
+          return Card(
+            margin: EdgeInsets.symmetric(horizontal: 16, vertical: 7.h),
+            elevation: sel ? 4 : 1,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: sel ? AppColors.accent.withOpacity(0.35) : const Color(0xFFE8EBDC), width: sel ? 2 : 1),
+            ),
+            color: _kExerciseCardBg,
+            child: InkWell(
+              onTap: () {
+                _toggleSelect(ex);
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    _buildExerciseIcon(ex, iconBg),
+                    SizedBox(width: 12.w),
+                    if (sel)
+                      Container(
+                        width: 24,
+                        height: 24,
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+                        child: const Icon(Icons.check, color: AppColors.onAccent, size: 16),
+                      ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            ex.name,
+                            style: AppTextStyles.titleSmall.copyWith(color: _kExerciseNameColor, fontWeight: FontWeight.bold),
+                          ),
+                          if (ex.primaryMuscle.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(ex.primaryMuscle, style: AppTextStyles.bodySmall.copyWith(color: _kMuscleSubtitleColor)),
+                          ],
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.info_outline, color: AppColors.primaryGrayDark),
+                      onPressed: () => Get.toNamed(
+                        AppRoutes.exerciseDetail,
+                        arguments: {'_id': ex.id, 'id': ex.id, 'name': ex.name},
+                      ),
+                    ),
+                    const Icon(Icons.add_circle_outline, size: 25, color: AppColors.accent),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -164,112 +351,36 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
         children: [
           Column(
             children: [
-              TextField(
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: AppColors.white,
-                  hintText: 'Enter exercise name',
-                  hintStyle: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGrayDark.withOpacity(0.6)),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50),
-                    borderSide: BorderSide(color: AppColors.primaryGrayDark.withOpacity(0.3)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50),
-                    borderSide: BorderSide(color: AppColors.primaryGrayDark.withOpacity(0.3)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50),
-                    borderSide: BorderSide(color: AppColors.accent.withOpacity(0.3), width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  suffixIcon: IconButton(
-                    icon: SizedBox(width: 22, height: 22, child: SvgPicture.asset('assets/icons/search-normal.svg', width: 22, height: 22)),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () {},
-                  ),
-                ),
-                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-              ).paddingSymmetric(horizontal: 20, vertical: 20),
-
-              Expanded(
-                child: ListView.builder(
-                  padding: EdgeInsets.only(bottom: showButtons ? 140 : 0),
-                  itemCount: _filtered.length,
-                  itemBuilder: (ctx, i) {
-                    final ex = _filtered[i];
-                    final sel = _selected.contains(ex);
-                    final asset = _getExerciseAsset(ex);
-                    final iconBg = _iconBackgroundForIndex(i);
-
-                    return Card(
-                      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 7.h),
-                      elevation: sel ? 4 : 1,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: sel ? AppColors.accent.withOpacity(0.35) : const Color(0xFFE8EBDC), width: sel ? 2 : 1),
-                      ),
-                      color: _kExerciseCardBg,
-                      child: InkWell(
-                        onTap: () {
-                          _toggleSelect(ex);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: iconBg,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: asset.isNotEmpty
-                                    ? Padding(
-                                        padding: const EdgeInsets.all(6),
-                                        child: Image.asset(asset, fit: BoxFit.contain),
-                                      )
-                                    : Center(child: Icon(Icons.fitness_center, color: _kExerciseNameColor.withOpacity(0.55), size: 20)),
-                              ),
-                              SizedBox(width: 12.w),
-                              if (sel)
-                                Container(
-                                  width: 24,
-                                  height: 24,
-                                  margin: const EdgeInsets.only(right: 12),
-                                  decoration: BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-                                  child: const Icon(Icons.check, color: AppColors.onAccent, size: 16),
-                                ),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      ex.name,
-                                      style: AppTextStyles.titleSmall.copyWith(color: _kExerciseNameColor, fontWeight: FontWeight.bold),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(ex.primaryMuscle, style: AppTextStyles.bodySmall.copyWith(color: _kMuscleSubtitleColor)),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.info_outline, color: AppColors.primaryGrayDark),
-                                onPressed: () => Get.toNamed(AppRoutes.exerciseLibraryDetail, arguments: {'exercise': ex}),
-                              ),
-                              const Icon(Icons.add_circle_outline, size: 25, color: AppColors.accent),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+              // TextField(
+              //   controller: _searchCtrl,
+              //   decoration: InputDecoration(
+              //     filled: true,
+              //     fillColor: AppColors.white,
+              //     hintText: 'Enter exercise name',
+              //     hintStyle: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGrayDark.withOpacity(0.6)),
+              //     border: OutlineInputBorder(
+              //       borderRadius: BorderRadius.circular(50),
+              //       borderSide: BorderSide(color: AppColors.primaryGrayDark.withOpacity(0.3)),
+              //     ),
+              //     enabledBorder: OutlineInputBorder(
+              //       borderRadius: BorderRadius.circular(50),
+              //       borderSide: BorderSide(color: AppColors.primaryGrayDark.withOpacity(0.3)),
+              //     ),
+              //     focusedBorder: OutlineInputBorder(
+              //       borderRadius: BorderRadius.circular(50),
+              //       borderSide: BorderSide(color: AppColors.accent.withOpacity(0.3), width: 2),
+              //     ),
+              //     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              //     suffixIcon: IconButton(
+              //       icon: SizedBox(width: 22, height: 22, child: SvgPicture.asset('assets/icons/search-normal.svg', width: 22, height: 22)),
+              //       padding: EdgeInsets.zero,
+              //       constraints: const BoxConstraints(),
+              //       onPressed: () {},
+              //     ),
+              //   ),
+              //   style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+              // ).paddingSymmetric(horizontal: 20, vertical: 20),
+              Expanded(child: _buildExerciseList(showButtons)),
             ],
           ),
           // Fixed buttons at bottom - only show when appropriate selections are made

@@ -16,6 +16,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/views/marketplace/program_hls_player_screen.dart';
+import 'package:get_right/views/marketplace/program_send_review_screen.dart';
 
 /// Program Detail Screen
 class ProgramDetailScreen extends StatefulWidget {
@@ -46,6 +47,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   List<Map<String, dynamic>> _programReviews = [];
   bool _reviewsLoading = false;
   String? _reviewsError;
+  bool _reviewActionInFlight = false;
   final String _fallbackPdfUrl = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
 
   static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
@@ -141,49 +143,79 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     }
   }
 
-  void _onAddReviewTap() => _openSendReviewScreen();
+  /// Plus icon — always opens [ProgramSendReviewScreen].
+  void _onAddReviewTap() {
+    _navigateToProgramSendReviewScreen();
+  }
 
-  Future<void> _openSendReviewScreen() async {
+  String? _resolveProgramIdForReview() {
+    final apiId = _apiProgramId?.trim();
+    if (apiId != null && _mongoIdRe.hasMatch(apiId)) return apiId;
+
+    final fromSafe = (_safeProgram['_id'] ?? _safeProgram['id'])?.toString().trim();
+    if (fromSafe != null && _mongoIdRe.hasMatch(fromSafe)) return fromSafe;
+
+    final nested = _safeProgram['_apiProgram'];
+    if (nested is Map) {
+      final nestedId = (nested['_id'] ?? nested['id'])?.toString().trim();
+      if (nestedId != null && _mongoIdRe.hasMatch(nestedId)) return nestedId;
+    }
+
+    final enc = _safeProgram['enrollment'];
+    if (enc is Map) {
+      final prog = enc['program'];
+      if (prog is Map) {
+        final encProgId = (prog['_id'] ?? prog['id'])?.toString().trim();
+        if (encProgId != null && _mongoIdRe.hasMatch(encProgId)) return encProgId;
+      }
+    }
+    return null;
+  }
+
+  String? _reviewBlockReason() {
+    if (_userHasAlreadyReviewed) return 'You have already submitted a review for this program.';
     if (!_canLeaveProgramReview) {
-      Get.snackbar(
-        'Review',
-        _isEnrolled ? 'This enrollment cannot be reviewed.' : 'Enroll in this program to leave a review.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.primaryGrayDark,
-        colorText: Colors.white,
-      );
-      return;
+      return _isEnrolled ? 'This enrollment cannot be reviewed.' : 'Enroll in this program to leave a review.';
     }
-    if (_userHasAlreadyReviewed) {
-      Get.snackbar(
-        'Review',
-        'You have already submitted a review for this program.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.primaryGrayDark,
-        colorText: Colors.white,
-      );
-      return;
+    return null;
+  }
+
+  Future<void> _navigateToProgramSendReviewScreen({bool checkEligibilityBeforeOpen = false}) async {
+    if (checkEligibilityBeforeOpen) {
+      final block = _reviewBlockReason();
+      if (block != null) {
+        Get.snackbar('Review', block, snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.primaryGrayDark, colorText: Colors.white);
+        return;
+      }
     }
 
-    final pid = _apiProgramId;
-    if (pid == null || !_mongoIdRe.hasMatch(pid)) {
+    final pid = _resolveProgramIdForReview();
+    if (pid == null) {
       Get.snackbar('Review', 'Program id is missing. Cannot open review.', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
       return;
     }
 
-    final result = await Get.toNamed(
-      AppRoutes.programSendReview,
-      arguments: {
-        'programId': pid,
-        'programTitle': _safeProgram['title']?.toString() ?? 'Program',
-        'trainerName': _safeProgram['trainer']?.toString() ?? 'Trainer',
-        'trainerInitials': _safeProgram['trainerImage']?.toString() ?? 'UT',
-        'trainerAvatarUrl': _safeProgram['trainerAvatarUrl'],
-      },
+    final result = await Get.to(
+      () => ProgramSendReviewScreen(
+        programId: pid,
+        programTitle: _safeProgram['title']?.toString() ?? 'Program',
+        trainerName: _safeProgram['trainer']?.toString() ?? 'Trainer',
+        trainerInitials: _safeProgram['trainerImage']?.toString() ?? 'UT',
+        trainerAvatarUrl: ImageUrlSanitizer.asHttpUrlOrNull(_safeProgram['trainerAvatarUrl']?.toString()),
+        infoMessage: _reviewBlockReason(),
+      ),
+      transition: Transition.rightToLeft,
     );
 
     if (!mounted) return;
-    if (result is! Map || result['submitted'] != true) return;
+    await _onReviewScreenResult(result);
+  }
+
+  Future<void> _onReviewScreenResult(dynamic result) async {
+    if (!mounted || result is! Map) return;
+    final submitted = result['submitted'] == true;
+    final updated = result['updated'] == true;
+    if (!submitted && !updated) return;
 
     setState(() {
       _hasSubmittedRating = true;
@@ -200,8 +232,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     });
 
     Get.snackbar(
-      'Review Submitted',
-      'Thank you for your feedback!',
+      updated ? 'Review Updated' : 'Review Submitted',
+      updated ? 'Your review has been updated.' : 'Thank you for your feedback!',
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColors.completed,
       colorText: Colors.white,
@@ -210,6 +242,122 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
 
     await _loadProgramReviews();
   }
+
+  bool _isMyReview(Map<String, dynamic> review) {
+    final uid = _currentUserId();
+    if (uid == null || uid.isEmpty) return false;
+    return review['userId']?.toString() == uid;
+  }
+
+  Future<void> _openEditReviewScreen(Map<String, dynamic> review) async {
+    final pid = _resolveProgramIdForReview();
+    if (pid == null) {
+      Get.snackbar('Review', 'Program id is missing.', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+      return;
+    }
+
+    final result = await Get.to(
+      () => ProgramSendReviewScreen(
+        programId: pid,
+        programTitle: _safeProgram['title']?.toString() ?? 'Program',
+        trainerName: _safeProgram['trainer']?.toString() ?? 'Trainer',
+        trainerInitials: _safeProgram['trainerImage']?.toString() ?? 'UT',
+        trainerAvatarUrl: ImageUrlSanitizer.asHttpUrlOrNull(_safeProgram['trainerAvatarUrl']?.toString()),
+        reviewId: review['id']?.toString(),
+        initialRating: (review['rating'] as num?)?.toDouble(),
+        initialComment: review['comment']?.toString(),
+      ),
+      transition: Transition.rightToLeft,
+    );
+
+    if (!mounted) return;
+    await _onReviewScreenResult(result);
+  }
+
+  Future<void> _confirmDeleteReview(Map<String, dynamic> review) async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Delete Review',
+          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+        ),
+        content: Text('Are you sure you want to delete your review? This cannot be undone.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('Cancel', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryGray)),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: Text(
+              'Delete',
+              style: AppTextStyles.labelLarge.copyWith(color: AppColors.error, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _deleteReview();
+  }
+
+  Future<void> _deleteReview() async {
+    final pid = _resolveProgramIdForReview();
+    if (pid == null) {
+      Get.snackbar('Review', 'Program id is missing. Cannot delete review.', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+      return;
+    }
+
+    setState(() => _reviewActionInFlight = true);
+    try {
+      final errorMessage = await _marketplaceRepo.deleteProgramReview(programId: pid);
+      if (!mounted) return;
+      setState(() => _reviewActionInFlight = false);
+      if (errorMessage != null) {
+        Get.snackbar('Review', errorMessage, snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+        return;
+      }
+
+      setState(() {
+        _hasSubmittedRating = false;
+        _rating = 0;
+        _safeProgram.remove('myReviewRating');
+        _safeProgram.remove('review');
+        _reviewCommentController.clear();
+      });
+
+      Get.snackbar(
+        'Review Deleted',
+        'Your review has been removed.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.completed,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+
+      await _loadProgramReviews();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _reviewActionInFlight = false);
+      Get.snackbar('Review', e.toString(), snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+    }
+  }
+
+  void _onMyReviewMenuSelected(String value, Map<String, dynamic> review) {
+    if (_reviewActionInFlight) return;
+    switch (value) {
+      case 'edit':
+        _openEditReviewScreen(review);
+        break;
+      case 'delete':
+        _confirmDeleteReview(review);
+        break;
+    }
+  }
+
+  Future<void> _openSendReviewScreen() => _navigateToProgramSendReviewScreen(checkEligibilityBeforeOpen: true);
 
   String? _extractEnrollmentMongoId(Map<String, dynamic> program) {
     final direct = program['enrollmentId']?.toString().trim();
@@ -915,13 +1063,14 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                             style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
                           ),
                         ),
-                        IconButton(
-                          tooltip: 'Add review',
-                          onPressed: _onAddReviewTap,
-                          icon: const Icon(Icons.add_circle_outline, color: AppColors.accent, size: 26),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                        ),
+                        if (_isEnrolled && !_userHasAlreadyReviewed)
+                          IconButton(
+                            tooltip: 'Add review',
+                            onPressed: _onAddReviewTap,
+                            icon: const Icon(Icons.add_circle_outline, color: AppColors.accent, size: 26),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -1227,6 +1376,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     final starCount = (review['rating'] as num?)?.toInt() ?? 0;
     final avatarUrl = review['avatarUrl']?.toString();
     final initials = (review['userInitials'] ?? 'U').toString();
+    final isMine = _isMyReview(review);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1279,6 +1429,37 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                             style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
                           ),
                         ],
+                        if (isMine)
+                          PopupMenuButton<String>(
+                            padding: EdgeInsets.zero,
+                            enabled: !_reviewActionInFlight,
+                            icon: Icon(Icons.more_vert, color: AppColors.primaryGray.withOpacity(0.9), size: 20),
+                            color: AppColors.surface,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            onSelected: (value) => _onMyReviewMenuSelected(value, review),
+                            itemBuilder: (context) => [
+                              PopupMenuItem<String>(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit_outlined, size: 18, color: AppColors.accent),
+                                    const SizedBox(width: 10),
+                                    Text('Edit', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                                    const SizedBox(width: 10),
+                                    Text('Delete', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                     Row(children: List.generate(5, (index) => Icon(index < starCount ? Icons.star : Icons.star_border, size: 14, color: AppColors.upcoming))),
