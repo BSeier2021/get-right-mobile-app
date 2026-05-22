@@ -69,6 +69,7 @@ class AppRoutes {
   // Marketplace Routes
   static const String marketplace = '/marketplace';
   static const String programDetail = '/program-detail';
+  static const String programSendReview = '/program-send-review';
   static const String programEnrollment = '/program-enrollment';
   static const String purchaseDetails = '/purchase-details';
   static const String paymentForm = '/payment-form';

@@ -166,6 +166,10 @@ class AppUrl {
     return '$baseUrl/customer/program/${Uri.encodeComponent(programId.trim())}/reviews?$q';
   }
 
+  /// `POST /customer/program/:programId/reviews` — body: `{ "rating", "description" }`.
+  static String customerProgramReviewsSubmit(String programId) =>
+      '$baseUrl/customer/program/${Uri.encodeComponent(programId.trim())}/reviews';
+
   /// `POST /customer/program/enroll` — body: `{ "id": "<programOrBundleId>", "isBundle": bool }` → `data.enrollment` (program) or `data.enrollments` (bundle).
   static String get customerProgramEnroll => '$baseUrl/customer/program/enroll';
 

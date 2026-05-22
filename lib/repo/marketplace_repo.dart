@@ -482,6 +482,28 @@ class MarketplaceRepository {
     return _parseProgramReviewsPage(raw, page, limit);
   }
 
+  /// `POST /customer/program/:programId/reviews`. Returns `null` on success, or an error message.
+  Future<String?> submitProgramReview({
+    required String programId,
+    required int rating,
+    required String description,
+  }) async {
+    final raw = await _network.post(
+      AppUrl.customerProgramReviewsSubmit(programId),
+      {'rating': rating, 'description': description.trim()},
+    );
+    if (_isOk(raw)) return null;
+    if (raw is Map) {
+      final root = Map<String, dynamic>.from(raw);
+      final msg = root['message'];
+      if (msg is List && msg.isNotEmpty) {
+        return msg.map((e) => e is Map ? (e['message'] ?? e).toString() : e.toString()).join('; ');
+      }
+      return msg?.toString() ?? 'Could not submit review';
+    }
+    return 'Could not submit review';
+  }
+
   static ProgramReviewsPage _parseProgramReviewsPage(dynamic response, int page, int limit) {
     const empty = ProgramReviewsPage(reviews: [], total: 0, page: 1, hasMore: false);
     if (!_isOk(response)) return empty;
@@ -568,8 +590,11 @@ class MarketplaceRepository {
       }
     }
 
+    final userId = user is Map ? (user['_id'] ?? user['id'])?.toString() : null;
+
     return {
       'id': r['_id']?.toString(),
+      if (userId != null && userId.isNotEmpty) 'userId': userId,
       'userName': name,
       'userInitials': initials,
       if (avatarUrl != null) 'avatarUrl': avatarUrl,

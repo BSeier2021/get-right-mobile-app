@@ -29,7 +29,6 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   final FavoritesController _favoritesController = Get.put(FavoritesController());
   final FeedRepository _feedRepo = FeedRepository();
   final MarketplaceRepository _marketplaceRepo = MarketplaceRepository();
-  final _reviewFormKey = GlobalKey<FormState>();
   final _reviewCommentController = TextEditingController();
   bool _isEnrolled = false;
   Map<String, dynamic> _safeProgram = {};
@@ -47,7 +46,6 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   List<Map<String, dynamic>> _programReviews = [];
   bool _reviewsLoading = false;
   String? _reviewsError;
-
   final String _fallbackPdfUrl = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
 
   static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
@@ -95,6 +93,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         }
         final count = page.ratingCount ?? page.total;
         _safeProgram['reviews'] = count;
+        _syncMyReviewFromReviewsList();
       });
     } catch (e) {
       if (!mounted) return;
@@ -105,12 +104,57 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     }
   }
 
-  void _onAddReviewTap() {
-    if (!_isCompletedProgram || !_isEnrolled) {
-      Get.snackbar('Review', 'Complete this program to leave a review.', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.primaryGrayDark, colorText: Colors.white);
+  String? _currentUserId() {
+    if (!Get.isRegistered<StorageService>()) return null;
+    return Get.find<StorageService>().getUserId()?.trim();
+  }
+
+  /// Enrolled customers may review (active, scheduled, or completed — not cancelled).
+  bool get _canLeaveProgramReview {
+    if (!_isEnrolled) return false;
+    final status = _safeProgram['status']?.toString().toLowerCase().trim() ?? '';
+    return status != 'cancelled';
+  }
+
+  bool get _userHasAlreadyReviewed => _hasSubmittedRating;
+
+  void _syncMyReviewFromReviewsList() {
+    final uid = _currentUserId();
+    if (uid == null || uid.isEmpty) return;
+    for (final r in _programReviews) {
+      if (r['userId']?.toString() == uid) {
+        _hasSubmittedRating = true;
+        final stars = (r['rating'] as num?)?.toDouble();
+        if (stars != null && stars > 0) {
+          _rating = stars;
+          _safeProgram['myReviewRating'] = stars;
+        }
+        final comment = r['comment']?.toString().trim();
+        if (comment != null && comment.isNotEmpty) {
+          _safeProgram['review'] = comment;
+          if (_reviewCommentController.text.isEmpty) {
+            _reviewCommentController.text = comment;
+          }
+        }
+        return;
+      }
+    }
+  }
+
+  void _onAddReviewTap() => _openSendReviewScreen();
+
+  Future<void> _openSendReviewScreen() async {
+    if (!_canLeaveProgramReview) {
+      Get.snackbar(
+        'Review',
+        _isEnrolled ? 'This enrollment cannot be reviewed.' : 'Enroll in this program to leave a review.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.primaryGrayDark,
+        colorText: Colors.white,
+      );
       return;
     }
-    if (_hasSubmittedRating || _safeProgram['hasRating'] == true) {
+    if (_userHasAlreadyReviewed) {
       Get.snackbar(
         'Review',
         'You have already submitted a review for this program.',
@@ -120,16 +164,51 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       );
       return;
     }
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 16),
-        child: SingleChildScrollView(child: _buildRatingForm()),
-      ),
+
+    final pid = _apiProgramId;
+    if (pid == null || !_mongoIdRe.hasMatch(pid)) {
+      Get.snackbar('Review', 'Program id is missing. Cannot open review.', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+      return;
+    }
+
+    final result = await Get.toNamed(
+      AppRoutes.programSendReview,
+      arguments: {
+        'programId': pid,
+        'programTitle': _safeProgram['title']?.toString() ?? 'Program',
+        'trainerName': _safeProgram['trainer']?.toString() ?? 'Trainer',
+        'trainerInitials': _safeProgram['trainerImage']?.toString() ?? 'UT',
+        'trainerAvatarUrl': _safeProgram['trainerAvatarUrl'],
+      },
     );
+
+    if (!mounted) return;
+    if (result is! Map || result['submitted'] != true) return;
+
+    setState(() {
+      _hasSubmittedRating = true;
+      final stars = (result['rating'] as num?)?.toDouble();
+      if (stars != null && stars > 0) {
+        _rating = stars;
+        _safeProgram['myReviewRating'] = stars;
+      }
+      final comment = result['comment']?.toString().trim();
+      if (comment != null && comment.isNotEmpty) {
+        _safeProgram['review'] = comment;
+        _reviewCommentController.text = comment;
+      }
+    });
+
+    Get.snackbar(
+      'Review Submitted',
+      'Thank you for your feedback!',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: AppColors.completed,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 2),
+    );
+
+    await _loadProgramReviews();
   }
 
   String? _extractEnrollmentMongoId(Map<String, dynamic> program) {
@@ -161,13 +240,12 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       'reviews': (program['reviews'] as num?)?.toInt() ?? 0,
       'description': program['description'] ?? 'No description available',
       'status': program['status'],
-      'hasRating': program['hasRating'] == true,
       'review': program['review'],
       ...program,
     };
     _safeProgram['imageUrl'] = ImageUrlSanitizer.asHttpUrlOrNull(_safeProgram['imageUrl']?.toString());
     _syncEnrollmentFromProgram();
-    _hydrateRatingFromProgram();
+    _hydrateMyReviewFromProgram();
   }
 
   void _syncEnrollmentFromProgram() {
@@ -187,13 +265,20 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     _isEnrolled = false;
   }
 
-  void _hydrateRatingFromProgram() {
-    if (_safeProgram['hasRating'] == true && _rating == 0.0) {
-      _rating = (_safeProgram['rating'] as num?)?.toDouble() ?? 0.0;
-      _hasSubmittedRating = true;
-      if (_safeProgram['review'] != null) {
-        _reviewCommentController.text = _safeProgram['review'].toString();
-      }
+  void _hydrateMyReviewFromProgram() {
+    final myReview = _safeProgram['myReview'] ?? _safeProgram['userReview'];
+    if (myReview is! Map) return;
+    final m = Map<String, dynamic>.from(myReview);
+    _hasSubmittedRating = true;
+    final stars = (m['rating'] as num?)?.toDouble();
+    if (stars != null && stars > 0) {
+      _rating = stars;
+      _safeProgram['myReviewRating'] = stars;
+    }
+    final comment = (m['description'] ?? m['comment'])?.toString().trim();
+    if (comment != null && comment.isNotEmpty) {
+      _safeProgram['review'] = comment;
+      _reviewCommentController.text = comment;
     }
   }
 
@@ -221,10 +306,10 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       if (detail != null) {
         final wasEnrolled = _isEnrolled || _safeProgram['isEnrolled'] == true || _safeProgram['purchased'] == true;
         final previousStatus = _safeProgram['status']?.toString();
-        final keepHasRating = _safeProgram['hasRating'] == true || _hasSubmittedRating;
         final keepReviewText = _reviewCommentController.text;
         final keepRatingVal = _rating;
         final keepSubmitted = _hasSubmittedRating;
+        final keepMyReviewRating = _safeProgram['myReviewRating'];
         _fillSafeProgramFrom(detail);
         final pid = detail['id'] ?? detail['_id'];
         if (pid != null && _mongoIdRe.hasMatch(pid.toString().trim())) {
@@ -237,18 +322,15 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
           _safeProgram['status'] ??= previousStatus ?? 'active';
           _syncEnrollmentFromProgram();
         }
-        if (keepHasRating) {
-          _safeProgram['hasRating'] = true;
+        if (keepSubmitted) {
           _safeProgram['review'] = keepReviewText;
           _rating = keepRatingVal;
-          _hasSubmittedRating = keepSubmitted;
+          _hasSubmittedRating = true;
+          if (keepMyReviewRating != null) _safeProgram['myReviewRating'] = keepMyReviewRating;
         }
       }
     });
   }
-
-  bool get _isCompletedProgram =>
-      (_safeProgram['isEnrolled'] == true || _safeProgram['purchased'] == true) && _safeProgram['status']?.toString().toLowerCase().trim() == 'completed';
 
   String _formatScheduleDate(dynamic raw) {
     if (raw == null) return '—';
@@ -802,14 +884,14 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                       const SizedBox(height: 24),
                     ],
 
-                    // Trainer Rating Section (for completed programs)
-                    if (_isCompletedProgram && _isEnrolled) ...[
+                    // Trainer rating (enrolled customers)
+                    if (_canLeaveProgramReview) ...[
                       Text(
-                        _hasSubmittedRating || _safeProgram['hasRating'] == true ? 'Your Trainer Rating' : 'Rate Your Trainer',
+                        _userHasAlreadyReviewed ? 'Your Trainer Rating' : 'Rate Your Trainer',
                         style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 12),
-                      if (_hasSubmittedRating || _safeProgram['hasRating'] == true) _buildExistingRatingCard() else _buildRatingForm(),
+                      if (_userHasAlreadyReviewed) _buildExistingRatingCard() else _buildReviewPromptCard(),
                       const SizedBox(height: 24),
                     ],
 
@@ -833,17 +915,12 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                             style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
                           ),
                         ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            IconButton(
-                              tooltip: 'Add review',
-                              onPressed: _onAddReviewTap,
-                              icon: const Icon(Icons.add_circle_outline, color: AppColors.accent, size: 26),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                            ),
-                          ],
+                        IconButton(
+                          tooltip: 'Add review',
+                          onPressed: _onAddReviewTap,
+                          icon: const Icon(Icons.add_circle_outline, color: AppColors.accent, size: 26),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                         ),
                       ],
                     ),
@@ -1329,147 +1406,63 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     );
   }
 
-  Widget _buildRatingForm() {
-    return Form(
-      key: _reviewFormKey,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.accent.withOpacity(0.3)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Trainer Info Header
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppColors.accent,
-                  child: Text(_safeProgram['trainerImage'] ?? 'UT', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent)),
+  Widget _buildReviewPromptCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: AppColors.accent,
+                child: Text(_safeProgram['trainerImage'] ?? 'UT', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onAccent)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Share your experience',
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                    ),
+                    Text('Rate ${_safeProgram['trainer']} and help others choose this program.', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Rate ${_safeProgram['trainer']}',
-                        style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                      ),
-                      Text('Share your experience with this trainer', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Divider(color: AppColors.primaryGray, height: 1),
-            const SizedBox(height: 20),
-
-            // Rating
-            Text(
-              'Your Rating',
-              style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: List.generate(5, (index) {
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _rating = (index + 1).toDouble();
-                    });
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: Icon(index < _rating ? Icons.star : Icons.star_border, color: AppColors.accent, size: 36),
-                  ),
-                );
-              }),
-            ),
-            if (_rating > 0) ...[
-              const SizedBox(height: 8),
-              Text(
-                _rating == 1
-                    ? 'Poor'
-                    : _rating == 2
-                    ? 'Fair'
-                    : _rating == 3
-                    ? 'Good'
-                    : _rating == 4
-                    ? 'Very Good'
-                    : 'Excellent',
-                style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
               ),
             ],
-            const SizedBox(height: 24),
-
-            // Comment
-            Text(
-              'Your Review Comment',
-              style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Text('Tell others about your experience with ${_safeProgram['trainer']}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _reviewCommentController,
-              maxLines: 4,
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
-              decoration: InputDecoration(
-                hintText: 'Share your experience...',
-                hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
-                filled: true,
-                fillColor: AppColors.primaryVariant,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.accent, width: 2),
-                ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _openSendReviewScreen,
+              icon: const Icon(Icons.rate_review_outlined, size: 20),
+              label: Text(
+                'Send Review',
+                style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please provide a comment';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 24),
-
-            // Submit Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submitRating,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: Text(
-                  'Submit Review',
-                  style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
-                ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildExistingRatingCard() {
-    final existingRating = _safeProgram['rating'] ?? _rating;
+    final existingRating = (_safeProgram['myReviewRating'] as num?)?.toDouble() ?? _rating;
     final existingReview = _safeProgram['review'] ?? _reviewCommentController.text;
 
     return Container(
@@ -1526,39 +1519,5 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         ],
       ),
     );
-  }
-
-  void _submitRating() {
-    if (!_reviewFormKey.currentState!.validate()) {
-      return;
-    }
-
-    if (_rating == 0) {
-      Get.snackbar('Missing Rating', 'Please provide a rating', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
-      return;
-    }
-
-    // Update the program data
-    setState(() {
-      _hasSubmittedRating = true;
-      _safeProgram['hasRating'] = true;
-      _safeProgram['rating'] = _rating;
-      _safeProgram['review'] = _reviewCommentController.text;
-    });
-
-    if (Get.isBottomSheetOpen ?? false) {
-      Navigator.of(context).pop();
-    }
-
-    Get.snackbar(
-      'Review Submitted',
-      'Thank you for your feedback!',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: AppColors.completed,
-      colorText: Colors.white,
-      duration: const Duration(seconds: 2),
-    );
-
-    _loadProgramReviews();
   }
 }

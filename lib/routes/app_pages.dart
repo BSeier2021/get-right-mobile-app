@@ -63,6 +63,7 @@ import 'package:get_right/views/search/search_results_screen.dart';
 import 'package:get_right/views/trainer/trainer_profile_screen.dart';
 import 'package:get_right/views/trainer/trainer_reviews_screen.dart';
 import 'package:get_right/views/marketplace/program_detail_screen.dart';
+import 'package:get_right/views/marketplace/program_send_review_screen.dart';
 import 'package:get_right/views/marketplace/purchase_details_screen.dart';
 import 'package:get_right/views/marketplace/payment_form_screen.dart';
 import 'package:get_right/views/marketplace/program_terms_screen.dart';
@@ -158,6 +159,7 @@ class AppPages {
     // Marketplace Pages
     GetPage(name: AppRoutes.marketplace, page: () => const MarketplaceScreen(), transition: Transition.fade),
     GetPage(name: AppRoutes.programDetail, page: () => const ProgramDetailScreen(), transition: Transition.rightToLeft),
+    GetPage(name: AppRoutes.programSendReview, page: () => const ProgramSendReviewScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.purchaseDetails, page: () => const PurchaseDetailsScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.paymentForm, page: () => const PaymentFormScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.programTerms, page: () => const ProgramTermsScreen(), transition: Transition.rightToLeft),
