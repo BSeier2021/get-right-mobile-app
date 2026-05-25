@@ -56,6 +56,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
           setState(() {
             _plannedRoute = args['plannedRoute'] as PlannedRouteModel;
           });
+          _controller.plannedRouteId = _plannedRoute!.id;
         }
       });
     }

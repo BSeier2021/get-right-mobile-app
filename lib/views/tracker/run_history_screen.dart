@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:get_right/models/run_model.dart';
 import 'package:get_right/models/planned_route_model.dart';
+import 'package:get_right/repo/running_log_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -19,12 +20,16 @@ class RunHistoryScreen extends StatefulWidget {
 
 class _RunHistoryScreenState extends State<RunHistoryScreen> {
   final StorageService _storageService = Get.find<StorageService>();
+  final RunningLogRepository _runningLogRepo = RunningLogRepository();
   List<RunModel> _runs = [];
   List<RunModel> _filteredRuns = [];
   List<PlannedRouteModel> _plannedRoutes = [];
   bool _isLoading = true;
+  String? _loadError;
   String _selectedFilter = 'All';
   String _selectedSort = 'Date';
+
+  static const int _pageSize = 10;
 
   final List<String> _filterOptions = ['All', 'Walk', 'Jog', 'Run', 'Bike'];
   final List<String> _sortOptions = ['Date', 'Distance', 'Duration', 'Pace'];
@@ -36,17 +41,51 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
   }
 
   Future<void> _loadRuns() async {
-    setState(() => _isLoading = true);
-    final runs = await _storageService.getRuns();
-    final routes = await _storageService.getPlannedRoutes();
-    // Sort routes by creation date (newest first)
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+
+    final routesPage = await _runningLogRepo.fetchPlannedRoutes(page: 1, limit: _pageSize);
+    final logsPage = await _runningLogRepo.fetchRunningLogs(page: 1, limit: _pageSize);
+
+    var runs = logsPage.runs;
+    var routes = routesPage.routes;
+    String? loadError;
+
+    if (logsPage.syncFailed || routesPage.syncFailed) {
+      loadError = logsPage.syncError ?? routesPage.syncError ?? 'Could not load history from server';
+      if (runs.isEmpty) {
+        runs = await _storageService.getRuns();
+      }
+      if (routes.isEmpty) {
+        final localRoutes = await _storageService.getPlannedRoutes();
+        localRoutes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        routes = localRoutes;
+      }
+    }
+
     routes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    if (!mounted) return;
     setState(() {
       _runs = runs;
       _plannedRoutes = routes;
+      _loadError = loadError;
       _applyFiltersAndSort();
       _isLoading = false;
     });
+
+    if (loadError != null && mounted) {
+      Get.snackbar(
+        'Sync issue',
+        loadError,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+        duration: const Duration(seconds: 3),
+      );
+    }
   }
 
   /// Start a run with a saved planned route
@@ -169,35 +208,44 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
         ),
         title: Text('History', style: AppTextStyles.titleLarge.copyWith()),
         centerTitle: true,
-        actions: const [],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.accent),
+            onPressed: _isLoading ? null : _loadRuns,
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
           : _runs.isEmpty && _plannedRoutes.isEmpty
           ? _buildEmptyState()
-          : Column(
-              children: [
-                if (_filteredRuns.isEmpty && _runs.isNotEmpty) _buildNoResultsState(),
-                if (_filteredRuns.isNotEmpty) _buildStatsHeader(),
-                if (_filteredRuns.isNotEmpty) _buildFilterChips(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Planned Routes Section
-                        if (_plannedRoutes.isNotEmpty) ...[
-                          _buildSectionHeader('Saved Routes', Icons.route),
-                          ..._plannedRoutes.map((route) => _buildPlannedRouteCard(route)),
-                          const SizedBox(height: 24),
+          : RefreshIndicator(
+              color: AppColors.accent,
+              onRefresh: _loadRuns,
+              child: Column(
+                children: [
+                  if (_loadError != null) _buildSyncBanner(),
+                  if (_filteredRuns.isEmpty && _runs.isNotEmpty) _buildNoResultsState(),
+                  if (_filteredRuns.isNotEmpty) _buildStatsHeader(),
+                  if (_filteredRuns.isNotEmpty) _buildFilterChips(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_plannedRoutes.isNotEmpty) ...[
+                            _buildSectionHeader('Saved Routes', Icons.route),
+                            ..._plannedRoutes.map((route) => _buildPlannedRouteCard(route)),
+                            const SizedBox(height: 24),
+                          ],
+                          if (_filteredRuns.isNotEmpty) ...[_buildSectionHeader('Completed Runs', Icons.directions_run), _buildRunList()],
                         ],
-                        // Completed Runs Section
-                        if (_filteredRuns.isNotEmpty) ...[_buildSectionHeader('Completed Runs', Icons.directions_run), _buildRunList()],
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
     );
   }
@@ -208,47 +256,75 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.accentVariant,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.accent.withOpacity(0.35)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SvgPicture.asset('assets/icons/filter.svg', color: AppColors.white, width: 16, height: 16),
-                const SizedBox(width: 6),
-                Text(
-                  'All',
-                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.white, fontWeight: FontWeight.bold),
-                ),
-              ],
+          GestureDetector(
+            onTap: _showFilterMenu,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.accentVariant,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.accent.withOpacity(0.35)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SvgPicture.asset('assets/icons/filter.svg', color: AppColors.white, width: 16, height: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    _selectedFilter,
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.white, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.primaryGray.withOpacity(0.6)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.sort_rounded, size: 16, color: AppColors.primaryGrayDark),
-                const SizedBox(width: 6),
-                Text(
-                  'Date',
-                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600),
-                ),
-              ],
+          GestureDetector(
+            onTap: _showFilterMenu,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.primaryGray.withOpacity(0.6)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.sort_rounded, size: 16, color: AppColors.primaryGrayDark),
+                  const SizedBox(width: 6),
+                  Text(
+                    _selectedSort,
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
             ),
           ),
           const Spacer(),
           Text('${_filteredRuns.length} runs', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSyncBanner() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.error.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.error.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off_rounded, color: AppColors.error, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('Showing cached data — pull down to retry', style: AppTextStyles.labelSmall.copyWith(color: AppColors.error)),
+          ),
         ],
       ),
     );

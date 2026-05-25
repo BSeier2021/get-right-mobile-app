@@ -261,4 +261,22 @@ class AppUrl {
 
   /// `PUT /customer/workout/:workoutId` — body: `name`, `exercise[]`.
   static String customerWorkoutById(String workoutId) => '$baseUrl/customer/workout/${workoutId.trim()}';
+
+  /// `POST /customer/running-logs` — body: `runningType`, `distance`, `duration`, `startTime`, `endTime`, `route`, `elevationGain`, `routePoints`, `caloriesBurned`.
+  static String get customerRunningLogs => '$baseUrl/customer/running-logs';
+
+  /// `GET /customer/running-logs` — query: `page`, `limit` → `data.logs[]`.
+  static String customerRunningLogsList({int page = 1, int limit = 10}) {
+    final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;
+    return '$baseUrl/customer/running-logs?$q';
+  }
+
+  /// `POST /customer/planned-routes` — body: `location` (waypoint[] with `coordinates` [long, lat]).
+  static String get customerPlannedRoutes => '$baseUrl/customer/planned-routes';
+
+  /// `GET /customer/planned-routes` — query: `page`, `limit` → `data.routes[]`.
+  static String customerPlannedRoutesList({int page = 1, int limit = 10}) {
+    final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;
+    return '$baseUrl/customer/planned-routes?$q';
+  }
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get_right/models/run_model.dart';
+import 'package:get_right/repo/running_log_repo.dart';
 import 'package:get_right/services/gps_service.dart';
 import 'package:get_right/services/storage_service.dart';
 
@@ -9,6 +10,10 @@ import 'package:get_right/services/storage_service.dart';
 class RunTrackingController extends GetxController {
   final GpsService _gpsService = GpsService.getInstance();
   final StorageService _storageService = Get.find<StorageService>();
+  final RunningLogRepository _runningLogRepo = RunningLogRepository();
+
+  /// Optional planned route MongoDB id (`route` field on running-logs API).
+  String? plannedRouteId;
 
   // Observable state
   final RxBool isTracking = false.obs;
@@ -82,6 +87,7 @@ class RunTrackingController extends GetxController {
     }
 
     // Reset state
+    plannedRouteId = null;
     routePoints.clear();
     distanceMeters.value = 0.0;
     elevationGain.value = 0.0;
@@ -255,22 +261,38 @@ class RunTrackingController extends GetxController {
     return run;
   }
 
-  /// Save run to local storage and auto-sync
+  /// Save run to local storage, backend, and auto-sync to journal/calendar.
   Future<void> _saveRun(RunModel run) async {
     try {
       final runs = await _storageService.getRuns();
       runs.add(run);
       await _storageService.saveRuns(runs);
 
+      var backendSynced = false;
+      try {
+        await _runningLogRepo.saveRunningLog(
+          run: run,
+          existingRouteId: plannedRouteId,
+        );
+        backendSynced = true;
+      } catch (e) {
+        // Local save succeeded; backend sync is best-effort.
+      }
+
       // Auto-sync to journal and calendar
-      final syncSuccess = await _storageService.autoSyncRun(run);
-      if (syncSuccess) {
+      final localSyncSuccess = await _storageService.autoSyncRun(run);
+      if (localSyncSuccess || backendSynced) {
         // Defer so navigation off active run does not dispose snackbar before Get closes it.
         Future.delayed(const Duration(milliseconds: 400), () {
           if (Get.isSnackbarOpen == true) return;
+          final message = backendSynced && localSyncSuccess
+              ? 'Your run has been saved and synced to Journal and Calendar'
+              : backendSynced
+                  ? 'Your run has been saved to your account'
+                  : 'Your run has been synced to Journal and Calendar';
           Get.snackbar(
             'Run Saved',
-            'Your run has been synced to Journal and Calendar',
+            message,
             snackPosition: SnackPosition.BOTTOM,
             backgroundColor: Get.theme.colorScheme.primary,
             colorText: Get.theme.colorScheme.onPrimary,

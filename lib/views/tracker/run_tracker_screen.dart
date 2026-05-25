@@ -668,7 +668,9 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
       return;
     }
 
-    // Navigate to live run tracking with activity type
-    Get.toNamed(AppRoutes.runTracking, arguments: {'activityType': _selectedActivity});
+    _trackingController.plannedRouteId = null;
+    Get.toNamed(AppRoutes.runTracking, arguments: {'activityType': _selectedActivity})?.then((_) {
+      if (mounted) _loadStats();
+    });
   }
 }
