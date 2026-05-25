@@ -7,6 +7,8 @@ class WorkoutExerciseModel {
   final String exerciseName;
   final String exerciseId; // Reference to exercise library
   final String? iconUrl; // Exercise icon from library / API
+  final String? videoUrl;
+  final String? videoThumbnailUrl;
   final List<ExerciseSetModel> sets;
   final String? notes; // Exercise-level notes
   final bool isSuperset; // If true, this is part of a superset
@@ -21,6 +23,8 @@ class WorkoutExerciseModel {
     required this.exerciseName,
     required this.exerciseId,
     this.iconUrl,
+    this.videoUrl,
+    this.videoThumbnailUrl,
     required this.sets,
     this.notes,
     this.isSuperset = false,
@@ -37,6 +41,8 @@ class WorkoutExerciseModel {
       exerciseName: json['exerciseName'] ?? '',
       exerciseId: json['exerciseId'] ?? '',
       iconUrl: json['iconUrl'],
+      videoUrl: json['videoUrl'],
+      videoThumbnailUrl: json['videoThumbnailUrl'],
       sets: (json['sets'] as List<dynamic>?)
               ?.map((set) => ExerciseSetModel.fromJson(set as Map<String, dynamic>))
               .toList() ??
@@ -57,6 +63,8 @@ class WorkoutExerciseModel {
       'exerciseName': exerciseName,
       'exerciseId': exerciseId,
       'iconUrl': iconUrl,
+      'videoUrl': videoUrl,
+      'videoThumbnailUrl': videoThumbnailUrl,
       'sets': sets.map((set) => set.toJson()).toList(),
       'notes': notes,
       'isSuperset': isSuperset,
@@ -73,6 +81,8 @@ class WorkoutExerciseModel {
     String? exerciseName,
     String? exerciseId,
     String? iconUrl,
+    String? videoUrl,
+    String? videoThumbnailUrl,
     List<ExerciseSetModel>? sets,
     String? notes,
     bool? isSuperset,
@@ -87,6 +97,8 @@ class WorkoutExerciseModel {
       exerciseName: exerciseName ?? this.exerciseName,
       exerciseId: exerciseId ?? this.exerciseId,
       iconUrl: iconUrl ?? this.iconUrl,
+      videoUrl: videoUrl ?? this.videoUrl,
+      videoThumbnailUrl: videoThumbnailUrl ?? this.videoThumbnailUrl,
       sets: sets ?? this.sets,
       notes: notes ?? this.notes,
       isSuperset: isSuperset ?? this.isSuperset,

@@ -60,12 +60,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
 
   Widget _buildExerciseIcon(String exerciseName, String? iconUrl, Color color) {
     if (iconUrl != null && iconUrl.isNotEmpty) {
-      return Image.network(
-        iconUrl,
-        width: 26.w,
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => _buildAssetIcon(exerciseName, color),
-      );
+      return Image.network(iconUrl, width: 26.w, fit: BoxFit.contain, errorBuilder: (_, __, ___) => _buildAssetIcon(exerciseName, color));
     }
     return _buildAssetIcon(exerciseName, color);
   }
@@ -109,9 +104,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
                         borderRadius: BorderRadius.circular(50),
                         border: Border.all(color: color.withOpacity(0.25), width: 1),
                       ),
-                      child: Center(
-                        child: _buildExerciseIcon(widget.exercise.exerciseName, widget.exercise.iconUrl, color),
-                      ).paddingSymmetric(horizontal: 4, vertical: 4),
+                      child: Center(child: _buildExerciseIcon(widget.exercise.exerciseName, widget.exercise.iconUrl, color)).paddingSymmetric(horizontal: 4, vertical: 4),
                     );
                   },
                 ),
@@ -139,7 +132,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
                       onTap: widget.onMenuTap,
                       child: const Padding(
                         padding: EdgeInsets.all(4),
-                        child: Icon(Icons.more_horiz, size: 16, color: AppColors.primaryGrayDark),
+                        child: Icon(Icons.more_horiz, size: 25, color: AppColors.primaryGrayDark),
                       ),
                     ),
                   ),
@@ -342,11 +335,19 @@ class _ExerciseCardState extends State<ExerciseCard> {
   Widget _buildNotesSection() {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      margin: const EdgeInsets.fromLTRB(0, 4, 0, 0),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(color: AppColors.primaryGrayLight.withOpacity(0.3), borderRadius: BorderRadius.circular(8)),
-      child: Text(
-        widget.exercise.notes!,
-        style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontStyle: FontStyle.italic, fontSize: 11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Notes',
+            style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(widget.exercise.notes!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 12)),
+        ],
       ),
     );
   }

@@ -9,6 +9,7 @@ import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/models/customer_profile_dto.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/views/library/library_screen.dart';
+import 'package:get_right/views/home/dashboard_screen.dart';
 
 class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
@@ -52,6 +53,18 @@ class _AppDrawerState extends State<AppDrawer> {
     return null;
   }
 
+  void _navigateToWorkoutJournal() {
+    Get.back();
+    if (Get.isRegistered<HomeNavigationController>()) {
+      if (Get.currentRoute != AppRoutes.home) {
+        Get.until((route) => route.settings.name == AppRoutes.home);
+      }
+      Get.find<HomeNavigationController>().changeTab(2, journalTab: 0);
+      return;
+    }
+    Get.offNamed(AppRoutes.home, arguments: {'navigateToTab': 2, 'journalTabIndex': 0});
+  }
+
   @override
   Widget build(BuildContext context) {
     final NotificationController notificationController = Get.put(NotificationController());
@@ -87,6 +100,12 @@ class _AppDrawerState extends State<AppDrawer> {
 
                   _sectionLabel('FITNESS'),
                   const SizedBox(height: 4),
+                  _drawerItem(
+                    asset: 'assets/images/Journal.png',
+                    fallbackIcon: Icons.fitness_center_outlined,
+                    title: 'Workout Journal',
+                    onTap: _navigateToWorkoutJournal,
+                  ),
                   _drawerItem(
                     asset: 'assets/images/diagram.png',
                     fallbackIcon: Icons.show_chart_rounded,

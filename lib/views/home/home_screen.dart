@@ -50,10 +50,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final args = Get.arguments as Map<String, dynamic>?;
 
-      // Check for navigateToTab argument (used from favorites screen)
+      // Check for navigateToTab argument (used from favorites screen, drawer, etc.)
       final navigateToTab = args?['navigateToTab'] as int?;
+      final journalTabIndex = args?['journalTabIndex'] as int?;
       if (navigateToTab != null) {
-        _navController.changeTab(navigateToTab);
+        _navController.changeTab(navigateToTab, journalTab: journalTabIndex);
         return;
       }
 

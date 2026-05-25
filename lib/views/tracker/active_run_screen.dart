@@ -792,8 +792,9 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
           TextButton(
             onPressed: () {
               _controller.cancelTracking();
-              Get.back(); // Close dialog
-              Get.back(); // Go back to tracker screen
+              if (!mounted) return;
+              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).pop(); // Back to tracker
             },
             child: Text('Discard', style: AppTextStyles.labelLarge.copyWith(color: AppColors.error)),
           ),
@@ -818,13 +819,14 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
           TextButton(
             onPressed: () async {
               final run = await _controller.stopTracking();
-              Get.back(); // Close dialog
+              if (!mounted) return;
+              // Use Navigator — Get.back() can assert when closing a snackbar already disposed by route pop.
+              Navigator.of(context).pop(); // Close dialog
               if (run != null) {
-                // Pop this screen then push run-detail so home stays in stack (avoids disposing HomeNavigationController etc.)
-                Get.back();
+                Navigator.of(context).pop(); // Leave active run screen
                 Get.toNamed(AppRoutes.runDetail, arguments: run);
               } else {
-                Get.back(); // Go back to tracker screen
+                Navigator.of(context).pop(); // Back to tracker
               }
             },
             child: Text('Save', style: AppTextStyles.labelLarge.copyWith(color: AppColors.accent)),

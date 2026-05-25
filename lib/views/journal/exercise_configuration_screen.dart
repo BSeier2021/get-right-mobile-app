@@ -23,6 +23,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   bool _isManual = false;
   bool _isSuperset = false;
   bool _isEditing = false;
+  String? _editingWorkoutId;
   bool _hasAskedWarmupWorkout = false;
   bool _isSaving = false;
   String? _workoutJournalId;
@@ -50,6 +51,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       if (args['existingExercise'] != null) {
         _isEditing = true;
         final existingEx = args['existingExercise'] as WorkoutExerciseModel;
+        _editingWorkoutId = WorkoutRepository.isValidMongoId(existingEx.id) ? existingEx.id : null;
         _nameController.text = existingEx.exerciseName;
 
         // Determine mainType (Reps vs Time) from sets
@@ -77,6 +79,9 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
             setData.time = set.timeSeconds ?? 0;
           } else {
             setData.reps = set.reps ?? 0;
+            if (set.repsType == 'FAILURE' || set.repsType == 'AMRAP') {
+              setData.repsType = set.repsType;
+            }
           }
           if (extraType == 'Distance') {
             setData.distance = set.distance ?? 0;
@@ -205,12 +210,9 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   }
 
   void _openExerciseSelectionForCard(int cardIndex) {
-    Get.toNamed(AppRoutes.exerciseSelection, arguments: {
-      'isWarmup': _isWarmup,
-      'exerciseType': _exerciseType,
-      'isSuperset': false,
-      'workoutJournalId': _workoutJournalId,
-    })?.then((result) {
+    Get.toNamed(AppRoutes.exerciseSelection, arguments: {'isWarmup': _isWarmup, 'exerciseType': _exerciseType, 'isSuperset': false, 'workoutJournalId': _workoutJournalId})?.then((
+      result,
+    ) {
       if (result != null && result['exercise'] != null) {
         final ex = result['exercise'] as ExerciseLibraryModel;
         setState(() {
@@ -249,9 +251,32 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     }
 
     final createdApiIds = <String>[];
-    if (!_isEditing) {
+    if (_isEditing) {
+      if (!WorkoutRepository.isValidMongoId(_editingWorkoutId)) {
+        Get.snackbar('Error', 'Workout id is missing or invalid', backgroundColor: AppColors.error, colorText: AppColors.onError);
+        return;
+      }
       setState(() => _isSaving = true);
       try {
+        for (var i = 0; i < _configs.length; i++) {
+          final cfg = _configs[i];
+          final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
+          await _workoutRepo.updateWorkout(_editingWorkoutId!, WorkoutRepository.updateWorkoutBody(name: name, exercise: _buildApiExerciseSets(cfg)));
+        }
+      } catch (e) {
+        if (mounted) setState(() => _isSaving = false);
+        Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+        return;
+      }
+      if (mounted) setState(() => _isSaving = false);
+    } else if (!_isEditing) {
+      setState(() => _isSaving = true);
+      try {
+        final journalId = WorkoutRepository.isValidMongoId(_workoutJournalId)
+            ? _workoutJournalId!
+            : await _workoutRepo.getOrCreateWorkoutJournalId();
+        _workoutJournalId = journalId;
+
         for (var i = 0; i < _configs.length; i++) {
           final cfg = _configs[i];
           final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
@@ -262,6 +287,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
             exercise: _buildApiExerciseSets(cfg),
             refExercise: refId.isNotEmpty && !refId.startsWith('manual_') ? refId : null,
             supersetIdentifier: _isSuperset ? 'A${i + 1}' : null,
+            workoutJournal: journalId,
           );
           final response = await _workoutRepo.createWorkout(body);
           final apiId = WorkoutRepository.createdWorkoutId(response);
@@ -294,7 +320,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           distanceUnit: cfg.extraType == 'Distance' ? s.distanceUnit : null,
         );
       }).toList();
-      final apiId = i < createdApiIds.length ? createdApiIds[i] : null;
+      final apiId = _isEditing ? _editingWorkoutId : (i < createdApiIds.length ? createdApiIds[i] : null);
       exercises.add(
         WorkoutExerciseModel(
           id: apiId ?? 'ex_${now.millisecondsSinceEpoch}_$i',
@@ -811,11 +837,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   }
 
   void _openExerciseSelection(int cfgIndex) async {
-    final result = await Get.toNamed(AppRoutes.exerciseSelection, arguments: {
-      'isWarmup': _isWarmup,
-      'exerciseType': _exerciseType,
-      'selectOnly': true,
-    });
+    final result = await Get.toNamed(AppRoutes.exerciseSelection, arguments: {'isWarmup': _isWarmup, 'exerciseType': _exerciseType, 'selectOnly': true});
     if (result != null && result['exercise'] != null) {
       final exercise = result['exercise'] as ExerciseLibraryModel;
       setState(() {
@@ -1361,8 +1383,8 @@ class _Config {
   final TextEditingController nameController;
 
   _Config({required this.name, required this.id, this.iconUrl})
-      : sets = [_SetData(), _SetData(), _SetData()],
-        nameController = TextEditingController(text: name.isNotEmpty ? name : '');
+    : sets = [_SetData(), _SetData(), _SetData()],
+      nameController = TextEditingController(text: name.isNotEmpty ? name : '');
 
   void dispose() {
     nameController.dispose();

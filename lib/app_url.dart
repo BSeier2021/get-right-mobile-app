@@ -253,6 +253,12 @@ class AppUrl {
   /// `POST /customer/workout-journal` — body: `date`, `workout` (id[]), `duration`, `notes`, optional `type`.
   static String get customerWorkoutJournalCreate => '$baseUrl/customer/workout-journal';
 
+  /// `PUT /customer/workout-journal/:journalId` — body: `workout` (id[]), `duration`, `notes`.
+  static String customerWorkoutJournalById(String journalId) => '$baseUrl/customer/workout-journal/${journalId.trim()}';
+
   /// `POST /customer/workout` — body: `type`, `name`, `exercise[]`, optional `refExercise`, `supersetIdentifier`, optional `workoutJournal`.
   static String get customerWorkout => '$baseUrl/customer/workout';
+
+  /// `PUT /customer/workout/:workoutId` — body: `name`, `exercise[]`.
+  static String customerWorkoutById(String workoutId) => '$baseUrl/customer/workout/${workoutId.trim()}';
 }

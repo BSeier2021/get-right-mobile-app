@@ -26,8 +26,11 @@ class WorkoutJournalScreen extends StatefulWidget {
 
 class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   WorkoutJournalModel? _workout;
+  List<WorkoutJournalModel> _journalEntries = [];
+  Map<String, String> _workoutJournalByExerciseId = {};
   String? _workoutJournalId;
   bool _isLoading = true;
+  bool _isSavingJournal = false;
   String? _loadError;
   final WorkoutRepository _workoutRepo = WorkoutRepository();
   bool _isStarted = false;
@@ -59,14 +62,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   }
 
   WorkoutJournalModel _emptyWorkoutShell() {
-    return WorkoutJournalModel(
-      id: '',
-      userId: 'user_1',
-      date: DateTime.now(),
-      warmupExercises: [],
-      workoutExercises: [],
-      createdAt: DateTime.now(),
-    );
+    return WorkoutJournalModel(id: '', userId: 'user_1', date: DateTime.now(), warmupExercises: [], workoutExercises: [], createdAt: DateTime.now());
   }
 
   void _mergeExercisesFromSaveResult(Map<String, dynamic> result) {
@@ -100,12 +96,15 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     try {
       final page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: DateTime.now());
+      final rawEntries = WorkoutRepository.entriesForDay(page);
       final today = WorkoutRepository.todayEntryFrom(page);
       if (!mounted) return;
 
       setState(() {
+        _journalEntries = rawEntries;
+        _workoutJournalByExerciseId = WorkoutRepository.exerciseJournalMapFrom(rawEntries);
+        _workoutJournalId = WorkoutRepository.primaryJournalIdForDay(rawEntries) ?? _workoutJournalId;
         if (today != null && today.id.isNotEmpty) {
-          _workoutJournalId = WorkoutRepository.isValidMongoId(today.id) ? today.id : _workoutJournalId;
           _workout = today.copyWith(
             startedAt: _workout?.startedAt,
             completedAt: _workout?.completedAt,
@@ -136,13 +135,117 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         if (_workout == null) _workout = _emptyWorkoutShell();
         _loadError = null;
       });
-      Get.snackbar(
-        'Sync unavailable',
-        e.toString().replaceFirst('Exception: ', ''),
-        backgroundColor: AppColors.error,
-        colorText: AppColors.onError,
-      );
+      Get.snackbar('Sync unavailable', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
     }
+  }
+
+  WorkoutJournalModel? _journalEntryForExercise(String exerciseId) {
+    final journalId = _workoutJournalByExerciseId[exerciseId];
+    if (journalId == null) return null;
+    return WorkoutRepository.journalEntryById(_journalEntries, journalId);
+  }
+
+  Future<bool> _persistJournalEntry({required String journalId, required List<String> workoutIds, int? duration, String? notes}) async {
+    final entry = WorkoutRepository.journalEntryById(_journalEntries, journalId);
+    if (entry == null) return false;
+
+    setState(() => _isSavingJournal = true);
+    try {
+      await _workoutRepo.updateWorkoutJournal(journalId: journalId, workoutIds: workoutIds, duration: duration ?? entry.durationSeconds ?? 0, notes: notes ?? entry.notes ?? '');
+      await _refreshWorkoutJournalFromApi();
+      return true;
+    } catch (e) {
+      if (mounted) {
+        Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+      }
+      return false;
+    } finally {
+      if (mounted) setState(() => _isSavingJournal = false);
+    }
+  }
+
+  Future<void> _deleteExercise(WorkoutExerciseModel ex, bool isWarmup) async {
+    final journalId = _workoutJournalByExerciseId[ex.id];
+    if (journalId == null || !WorkoutRepository.isValidMongoId(journalId)) {
+      setState(() {
+        if (isWarmup) {
+          _workout = _workout!.copyWith(warmupExercises: _workout!.warmupExercises.where((e) => e.id != ex.id).toList());
+        } else {
+          _workout = _workout!.copyWith(workoutExercises: _workout!.workoutExercises.where((e) => e.id != ex.id).toList());
+        }
+      });
+      return;
+    }
+
+    final entry = WorkoutRepository.journalEntryById(_journalEntries, journalId);
+    if (entry == null) return;
+
+    final remainingIds = WorkoutRepository.workoutIdsFrom(entry).where((id) => id != ex.id).toList();
+    await _persistJournalEntry(journalId: journalId, workoutIds: remainingIds);
+  }
+
+  Future<void> _reorderExercises(List<WorkoutExerciseModel> reordered, bool isWarmup) async {
+    final idsByJournal = <String, List<String>>{};
+    for (final ex in reordered) {
+      final journalId = _workoutJournalByExerciseId[ex.id];
+      if (journalId == null || !WorkoutRepository.isValidMongoId(ex.id)) continue;
+      idsByJournal.putIfAbsent(journalId, () => []).add(ex.id);
+    }
+
+    if (idsByJournal.isEmpty) {
+      setState(() {
+        if (isWarmup) {
+          _workout = _workout!.copyWith(warmupExercises: reordered);
+        } else {
+          _workout = _workout!.copyWith(workoutExercises: reordered);
+        }
+      });
+      return;
+    }
+
+    setState(() => _isSavingJournal = true);
+    try {
+      for (final journalId in idsByJournal.keys) {
+        final entry = WorkoutRepository.journalEntryById(_journalEntries, journalId);
+        if (entry == null) continue;
+        await _workoutRepo.updateWorkoutJournal(journalId: journalId, workoutIds: idsByJournal[journalId]!, duration: entry.durationSeconds ?? 0, notes: entry.notes ?? '');
+      }
+      await _refreshWorkoutJournalFromApi();
+    } catch (e) {
+      if (mounted) {
+        Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingJournal = false);
+    }
+  }
+
+  Future<void> _saveJournalNotes(WorkoutExerciseModel ex, String notes) async {
+    final journalId = _workoutJournalByExerciseId[ex.id];
+    if (journalId == null || !WorkoutRepository.isValidMongoId(journalId)) {
+      setState(() {
+        if (_workout == null) return;
+        final idxWarmup = _workout!.warmupExercises.indexWhere((e) => e.id == ex.id);
+        if (idxWarmup != -1) {
+          final list = List<WorkoutExerciseModel>.from(_workout!.warmupExercises);
+          list[idxWarmup] = ex.copyWith(notes: notes);
+          _workout = _workout!.copyWith(warmupExercises: list);
+          return;
+        }
+        final idxWorkout = _workout!.workoutExercises.indexWhere((e) => e.id == ex.id);
+        if (idxWorkout != -1) {
+          final list = List<WorkoutExerciseModel>.from(_workout!.workoutExercises);
+          list[idxWorkout] = ex.copyWith(notes: notes);
+          _workout = _workout!.copyWith(workoutExercises: list);
+        }
+      });
+      return;
+    }
+
+    final entry = WorkoutRepository.journalEntryById(_journalEntries, journalId);
+    if (entry == null) return;
+
+    await _persistJournalEntry(journalId: journalId, workoutIds: WorkoutRepository.workoutIdsFrom(entry), notes: notes);
   }
 
   void _startWorkout() {
@@ -213,7 +316,16 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     final dateKey = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
     try {
-      await _workoutRepo.submitWorkoutJournal(date: dateKey, workoutIds: workoutIds, duration: _seconds, notes: _workout!.notes ?? '');
+      if (WorkoutRepository.isValidMongoId(_workoutJournalId)) {
+        await _workoutRepo.updateWorkoutJournal(
+          journalId: _workoutJournalId!,
+          workoutIds: workoutIds,
+          duration: _seconds,
+          notes: _workout!.notes ?? '',
+        );
+      } else {
+        await _workoutRepo.submitWorkoutJournal(date: dateKey, workoutIds: workoutIds, duration: _seconds, notes: _workout!.notes ?? '');
+      }
       await _refreshWorkoutJournalFromApi();
     } catch (e) {
       if (!mounted) return;
@@ -254,8 +366,28 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
   String _formatTime(int s) => '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
+  Future<void> _ensureWorkoutJournalId() async {
+    if (WorkoutRepository.isValidMongoId(_workoutJournalId)) return;
+    _workoutJournalId = await _workoutRepo.getOrCreateWorkoutJournalId();
+  }
+
   Future<void> _openAddExerciseFlow(JournalExerciseType exerciseType) async {
-    await Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {'exerciseType': exerciseType, 'isWarmup': exerciseType.isWarmup})?.then((r) async {
+    try {
+      await _ensureWorkoutJournalId();
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+      return;
+    }
+
+    await Get.toNamed(
+      AppRoutes.exerciseConfiguration,
+      arguments: {
+        'exerciseType': exerciseType,
+        'isWarmup': exerciseType.isWarmup,
+        'workoutJournalId': _workoutJournalId,
+      },
+    )?.then((r) async {
       if (r is! Map || r['exercises'] == null) return;
       _mergeExercisesFromSaveResult(Map<String, dynamic>.from(r));
       await _refreshWorkoutJournalFromApi();
@@ -943,13 +1075,23 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     ),
   );
 
+  WorkoutExerciseModel _exerciseWithJournalNotes(WorkoutExerciseModel ex) {
+    if (ex.notes != null && ex.notes!.trim().isNotEmpty) return ex;
+    final journalId = _workoutJournalByExerciseId[ex.id];
+    if (journalId == null) return ex;
+    final entry = WorkoutRepository.journalEntryById(_journalEntries, journalId);
+    final notes = entry?.notes?.trim();
+    if (notes == null || notes.isEmpty) return ex;
+    return ex.copyWith(notes: notes);
+  }
+
   /// Build exercises list with superset grouping support
   List<Widget> _buildExercisesList(List<WorkoutExerciseModel> exercises, bool isWarmup) {
     final List<Widget> widgets = [];
     final Set<String> processedSupersets = {};
 
     for (int i = 0; i < exercises.length; i++) {
-      final exercise = exercises[i];
+      final exercise = _exerciseWithJournalNotes(exercises[i]);
 
       // Check if this exercise is part of a superset
       if (exercise.isSuperset && exercise.supersetId != null) {
@@ -959,7 +1101,8 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         }
 
         // Find the other exercise in the superset
-        final otherExercise = exercises.firstWhereOrNull((e) => e.isSuperset && e.supersetId == exercise.supersetId && e.id != exercise.id);
+        final otherRaw = exercises.firstWhereOrNull((e) => e.isSuperset && e.supersetId == exercise.supersetId && e.id != exercise.id);
+        final otherExercise = otherRaw != null ? _exerciseWithJournalNotes(otherRaw) : null;
 
         if (otherExercise != null) {
           // Add superset card
@@ -1050,7 +1193,9 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                   Get.toNamed(
                     AppRoutes.exerciseConfiguration,
                     arguments: {'isEditing': true, 'existingExercise': ex, 'isWarmup': isWarmup, 'exerciseType': JournalExerciseType.fromIsWarmup(isWarmup)},
-                  );
+                  )?.then((r) async {
+                    if (r != null) await _refreshWorkoutJournalFromApi();
+                  });
                 },
                 title: Center(
                   child: Text(
@@ -1062,7 +1207,16 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               ListTile(
                 onTap: () {
                   Get.back();
-                  Get.toNamed(AppRoutes.videoWalkthrough, arguments: {'exerciseName': ex.exerciseName});
+                  final displayEx = _exerciseWithJournalNotes(ex);
+                  Get.toNamed(
+                    AppRoutes.videoWalkthrough,
+                    arguments: {
+                      'exerciseName': displayEx.exerciseName,
+                      'exerciseId': displayEx.exerciseId,
+                      'videoUrl': displayEx.videoUrl,
+                      'videoThumbnailUrl': displayEx.videoThumbnailUrl ?? displayEx.iconUrl,
+                    },
+                  );
                 },
                 title: Center(
                   child: Text(
@@ -1072,15 +1226,12 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                 ),
               ),
               ListTile(
-                onTap: () {
-                  Get.back();
-                  setState(() {
-                    if (isWarmup)
-                      _workout = _workout!.copyWith(warmupExercises: _workout!.warmupExercises.where((e) => e.id != ex.id).toList());
-                    else
-                      _workout = _workout!.copyWith(workoutExercises: _workout!.workoutExercises.where((e) => e.id != ex.id).toList());
-                  });
-                },
+                onTap: _isSavingJournal
+                    ? null
+                    : () {
+                        Get.back();
+                        _deleteExercise(ex, isWarmup);
+                      },
                 title: Center(
                   child: Text(
                     'Delete',
@@ -1089,18 +1240,16 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                 ),
               ),
               ListTile(
-                onTap: () {
-                  Get.back();
-                  Get.toNamed(AppRoutes.reorderExercises, arguments: {'exercises': isWarmup ? _workout!.warmupExercises : _workout!.workoutExercises})?.then((r) {
-                    if (r != null && r['exercises'] != null)
-                      setState(() {
-                        if (isWarmup)
-                          _workout = _workout!.copyWith(warmupExercises: r['exercises'] as List<WorkoutExerciseModel>);
-                        else
-                          _workout = _workout!.copyWith(workoutExercises: r['exercises'] as List<WorkoutExerciseModel>);
-                      });
-                  });
-                },
+                onTap: _isSavingJournal
+                    ? null
+                    : () {
+                        Get.back();
+                        Get.toNamed(AppRoutes.reorderExercises, arguments: {'exercises': isWarmup ? _workout!.warmupExercises : _workout!.workoutExercises})?.then((r) {
+                          if (r != null && r['exercises'] != null) {
+                            _reorderExercises(r['exercises'] as List<WorkoutExerciseModel>, isWarmup);
+                          }
+                        });
+                      },
                 title: Center(
                   child: Text(
                     'Move/Reorder',
@@ -1109,29 +1258,17 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                 ),
               ),
               ListTile(
-                onTap: () {
-                  Get.back();
-                  Get.toNamed(AppRoutes.addNotes, arguments: {'exerciseName': ex.exerciseName, 'existingNotes': ex.notes})?.then((r) {
-                    if (r != null && r['notes'] != null)
-                      setState(() {
-                        if (isWarmup) {
-                          final idx = _workout!.warmupExercises.indexWhere((e) => e.id == ex.id);
-                          if (idx != -1) {
-                            final l = List<WorkoutExerciseModel>.from(_workout!.warmupExercises);
-                            l[idx] = ex.copyWith(notes: r['notes'] as String);
-                            _workout = _workout!.copyWith(warmupExercises: l);
+                onTap: _isSavingJournal
+                    ? null
+                    : () {
+                        Get.back();
+                        final journalEntry = _journalEntryForExercise(ex.id);
+                        Get.toNamed(AppRoutes.addNotes, arguments: {'exerciseName': ex.exerciseName, 'existingNotes': journalEntry?.notes ?? ex.notes ?? ''})?.then((r) {
+                          if (r != null && r['notes'] != null) {
+                            _saveJournalNotes(ex, r['notes'] as String);
                           }
-                        } else {
-                          final idx = _workout!.workoutExercises.indexWhere((e) => e.id == ex.id);
-                          if (idx != -1) {
-                            final l = List<WorkoutExerciseModel>.from(_workout!.workoutExercises);
-                            l[idx] = ex.copyWith(notes: r['notes'] as String);
-                            _workout = _workout!.copyWith(workoutExercises: l);
-                          }
-                        }
-                      });
-                  });
-                },
+                        });
+                      },
                 title: Center(
                   child: Text(
                     'Add Notes',

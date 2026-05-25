@@ -265,17 +265,24 @@ class RunTrackingController extends GetxController {
       // Auto-sync to journal and calendar
       final syncSuccess = await _storageService.autoSyncRun(run);
       if (syncSuccess) {
-        Get.snackbar(
-          'Run Saved',
-          'Your run has been synced to Journal and Calendar',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Get.theme.colorScheme.primary,
-          colorText: Get.theme.colorScheme.onPrimary,
-          duration: const Duration(seconds: 2),
-        );
+        // Defer so navigation off active run does not dispose snackbar before Get closes it.
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (Get.isSnackbarOpen == true) return;
+          Get.snackbar(
+            'Run Saved',
+            'Your run has been synced to Journal and Calendar',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Get.theme.colorScheme.primary,
+            colorText: Get.theme.colorScheme.onPrimary,
+            duration: const Duration(seconds: 2),
+          );
+        });
       }
     } catch (e) {
-      Get.snackbar('Save Error', 'Failed to save run data', snackPosition: SnackPosition.BOTTOM);
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (Get.isSnackbarOpen == true) return;
+        Get.snackbar('Save Error', 'Failed to save run data', snackPosition: SnackPosition.BOTTOM);
+      });
     }
   }
 

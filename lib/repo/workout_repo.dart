@@ -148,7 +148,7 @@ class WorkoutRepository {
       for (final item in workoutItems) {
         if (item is! Map) continue;
         final map = Map<String, dynamic>.from(item);
-        final exercise = workoutExerciseFromApi(map);
+        final exercise = _exerciseWithJournalNotes(workoutExerciseFromApi(map), notes);
         final type = map['type']?.toString() ?? journalType;
         if (JournalExerciseType.fromApi(type)?.isWarmup == true) {
           warmupExercises.add(exercise);
@@ -171,6 +171,12 @@ class WorkoutRepository {
     );
   }
 
+  static WorkoutExerciseModel _exerciseWithJournalNotes(WorkoutExerciseModel exercise, String? journalNotes) {
+    final note = journalNotes?.trim();
+    if (note == null || note.isEmpty) return exercise;
+    return exercise.copyWith(notes: note);
+  }
+
   static String _refExerciseId(dynamic refExercise) {
     if (refExercise is Map) {
       final m = Map<String, dynamic>.from(refExercise);
@@ -184,6 +190,39 @@ class WorkoutRepository {
     final icon = Map<String, dynamic>.from(refExercise)['icon'];
     if (icon is! Map) return null;
     return ImageUrlSanitizer.resolveMediaUrl(Map<String, dynamic>.from(icon)['url']?.toString());
+  }
+
+  static String? _mediaUrlFrom(dynamic media) {
+    if (media is Map) {
+      return ImageUrlSanitizer.resolveMediaUrl(Map<String, dynamic>.from(media)['url']?.toString());
+    }
+    return null;
+  }
+
+  static String? _refExerciseVideoUrl(dynamic refExercise) {
+    if (refExercise is! Map) return null;
+    final video = Map<String, dynamic>.from(refExercise)['video'];
+    if (video is! Map) return null;
+    return ImageUrlSanitizer.resolveMediaUrl(Map<String, dynamic>.from(video)['url']?.toString());
+  }
+
+  static String? _refExerciseVideoThumbnailUrl(dynamic refExercise) {
+    if (refExercise is! Map) return null;
+    final video = Map<String, dynamic>.from(refExercise)['video'];
+    if (video is Map) {
+      final vm = Map<String, dynamic>.from(video);
+      final thumb = _mediaUrlFrom(vm['thumbnail']);
+      if (thumb != null && thumb.isNotEmpty) return thumb;
+    }
+    return _refExerciseIconUrl(refExercise);
+  }
+
+  /// Video URL + thumbnail from a populated `refExercise` object (journal list API).
+  static ({String? videoUrl, String? thumbnailUrl}) videoMediaFromRefExercise(dynamic refExercise) {
+    return (
+      videoUrl: _refExerciseVideoUrl(refExercise),
+      thumbnailUrl: _refExerciseVideoThumbnailUrl(refExercise),
+    );
   }
 
   static WorkoutExerciseModel workoutExerciseFromApi(Map<String, dynamic> json) {
@@ -213,6 +252,8 @@ class WorkoutRepository {
       exerciseName: name,
       exerciseId: refExercise,
       iconUrl: _refExerciseIconUrl(refRaw),
+      videoUrl: _refExerciseVideoUrl(refRaw),
+      videoThumbnailUrl: _refExerciseVideoThumbnailUrl(refRaw),
       sets: sets,
       isSuperset: supersetId != null && supersetId.isNotEmpty,
       supersetId: supersetId,
@@ -261,15 +302,53 @@ class WorkoutRepository {
     );
   }
 
+  /// Earliest journal entry id for [day] — one canonical journal per day for new workouts.
+  static String? primaryJournalIdForDay(List<WorkoutJournalModel> entries, {DateTime? day}) {
+    if (entries.isEmpty) return null;
+    final target = day ?? DateTime.now();
+    final matching = entries.where((e) => _isSameDay(e.date, target)).toList();
+    final pool = matching.isNotEmpty ? matching : entries;
+    final sorted = List<WorkoutJournalModel>.from(pool)..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final id = sorted.first.id;
+    return isValidMongoId(id) ? id : null;
+  }
+
   /// Merges all journal entries for [day] (default today) into one model for the UI.
   static WorkoutJournalModel? todayEntryFrom(WorkoutJournalListPage page, {DateTime? day}) {
+    final entries = entriesForDay(page, day: day);
+    if (entries.isEmpty) return null;
+    return _mergeJournalEntries(entries);
+  }
+
+  /// Raw journal entries for [day] (default today), without merging.
+  static List<WorkoutJournalModel> entriesForDay(WorkoutJournalListPage page, {DateTime? day}) {
     final target = day ?? DateTime.now();
     final matching = page.entries.where((e) => _isSameDay(e.date, target)).toList();
-    if (matching.isEmpty) {
-      return page.entries.isNotEmpty ? _mergeJournalEntries(page.entries) : null;
-    }
-    return _mergeJournalEntries(matching);
+    if (matching.isNotEmpty) return matching;
+    return List<WorkoutJournalModel>.from(page.entries);
   }
+
+  /// Maps each saved workout exercise id → its parent journal entry id.
+  static Map<String, String> exerciseJournalMapFrom(List<WorkoutJournalModel> entries) {
+    final map = <String, String>{};
+    for (final entry in entries) {
+      if (!isValidMongoId(entry.id)) continue;
+      for (final ex in entry.allExercises) {
+        if (isValidMongoId(ex.id)) map[ex.id] = entry.id;
+      }
+    }
+    return map;
+  }
+
+  static WorkoutJournalModel? journalEntryById(List<WorkoutJournalModel> entries, String journalId) {
+    for (final entry in entries) {
+      if (entry.id == journalId) return entry;
+    }
+    return null;
+  }
+
+  static List<String> workoutIdsFrom(WorkoutJournalModel entry) =>
+      entry.allExercises.map((e) => e.id).where(isValidMongoId).toList();
 
   static WorkoutJournalModel _mergeJournalEntries(List<WorkoutJournalModel> entries) {
     final sorted = List<WorkoutJournalModel>.from(entries)..sort((a, b) => a.createdAt.compareTo(b.createdAt));
@@ -303,6 +382,36 @@ class WorkoutRepository {
     );
   }
 
+  /// Builds `PUT /customer/workout-journal/:id` body.
+  static Map<String, dynamic> updateJournalBody({
+    required List<String> workout,
+    required int duration,
+    required String notes,
+  }) {
+    return {
+      'workout': workout,
+      'duration': duration,
+      'notes': notes,
+    };
+  }
+
+  /// Updates an existing journal entry (`PUT /customer/workout-journal/:journalId`).
+  Future<Map<String, dynamic>> updateWorkoutJournal({
+    required String journalId,
+    required List<String> workoutIds,
+    required int duration,
+    required String notes,
+  }) async {
+    final raw = await _network.put(
+      AppUrl.customerWorkoutJournalById(journalId),
+      updateJournalBody(workout: workoutIds, duration: duration, notes: notes),
+    );
+    if (!_isOk(raw)) {
+      throw Exception(_messageFrom(raw) ?? 'Could not update workout journal');
+    }
+    return Map<String, dynamic>.from(raw as Map);
+  }
+
   /// Builds `POST /customer/workout-journal` body (all of `workout`, `duration`, `notes` are required).
   static Map<String, dynamic> createJournalBody({
     required String date,
@@ -320,15 +429,16 @@ class WorkoutRepository {
     };
   }
 
-  /// Finds today's journal id via list API; creates one via POST when missing.
+  /// Finds today's single journal id via list API; creates one via POST when missing.
   Future<String> getOrCreateWorkoutJournalId({DateTime? date}) async {
     final day = date ?? DateTime.now();
     final dateKey = _dateKey(day);
 
     try {
       final page = await fetchWorkoutJournalEntries(dateFrom: day);
-      final today = todayEntryFrom(page, day: day);
-      if (today != null && isValidMongoId(today.id)) return today.id;
+      final entries = entriesForDay(page, day: day);
+      final existing = primaryJournalIdForDay(entries, day: day);
+      if (existing != null) return existing;
     } catch (_) {
       // Fall through to POST when list fails or is empty.
     }
@@ -396,6 +506,26 @@ class WorkoutRepository {
     final raw = await _network.post(AppUrl.customerWorkout, body);
     if (!_isOk(raw)) {
       throw Exception(_messageFrom(raw) ?? 'Could not save workout');
+    }
+    return Map<String, dynamic>.from(raw as Map);
+  }
+
+  /// Builds `PUT /customer/workout/:workoutId` body.
+  static Map<String, dynamic> updateWorkoutBody({
+    required String name,
+    required List<Map<String, dynamic>> exercise,
+  }) {
+    return {
+      'name': name,
+      'exercise': exercise,
+    };
+  }
+
+  /// Updates an existing workout exercise (`PUT /customer/workout/:workoutId`).
+  Future<Map<String, dynamic>> updateWorkout(String workoutId, Map<String, dynamic> body) async {
+    final raw = await _network.put(AppUrl.customerWorkoutById(workoutId), body);
+    if (!_isOk(raw)) {
+      throw Exception(_messageFrom(raw) ?? 'Could not update workout');
     }
     return Map<String, dynamic>.from(raw as Map);
   }
