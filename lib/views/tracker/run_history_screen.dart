@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:get_right/models/run_model.dart';
 import 'package:get_right/models/planned_route_model.dart';
 import 'package:get_right/repo/running_log_repo.dart';
+import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -88,10 +89,61 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
     }
   }
 
-  /// Start a run with a saved planned route
-  void _startRunWithRoute(PlannedRouteModel route) {
-    // Navigate to activity type selection with the route
-    Get.toNamed(AppRoutes.activityTypeSelection, arguments: {'plannedRoute': route});
+  /// Start a run with a saved planned route (fetches full route from API when possible).
+  Future<void> _startRunWithRoute(PlannedRouteModel route) async {
+    var resolvedRoute = route;
+    if (WorkoutRepository.isValidMongoId(route.id)) {
+      _showLoadingDialog();
+      try {
+        resolvedRoute = await _runningLogRepo.fetchPlannedRouteDetail(route.id);
+      } catch (e) {
+        _closeLoadingDialog();
+        Get.snackbar(
+          'Could not load route',
+          e.toString().replaceFirst('Exception: ', ''),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.error,
+          colorText: AppColors.onError,
+        );
+        return;
+      }
+      _closeLoadingDialog();
+    }
+
+    Get.toNamed(AppRoutes.activityTypeSelection, arguments: {'plannedRoute': resolvedRoute});
+  }
+
+  /// Open completed run detail (fetches full log from API when possible).
+  Future<void> _openRunDetail(RunModel run) async {
+    var detail = run;
+    if (WorkoutRepository.isValidMongoId(run.id)) {
+      _showLoadingDialog();
+      try {
+        detail = await _runningLogRepo.fetchRunningLogDetail(run.id);
+      } catch (e) {
+        _closeLoadingDialog();
+        Get.snackbar(
+          'Could not load run',
+          e.toString().replaceFirst('Exception: ', ''),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.error,
+          colorText: AppColors.onError,
+        );
+        return;
+      }
+      _closeLoadingDialog();
+    }
+
+    Get.toNamed(AppRoutes.runDetail, arguments: detail);
+  }
+
+  void _showLoadingDialog() {
+    if (Get.isDialogOpen == true) return;
+    Get.dialog(const Center(child: CircularProgressIndicator(color: AppColors.accent)), barrierDismissible: false);
+  }
+
+  void _closeLoadingDialog() {
+    if (Get.isDialogOpen == true) Get.back();
   }
 
   void _applyFiltersAndSort() {
@@ -574,7 +626,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => Get.toNamed(AppRoutes.runDetail, arguments: run),
+            onTap: () => _openRunDetail(run),
             borderRadius: BorderRadius.circular(16),
             child: Padding(
               padding: const EdgeInsets.all(16),

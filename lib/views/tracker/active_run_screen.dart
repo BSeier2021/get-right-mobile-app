@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/run_tracking_controller.dart';
 import 'package:get_right/models/planned_route_model.dart';
+import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -24,6 +25,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
   late AnimationController _pulseController;
   Timer? _mapUpdateTimer;
   bool _isLocked = false;
+  bool _followUserOnMap = true;
   PlannedRouteModel? _plannedRoute;
 
   @override
@@ -33,43 +35,64 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
     _controller = Get.put(RunTrackingController(), permanent: false);
     _pulseController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat(reverse: true);
 
-    // Reset controller status to 'Ready' for new run
-    // Use post-frame callback to avoid setState during build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      // Reset run status to 'Ready' if not currently tracking
-      if (!_controller.isTracking.value) {
-        _controller.runStatus.value = 'Ready';
-      }
-    });
-
-    // Get activity type and planned route from arguments if provided
-    // Use post-frame callback to avoid setState during build
-    final args = Get.arguments as Map<String, dynamic>?;
-    if (args != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        if (args['activityType'] != null) {
-          _controller.activityType.value = args['activityType'];
-        }
-        if (args['plannedRoute'] != null) {
-          setState(() {
-            _plannedRoute = args['plannedRoute'] as PlannedRouteModel;
-          });
-          _controller.plannedRouteId = _plannedRoute!.id;
-        }
-      });
-    }
-
-    // Auto-start tracking when screen opens (so timer and pause/play work)
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      if (!_controller.isTracking.value) {
-        await _controller.startTracking(activity: _controller.activityType.value);
-      }
-    });
+    // Load args, apply planned route, then start tracking once.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initializeRun());
 
     _startMapUpdates();
+  }
+
+  Future<void> _initializeRun() async {
+    if (!mounted) return;
+
+    final args = Get.arguments as Map<String, dynamic>?;
+    PlannedRouteModel? plannedRoute;
+    String? plannedRouteId;
+
+    if (args != null) {
+      if (args['activityType'] != null) {
+        _controller.activityType.value = args['activityType'].toString();
+      }
+      if (args['plannedRoute'] is PlannedRouteModel) {
+        plannedRoute = args['plannedRoute'] as PlannedRouteModel;
+        if (WorkoutRepository.isValidMongoId(plannedRoute.id)) {
+          plannedRouteId = plannedRoute.id;
+        }
+      }
+    }
+
+    if (!_controller.isTracking.value) {
+      _controller.runStatus.value = 'Ready';
+    }
+
+    if (plannedRoute != null) {
+      _applyPlannedRoute(plannedRoute, routeId: plannedRouteId);
+    }
+
+    if (!_controller.isTracking.value) {
+      await _controller.startTracking(
+        activity: _controller.activityType.value,
+        plannedRouteId: plannedRouteId,
+      );
+    }
+
+    if (plannedRoute != null) {
+      _scheduleMapFit();
+    }
+  }
+
+  void _applyPlannedRoute(PlannedRouteModel route, {String? routeId}) {
+    setState(() {
+      _plannedRoute = route;
+      _followUserOnMap = false;
+    });
+    _controller.plannedRouteId = routeId ?? (WorkoutRepository.isValidMongoId(route.id) ? route.id : _controller.plannedRouteId);
+  }
+
+  void _scheduleMapFit() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _fitMapToRouteAndUser();
+    });
   }
 
   @override
@@ -86,6 +109,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
         timer.cancel();
         return;
       }
+      if (!_followUserOnMap || _plannedRoute != null) return;
       final position = _controller.currentPosition.value;
       if (position != null && _mapController != null) {
         _mapController!.animateCamera(CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)));
@@ -132,7 +156,14 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       final position = _controller.currentPosition.value;
       final routePoints = _controller.routePoints;
 
-      if (position == null) {
+      LatLng? mapCenter;
+      if (position != null) {
+        mapCenter = LatLng(position.latitude, position.longitude);
+      } else if (_plannedRoute != null && _plannedRoute!.routePoints.isNotEmpty) {
+        mapCenter = _plannedRoute!.routePoints.first;
+      }
+
+      if (mapCenter == null) {
         return Container(
           color: AppColors.surface,
           child: const Center(child: CircularProgressIndicator(color: AppColors.accent)),
@@ -142,15 +173,15 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       // Create polylines from route points and planned route
       final Set<Polyline> polylines = {};
 
-      // Add planned route polyline (dashed line to show the planned path)
+      // Add planned route polyline
       if (_plannedRoute != null && _plannedRoute!.routePoints.isNotEmpty) {
         polylines.add(
           Polyline(
             polylineId: const PolylineId('planned_route'),
             points: _plannedRoute!.routePoints,
-            color: AppColors.accent.withOpacity(0.6),
-            width: 4,
-            patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+            color: const Color(0xFF7C49E2),
+            width: 5,
+            geodesic: true,
           ),
         );
       }
@@ -171,14 +202,16 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       final Set<Marker> markers = {};
 
       // Add current position marker
-      markers.add(
-        Marker(
-          markerId: const MarkerId('current_position'),
-          position: LatLng(position.latitude, position.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          anchor: const Offset(0.5, 0.5),
-        ),
-      );
+      if (position != null) {
+        markers.add(
+          Marker(
+            markerId: const MarkerId('current_position'),
+            position: LatLng(position.latitude, position.longitude),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+            anchor: const Offset(0.5, 0.5),
+          ),
+        );
+      }
 
       // Add planned route start marker
       if (_plannedRoute != null && _plannedRoute!.routePoints.isNotEmpty) {
@@ -207,13 +240,13 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       }
 
       return GoogleMap(
-        initialCameraPosition: CameraPosition(target: LatLng(position.latitude, position.longitude), zoom: 17),
+        key: ValueKey('active_run_map_${_plannedRoute?.id ?? 'none'}'),
+        initialCameraPosition: CameraPosition(target: mapCenter, zoom: 16),
         onMapCreated: (controller) {
           _mapController = controller;
           _setMapStyle(controller);
-          // Zoom to fit planned route if available
           if (_plannedRoute != null && _plannedRoute!.routePoints.isNotEmpty) {
-            _fitPlannedRoute();
+            _scheduleMapFit();
           }
         },
         myLocationEnabled: false,
@@ -227,23 +260,45 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
     });
   }
 
-  /// Fit camera to show the planned route
-  void _fitPlannedRoute() {
-    if (_plannedRoute == null || _plannedRoute!.routePoints.isEmpty || _mapController == null) return;
+  /// Fit camera to show planned route and current location together.
+  void _fitMapToRouteAndUser() {
+    if (_mapController == null) return;
 
-    double minLat = _plannedRoute!.routePoints.first.latitude;
-    double maxLat = _plannedRoute!.routePoints.first.latitude;
-    double minLng = _plannedRoute!.routePoints.first.longitude;
-    double maxLng = _plannedRoute!.routePoints.first.longitude;
+    final points = <LatLng>[];
+    if (_plannedRoute != null && _plannedRoute!.routePoints.isNotEmpty) {
+      points.addAll(_plannedRoute!.routePoints);
+    }
 
-    for (final point in _plannedRoute!.routePoints) {
+    final position = _controller.currentPosition.value;
+    if (position != null) {
+      points.add(LatLng(position.latitude, position.longitude));
+    }
+
+    if (points.isEmpty) return;
+
+    if (points.length == 1) {
+      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(points.first, 16));
+      return;
+    }
+
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+
+    for (final point in points) {
       minLat = minLat < point.latitude ? minLat : point.latitude;
       maxLat = maxLat > point.latitude ? maxLat : point.latitude;
       minLng = minLng < point.longitude ? minLng : point.longitude;
       maxLng = maxLng > point.longitude ? maxLng : point.longitude;
     }
 
-    _mapController!.animateCamera(CameraUpdate.newLatLngBounds(LatLngBounds(southwest: LatLng(minLat, minLng), northeast: LatLng(maxLat, maxLng)), 100.0));
+    final bounds = LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
+    );
+
+    _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
   }
 
   /// Set custom map style for dark theme
@@ -482,8 +537,14 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       child: _smallRoundButton(
         icon: Icons.my_location_rounded,
         onTap: () {
+          if (_plannedRoute != null && _plannedRoute!.routePoints.isNotEmpty) {
+            setState(() => _followUserOnMap = false);
+            _fitMapToRouteAndUser();
+            return;
+          }
           final position = _controller.currentPosition.value;
           if (position != null && _mapController != null) {
+            setState(() => _followUserOnMap = true);
             _mapController!.animateCamera(CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)));
           }
         },

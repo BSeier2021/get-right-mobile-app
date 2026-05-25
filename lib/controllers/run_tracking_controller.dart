@@ -59,7 +59,7 @@ class RunTrackingController extends GetxController {
   }
 
   /// Start tracking run
-  Future<bool> startTracking({String? activity}) async {
+  Future<bool> startTracking({String? activity, String? plannedRouteId}) async {
     // Check location permission
     final serviceEnabled = await _gpsService.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -86,8 +86,12 @@ class RunTrackingController extends GetxController {
       activityType.value = activity;
     }
 
-    // Reset state
-    plannedRouteId = null;
+    // Reset state (keep planned route id only when explicitly provided)
+    if (plannedRouteId != null) {
+      this.plannedRouteId = plannedRouteId;
+    } else {
+      this.plannedRouteId = null;
+    }
     routePoints.clear();
     distanceMeters.value = 0.0;
     elevationGain.value = 0.0;

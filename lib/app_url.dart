@@ -271,6 +271,9 @@ class AppUrl {
     return '$baseUrl/customer/running-logs?$q';
   }
 
+  /// `GET /customer/running-logs/:logId` → `data.log`.
+  static String customerRunningLogById(String logId) => '$baseUrl/customer/running-logs/${Uri.encodeComponent(logId.trim())}';
+
   /// `POST /customer/planned-routes` — body: `location` (waypoint[] with `coordinates` [long, lat]).
   static String get customerPlannedRoutes => '$baseUrl/customer/planned-routes';
 
@@ -279,4 +282,7 @@ class AppUrl {
     final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;
     return '$baseUrl/customer/planned-routes?$q';
   }
+
+  /// `GET /customer/planned-routes/:routeId` → `data.route`.
+  static String customerPlannedRouteById(String routeId) => '$baseUrl/customer/planned-routes/${Uri.encodeComponent(routeId.trim())}';
 }

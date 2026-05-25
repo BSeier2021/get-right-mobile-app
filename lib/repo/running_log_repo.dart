@@ -146,6 +146,42 @@ class RunningLogRepository {
     }
   }
 
+  /// `GET /customer/running-logs/:logId` — single completed run.
+  Future<RunModel> fetchRunningLogDetail(String logId) async {
+    final raw = await _network.get(AppUrl.customerRunningLogById(logId));
+    if (!_isOk(raw)) {
+      throw Exception(_messageFrom(raw) ?? 'Could not load run details');
+    }
+    if (raw is Map) {
+      final data = raw['data'];
+      if (data is Map) {
+        final log = Map<String, dynamic>.from(data)['log'];
+        if (log is Map) {
+          return runModelFromApiLog(Map<String, dynamic>.from(log));
+        }
+      }
+    }
+    throw Exception('Could not load run details');
+  }
+
+  /// `GET /customer/planned-routes/:routeId` — single saved route.
+  Future<PlannedRouteModel> fetchPlannedRouteDetail(String routeId) async {
+    final raw = await _network.get(AppUrl.customerPlannedRouteById(routeId));
+    if (!_isOk(raw)) {
+      throw Exception(_messageFrom(raw) ?? 'Could not load route details');
+    }
+    if (raw is Map) {
+      final data = raw['data'];
+      if (data is Map) {
+        final route = Map<String, dynamic>.from(data)['route'];
+        if (route is Map) {
+          return plannedRouteFromApi(Map<String, dynamic>.from(route));
+        }
+      }
+    }
+    throw Exception('Could not load route details');
+  }
+
   /// Maps one route from `GET /customer/planned-routes`.
   static PlannedRouteModel plannedRouteFromApi(Map<String, dynamic> json) {
     final id = json['_id']?.toString() ?? '';
