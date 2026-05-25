@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/exercise_library_model.dart';
+import 'package:get_right/models/journal_exercise_type.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -30,6 +31,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
   final MarketplaceRepository _repo = MarketplaceRepository();
 
   bool _isWarmup = false;
+  JournalExerciseType _exerciseType = JournalExerciseType.workout;
   bool _selectOnly = false;
   String? _workoutJournalId;
   List<ExerciseLibraryModel> _allExercises = [];
@@ -50,6 +52,8 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
     final args = Get.arguments as Map<String, dynamic>?;
     if (args != null) {
       _isWarmup = args['isWarmup'] ?? false;
+      _exerciseType = JournalExerciseType.fromArgs(args) ?? JournalExerciseType.fromIsWarmup(_isWarmup);
+      _isWarmup = _exerciseType.isWarmup;
       _selectOnly = args['selectOnly'] ?? false;
       _workoutJournalId = args['workoutJournalId']?.toString() ?? args['workoutJournal']?.toString();
     }
@@ -164,6 +168,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
       AppRoutes.exerciseConfiguration,
       arguments: {
         'isWarmup': _isWarmup,
+        'exerciseType': _exerciseType,
         'isSuperset': _isSuperset,
         'workoutJournalId': _workoutJournalId,
         'exercise': _selected.length == 1 ? _selected.first : null,
@@ -176,6 +181,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
 
   void _onManual() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {
         'isWarmup': _isWarmup,
+        'exerciseType': _exerciseType,
         'isManual': true,
         'workoutJournalId': _workoutJournalId,
       })?.then((r) {

@@ -21,45 +21,63 @@ class ExerciseCard extends StatefulWidget {
 class _ExerciseCardState extends State<ExerciseCard> {
   bool _isNotesExpanded = true;
 
-  // Get image asset and color for exercise based on exercise name
+  // Fallback local asset and accent color when no network icon is available.
   Map<String, dynamic> _getExerciseAssetAndColor(String exerciseName) {
     final name = exerciseName.toLowerCase();
 
     if (name.contains('chest') || (name.contains('bench') && !name.contains('overhead'))) {
-      return {'asset': 'assets/images/1. Chest 2.png', 'color': AppColors.accent};
+      return {'asset': 'assets/images/1. bench press.png', 'color': AppColors.accent};
     }
     if (name.contains('back') || name.contains('lat') || name.contains('row') || name.contains('pull')) {
-      return {'asset': 'assets/images/2. Back 1.png', 'color': AppColors.completed};
+      return {'asset': 'assets/images/8. lat pulldown.png', 'color': AppColors.completed};
     }
     if (name.contains('shoulder') || name.contains('overhead')) {
-      return {'asset': 'assets/images/3. Shoulders 1.png', 'color': AppColors.accent};
+      return {'asset': 'assets/images/4. overhead press.png', 'color': AppColors.accent};
     }
     if (name.contains('quad') || name.contains('squat') || (name.contains('leg') && !name.contains('ham'))) {
-      return {'asset': 'assets/images/4. Quads 1.png', 'color': AppColors.upcoming};
+      return {'asset': 'assets/images/2. squat.png', 'color': AppColors.upcoming};
     }
     if (name.contains('hamstring') || name.contains('deadlift')) {
-      return {'asset': 'assets/images/5. Hamstring 1.png', 'color': AppColors.upcoming};
+      return {'asset': 'assets/images/3. deadlift.png', 'color': AppColors.upcoming};
     }
     if (name.contains('tricep') || name.contains('pushdown') || name.contains('extension')) {
-      return {'asset': 'assets/images/6. Triceps 1.png', 'color': AppColors.error};
+      return {'asset': 'assets/images/10. tricep pushdown.png', 'color': AppColors.error};
     }
     if (name.contains('bicep') || name.contains('curl')) {
-      return {'asset': 'assets/images/7. Biceps 1.png', 'color': AppColors.upcoming};
+      return {'asset': 'assets/images/9.  dumbell curl.png', 'color': AppColors.upcoming};
     }
     if (name.contains('core') || name.contains('abs') || name.contains('plank') || name.contains('crunch')) {
-      return {'asset': 'assets/images/8. core.png', 'color': AppColors.primaryGray};
+      return {'asset': 'assets/images/6. plank.png', 'color': AppColors.primaryGray};
     }
-    if (name.contains('glute')) {
-      return {'asset': 'assets/images/9. Glutes 1.png', 'color': AppColors.upcoming};
+    if (name.contains('glute') || name.contains('lunge')) {
+      return {'asset': 'assets/images/11. lunges.png', 'color': AppColors.upcoming};
     }
-    if (name.contains('calf') || name.contains('calves')) {
-      return {'asset': 'assets/images/10. Calves 1.png', 'color': AppColors.upcoming};
+    if (name.contains('calf') || name.contains('calves') || name.contains('leg press')) {
+      return {'asset': 'assets/images/12. Leg press.png', 'color': AppColors.upcoming};
     }
-    if (name.contains('forearm')) {
-      return {'asset': 'assets/images/11. Forearms 1.png', 'color': AppColors.primaryGray};
+    return {'asset': 'assets/images/dumbles.png', 'color': AppColors.accent};
+  }
+
+  Widget _buildExerciseIcon(String exerciseName, String? iconUrl, Color color) {
+    if (iconUrl != null && iconUrl.isNotEmpty) {
+      return Image.network(
+        iconUrl,
+        width: 26.w,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => _buildAssetIcon(exerciseName, color),
+      );
     }
-    // Default
-    return {'asset': 'assets/images/1. Chest 2.png', 'color': AppColors.accent};
+    return _buildAssetIcon(exerciseName, color);
+  }
+
+  Widget _buildAssetIcon(String exerciseName, Color color) {
+    final asset = _getExerciseAssetAndColor(exerciseName)['asset'] as String;
+    return Image.asset(
+      asset,
+      width: 26.w,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => Icon(Icons.fitness_center, size: 20.w, color: color),
+    );
   }
 
   @override
@@ -81,7 +99,6 @@ class _ExerciseCardState extends State<ExerciseCard> {
                 Builder(
                   builder: (context) {
                     final data = _getExerciseAssetAndColor(widget.exercise.exerciseName);
-                    final String asset = data['asset'] as String;
                     final Color color = data['color'] as Color;
                     return Container(
                       width: 40.w,
@@ -93,7 +110,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
                         border: Border.all(color: color.withOpacity(0.25), width: 1),
                       ),
                       child: Center(
-                        child: Image.asset(asset, width: 26.w, fit: BoxFit.contain),
+                        child: _buildExerciseIcon(widget.exercise.exerciseName, widget.exercise.iconUrl, color),
                       ).paddingSymmetric(horizontal: 4, vertical: 4),
                     );
                   },

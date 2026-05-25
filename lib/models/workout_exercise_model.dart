@@ -6,6 +6,7 @@ class WorkoutExerciseModel {
   final String id;
   final String exerciseName;
   final String exerciseId; // Reference to exercise library
+  final String? iconUrl; // Exercise icon from library / API
   final List<ExerciseSetModel> sets;
   final String? notes; // Exercise-level notes
   final bool isSuperset; // If true, this is part of a superset
@@ -19,6 +20,7 @@ class WorkoutExerciseModel {
     required this.id,
     required this.exerciseName,
     required this.exerciseId,
+    this.iconUrl,
     required this.sets,
     this.notes,
     this.isSuperset = false,
@@ -34,6 +36,7 @@ class WorkoutExerciseModel {
       id: json['id'] ?? '',
       exerciseName: json['exerciseName'] ?? '',
       exerciseId: json['exerciseId'] ?? '',
+      iconUrl: json['iconUrl'],
       sets: (json['sets'] as List<dynamic>?)
               ?.map((set) => ExerciseSetModel.fromJson(set as Map<String, dynamic>))
               .toList() ??
@@ -53,6 +56,7 @@ class WorkoutExerciseModel {
       'id': id,
       'exerciseName': exerciseName,
       'exerciseId': exerciseId,
+      'iconUrl': iconUrl,
       'sets': sets.map((set) => set.toJson()).toList(),
       'notes': notes,
       'isSuperset': isSuperset,
@@ -68,6 +72,7 @@ class WorkoutExerciseModel {
     String? id,
     String? exerciseName,
     String? exerciseId,
+    String? iconUrl,
     List<ExerciseSetModel>? sets,
     String? notes,
     bool? isSuperset,
@@ -81,6 +86,7 @@ class WorkoutExerciseModel {
       id: id ?? this.id,
       exerciseName: exerciseName ?? this.exerciseName,
       exerciseId: exerciseId ?? this.exerciseId,
+      iconUrl: iconUrl ?? this.iconUrl,
       sets: sets ?? this.sets,
       notes: notes ?? this.notes,
       isSuperset: isSuperset ?? this.isSuperset,

@@ -241,6 +241,18 @@ class AppUrl {
     return '$path?$q';
   }
 
-  /// `POST /customer/workout` — body: `workoutJournal`, `name`, `exercise[]`, optional `refExercise`, `supersetIdentifier`.
+  /// `GET /customer/workout-journal` — query: `page`, `limit`, `dateFrom` (`YYYY-MM-DD`), optional `date`.
+  static String customerWorkoutJournalList({int page = 1, int limit = 10, String? dateFrom, String? date}) {
+    final params = <String, String>{'page': '$page', 'limit': '$limit'};
+    if (dateFrom != null && dateFrom.trim().isNotEmpty) params['dateFrom'] = dateFrom.trim();
+    if (date != null && date.trim().isNotEmpty) params['date'] = date.trim();
+    final q = Uri(queryParameters: params).query;
+    return '$baseUrl/customer/workout-journal?$q';
+  }
+
+  /// `POST /customer/workout-journal` — body: `date`, `workout` (id[]), `duration`, `notes`, optional `type`.
+  static String get customerWorkoutJournalCreate => '$baseUrl/customer/workout-journal';
+
+  /// `POST /customer/workout` — body: `type`, `name`, `exercise[]`, optional `refExercise`, `supersetIdentifier`, optional `workoutJournal`.
   static String get customerWorkout => '$baseUrl/customer/workout';
 }

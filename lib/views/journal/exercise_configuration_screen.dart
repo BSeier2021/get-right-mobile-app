@@ -4,6 +4,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/models/exercise_set_model.dart';
+import 'package:get_right/models/journal_exercise_type.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -18,6 +19,7 @@ class ExerciseConfigurationScreen extends StatefulWidget {
 
 class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScreen> {
   bool _isWarmup = false;
+  JournalExerciseType _exerciseType = JournalExerciseType.workout;
   bool _isManual = false;
   bool _isSuperset = false;
   bool _isEditing = false;
@@ -37,6 +39,8 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     final args = Get.arguments as Map<String, dynamic>?;
     if (args != null) {
       _isWarmup = args['isWarmup'] ?? false;
+      _exerciseType = JournalExerciseType.fromArgs(args) ?? JournalExerciseType.fromIsWarmup(_isWarmup);
+      _isWarmup = _exerciseType.isWarmup;
       _isManual = args['isManual'] ?? false;
       _isSuperset = args['isSuperset'] ?? false;
       _hasAskedWarmupWorkout = args['isWarmup'] != null; // If isWarmup is provided, we've already asked
@@ -61,7 +65,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         }
 
         // Create config with existing data
-        final cfg = _Config(name: existingEx.exerciseName, id: existingEx.exerciseId);
+        final cfg = _Config(name: existingEx.exerciseName, id: existingEx.exerciseId, iconUrl: existingEx.iconUrl);
         cfg.mainType = mainType;
         cfg.extraType = extraType;
 
@@ -91,11 +95,13 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
 
         _configs.add(cfg);
       } else if (_isSuperset && args['exercises'] != null) {
-        for (var ex in args['exercises'] as List<ExerciseLibraryModel>) _configs.add(_Config(name: ex.name, id: ex.id));
+        for (var ex in args['exercises'] as List<ExerciseLibraryModel>) {
+          _configs.add(_Config(name: ex.name, id: ex.id, iconUrl: ex.iconUrl));
+        }
       } else if (args['exercise'] != null) {
         final ex = args['exercise'] as ExerciseLibraryModel;
         _nameController.text = ex.name; // Pre-fill name for library exercises
-        _configs.add(_Config(name: ex.name, id: ex.id));
+        _configs.add(_Config(name: ex.name, id: ex.id, iconUrl: ex.iconUrl));
       } else if (_isManual) {
         _configs.add(_Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}'));
       }
@@ -144,6 +150,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                     child: ElevatedButton(
                       onPressed: () {
                         setState(() {
+                          _exerciseType = JournalExerciseType.warmup;
                           _isWarmup = true;
                           _hasAskedWarmupWorkout = true;
                         });
@@ -168,6 +175,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                     child: ElevatedButton(
                       onPressed: () {
                         setState(() {
+                          _exerciseType = JournalExerciseType.workout;
                           _isWarmup = false;
                           _hasAskedWarmupWorkout = true;
                         });
@@ -197,7 +205,12 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   }
 
   void _openExerciseSelectionForCard(int cardIndex) {
-    Get.toNamed(AppRoutes.exerciseSelection, arguments: {'isWarmup': _isWarmup, 'isSuperset': false, 'workoutJournalId': _workoutJournalId})?.then((result) {
+    Get.toNamed(AppRoutes.exerciseSelection, arguments: {
+      'isWarmup': _isWarmup,
+      'exerciseType': _exerciseType,
+      'isSuperset': false,
+      'workoutJournalId': _workoutJournalId,
+    })?.then((result) {
       if (result != null && result['exercise'] != null) {
         final ex = result['exercise'] as ExerciseLibraryModel;
         setState(() {
@@ -235,27 +248,24 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       }
     }
 
+    final createdApiIds = <String>[];
     if (!_isEditing) {
-      final journalId = _workoutJournalId?.trim();
-      if (journalId == null || journalId.isEmpty) {
-        Get.snackbar('Error', 'Workout journal not found', backgroundColor: AppColors.error, colorText: AppColors.onError);
-        return;
-      }
-
       setState(() => _isSaving = true);
       try {
         for (var i = 0; i < _configs.length; i++) {
           final cfg = _configs[i];
           final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
-          final body = <String, dynamic>{'workoutJournal': journalId, 'name': name, 'exercise': _buildApiExerciseSets(cfg)};
           final refId = cfg.id.trim();
-          if (refId.isNotEmpty && !refId.startsWith('manual_')) {
-            body['refExercise'] = refId;
-          }
-          if (_isSuperset) {
-            body['supersetIdentifier'] = 'A${i + 1}';
-          }
-          await _workoutRepo.createWorkout(body);
+          final body = WorkoutRepository.createWorkoutBody(
+            type: _exerciseType.apiValue,
+            name: name,
+            exercise: _buildApiExerciseSets(cfg),
+            refExercise: refId.isNotEmpty && !refId.startsWith('manual_') ? refId : null,
+            supersetIdentifier: _isSuperset ? 'A${i + 1}' : null,
+          );
+          final response = await _workoutRepo.createWorkout(body);
+          final apiId = WorkoutRepository.createdWorkoutId(response);
+          if (apiId != null && apiId.isNotEmpty) createdApiIds.add(apiId);
         }
       } catch (e) {
         if (mounted) setState(() => _isSaving = false);
@@ -266,14 +276,15 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     }
 
     final supersetId = _isSuperset ? 'ss_${now.millisecondsSinceEpoch}' : null;
-    for (var cfg in _configs) {
+    for (var i = 0; i < _configs.length; i++) {
+      final cfg = _configs[i];
       final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
       final sets = cfg.sets.asMap().entries.map((e) {
-        final i = e.key;
+        final setIdx = e.key;
         final s = e.value;
         return ExerciseSetModel(
-          id: 'set_${i + 1}_${now.millisecondsSinceEpoch}',
-          setNumber: i + 1,
+          id: 'set_${setIdx + 1}_${now.millisecondsSinceEpoch}',
+          setNumber: setIdx + 1,
           reps: cfg.mainType != 'Time' ? (s.repsType == 'AMRAP' || s.repsType == 'FAILURE' ? null : s.reps) : null,
           repsType: cfg.mainType != 'Time' ? (s.repsType ?? 'standard') : null,
           timeSeconds: cfg.mainType == 'Time' ? s.time : null,
@@ -283,21 +294,23 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           distanceUnit: cfg.extraType == 'Distance' ? s.distanceUnit : null,
         );
       }).toList();
+      final apiId = i < createdApiIds.length ? createdApiIds[i] : null;
       exercises.add(
         WorkoutExerciseModel(
-          id: 'ex_${now.millisecondsSinceEpoch}_${exercises.length}',
+          id: apiId ?? 'ex_${now.millisecondsSinceEpoch}_$i',
           exerciseName: name,
           exerciseId: cfg.id,
+          iconUrl: cfg.iconUrl,
           sets: sets,
           isSuperset: _isSuperset,
           supersetId: supersetId,
-          supersetOrder: _isSuperset ? exercises.length : null,
+          supersetOrder: _isSuperset ? i : null,
           date: now,
           createdAt: now,
         ),
       );
     }
-    Get.back(result: {'exercises': exercises, 'isWarmup': _isWarmup});
+    Get.back(result: {'exercises': exercises, 'isWarmup': _isWarmup, 'exerciseType': _exerciseType});
   }
 
   List<Map<String, dynamic>> _buildApiExerciseSets(_Config cfg) {
@@ -798,7 +811,11 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   }
 
   void _openExerciseSelection(int cfgIndex) async {
-    final result = await Get.toNamed(AppRoutes.exerciseSelection, arguments: {'isWarmup': _isWarmup, 'selectOnly': true});
+    final result = await Get.toNamed(AppRoutes.exerciseSelection, arguments: {
+      'isWarmup': _isWarmup,
+      'exerciseType': _exerciseType,
+      'selectOnly': true,
+    });
     if (result != null && result['exercise'] != null) {
       final exercise = result['exercise'] as ExerciseLibraryModel;
       setState(() {
@@ -1337,12 +1354,15 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
 
 class _Config {
   String name, id;
+  String? iconUrl;
   String mainType = 'Reps';
   String extraType = 'Weight';
   List<_SetData> sets;
   final TextEditingController nameController;
 
-  _Config({required this.name, required this.id}) : sets = [_SetData(), _SetData(), _SetData()], nameController = TextEditingController(text: name.isNotEmpty ? name : '');
+  _Config({required this.name, required this.id, this.iconUrl})
+      : sets = [_SetData(), _SetData(), _SetData()],
+        nameController = TextEditingController(text: name.isNotEmpty ? name : '');
 
   void dispose() {
     nameController.dispose();

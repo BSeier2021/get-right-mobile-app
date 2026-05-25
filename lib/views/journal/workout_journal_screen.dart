@@ -7,6 +7,8 @@ import 'package:get/get.dart';
 import 'package:get_right/models/workout_journal_model.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/models/exercise_set_model.dart';
+import 'package:get_right/models/journal_exercise_type.dart';
+import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -24,7 +26,10 @@ class WorkoutJournalScreen extends StatefulWidget {
 
 class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   WorkoutJournalModel? _workout;
+  String? _workoutJournalId;
   bool _isLoading = true;
+  String? _loadError;
+  final WorkoutRepository _workoutRepo = WorkoutRepository();
   bool _isStarted = false;
   bool _isPaused = false;
   // Dialog is now used instead of inline add-exercise content
@@ -46,17 +51,98 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   }
 
   void _load() {
+    _loadWorkoutJournal();
+  }
+
+  Future<void> _loadWorkoutJournal() async {
+    await _refreshWorkoutJournalFromApi(showLoading: true);
+  }
+
+  WorkoutJournalModel _emptyWorkoutShell() {
+    return WorkoutJournalModel(
+      id: '',
+      userId: 'user_1',
+      date: DateTime.now(),
+      warmupExercises: [],
+      workoutExercises: [],
+      createdAt: DateTime.now(),
+    );
+  }
+
+  void _mergeExercisesFromSaveResult(Map<String, dynamic> result) {
+    final rawExercises = result['exercises'];
+    if (rawExercises is! List || rawExercises.isEmpty) return;
+
+    final exercises = rawExercises.whereType<WorkoutExerciseModel>().toList();
+    if (exercises.isEmpty) return;
+
+    final type = result['exerciseType'] is JournalExerciseType
+        ? result['exerciseType'] as JournalExerciseType
+        : (result['isWarmup'] == true ? JournalExerciseType.warmup : JournalExerciseType.workout);
+
     setState(() {
-      _isLoading = false;
-      _workout = WorkoutJournalModel(
-        id: 'w_${DateTime.now().millisecondsSinceEpoch}',
-        userId: 'user_1',
-        date: DateTime.now(),
-        warmupExercises: [],
-        workoutExercises: [],
-        createdAt: DateTime.now(),
-      );
+      _workout ??= _emptyWorkoutShell();
+      if (type.isWarmup) {
+        _workout = _workout!.copyWith(warmupExercises: [..._workout!.warmupExercises, ...exercises]);
+      } else {
+        _workout = _workout!.copyWith(workoutExercises: [..._workout!.workoutExercises, ...exercises]);
+      }
     });
+  }
+
+  Future<void> _refreshWorkoutJournalFromApi({bool showLoading = false}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+      });
+    }
+
+    try {
+      final page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: DateTime.now());
+      final today = WorkoutRepository.todayEntryFrom(page);
+      if (!mounted) return;
+
+      setState(() {
+        if (today != null && today.id.isNotEmpty) {
+          _workoutJournalId = WorkoutRepository.isValidMongoId(today.id) ? today.id : _workoutJournalId;
+          _workout = today.copyWith(
+            startedAt: _workout?.startedAt,
+            completedAt: _workout?.completedAt,
+            durationSeconds: _workout?.durationSeconds ?? today.durationSeconds,
+            caloriesBurned: _workout?.caloriesBurned,
+          );
+        } else if (_workout == null) {
+          _workoutJournalId = null;
+          _workout = _emptyWorkoutShell();
+        }
+        _isLoading = false;
+        _loadError = null;
+      });
+
+      if (page.syncFailed && mounted) {
+        Get.snackbar(
+          'Sync unavailable',
+          'Workout list could not be loaded from the server. You can still add exercises.',
+          backgroundColor: AppColors.primaryGrayDark,
+          colorText: AppColors.onSurface,
+          duration: const Duration(seconds: 4),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        if (_workout == null) _workout = _emptyWorkoutShell();
+        _loadError = null;
+      });
+      Get.snackbar(
+        'Sync unavailable',
+        e.toString().replaceFirst('Exception: ', ''),
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+      );
+    }
   }
 
   void _startWorkout() {
@@ -84,12 +170,9 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     setState(() => _isPaused = false);
   }
 
-  void _stopWorkout() {
+  void _stopWorkout() async {
     _timer?.cancel();
 
-    // Calculate average heart rate
-
-    // Update workout model with completion data
     if (_workout != null && _startTime != null) {
       _workout = _workout!.copyWith(startedAt: _startTime, completedAt: DateTime.now(), durationSeconds: _seconds, caloriesBurned: _calories);
     }
@@ -99,19 +182,43 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       _isPaused = false;
     });
 
-    // Show full-screen celebration view
+    await _finalizeWorkoutJournal();
+
+    if (!mounted) return;
+
     Get.to(
       () => WorkoutCelebrationScreen(duration: _formatTime(_seconds), calories: _calories, workoutName: _getWorkoutName()),
       transition: Transition.zoom,
       duration: const Duration(milliseconds: 500),
     )?.then((_) {
-      // Reset workout stats after closing celebration
+      if (!mounted) return;
       setState(() {
         _seconds = 0;
         _calories = 0;
         _startTime = null;
       });
     });
+  }
+
+  Future<void> _finalizeWorkoutJournal() async {
+    if (_workout == null) return;
+
+    final workoutIds = _workout!.allExercises.where((e) => WorkoutRepository.isValidMongoId(e.id)).map((e) => e.id).toList();
+    if (workoutIds.isEmpty) {
+      await _refreshWorkoutJournalFromApi();
+      return;
+    }
+
+    final now = DateTime.now();
+    final dateKey = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    try {
+      await _workoutRepo.submitWorkoutJournal(date: dateKey, workoutIds: workoutIds, duration: _seconds, notes: _workout!.notes ?? '');
+      await _refreshWorkoutJournalFromApi();
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+    }
   }
 
   String _getWorkoutName() {
@@ -147,20 +254,17 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
   String _formatTime(int s) => '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
-  void _onAddWarmup() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {'isWarmup': true, 'workoutJournalId': _workout?.id})?.then((r) {
-    if (r != null && r['exercises'] != null)
-      setState(() {
-        _workout = _workout!.copyWith(warmupExercises: [..._workout!.warmupExercises, ...r['exercises'] as List<WorkoutExerciseModel>]);
-      });
-  });
-  void _onAddWorkout() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {'isWarmup': false, 'workoutJournalId': _workout?.id})?.then((r) {
-    if (r != null && r['exercises'] != null)
-      setState(() {
-        _workout = _workout!.copyWith(workoutExercises: [..._workout!.workoutExercises, ...r['exercises'] as List<WorkoutExerciseModel>]);
-      });
-  });
-  // ignore: unused_element
-  void _onAddExercise() => Get.toNamed(AppRoutes.addExercise);
+  Future<void> _openAddExerciseFlow(JournalExerciseType exerciseType) async {
+    await Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {'exerciseType': exerciseType, 'isWarmup': exerciseType.isWarmup})?.then((r) async {
+      if (r is! Map || r['exercises'] == null) return;
+      _mergeExercisesFromSaveResult(Map<String, dynamic>.from(r));
+      await _refreshWorkoutJournalFromApi();
+    });
+  }
+
+  void _onAddWarmup() => _openAddExerciseFlow(JournalExerciseType.warmup);
+
+  void _onAddWorkout() => _openAddExerciseFlow(JournalExerciseType.workout);
 
   // ignore: unused_element
   void _showQuickAddDialog({required bool isTimer}) {
@@ -367,6 +471,8 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
             Expanded(
               child: _isLoading
                   ? Center(child: CircularProgressIndicator(color: AppColors.accent))
+                  : _loadError != null
+                  ? _buildLoadError()
                   : _workout == null || _workout!.isEmpty
                   ? _buildEmpty()
                   : _buildContent(),
@@ -408,9 +514,37 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: AppColors.accent))
+          : _loadError != null
+          ? _buildLoadError()
           : _workout == null || _workout!.isEmpty
           ? _buildEmpty()
           : _buildContent(),
+    );
+  }
+
+  Widget _buildLoadError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Could not load workout journal',
+              style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _loadError!,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: _loadWorkoutJournal, child: const Text('Retry')),
+          ],
+        ),
+      ),
     );
   }
 
@@ -669,7 +803,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               children: [
                 if (_isStarted) _buildMetrics(),
 
-                if (_workout!.warmupExercises.isNotEmpty) ...[_buildHeader('Workout Summary', isWarmup: true), ..._buildExercisesList(_workout!.warmupExercises, true)],
+                if (_workout!.warmupExercises.isNotEmpty) ...[_buildHeader('Warmup', isWarmup: true), ..._buildExercisesList(_workout!.warmupExercises, true)],
 
                 if (_workout!.workoutExercises.isNotEmpty) ...[_buildHeader('Workout', isWarmup: false), ..._buildExercisesList(_workout!.workoutExercises, false)],
 
@@ -913,12 +1047,10 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               ListTile(
                 onTap: () {
                   Get.back();
-                  Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {
-                    'isEditing': true,
-                    'existingExercise': ex,
-                    'isWarmup': isWarmup,
-                    'workoutJournalId': _workout?.id,
-                  });
+                  Get.toNamed(
+                    AppRoutes.exerciseConfiguration,
+                    arguments: {'isEditing': true, 'existingExercise': ex, 'isWarmup': isWarmup, 'exerciseType': JournalExerciseType.fromIsWarmup(isWarmup)},
+                  );
                 },
                 title: Center(
                   child: Text(
