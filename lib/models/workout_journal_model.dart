@@ -112,11 +112,16 @@ class WorkoutJournalModel {
     for (final exercise in allExercises) {
       if (exercise.isSuperset && exercise.supersetId != null) {
         if (!processedSupersets.contains(exercise.supersetId)) {
-          // Find the other exercise in the superset
-          final otherExercise = allExercises.firstWhere((ex) => ex.isSuperset && ex.supersetId == exercise.supersetId && ex.id != exercise.id, orElse: () => exercise);
+          final otherExercise = allExercises.firstWhere(
+            (ex) => ex.isSuperset && ex.supersetId == exercise.supersetId && ex.id != exercise.id,
+            orElse: () => exercise,
+          );
+          final ordered = (exercise.supersetOrder != null && otherExercise.supersetOrder != null && exercise.supersetOrder! > otherExercise.supersetOrder!)
+              ? [otherExercise, exercise]
+              : [exercise, otherExercise];
           grouped.add({
             'type': 'superset',
-            'exercises': [exercise, otherExercise],
+            'exercises': ordered,
             'supersetId': exercise.supersetId,
           });
           processedSupersets.add(exercise.supersetId!);

@@ -220,9 +220,15 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     return Get.find<StorageService>().getSavedFeedPostIds();
   }
 
+  Set<String> _likedFeedPostIds() {
+    if (!Get.isRegistered<StorageService>()) return <String>{};
+    return Get.find<StorageService>().getLikedFeedPostIds();
+  }
+
   List<Map<String, dynamic>> _mapFeedDocuments(List<dynamic> feedsRaw) {
     final mapped = feedsRaw.map((e) => mapApiFeedDocumentToUiPost(e)).where((p) => (p['id'] ?? '').toString().isNotEmpty).toList();
     mergePersistedSaveStateOnFeedPosts(mapped, _savedFeedPostIds());
+    mergePersistedLikeStateOnFeedPosts(mapped, _likedFeedPostIds());
     return mapped;
   }
 

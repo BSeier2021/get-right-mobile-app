@@ -451,6 +451,31 @@ class StorageService {
     return getSavedPosts().map((p) => (p['id'] ?? '').toString().trim()).where((id) => id.isNotEmpty).toSet();
   }
 
+  /// Feed post ids stored locally after like API success.
+  Set<String> getLikedFeedPostIds() {
+    final ids = getStringList(AppConstants.keyLikedFeedPostIds) ?? [];
+    return ids.map((id) => id.trim()).where((id) => id.isNotEmpty).toSet();
+  }
+
+  Future<bool> addLikedFeedPostId(String postId) async {
+    final id = postId.trim();
+    if (id.isEmpty) return false;
+    final ids = getLikedFeedPostIds().toList()..remove(id);
+    ids.add(id);
+    return saveStringList(AppConstants.keyLikedFeedPostIds, ids);
+  }
+
+  Future<bool> removeLikedFeedPostId(String postId) async {
+    final id = postId.trim();
+    if (id.isEmpty) return false;
+    final ids = getLikedFeedPostIds().toList()..remove(id);
+    return saveStringList(AppConstants.keyLikedFeedPostIds, ids);
+  }
+
+  bool isFeedPostLiked(String postId) {
+    return getLikedFeedPostIds().contains(postId.trim());
+  }
+
   // Subscription methods
 
   /// Check if user has active subscription

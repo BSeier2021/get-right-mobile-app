@@ -31,8 +31,23 @@ Map<String, dynamic> mapApiFeedCommentToUi(dynamic raw) {
     'authorInitials': initials,
     'avatarUrl': (profilePicture['url'] ?? '').toString(),
     'timestamp': createdAt != null ? Helpers.getRelativeTime(createdAt.toLocal()) : '',
+    if (createdAt != null) 'createdAt': createdAt.toUtc().toIso8601String(),
     if (replyCountInt != null && replyCountInt > 0) 'repliesCount': replyCountInt,
   };
+}
+
+DateTime feedCommentSortTime(Map<String, dynamic> comment) {
+  final raw = comment['createdAt'];
+  if (raw is DateTime) return raw;
+  if (raw is String) {
+    return DateTime.tryParse(raw) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }
+  return DateTime.fromMillisecondsSinceEpoch(0);
+}
+
+/// Oldest first — used for reply threads regardless of API sort order.
+void sortFeedCommentsChronologically(List<Map<String, dynamic>> comments) {
+  comments.sort((a, b) => feedCommentSortTime(a).compareTo(feedCommentSortTime(b)));
 }
 
 bool readFeedCommentsHasNextPage(Map<String, dynamic> data) {

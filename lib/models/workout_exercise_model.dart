@@ -18,6 +18,19 @@ class WorkoutExerciseModel {
   final DateTime createdAt;
   final DateTime? updatedAt;
 
+  /// Parses API/local identifiers like `A1`, `A2` → group `A` with order 0, 1.
+  static ({String groupId, int order})? parseSupersetIdentifier(String? raw) {
+    final value = raw?.trim();
+    if (value == null || value.isEmpty) return null;
+    final match = RegExp(r'^([A-Za-z]+)(\d+)$').firstMatch(value);
+    if (match != null) {
+      final groupId = match.group(1)!.toUpperCase();
+      final order = (int.tryParse(match.group(2)!) ?? 1) - 1;
+      return (groupId: groupId, order: order < 0 ? 0 : order);
+    }
+    return (groupId: value.toUpperCase(), order: 0);
+  }
+
   WorkoutExerciseModel({
     required this.id,
     required this.exerciseName,

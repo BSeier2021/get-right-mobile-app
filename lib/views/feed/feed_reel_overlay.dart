@@ -203,10 +203,7 @@ class _FeedReelPhotoCarouselState extends State<FeedReelPhotoCarousel> {
                 margin: const EdgeInsets.symmetric(horizontal: 3),
                 width: active ? 8 : 6,
                 height: active ? 8 : 6,
-                decoration: BoxDecoration(
-                  color: active ? Colors.white : Colors.white.withOpacity(0.45),
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: active ? Colors.white : Colors.white.withOpacity(0.45), shape: BoxShape.circle),
               );
             }),
           ),
@@ -275,6 +272,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
   void initState() {
     super.initState();
     _hydrateSaveStateFromStorage();
+    _hydrateLikeStateFromStorage();
   }
 
   @override
@@ -283,6 +281,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     if ((oldWidget.post['id'] ?? '').toString() != (_post['id'] ?? '').toString()) {
       _descriptionExpanded = false;
       _hydrateSaveStateFromStorage();
+      _hydrateLikeStateFromStorage();
     }
   }
 
@@ -291,6 +290,16 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     final id = (_post['id'] ?? '').toString().trim();
     if (id.isEmpty || !_storageService.isPostSaved(id)) return;
     _post['isSaved'] = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _hydrateLikeStateFromStorage() {
+    if (_post['isLiked'] == true) return;
+    final id = (_post['id'] ?? '').toString().trim();
+    if (id.isEmpty || !_storageService.isFeedPostLiked(id)) return;
+    _post['isLiked'] = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() {});
     });
@@ -530,7 +539,26 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
                       style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
                       maxLines: 3,
                       maxLength: 2000,
+                      textInputAction: TextInputAction.done,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
+                    if (MediaQuery.of(context).viewInsets.bottom > 0) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () => FocusManager.instance.primaryFocus?.unfocus(),
+                          icon: const Icon(Icons.keyboard_hide_outlined, size: 18),
+                          label: const Text('Done'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.accent,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -872,11 +900,14 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     try {
       if (wasLiked) {
         await _feedRepo.unlikeFeedRepo(feedId);
+        await _storageService.removeLikedFeedPostId(feedId);
       } else {
         await _feedRepo.likeFeedRepo(feedId);
+        await _storageService.addLikedFeedPostId(feedId);
       }
     } catch (e) {
       if (!wasLiked && _isAlreadyLikedError(e)) {
+        await _storageService.addLikedFeedPostId(feedId);
         return;
       }
       if (mounted) {

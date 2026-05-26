@@ -27,6 +27,7 @@ class AppConstants {
   static const String keyFitnessLevel = 'fitness_level';
   static const String keyExerciseFrequency = 'exercise_frequency';
   static const String keySavedPosts = 'saved_posts';
+  static const String keyLikedFeedPostIds = 'liked_feed_post_ids';
   static const String keyHasSubscription = 'has_subscription';
   static const String keySubscriptionExpiryDate = 'subscription_expiry_date';
   static const String keySubscriptionType =

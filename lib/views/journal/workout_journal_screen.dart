@@ -317,12 +317,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     try {
       if (WorkoutRepository.isValidMongoId(_workoutJournalId)) {
-        await _workoutRepo.updateWorkoutJournal(
-          journalId: _workoutJournalId!,
-          workoutIds: workoutIds,
-          duration: _seconds,
-          notes: _workout!.notes ?? '',
-        );
+        await _workoutRepo.updateWorkoutJournal(journalId: _workoutJournalId!, workoutIds: workoutIds, duration: _seconds, notes: _workout!.notes ?? '');
       } else {
         await _workoutRepo.submitWorkoutJournal(date: dateKey, workoutIds: workoutIds, duration: _seconds, notes: _workout!.notes ?? '');
       }
@@ -368,7 +363,12 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
   Future<void> _ensureWorkoutJournalId() async {
     if (WorkoutRepository.isValidMongoId(_workoutJournalId)) return;
-    _workoutJournalId = await _workoutRepo.getOrCreateWorkoutJournalId();
+    _workoutJournalId = await _workoutRepo.findWorkoutJournalIdForToday();
+  }
+
+  List<String> _currentJournalWorkoutIds() {
+    if (_workout == null) return const [];
+    return _workout!.allExercises.where((e) => WorkoutRepository.isValidMongoId(e.id)).map((e) => e.id).toList();
   }
 
   Future<void> _openAddExerciseFlow(JournalExerciseType exerciseType) async {
@@ -382,11 +382,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     await Get.toNamed(
       AppRoutes.exerciseConfiguration,
-      arguments: {
-        'exerciseType': exerciseType,
-        'isWarmup': exerciseType.isWarmup,
-        'workoutJournalId': _workoutJournalId,
-      },
+      arguments: {'exerciseType': exerciseType, 'isWarmup': exerciseType.isWarmup, 'workoutJournalId': _workoutJournalId, 'journalWorkoutIds': _currentJournalWorkoutIds()},
     )?.then((r) async {
       if (r is! Map || r['exercises'] == null) return;
       _mergeExercisesFromSaveResult(Map<String, dynamic>.from(r));
@@ -1085,6 +1081,13 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     return ex.copyWith(notes: notes);
   }
 
+  (WorkoutExerciseModel, WorkoutExerciseModel) _orderedSupersetPair(WorkoutExerciseModel a, WorkoutExerciseModel b) {
+    if (a.supersetOrder != null && b.supersetOrder != null) {
+      return a.supersetOrder! <= b.supersetOrder! ? (a, b) : (b, a);
+    }
+    return (a, b);
+  }
+
   /// Build exercises list with superset grouping support
   List<Widget> _buildExercisesList(List<WorkoutExerciseModel> exercises, bool isWarmup) {
     final List<Widget> widgets = [];
@@ -1095,33 +1098,34 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
       // Check if this exercise is part of a superset
       if (exercise.isSuperset && exercise.supersetId != null) {
-        // Skip if we've already processed this superset
+        // Skip if we've already processed this superset group (e.g. A1 + A2 → group A)
         if (processedSupersets.contains(exercise.supersetId)) {
           continue;
         }
 
-        // Find the other exercise in the superset
+        // Find the partner exercise in the same superset group
         final otherRaw = exercises.firstWhereOrNull((e) => e.isSuperset && e.supersetId == exercise.supersetId && e.id != exercise.id);
         final otherExercise = otherRaw != null ? _exerciseWithJournalNotes(otherRaw) : null;
 
         if (otherExercise != null) {
+          final pair = _orderedSupersetPair(exercise, otherExercise);
+          final ex1 = pair.$1;
+          final ex2 = pair.$2;
           // Add superset card
           widgets.add(
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: SupersetCard(
-                exercise1: exercise.supersetOrder == 0 ? exercise : otherExercise,
-                exercise2: exercise.supersetOrder == 0 ? otherExercise : exercise,
-                onMenuTap1: () => _showMenu(exercise.supersetOrder == 0 ? exercise : otherExercise, isWarmup),
-                onMenuTap2: () => _showMenu(exercise.supersetOrder == 0 ? otherExercise : exercise, isWarmup),
+                exercise1: ex1,
+                exercise2: ex2,
+                onMenuTap1: () => _showMenu(ex1, isWarmup),
+                onMenuTap2: () => _showMenu(ex2, isWarmup),
                 onTimerTap1: () {
-                  final ex1 = exercise.supersetOrder == 0 ? exercise : otherExercise;
                   if (ex1.hasTimedSets) {
                     Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': ex1});
                   }
                 },
                 onTimerTap2: () {
-                  final ex2 = exercise.supersetOrder == 0 ? otherExercise : exercise;
                   if (ex2.hasTimedSets) {
                     Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': ex2});
                   }

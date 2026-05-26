@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/report_block_model.dart';
@@ -10,6 +11,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/feed_post_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Trainer Profile Screen with Tabs
 class TrainerProfileScreen extends StatefulWidget {
@@ -295,6 +297,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     final bio = (profile['bio'] ?? trainer['bio'] ?? '').toString();
     if (bio != _displayBio) _bioExpanded = false;
 
+    final contactFields = _extractProfileContactFields(profile: profile, user: user);
+
     trainer = {
       ...trainer,
       '_id': user['_id']?.toString(),
@@ -302,7 +306,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       'name': name,
       'fullName': name,
       'bio': bio,
-      'email': user['email']?.toString(),
+      'email': contactFields['email'] ?? user['email']?.toString(),
       'avatarUrl': picUrl,
       'profilePictureUrl': picUrl,
       'postCount': user['postCount'],
@@ -311,9 +315,399 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       'programCount': user['programCount'],
       'bundleCount': user['bundleCount'],
       'role': _normalizeRole(user['role'] ?? profile['role'] ?? data['role']) ?? trainer['role'],
+      ...contactFields,
     };
 
     _isFollowedByMe = user['isFollowedByMe'] == true || user['isFollowing'] == true || data['isFollowing'] == true;
+  }
+
+  static String? _nonEmptyString(dynamic value) {
+    if (value == null) return null;
+    final s = value.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
+  static String? _firstNonEmpty(Iterable<String?> values) {
+    for (final v in values) {
+      if (v != null && v.trim().isNotEmpty) return v.trim();
+    }
+    return null;
+  }
+
+  static Map<String, dynamic> _asStringKeyedMap(dynamic raw) {
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return <String, dynamic>{};
+  }
+
+  static String? _formatAddressMap(Map<String, dynamic> address) {
+    final line1 = _firstNonEmpty([
+      _nonEmptyString(address['streetAddress']),
+      _nonEmptyString(address['street']),
+      _nonEmptyString(address['addressLine1']),
+      _nonEmptyString(address['address_line1']),
+      _nonEmptyString(address['line1']),
+    ]);
+    final line2 = _firstNonEmpty([
+      _nonEmptyString(address['addressLine2']),
+      _nonEmptyString(address['address_line2']),
+      _nonEmptyString(address['line2']),
+    ]);
+    final cityStateZip = [
+      _nonEmptyString(address['city']),
+      _nonEmptyString(address['state'] ?? address['province']),
+      _nonEmptyString(address['zipCode'] ?? address['zip'] ?? address['postalCode'] ?? address['postal_code']),
+    ].whereType<String>().where((s) => s.isNotEmpty).join(', ');
+    final country = _nonEmptyString(address['country']);
+    final parts = <String>[if (line1 != null) line1, if (line2 != null) line2, if (cityStateZip.isNotEmpty) cityStateZip, if (country != null) country];
+    if (parts.isEmpty) return null;
+    return parts.join('\n');
+  }
+
+  static String? _formatAddressFromProfile(Map<String, dynamic> profile) {
+    final direct = _firstNonEmpty([
+      _nonEmptyString(profile['address']),
+      _nonEmptyString(profile['location']),
+      _nonEmptyString(profile['trainingLocation']),
+      _nonEmptyString(profile['training_location']),
+      _nonEmptyString(profile['fullAddress']),
+      _nonEmptyString(profile['full_address']),
+    ]);
+    if (direct != null) return direct;
+
+    final nested = profile['address'];
+    if (nested is Map) return _formatAddressMap(_asStringKeyedMap(nested));
+
+    return _formatAddressMap(profile);
+  }
+
+  static String _normalizeSocialUrl(String platform, String raw) {
+    var value = raw.trim();
+    if (value.isEmpty) return value;
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+
+    final handle = value.startsWith('@') ? value.substring(1) : value;
+    switch (platform) {
+      case 'instagram':
+        return 'https://instagram.com/$handle';
+      case 'facebook':
+        return 'https://facebook.com/$handle';
+      case 'twitter':
+      case 'x':
+        return 'https://x.com/$handle';
+      case 'tiktok':
+        return handle.startsWith('@') ? 'https://tiktok.com/$handle' : 'https://tiktok.com/@$handle';
+      case 'linkedin':
+        return handle.contains('linkedin.com') ? 'https://$handle' : 'https://linkedin.com/in/$handle';
+      case 'youtube':
+        return handle.contains('youtube.com') || handle.contains('youtu.be') ? 'https://$handle' : 'https://youtube.com/@$handle';
+      default:
+        return value.contains('.') ? 'https://$value' : value;
+    }
+  }
+
+  static Map<String, String> _parseSocialAccounts(Map<String, dynamic> profile, Map<String, dynamic> user) {
+    final accounts = <String, String>{};
+
+    void add(String platform, String? raw) {
+      final trimmed = raw?.trim();
+      if (trimmed == null || trimmed.isEmpty) return;
+      final key = platform.toLowerCase().trim();
+      if (key.isEmpty) return;
+      accounts[key] = _normalizeSocialUrl(key, trimmed);
+    }
+
+    for (final containerKey in ['socialAccounts', 'socialMedia', 'socialLinks', 'social']) {
+      final container = profile[containerKey] ?? user[containerKey];
+      if (container is Map) {
+        for (final entry in _asStringKeyedMap(container).entries) {
+          add(entry.key, _nonEmptyString(entry.value));
+        }
+      } else if (container is List) {
+        for (final item in container) {
+          if (item is! Map) continue;
+          final m = _asStringKeyedMap(item);
+          final platform = _nonEmptyString(m['platform'] ?? m['type'] ?? m['name'] ?? m['label']);
+          final url = _nonEmptyString(m['url'] ?? m['link'] ?? m['handle'] ?? m['value'] ?? m['username']);
+          if (platform != null && url != null) add(platform, url);
+        }
+      }
+    }
+
+    for (final key in ['instagram', 'facebook', 'linkedin', 'twitter', 'x', 'tiktok', 'youtube', 'website', 'snapchat']) {
+      add(key, _nonEmptyString(profile[key] ?? profile['${key}Url'] ?? profile['${key}_url']));
+    }
+
+    return accounts;
+  }
+
+  static Map<String, dynamic> _extractProfileContactFields({required Map<String, dynamic> profile, required Map<String, dynamic> user}) {
+    final phone = _firstNonEmpty([
+      _nonEmptyString(profile['phoneNumber']),
+      _nonEmptyString(profile['phone_number']),
+      _nonEmptyString(profile['phone']),
+      _nonEmptyString(profile['contactNumber']),
+      _nonEmptyString(profile['contact_number']),
+      _nonEmptyString(user['phoneNumber']),
+      _nonEmptyString(user['phone']),
+    ]);
+    final email = _firstNonEmpty([_nonEmptyString(user['email']), _nonEmptyString(profile['email'])]);
+    final address = _formatAddressFromProfile(profile);
+    final socialAccounts = _parseSocialAccounts(profile, user);
+
+    return {
+      if (phone != null) 'phoneNumber': phone,
+      if (phone != null) 'phone': phone,
+      if (email != null) 'email': email,
+      if (address != null) ...{'address': address, 'location': address},
+      if (socialAccounts.isNotEmpty) 'socialAccounts': socialAccounts,
+    };
+  }
+
+  String? get _displayPhone => _nonEmptyString(trainer['phoneNumber'] ?? trainer['phone']);
+
+  String? get _displayEmail => _nonEmptyString(trainer['email']);
+
+  String? get _displayAddress => _nonEmptyString(trainer['location'] ?? trainer['address']);
+
+  Map<String, String> get _socialAccounts {
+    final raw = trainer['socialAccounts'];
+    if (raw is! Map) return const {};
+    return raw.map((key, value) => MapEntry(key.toString(), value.toString()));
+  }
+
+  bool get _hasContactDetails => _displayPhone != null || _displayEmail != null;
+
+  bool get _hasAddress => _displayAddress != null;
+
+  bool get _hasSocialAccounts => _socialAccounts.isNotEmpty;
+
+  bool get _hasProfileDetails => _hasContactDetails || _hasAddress || _hasSocialAccounts;
+
+  Future<void> _launchExternalUri(Uri uri) async {
+    try {
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        Get.snackbar('Open link', 'Could not open link.', snackPosition: SnackPosition.BOTTOM);
+      }
+    } catch (_) {
+      Get.snackbar('Open link', 'Could not open link.', snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  Future<void> _launchPhone(String phone) async {
+    final digits = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    final uri = Uri(scheme: 'tel', path: digits.isNotEmpty ? digits : phone);
+    await _launchExternalUri(uri);
+  }
+
+  Future<void> _launchEmail(String email) async {
+    await _launchExternalUri(Uri(scheme: 'mailto', path: email));
+  }
+
+  void _copyToClipboard(String label, String value, Color color) {
+    Clipboard.setData(ClipboardData(text: value));
+    Get.snackbar(
+      'Copied!',
+      '$label copied to clipboard',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: color.withOpacity(0.1),
+      colorText: color,
+      duration: const Duration(seconds: 2),
+      margin: const EdgeInsets.all(16),
+      borderRadius: 12,
+    );
+  }
+
+  String _socialPlatformLabel(String platform) {
+    switch (platform.toLowerCase()) {
+      case 'instagram':
+        return 'Instagram';
+      case 'facebook':
+        return 'Facebook';
+      case 'linkedin':
+        return 'LinkedIn';
+      case 'twitter':
+      case 'x':
+        return 'X (Twitter)';
+      case 'tiktok':
+        return 'TikTok';
+      case 'youtube':
+        return 'YouTube';
+      case 'website':
+        return 'Website';
+      case 'snapchat':
+        return 'Snapchat';
+      default:
+        if (platform.isEmpty) return 'Social';
+        return '${platform[0].toUpperCase()}${platform.length > 1 ? platform.substring(1) : ''}';
+    }
+  }
+
+  IconData _socialPlatformIcon(String platform) {
+    switch (platform.toLowerCase()) {
+      case 'instagram':
+        return Icons.camera_alt_outlined;
+      case 'facebook':
+        return Icons.facebook_outlined;
+      case 'linkedin':
+        return Icons.work_outline_rounded;
+      case 'twitter':
+      case 'x':
+        return Icons.alternate_email_rounded;
+      case 'tiktok':
+        return Icons.music_note_outlined;
+      case 'youtube':
+        return Icons.play_circle_outline_rounded;
+      case 'website':
+        return Icons.language_rounded;
+      default:
+        return Icons.link_rounded;
+    }
+  }
+
+  Widget _buildProfileSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [AppColors.accent.withOpacity(0.2), AppColors.accentVariant.withOpacity(0.1)]),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: AppColors.accent, size: 22),
+        ),
+        const SizedBox(width: 12),
+        Text(title, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  Widget _buildProfileDetailTile({required IconData icon, required String label, required String value, required Color color, VoidCallback? onTap}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    Text(value, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600, height: 1.35)),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Copy',
+                icon: Icon(Icons.copy_rounded, color: color, size: 20),
+                onPressed: () => _copyToClipboard(label, value, color),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileDetailsCard({required List<Widget> children}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) ...[const SizedBox(height: 12), Divider(height: 1, color: AppColors.primaryGray.withOpacity(0.15)), const SizedBox(height: 12)],
+            children[i],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileDetailsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_hasContactDetails) ...[
+          _buildProfileSectionHeader('Contact Details', Icons.contact_phone_outlined),
+          const SizedBox(height: 12),
+          _buildProfileDetailsCard(
+            children: [
+              if (_displayPhone != null)
+                _buildProfileDetailTile(
+                  icon: Icons.phone_rounded,
+                  label: 'Phone',
+                  value: _displayPhone!,
+                  color: AppColors.accent,
+                  onTap: () => _launchPhone(_displayPhone!),
+                ),
+              if (_displayEmail != null)
+                _buildProfileDetailTile(
+                  icon: Icons.email_rounded,
+                  label: 'Email',
+                  value: _displayEmail!,
+                  color: AppColors.accentVariant,
+                  onTap: () => _launchEmail(_displayEmail!),
+                ),
+            ],
+          ),
+        ],
+        if (_hasContactDetails && (_hasAddress || _hasSocialAccounts)) const SizedBox(height: 20),
+        if (_hasAddress) ...[
+          _buildProfileSectionHeader('Address', Icons.location_on_outlined),
+          const SizedBox(height: 12),
+          _buildProfileDetailsCard(
+            children: [
+              _buildProfileDetailTile(
+                icon: Icons.location_on_rounded,
+                label: 'Location',
+                value: _displayAddress!,
+                color: AppColors.completed,
+              ),
+            ],
+          ),
+        ],
+        if (_hasAddress && _hasSocialAccounts) const SizedBox(height: 20),
+        if (_hasSocialAccounts) ...[
+          _buildProfileSectionHeader('Social Accounts', Icons.share_outlined),
+          const SizedBox(height: 12),
+          _buildProfileDetailsCard(
+            children: _socialAccounts.entries
+                .map(
+                  (entry) => _buildProfileDetailTile(
+                    icon: _socialPlatformIcon(entry.key),
+                    label: _socialPlatformLabel(entry.key),
+                    value: entry.value,
+                    color: AppColors.accent,
+                    onTap: () {
+                      final uri = Uri.tryParse(entry.value);
+                      if (uri != null) _launchExternalUri(uri);
+                    },
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ],
+    );
   }
 
   /// Disposes a replaced controller after TabBar/TabBarView detach (avoids double-dispose crash).
@@ -982,6 +1376,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                   ],
                 ),
                 if (_displayBio.trim().isNotEmpty) ...[const SizedBox(height: 8), _buildExpandableBio()],
+                if (_hasProfileDetails) ...[const SizedBox(height: 20), _buildProfileDetailsSection()],
               ],
             ),
           ),
@@ -1499,104 +1894,106 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
               ),
             ),
           ),
-          const SizedBox(height: 24),
-          // Location Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: [AppColors.accent.withOpacity(0.2), AppColors.accentVariant.withOpacity(0.1)]),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(Icons.location_on_rounded, color: AppColors.accent, size: 24),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Training Location',
-                      style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold, letterSpacing: 0.3),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          if (_hasAddress) ...[
+            const SizedBox(height: 24),
+            // Location Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.location_on_rounded, color: AppColors.accent, size: 20),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              trainer['location'] ?? '123 Fitness Street, Gym City, GC 12345',
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
                       Container(
-                        width: double.infinity,
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [AppColors.accent, AppColors.accentVariant]),
+                          gradient: LinearGradient(colors: [AppColors.accent.withOpacity(0.2), AppColors.accentVariant.withOpacity(0.1)]),
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
                         ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () {
-                              // Open message with location info for in-person training booking
-                              Get.toNamed(
-                                AppRoutes.chatRoom,
-                                arguments: {
-                                  'trainerId': trainer['id'],
-                                  'trainerName': trainer['name'],
-                                  'initialMessage':
-                                      'Hi! I\'m interested in booking an in-person training session. Can you tell me more about availability at ${trainer['location'] ?? 'your location'}?',
-                                },
-                              );
-                            },
+                        child: Icon(Icons.location_on_rounded, color: AppColors.accent, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Training Location',
+                        style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold, letterSpacing: 0.3),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.location_on_rounded, color: AppColors.accent, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _displayAddress!,
+                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600, height: 1.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [AppColors.accent, AppColors.accentVariant]),
                             borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.message_rounded, color: Colors.white, size: 20),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Message About In-Person Training',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
-                                      style: AppTextStyles.labelLarge.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                            boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () {
+                                Get.toNamed(
+                                  AppRoutes.chatRoom,
+                                  arguments: {
+                                    'trainerId': trainer['id'],
+                                    'trainerName': trainer['name'],
+                                    'initialMessage':
+                                        'Hi! I\'m interested in booking an in-person training session. Can you tell me more about availability at $_displayAddress?',
+                                  },
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.message_rounded, color: Colors.white, size: 20),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Message About In-Person Training',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: AppTextStyles.labelLarge.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 24),
           // About Section
           Padding(
@@ -1901,9 +2298,14 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   }
 
   static void _showContactDetails(BuildContext context, Map<String, dynamic> trainer) {
+    final phone = _nonEmptyString(trainer['phoneNumber'] ?? trainer['phone']);
+    final email = _nonEmptyString(trainer['email']);
+    final address = _nonEmptyString(trainer['location'] ?? trainer['address']);
+    final hasAny = phone != null || email != null || address != null;
+
     Get.snackbar(
       'Subscription Activated! 🎉',
-      'You now have access to ${trainer['name']}\'s contact details',
+      hasAny ? 'You now have access to ${trainer['name']}\'s contact details' : 'Contact details are not available for this trainer yet.',
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColors.completed,
       colorText: Colors.white,
@@ -1912,6 +2314,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       borderRadius: 12,
       icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
     );
+
+    if (!hasAny) return;
 
     Future.delayed(const Duration(milliseconds: 500), () {
       showModalBottomSheet(
@@ -1953,18 +2357,22 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                             'Contact Details',
                             style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                           ),
-                          Text(trainer['name'], style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                          Text(trainer['name']?.toString() ?? 'Trainer', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
                         ],
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
-                _buildContactCard(Icons.phone_rounded, 'Phone', '+1 (555) 123-4567', AppColors.accent),
-                const SizedBox(height: 12),
-                _buildContactCard(Icons.email_rounded, 'Email', '${trainer['name'].toString().toLowerCase().replaceAll(' ', '.')}@fitness.com', AppColors.accentVariant),
-                const SizedBox(height: 12),
-                _buildContactCard(Icons.location_on_rounded, 'Location', '123 Fitness Street, Gym City, GC 12345', AppColors.completed),
+                if (phone != null) ...[
+                  _buildContactCard(Icons.phone_rounded, 'Phone', phone, AppColors.accent),
+                  const SizedBox(height: 12),
+                ],
+                if (email != null) ...[
+                  _buildContactCard(Icons.email_rounded, 'Email', email, AppColors.accentVariant),
+                  const SizedBox(height: 12),
+                ],
+                if (address != null) _buildContactCard(Icons.location_on_rounded, 'Location', address, AppColors.completed),
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
@@ -2024,6 +2432,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
           IconButton(
             icon: Icon(Icons.copy_rounded, color: color),
             onPressed: () {
+              Clipboard.setData(ClipboardData(text: value));
               Get.snackbar(
                 'Copied!',
                 '$label copied to clipboard',

@@ -46,14 +46,15 @@ List<String> feedPostImageUrls(Map<String, dynamic> post) {
     }
     if (out.isNotEmpty) return out;
   }
-  final single = feedPostDisplayImageUrl(post);
-  return single != null ? [single] : const [];
+  final thumb = ImageUrlSanitizer.asHttpUrlOrNull((post['thumbnail'] ?? '').toString());
+  if (thumb != null) return [thumb];
+  final imageUrl = ImageUrlSanitizer.asHttpUrlOrNull((post['imageUrl'] ?? '').toString());
+  if (imageUrl != null) return [imageUrl];
+  return const [];
 }
 
 /// Thumbnail / first image URL for grid and photo reel backdrop.
 String? feedPostDisplayImageUrl(Map<String, dynamic> post) {
   final urls = feedPostImageUrls(post);
-  if (urls.isNotEmpty) return urls.first;
-  return ImageUrlSanitizer.asHttpUrlOrNull((post['thumbnail'] ?? '').toString()) ??
-      ImageUrlSanitizer.asHttpUrlOrNull((post['imageUrl'] ?? '').toString());
+  return urls.isNotEmpty ? urls.first : null;
 }

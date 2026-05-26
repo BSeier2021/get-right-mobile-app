@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_right/repo/feed_repo.dart';
+import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/feed_media_url.dart';
@@ -73,6 +74,9 @@ class _SingleFeedReelScreenState extends State<SingleFeedReelScreen> {
       final likedByMe = data['likedByMe'] == true;
       final savedByMe = data['savedByMe'] == true;
       final post = mapApiFeedDocumentToUiPost(Map<String, dynamic>.from(feedRaw), likedByMe: likedByMe, savedByMe: savedByMe);
+      if (Get.isRegistered<StorageService>()) {
+        mergePersistedLikeStateOnFeedPosts([post], Get.find<StorageService>().getLikedFeedPostIds());
+      }
       final idStr = (post['id'] ?? '').toString();
       if (idStr.isEmpty) {
         throw StateError('Feed has no id');

@@ -23,6 +23,18 @@ void mergePersistedSaveStateOnFeedPosts(List<Map<String, dynamic>> posts, Set<St
   }
 }
 
+/// List API often omits `likedByMe`; merge IDs the user liked locally (same session / device).
+void mergePersistedLikeStateOnFeedPosts(List<Map<String, dynamic>> posts, Set<String> likedPostIds) {
+  if (likedPostIds.isEmpty) return;
+  for (final post in posts) {
+    if (post['isLiked'] == true) continue;
+    final id = (post['id'] ?? '').toString();
+    if (likedPostIds.contains(id)) {
+      post['isLiked'] = true;
+    }
+  }
+}
+
 /// Returns null if string is null or empty after trim.
 String? firstNonEmptyUrlString(dynamic v) {
   final s = v?.toString().trim();

@@ -100,12 +100,7 @@ class _AppDrawerState extends State<AppDrawer> {
 
                   _sectionLabel('FITNESS'),
                   const SizedBox(height: 4),
-                  _drawerItem(
-                    asset: 'assets/images/Journal.png',
-                    fallbackIcon: Icons.fitness_center_outlined,
-                    title: 'Workout Journal',
-                    onTap: _navigateToWorkoutJournal,
-                  ),
+                  _drawerItem(asset: 'assets/images/Vector.png', fallbackIcon: Icons.fitness_center_outlined, title: 'Workout Journal', onTap: _navigateToWorkoutJournal),
                   _drawerItem(
                     asset: 'assets/images/diagram.png',
                     fallbackIcon: Icons.show_chart_rounded,

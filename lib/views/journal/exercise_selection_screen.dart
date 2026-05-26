@@ -34,6 +34,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
   JournalExerciseType _exerciseType = JournalExerciseType.workout;
   bool _selectOnly = false;
   String? _workoutJournalId;
+  List<String> _journalWorkoutIds = const [];
   List<ExerciseLibraryModel> _allExercises = [];
   List<ExerciseLibraryModel> _filtered = [];
   final Set<ExerciseLibraryModel> _selected = {};
@@ -56,6 +57,10 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
       _isWarmup = _exerciseType.isWarmup;
       _selectOnly = args['selectOnly'] ?? false;
       _workoutJournalId = args['workoutJournalId']?.toString() ?? args['workoutJournal']?.toString();
+      final rawJournalWorkoutIds = args['journalWorkoutIds'];
+      if (rawJournalWorkoutIds is List) {
+        _journalWorkoutIds = rawJournalWorkoutIds.map((e) => e.toString()).toList();
+      }
     }
     _searchCtrl.addListener(_filter);
     _scrollController.addListener(_onScroll);
@@ -171,6 +176,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
         'exerciseType': _exerciseType,
         'isSuperset': _isSuperset,
         'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _journalWorkoutIds,
         'exercise': _selected.length == 1 ? _selected.first : null,
         'exercises': _isSuperset ? _selected.toList() : null,
       },
@@ -184,6 +190,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
         'exerciseType': _exerciseType,
         'isManual': true,
         'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _journalWorkoutIds,
       })?.then((r) {
     if (r != null) Get.back(result: r);
   });

@@ -27,6 +27,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   bool _hasAskedWarmupWorkout = false;
   bool _isSaving = false;
   String? _workoutJournalId;
+  List<String> _journalWorkoutIds = const [];
   final WorkoutRepository _workoutRepo = WorkoutRepository();
   final TextEditingController _nameController = TextEditingController();
   List<_Config> _configs = [];
@@ -46,6 +47,10 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       _isSuperset = args['isSuperset'] ?? false;
       _hasAskedWarmupWorkout = args['isWarmup'] != null; // If isWarmup is provided, we've already asked
       _workoutJournalId = args['workoutJournalId']?.toString() ?? args['workoutJournal']?.toString();
+      final rawJournalWorkoutIds = args['journalWorkoutIds'];
+      if (rawJournalWorkoutIds is List) {
+        _journalWorkoutIds = rawJournalWorkoutIds.map((e) => e.toString()).where(WorkoutRepository.isValidMongoId).toList();
+      }
 
       // Handle editing existing exercise
       if (args['existingExercise'] != null) {
@@ -210,7 +215,13 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   }
 
   void _openExerciseSelectionForCard(int cardIndex) {
-    Get.toNamed(AppRoutes.exerciseSelection, arguments: {'isWarmup': _isWarmup, 'exerciseType': _exerciseType, 'isSuperset': false, 'workoutJournalId': _workoutJournalId})?.then((
+    Get.toNamed(AppRoutes.exerciseSelection, arguments: {
+      'isWarmup': _isWarmup,
+      'exerciseType': _exerciseType,
+      'isSuperset': false,
+      'workoutJournalId': _workoutJournalId,
+      'journalWorkoutIds': _journalWorkoutIds,
+    })?.then((
       result,
     ) {
       if (result != null && result['exercise'] != null) {
@@ -272,10 +283,8 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     } else if (!_isEditing) {
       setState(() => _isSaving = true);
       try {
-        final journalId = WorkoutRepository.isValidMongoId(_workoutJournalId)
-            ? _workoutJournalId!
-            : await _workoutRepo.getOrCreateWorkoutJournalId();
-        _workoutJournalId = journalId;
+        var journalId = WorkoutRepository.isValidMongoId(_workoutJournalId) ? _workoutJournalId : null;
+        journalId ??= await _workoutRepo.findWorkoutJournalIdForToday();
 
         for (var i = 0; i < _configs.length; i++) {
           final cfg = _configs[i];
@@ -293,6 +302,15 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           final apiId = WorkoutRepository.createdWorkoutId(response);
           if (apiId != null && apiId.isNotEmpty) createdApiIds.add(apiId);
         }
+
+        if (createdApiIds.isNotEmpty) {
+          journalId = await _workoutRepo.ensureWorkoutJournalLinked(
+            workoutIds: createdApiIds,
+            existingJournalId: journalId,
+            existingJournalWorkoutIds: _journalWorkoutIds,
+          );
+          _workoutJournalId = journalId;
+        }
       } catch (e) {
         if (mounted) setState(() => _isSaving = false);
         Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
@@ -301,7 +319,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       if (mounted) setState(() => _isSaving = false);
     }
 
-    final supersetId = _isSuperset ? 'ss_${now.millisecondsSinceEpoch}' : null;
+    final supersetGroupId = _isSuperset ? 'A' : null;
     for (var i = 0; i < _configs.length; i++) {
       final cfg = _configs[i];
       final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
@@ -329,7 +347,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           iconUrl: cfg.iconUrl,
           sets: sets,
           isSuperset: _isSuperset,
-          supersetId: supersetId,
+          supersetId: supersetGroupId,
           supersetOrder: _isSuperset ? i : null,
           date: now,
           createdAt: now,

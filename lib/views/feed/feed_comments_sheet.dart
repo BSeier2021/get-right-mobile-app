@@ -93,6 +93,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     final fromComment = comment['repliesCount'];
     if (fromComment is num && fromComment > 0) return fromComment.toInt();
     if (thread != null && thread.totalReplies > 0) return thread.totalReplies;
+    if (thread != null && thread.replies.isNotEmpty) return thread.replies.length;
     return 0;
   }
 
@@ -192,7 +193,26 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
                       style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
                       maxLines: 3,
                       maxLength: 2000,
+                      textInputAction: TextInputAction.done,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
+                    if (MediaQuery.of(context).viewInsets.bottom > 0) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () => FocusManager.instance.primaryFocus?.unfocus(),
+                          icon: const Icon(Icons.keyboard_hide_outlined, size: 18),
+                          label: const Text('Done'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.accent,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -427,6 +447,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
           if (thread.expanded) {
             final exists = thread.replies.any((r) => (r['id'] ?? '').toString() == (mapped['id'] ?? '').toString());
             if (!exists) thread.replies.add(mapped);
+            sortFeedCommentsChronologically(thread.replies);
           }
           thread.totalReplies += 1;
           final parentIdx = _comments.indexWhere((c) => (c['id'] ?? '').toString() == parentId);
@@ -548,6 +569,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
       if (!mounted) return;
       setState(() {
         thread.replies.addAll(mapped);
+        sortFeedCommentsChronologically(thread.replies);
         thread.totalReplies = total;
         thread.hasNext = readFeedCommentsHasNextPage(data);
         thread.page = pageToFetch + 1;
@@ -653,18 +675,22 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
           if (showReplyOption)
             PopupMenuItem<String>(
               value: 'reply',
-              child: Text('Reply', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
+              child: Text('Reply', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 14)),
             ),
           if (onReport != null)
             PopupMenuItem<String>(
               value: 'report',
-              child: Text('Report', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+              child: Text('Report', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error, fontSize: 14)),
             ),
-          if (onEdit != null) const PopupMenuItem<String>(value: 'edit', child: Text('Edit')),
+          if (onEdit != null)
+            PopupMenuItem<String>(
+              value: 'edit',
+              child: Text('Edit', style: AppTextStyles.bodySmall.copyWith(fontSize: 14)),
+            ),
           if (onDelete != null)
             PopupMenuItem<String>(
               value: 'delete',
-              child: Text(deleteLabel, style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+              child: Text(deleteLabel, style: AppTextStyles.bodySmall.copyWith(color: AppColors.error, fontSize: 14)),
             ),
         ],
       ),
@@ -699,13 +725,14 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     final hint = _replyCountHint(parentComment);
 
     if (!thread.expanded) {
+      if (hint <= 0) return const SizedBox.shrink();
       return Padding(
         padding: const EdgeInsets.only(left: 46, top: 6),
         child: GestureDetector(
           onTap: () => _loadReplies(parentId, reset: true),
           behavior: HitTestBehavior.opaque,
           child: Text(
-            hint > 0 ? 'View $hint ${hint == 1 ? 'reply' : 'replies'}' : 'View replies',
+            'View $hint ${hint == 1 ? 'reply' : 'replies'}',
             style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
           ),
         ),

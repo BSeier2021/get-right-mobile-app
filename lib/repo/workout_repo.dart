@@ -233,7 +233,7 @@ class WorkoutRepository {
     if (name.isEmpty && refRaw is Map) {
       name = Map<String, dynamic>.from(refRaw)['name']?.toString() ?? '';
     }
-    final supersetId = json['supersetIdentifier']?.toString();
+    final supersetParsed = WorkoutExerciseModel.parseSupersetIdentifier(json['supersetIdentifier']?.toString());
     final createdAt = DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now();
     final updatedAt = DateTime.tryParse(json['updatedAt']?.toString() ?? '');
 
@@ -255,8 +255,9 @@ class WorkoutRepository {
       videoUrl: _refExerciseVideoUrl(refRaw),
       videoThumbnailUrl: _refExerciseVideoThumbnailUrl(refRaw),
       sets: sets,
-      isSuperset: supersetId != null && supersetId.isNotEmpty,
-      supersetId: supersetId,
+      isSuperset: supersetParsed != null,
+      supersetId: supersetParsed?.groupId,
+      supersetOrder: supersetParsed?.order,
       date: createdAt,
       createdAt: createdAt,
       updatedAt: updatedAt,
@@ -429,32 +430,87 @@ class WorkoutRepository {
     };
   }
 
-  /// Finds today's single journal id via list API; creates one via POST when missing.
-  Future<String> getOrCreateWorkoutJournalId({DateTime? date}) async {
+  /// Returns today's journal id from list API, or null when none exists yet.
+  Future<String?> findWorkoutJournalIdForToday({DateTime? date}) async {
     final day = date ?? DateTime.now();
-    final dateKey = _dateKey(day);
-
     try {
       final page = await fetchWorkoutJournalEntries(dateFrom: day);
       final entries = entriesForDay(page, day: day);
-      final existing = primaryJournalIdForDay(entries, day: day);
-      if (existing != null) return existing;
+      return primaryJournalIdForDay(entries, day: day);
     } catch (_) {
-      // Fall through to POST when list fails or is empty.
+      return null;
     }
+  }
 
+  /// Creates a journal entry — API requires at least one workout id.
+  Future<String> createWorkoutJournalEntry({
+    required String date,
+    required List<String> workoutIds,
+    int duration = 0,
+    String notes = '',
+    String? type,
+  }) async {
+    if (workoutIds.isEmpty) {
+      throw Exception('At least one workout is required');
+    }
     final postRaw = await _network.post(
       AppUrl.customerWorkoutJournalCreate,
-      createJournalBody(date: dateKey, type: JournalExerciseType.workout.apiValue),
+      createJournalBody(
+        date: date,
+        workout: workoutIds,
+        duration: duration,
+        notes: notes,
+        type: type ?? JournalExerciseType.workout.apiValue,
+      ),
     );
     if (!_isOk(postRaw)) {
       throw Exception(_messageFrom(postRaw) ?? 'Could not create workout journal');
     }
-
     final fromPost = journalIdFrom(postRaw);
     if (fromPost != null) return fromPost;
-
     throw Exception('Workout journal id missing from server response');
+  }
+
+  /// Links [workoutIds] to today's journal — creates the journal when missing, otherwise appends via PUT.
+  Future<String> ensureWorkoutJournalLinked({
+    required List<String> workoutIds,
+    DateTime? date,
+    String? existingJournalId,
+    List<String> existingJournalWorkoutIds = const [],
+    int duration = 0,
+    String notes = '',
+  }) async {
+    if (workoutIds.isEmpty) {
+      throw Exception('At least one workout is required');
+    }
+
+    final day = date ?? DateTime.now();
+    final dateKey = _dateKey(day);
+
+    var journalId = isValidMongoId(existingJournalId) ? existingJournalId!.trim() : null;
+    journalId ??= await findWorkoutJournalIdForToday(date: day);
+
+    var knownIds = List<String>.from(existingJournalWorkoutIds.where(isValidMongoId));
+    if (journalId != null && knownIds.isEmpty) {
+      try {
+        final page = await fetchWorkoutJournalEntries(dateFrom: day);
+        final entry = journalEntryById(page.entries, journalId);
+        if (entry != null) knownIds = workoutIdsFrom(entry);
+      } catch (_) {
+        /* merge with new ids only */
+      }
+    }
+
+    final merged = <String>[...knownIds, ...workoutIds.where(isValidMongoId)];
+    final seen = <String>{};
+    final deduped = merged.where((id) => seen.add(id)).toList();
+
+    if (journalId != null) {
+      await updateWorkoutJournal(journalId: journalId, workoutIds: deduped, duration: duration, notes: notes);
+      return journalId;
+    }
+
+    return createWorkoutJournalEntry(date: dateKey, workoutIds: deduped, duration: duration, notes: notes);
   }
 
   /// Saves/completes a workout journal session (`POST /customer/workout-journal`).

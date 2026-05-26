@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/theme/color_constants.dart';
+import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/journal/exercise_card.dart';
 
 /// Superset Card Widget
@@ -27,36 +28,36 @@ class SupersetCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Container(
-          //   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          //   decoration: BoxDecoration(
-          //     color: AppColors.accent.withOpacity(0.1),
-          //     borderRadius: const BorderRadius.only(topLeft: Radius.circular(14), topRight: Radius.circular(14)),
-          //   ),
-          //   child: Row(
-          //     children: [
-          //       Container(
-          //         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          //         decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(20)),
-          //         child: Row(
-          //           children: [
-          //             const Icon(Icons.compare_arrows, color: AppColors.onAccent, size: 16),
-          //             const SizedBox(width: 6),
-          //             Text(
-          //               'SUPERSET',
-          //               style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold, letterSpacing: 1.2),
-          //             ),
-          //           ],
-          //         ),
-          //       ),
-          //       const Spacer(),
-          //       Text(
-          //         '2 exercises',
-          //         style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600),
-          //       ),
-          //     ],
-          //   ),
-          // ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withOpacity(0.1),
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(14), topRight: Radius.circular(14)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(20)),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.compare_arrows, color: AppColors.onAccent, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'SUPERSET',
+                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '2 exercises',
+                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
 
           // Exercise 1
           Padding(
