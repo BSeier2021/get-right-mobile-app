@@ -21,7 +21,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     (label: 'Users', type: ReportType.user),
     (label: 'Posts', type: ReportType.post),
     (label: 'Programs', type: ReportType.programs),
-    (label: 'FeedComment', type: ReportType.feedComment),
+    (label: 'Feed Comment', type: ReportType.feedComment),
   ];
 
   ReportType get _activeReportType => _tabs[_selectedTab].type;

@@ -1,9 +1,9 @@
 class AppUrl {
-  static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
-  static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
+  //   static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
+  //   static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
   // development url
-  // static const String baseUrl = 'http://getright.prodservers.com:8004/api/v1';
-  // static const String imnageUrl = 'http://getright.prodservers.com:8004/api/v1';
+  static const String baseUrl = 'http://getright.prodservers.com:8004/api/v1';
+  static const String imnageUrl = 'http://getright.prodservers.com:8004/api/v1';
   // static const String socketUrl = 'http://getright.prodservers.com:8004/';
 
   static String signUp = '$baseUrl/user/auth/signup';
@@ -122,8 +122,8 @@ class AppUrl {
     final id = Uri.encodeComponent(categoryId.trim());
     return '$baseUrl/user/exercises/category/$id?page=$page&limit=$limit';
   }
-  static String exerciseDetail(String exerciseId) =>
-      '$baseUrl/user/exercises/${Uri.encodeComponent(exerciseId.trim())}';
+
+  static String exerciseDetail(String exerciseId) => '$baseUrl/user/exercises/${Uri.encodeComponent(exerciseId.trim())}';
 
   // static String AllPlans = '$baseUrl/get-all-plans';
   /// `GET /user/auth/auto-login` — Bearer JWT; refreshes session (`data.user`, `data.token`).
@@ -181,8 +181,7 @@ class AppUrl {
   }
 
   /// `POST` / `PUT` / `DELETE /customer/program/:programId/reviews` — body (POST/PUT): `{ "rating", "description" }`.
-  static String customerProgramReviewsSubmit(String programId) =>
-      '$baseUrl/customer/program/${Uri.encodeComponent(programId.trim())}/reviews';
+  static String customerProgramReviewsSubmit(String programId) => '$baseUrl/customer/program/${Uri.encodeComponent(programId.trim())}/reviews';
 
   /// `POST /customer/program/enroll` — body: `{ "id": "<programOrBundleId>", "isBundle": bool }` → `data.enrollment` (program) or `data.enrollments` (bundle).
   static String get customerProgramEnroll => '$baseUrl/customer/program/enroll';
