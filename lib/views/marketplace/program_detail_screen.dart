@@ -17,6 +17,7 @@ import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/views/marketplace/program_hls_player_screen.dart';
 import 'package:get_right/views/marketplace/program_send_review_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Program Detail Screen
 class ProgramDetailScreen extends StatefulWidget {
@@ -48,7 +49,6 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   bool _reviewsLoading = false;
   String? _reviewsError;
   bool _reviewActionInFlight = false;
-  final String _fallbackPdfUrl = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
 
   static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
 
@@ -692,6 +692,47 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     return null;
   }
 
+  String? _nestedResourcesUrl() {
+    final resources = _safeProgram['resources'];
+    if (resources is Map) {
+      return resources['url']?.toString();
+    }
+    final api = _safeProgram['_apiProgram'];
+    if (api is Map) {
+      final nested = api['resources'];
+      if (nested is Map) return nested['url']?.toString();
+    }
+    return null;
+  }
+
+  String? _programResourcesPdfUrl() {
+    final direct = _safeProgram['resourcesUrl']?.toString();
+    return _resolveApiMediaUrl(direct) ?? _resolveApiMediaUrl(_nestedResourcesUrl());
+  }
+
+  bool get _hasEnrolledProgramVideo {
+    final raw = _safeProgram['programVideoUrl']?.toString() ?? _nestedVideoUrl(_safeProgram['video']);
+    return raw != null && raw.trim().isNotEmpty;
+  }
+
+  bool get _hasProgramResourcesPdf => _programResourcesPdfUrl() != null;
+
+  String _programResourcesLabel() {
+    Map<String, dynamic>? resources;
+    final direct = _safeProgram['resources'];
+    if (direct is Map) {
+      resources = Map<String, dynamic>.from(direct);
+    } else {
+      final api = _safeProgram['_apiProgram'];
+      if (api is Map && api['resources'] is Map) {
+        resources = Map<String, dynamic>.from(api['resources'] as Map);
+      }
+    }
+    final name = resources?['originalName']?.toString().trim();
+    if (name != null && name.isNotEmpty) return name;
+    return 'Download program guide';
+  }
+
   /// Opens [video_player] + [chewie] in-app — supports HLS master playlists (`.m3u8`) and progressive MP4.
   void _openInAppVideo(String? rawUrl, {required String title, String emptyMessage = 'Video URL is unavailable for this program.'}) {
     final resolved = _resolveApiMediaUrl(rawUrl);
@@ -1011,15 +1052,17 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                     if (_exercisesList().isNotEmpty) ...[_buildExercisesSection(), const SizedBox(height: 24)],
 
                     // Enrolled Content Section (only visible if enrolled)
-                    if (_isEnrolled) ...[
+                    if (_isEnrolled && (_hasEnrolledProgramVideo || _hasProgramResourcesPdf)) ...[
                       Text(
                         'Program Content',
                         style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 12),
-                      _buildEnrolledContentCard(icon: Icons.video_library, title: 'Full Program Video', subtitle: 'Complete training video', onTap: () => _openEnrolledVideo()),
-                      const SizedBox(height: 12),
-                      _buildEnrolledContentCard(icon: Icons.picture_as_pdf, title: 'Program Guide PDF', subtitle: 'Download program guide', onTap: () => _openPDF()),
+                      if (_hasEnrolledProgramVideo)
+                        _buildEnrolledContentCard(icon: Icons.video_library, title: 'Full Program Video', subtitle: 'Complete training video', onTap: () => _openEnrolledVideo()),
+                      if (_hasEnrolledProgramVideo && _hasProgramResourcesPdf) const SizedBox(height: 12),
+                      if (_hasProgramResourcesPdf)
+                        _buildEnrolledContentCard(icon: Icons.picture_as_pdf, title: 'Program Guide PDF', subtitle: _programResourcesLabel(), onTap: () => _openPDF()),
                       const SizedBox(height: 24),
                     ],
 
@@ -1523,21 +1566,27 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     _openInAppVideo(raw.trim(), title: 'Program Video');
   }
 
-  void _openPDF() {
-    // Open PDF viewer
-    Get.snackbar(
-      'PDF Viewer',
-      'PDF would open here. In production, use a package like flutter_pdfview or open with url_launcher.\nURL: $_fallbackPdfUrl',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: AppColors.accent,
-      colorText: Colors.white,
-      duration: const Duration(seconds: 4),
-    );
-
-    // In a real app, you would use:
-    // - url_launcher to open PDF in external app
-    // - flutter_pdfview to display PDF in-app
-    // Example: launchUrl(Uri.parse(_fallbackPdfUrl));
+  Future<void> _openPDF() async {
+    final url = _programResourcesPdfUrl();
+    if (url == null) {
+      Get.snackbar('PDF', 'Program guide is not available for this program.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      Get.snackbar('PDF', 'Invalid PDF URL.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    try {
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        Get.snackbar('PDF', 'Could not open program guide.', snackPosition: SnackPosition.BOTTOM);
+      }
+    } catch (_) {
+      if (mounted) {
+        Get.snackbar('PDF', 'Could not open program guide.', snackPosition: SnackPosition.BOTTOM);
+      }
+    }
   }
 
   Widget _buildEnrolledContentCard({required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {

@@ -1031,8 +1031,10 @@ class AuthController extends GetxController {
 
     final demoVideo = inner['demoVideo'];
     final video = inner['video'];
+    final resources = inner['resources'];
     final demoVideoUrl = demoVideo is Map ? demoVideo['url']?.toString() : null;
     final programVideoUrl = video is Map ? video['url']?.toString() : null;
+    final resourcesUrl = resources is Map ? resources['url']?.toString() : null;
 
     final bundlePrograms = enrollment['bundlePrograms'];
     final exercisesRaw = inner['exercise'];
@@ -1080,6 +1082,8 @@ class AuthController extends GetxController {
       'demoVideo': demoVideo,
       'programVideoUrl': programVideoUrl,
       'video': video,
+      'resourcesUrl': resourcesUrl,
+      'resources': resources,
       'whatsIncluded': inner['whatsIncluded'],
       'weeks': inner['weeks'],
       '_apiProgram': inner,

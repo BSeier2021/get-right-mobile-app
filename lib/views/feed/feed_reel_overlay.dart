@@ -83,14 +83,17 @@ String resolveFeedReelThumbnailUrl(Map<String, dynamic> post) {
 }
 
 class FeedReelStyledThumbnail extends StatelessWidget {
-  const FeedReelStyledThumbnail({super.key, required this.post, this.isFullScreen = false});
+  const FeedReelStyledThumbnail({super.key, required this.post, this.isFullScreen = false, this.imageUrlOverride});
 
   final Map<String, dynamic> post;
   final bool isFullScreen;
 
+  /// When set, shows this URL instead of [resolveFeedReelThumbnailUrl] (multi-image carousel pages).
+  final String? imageUrlOverride;
+
   @override
   Widget build(BuildContext context) {
-    final rawUrl = resolveFeedReelThumbnailUrl(post);
+    final rawUrl = imageUrlOverride ?? resolveFeedReelThumbnailUrl(post);
     final imageUrl = ImageUrlSanitizer.asHttpUrlOrFallback(
       (rawUrl).toString(),
       fallback: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
@@ -138,6 +141,93 @@ class FeedReelStyledThumbnail extends StatelessWidget {
   }
 }
 
+/// Full-screen photo layer — horizontal swipe when a post has multiple `images[]`.
+class FeedReelPhotoCarousel extends StatefulWidget {
+  const FeedReelPhotoCarousel({super.key, required this.post});
+
+  final Map<String, dynamic> post;
+
+  @override
+  State<FeedReelPhotoCarousel> createState() => _FeedReelPhotoCarouselState();
+}
+
+class _FeedReelPhotoCarouselState extends State<FeedReelPhotoCarousel> {
+  late final PageController _pageController;
+  int _currentIndex = 0;
+
+  List<String> get _urls => feedPostImageUrls(widget.post);
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final urls = _urls;
+    if (urls.isEmpty) {
+      return FeedReelStyledThumbnail(post: widget.post, isFullScreen: true);
+    }
+    if (urls.length == 1) {
+      return FeedReelStyledThumbnail(post: widget.post, isFullScreen: true, imageUrlOverride: urls.first);
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView.builder(
+          controller: _pageController,
+          itemCount: urls.length,
+          onPageChanged: (index) => setState(() => _currentIndex = index),
+          itemBuilder: (context, index) {
+            return FeedReelStyledThumbnail(post: widget.post, isFullScreen: true, imageUrlOverride: urls[index]);
+          },
+        ),
+        Positioned(
+          top: MediaQuery.paddingOf(context).top + 52,
+          left: 0,
+          right: 0,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(urls.length, (index) {
+              final active = index == _currentIndex;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: active ? 8 : 6,
+                height: active ? 8 : 6,
+                decoration: BoxDecoration(
+                  color: active ? Colors.white : Colors.white.withOpacity(0.45),
+                  shape: BoxShape.circle,
+                ),
+              );
+            }),
+          ),
+        ),
+        Positioned(
+          top: MediaQuery.paddingOf(context).top + 48,
+          right: 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: Colors.black.withOpacity(0.45), borderRadius: BorderRadius.circular(14)),
+            child: Text(
+              '${_currentIndex + 1}/${urls.length}',
+              style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Backdrop blur layer behind the reel video player.
 class FeedReelBackdrop extends StatelessWidget {
   const FeedReelBackdrop({super.key, required this.post});
@@ -146,7 +236,7 @@ class FeedReelBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.expand(child: FeedReelStyledThumbnail(post: post, isFullScreen: true));
+    return SizedBox.expand(child: FeedReelPhotoCarousel(post: post));
   }
 }
 

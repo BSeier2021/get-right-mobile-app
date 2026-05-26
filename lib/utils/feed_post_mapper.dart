@@ -58,6 +58,19 @@ String? firstFeedImageUrlFromApiList(dynamic images) {
   return null;
 }
 
+/// All image URLs from `images[]` on photo posts (multi-image carousel).
+List<String> allFeedImageUrlsFromApiList(dynamic images) {
+  if (images is! List) return const [];
+  final out = <String>[];
+  for (final item in images) {
+    final u = feedMediaUrlFromApiNode(item);
+    if (u != null && u.trim().isNotEmpty) {
+      out.add(u.trim());
+    }
+  }
+  return out;
+}
+
 /// Feed grid / reel thumbnail: feed `thumbnail`, video thumb/poster, or `images[0]`.
 String extractFeedThumbnailUrl(Map<String, dynamic> m, {Map<String, dynamic>? video}) {
   final v = video ?? (m['video'] is Map ? Map<String, dynamic>.from(m['video'] as Map) : <String, dynamic>{});
@@ -206,6 +219,7 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
 
   final resolvedVideoUrl = extractFeedVideoUrl(m, video) ?? '';
   final thumb = extractFeedThumbnailUrl(m, video: video);
+  final imageUrls = allFeedImageUrlsFromApiList(m['images']);
 
   final viewer = (m['viewer'] is Map) ? Map<String, dynamic>.from(m['viewer'] as Map) : <String, dynamic>{};
 
@@ -242,7 +256,9 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
     'isVideo': isVideo,
     'videoUrl': resolvedVideoUrl,
     'thumbnail': thumbSanitized,
-    if (!isVideo && thumbSanitized.isNotEmpty) 'imageUrl': thumbSanitized,
+    'imageUrls': imageUrls,
+    if (!isVideo && imageUrls.isNotEmpty) 'imageUrl': imageUrls.first,
+    if (!isVideo && imageUrls.isEmpty && thumbSanitized.isNotEmpty) 'imageUrl': thumbSanitized,
     'likes': (m['likesCount'] is num) ? (m['likesCount'] as num).toInt() : 0,
     'comments': (m['commentsCount'] is num) ? (m['commentsCount'] as num).toInt() : 0,
     'shares': (m['sharesCount'] is num) ? (m['sharesCount'] as num).toInt() : 0,

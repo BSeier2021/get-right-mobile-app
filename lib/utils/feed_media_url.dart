@@ -35,8 +35,25 @@ bool feedPostIsPhotoOnly(Map<String, dynamic> post) {
   return feedPostDisplayImageUrl(post) != null;
 }
 
+/// All display URLs for a photo post (`imageUrls` from API `images[]`, else single thumbnail).
+List<String> feedPostImageUrls(Map<String, dynamic> post) {
+  final raw = post['imageUrls'];
+  if (raw is List) {
+    final out = <String>[];
+    for (final item in raw) {
+      final resolved = ImageUrlSanitizer.asHttpUrlOrNull(item?.toString());
+      if (resolved != null) out.add(resolved);
+    }
+    if (out.isNotEmpty) return out;
+  }
+  final single = feedPostDisplayImageUrl(post);
+  return single != null ? [single] : const [];
+}
+
 /// Thumbnail / first image URL for grid and photo reel backdrop.
 String? feedPostDisplayImageUrl(Map<String, dynamic> post) {
+  final urls = feedPostImageUrls(post);
+  if (urls.isNotEmpty) return urls.first;
   return ImageUrlSanitizer.asHttpUrlOrNull((post['thumbnail'] ?? '').toString()) ??
       ImageUrlSanitizer.asHttpUrlOrNull((post['imageUrl'] ?? '').toString());
 }
