@@ -183,14 +183,24 @@ class FeedPublishController extends GetxController {
   }
 
   /// Full publish: video = JSON create as `Draft`, multipart upload, poll until video is ready, then `PATCH` to `Published`;
-  /// photo = multipart create with image file (required for Published without video).
+  /// photo = multipart create with one or more image files (required for Published without video).
   Future<void> publish({
-    required String mediaPath,
+    required List<String> mediaPaths,
     required bool isVideo,
     required String title,
     required String description,
     required String tagsRaw,
   }) async {
+    if (mediaPaths.isEmpty) {
+      Get.snackbar(
+        'Media Required',
+        'Please select an image or video',
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
     if (title.trim().isEmpty) {
       Get.snackbar(
         'Title Required',
@@ -244,19 +254,23 @@ class FeedPublishController extends GetxController {
           status: 'Draft',
         );
       } else {
-        final imageFile = File(mediaPath);
-        if (!await imageFile.exists()) {
-          throw StateError('Image file not found.');
-        }
-        if (await imageFile.length() <= 0) {
-          throw StateError('Image file is empty.');
+        final imageFiles = <File>[];
+        for (final path in mediaPaths) {
+          final imageFile = File(path);
+          if (!await imageFile.exists()) {
+            throw StateError('Image file not found.');
+          }
+          if (await imageFile.length() <= 0) {
+            throw StateError('Image file is empty.');
+          }
+          imageFiles.add(imageFile);
         }
         createRes = await _feed.createFeedWithImagesMultipartRepo(
           title: title.trim(),
           description: description.trim(),
           categoryId: categoryId,
           tags: tags,
-          imageFile: imageFile,
+          imageFiles: imageFiles,
         );
       }
 
@@ -271,9 +285,10 @@ class FeedPublishController extends GetxController {
         uploadProgress.value = 1.0;
         publishPhase.value = '';
         Get.back();
+        final imageCount = mediaPaths.length;
         Get.snackbar(
           'Post published',
-          'Your photo post was published.',
+          imageCount > 1 ? 'Your photo post with $imageCount images was published.' : 'Your photo post was published.',
           backgroundColor: AppColors.completed,
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,
@@ -282,7 +297,7 @@ class FeedPublishController extends GetxController {
         return;
       }
 
-      final file = File(mediaPath);
+      final file = File(mediaPaths.first);
       if (!await file.exists()) {
         throw StateError('Video file not found.');
       }
@@ -291,7 +306,7 @@ class FeedPublishController extends GetxController {
         throw StateError('Video file is empty.');
       }
 
-      final contentType = guessVideoContentType(mediaPath);
+      final contentType = guessVideoContentType(mediaPaths.first);
       publishPhase.value = 'preparing_upload';
 
       final initRaw = await _feed.initVideoMultipartRepo(

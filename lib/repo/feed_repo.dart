@@ -190,8 +190,11 @@ class FeedRepository {
     required String description,
     required String categoryId,
     required List<String> tags,
-    required File imageFile,
+    required List<File> imageFiles,
   }) async {
+    if (imageFiles.isEmpty) {
+      throw ArgumentError('At least one image is required.');
+    }
     return _network.postMultipart(
       url: AppUrl.feedCreate,
       fields: <String, dynamic>{
@@ -201,7 +204,7 @@ class FeedRepository {
         'tags[]': tags,
         'status': 'Published',
       },
-      files: <String, List<File>>{'images': <File>[imageFile]},
+      files: <String, List<File>>{'images': imageFiles},
     );
   }
 

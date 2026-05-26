@@ -437,7 +437,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
           SizedBox(
             height: 42,
             child: ElevatedButton(
-              onPressed: () => Get.toNamed(AppRoutes.purchaseDetails, arguments: {'isBundle': true, 'bundle': _bundle}),
+              onPressed: () => Get.toNamed(AppRoutes.programTerms, arguments: {'isBundle': true, 'bundle': _bundle}),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accent,
                 foregroundColor: Colors.white,

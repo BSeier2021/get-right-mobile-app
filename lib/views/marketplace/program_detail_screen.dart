@@ -663,22 +663,13 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     }
   }
 
-  Future<void> _enrollAndOpenCheckout() async {
+  void _enrollAndOpenCheckout() {
     final enrollId = _programEnrollMongoId();
-    if (enrollId == null || !Get.isRegistered<AuthController>()) {
+    if (enrollId == null) {
       Get.snackbar('Enroll', 'This program cannot be enrolled (invalid id).', snackPosition: SnackPosition.BOTTOM);
       return;
     }
-    setState(() => _enrolling = true);
-    final enrollment = await Get.find<AuthController>().enrollProgram(programOrBundleId: enrollId, isBundle: false);
-    if (!mounted) return;
-    setState(() => _enrolling = false);
-    if (enrollment == null) return;
-    final nextProgram = Map<String, dynamic>.from(_safeProgram);
-    nextProgram['isEnrolled'] = true;
-    nextProgram['status'] = 'active';
-    if (enrollment.isNotEmpty) nextProgram['enrollment'] = enrollment;
-    Get.toNamed(AppRoutes.purchaseDetails, arguments: {'isBundle': false, 'program': nextProgram, 'skipEnrollApi': true});
+    Get.toNamed(AppRoutes.programTerms, arguments: {'isBundle': false, 'program': Map<String, dynamic>.from(_safeProgram)});
   }
 
   String? _resolveApiMediaUrl(String? raw) {

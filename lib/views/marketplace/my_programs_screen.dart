@@ -115,7 +115,112 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
       'rawEnrollment': e,
       'programId': prog['_id']?.toString() ?? prog['id']?.toString(),
       'isBundlePart': isBundlePart,
+      'isBundle': false,
     };
+  }
+
+  /// Stable key for enrollments that belong to the same bundle (`program._id` + `bundlePrograms`).
+  static String? _bundleGroupKey(Map<String, dynamic> enrollment) {
+    final bundlePrograms = enrollment['bundlePrograms'];
+    if (bundlePrograms is! List || bundlePrograms.isEmpty) return null;
+
+    final prog = enrollment['program'];
+    final programId = prog is Map ? (prog['_id'] ?? prog['id'])?.toString().trim() : null;
+    if (programId == null || programId.isEmpty) return null;
+
+    final ids = <String>{programId};
+    for (final bp in bundlePrograms) {
+      final id = bp?.toString().trim();
+      if (id != null && id.isNotEmpty) ids.add(id);
+    }
+    final sorted = ids.toList()..sort();
+    return sorted.join('|');
+  }
+
+  static String _bundleTitleFromEnrollments(List<Map<String, dynamic>> programCards) {
+    for (final card in programCards) {
+      final raw = card['rawEnrollment'];
+      if (raw is Map) {
+        final bundle = raw['bundle'];
+        if (bundle is Map) {
+          final title = bundle['title']?.toString().trim();
+          if (title != null && title.isNotEmpty) return title;
+        }
+      }
+    }
+    return 'Bundle Deal';
+  }
+
+  static Map<String, dynamic> _bundleCardFromGroup(List<Map<String, dynamic>> programCards) {
+    final sorted = List<Map<String, dynamic>>.from(programCards)
+      ..sort((a, b) => (a['title']?.toString() ?? '').compareTo(b['title']?.toString() ?? ''));
+
+    final totalProgress = sorted.fold<int>(0, (sum, c) => sum + _progressPct(c['progress']));
+    final avgProgress = sorted.isEmpty ? 0 : (totalProgress / sorted.length).round();
+    final first = sorted.first;
+
+    return <String, dynamic>{
+      'isBundle': true,
+      'title': _bundleTitleFromEnrollments(sorted),
+      'subtitle': '${sorted.length} programs included',
+      'programs': sorted,
+      'trainer': first['trainer']?.toString() ?? 'Trainer',
+      'startDate': first['startDate'],
+      'endDate': first['endDate'],
+      'progress': avgProgress,
+      'status': first['status'],
+      'image': first['image'],
+    };
+  }
+
+  /// Collapse sibling bundle enrollments into one bundled card row.
+  static List<Map<String, dynamic>> _groupEnrollmentCards(List<Map<String, dynamic>> cards) {
+    final bundleGroups = <String, List<Map<String, dynamic>>>{};
+    for (final card in cards) {
+      final raw = card['rawEnrollment'];
+      if (raw is! Map) continue;
+      final key = _bundleGroupKey(Map<String, dynamic>.from(raw));
+      if (key == null) continue;
+      bundleGroups.putIfAbsent(key, () => []).add(card);
+    }
+
+    final seenBundleKeys = <String>{};
+    final grouped = <Map<String, dynamic>>[];
+
+    for (final card in cards) {
+      final raw = card['rawEnrollment'];
+      if (raw is! Map) {
+        grouped.add(card);
+        continue;
+      }
+      final key = _bundleGroupKey(Map<String, dynamic>.from(raw));
+      if (key == null) {
+        grouped.add(card);
+      } else if (!seenBundleKeys.contains(key)) {
+        seenBundleKeys.add(key);
+        grouped.add(_bundleCardFromGroup(bundleGroups[key]!));
+      }
+    }
+    return grouped;
+  }
+
+  List<Map<String, dynamic>> _flattenEnrollmentCards(List<Map<String, dynamic>> rows) {
+    final out = <Map<String, dynamic>>[];
+    for (final row in rows) {
+      if (row['isBundle'] == true && row['programs'] is List) {
+        out.addAll((row['programs'] as List).whereType<Map<String, dynamic>>());
+      } else {
+        out.add(row);
+      }
+    }
+    return out;
+  }
+
+  void _regroupCardRows() {
+    final flat = _flattenEnrollmentCards(_cardRows);
+    _cardRows
+      ..clear()
+      ..addAll(_groupEnrollmentCards(flat));
   }
 
   @override
@@ -150,6 +255,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     }
     setState(() {
       _cardRows.addAll(result.enrollments.map(_enrollmentToCard));
+      _regroupCardRows();
       _hasMore = result.hasNextPage;
       _page = result.currentPage;
       _loading = false;
@@ -168,6 +274,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     }
     setState(() {
       _cardRows.addAll(result.enrollments.map(_enrollmentToCard));
+      _regroupCardRows();
       _hasMore = result.hasNextPage;
       _page = result.currentPage;
       _loadingMore = false;
@@ -346,7 +453,11 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
               child: Center(child: CircularProgressIndicator(color: AppColors.accentVariant)),
             );
           }
-          return _buildProgramCard(programs[index]);
+          final row = programs[index];
+          if (row['isBundle'] == true) {
+            return _buildBundleEnrollmentCard(row);
+          }
+          return _buildProgramCard(row);
         },
       ),
     );
@@ -372,6 +483,147 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
 
   void _cancelProgram(Map<String, dynamic> program) {
     Get.snackbar('Cancel enrollment', 'Please contact support or use program settings to cancel.', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 3));
+  }
+
+  Widget _buildBundleEnrollmentCard(Map<String, dynamic> bundle) {
+    final programs = bundle['programs'] is List ? (bundle['programs'] as List).whereType<Map<String, dynamic>>().toList() : <Map<String, dynamic>>[];
+    final startDate = bundle['startDate'] is DateTime ? bundle['startDate'] as DateTime : DateTime.now();
+    final endDate = bundle['endDate'] is DateTime ? bundle['endDate'] as DateTime : DateTime.now().add(const Duration(days: 30));
+    final progress = bundle['progress'] ?? 0;
+    final imageUrl = bundle['image'] as String?;
+    final tab = _currentTab;
+    final isActiveTab = tab == EnrollmentListTab.active;
+    final isScheduledTab = tab == EnrollmentListTab.scheduled;
+    final isCompletedTab = tab == EnrollmentListTab.completed;
+    final isCancelledTab = tab == EnrollmentListTab.cancelled;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFCDE7C8), width: 1),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 3))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: Stack(
+              children: [
+                if (imageUrl != null)
+                  Image.network(imageUrl, height: 160, width: double.infinity, fit: BoxFit.cover, errorBuilder: (c, e, s) => _imagePlaceholder())
+                else
+                  _imagePlaceholder(),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(color: AppColors.accentVariant, borderRadius: BorderRadius.circular(20)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.inventory_2_outlined, color: Colors.white, size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Bundle',
+                          style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isActiveTab) ...[_progressSection(progress), const SizedBox(height: 14)],
+                Text(
+                  bundle['title']?.toString() ?? 'Bundle Deal',
+                  style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  bundle['subtitle']?.toString() ?? '${programs.length} programs included',
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.accentVariant, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text('by ${bundle['trainer']?.toString() ?? 'Trainer'}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.primaryGrayDark),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'From ${_formatDateFull(startDate)} – ${_formatDateFull(endDate)}',
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+                if (programs.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Included programs',
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 10),
+                  ...programs.asMap().entries.map((entry) {
+                    final program = entry.value;
+                    return Column(
+                      children: [
+                        if (entry.key > 0) const Divider(height: 20),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.fitness_center, size: 18, color: AppColors.accentVariant),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    program['title']?.toString() ?? 'Program',
+                                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(
+                                    '${program['progress'] ?? 0}% complete',
+                                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => _viewProgramDetails(program),
+                              child: Text(
+                                isCompletedTab ? 'Review' : 'View',
+                                style: AppTextStyles.labelMedium.copyWith(color: AppColors.accentVariant, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  }),
+                ],
+                if (isScheduledTab || isCompletedTab || isCancelledTab) ...[const SizedBox(height: 14), _progressSection(progress)],
+                if (isScheduledTab && programs.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _cancelButton(programs.first),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildProgramCard(Map<String, dynamic> program) {
@@ -412,13 +664,6 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
                   program['title']?.toString() ?? 'Program',
                   style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
                 ),
-                if (program['isBundlePart'] == true) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'Bundle enrollment',
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.accentVariant, fontWeight: FontWeight.w600),
-                  ),
-                ],
                 const SizedBox(height: 4),
                 Text('by ${program['trainer']?.toString() ?? 'Trainer'}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                 const SizedBox(height: 10),

@@ -20,6 +20,8 @@ class CreatePostScreen extends StatefulWidget {
 }
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
+  static const int _maxImages = 5;
+
   final TextEditingController _titleController = TextEditingController();
 
   final TextEditingController _descriptionController = TextEditingController();
@@ -33,9 +35,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   late final FeedPublishController _feed = Get.find<FeedPublishController>();
 
-  XFile? _selectedMedia;
+  final List<XFile> _selectedImages = [];
+  XFile? _selectedVideo;
+  int _previewImageIndex = 0;
+  final PageController _imagePageController = PageController();
 
-  bool _isVideo = false;
+  bool get _isVideo => _selectedVideo != null;
+  bool get _hasMedia => _isVideo || _selectedImages.isNotEmpty;
+  int get _remainingImageSlots => (_maxImages - _selectedImages.length).clamp(0, _maxImages);
 
   VideoPlayerController? _videoPreviewController;
   String? _videoPreviewPath;
@@ -59,7 +66,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   /// Local file preview for gallery/camera video (not [Image.file]).
   Future<void> _syncVideoPreview() async {
-    final path = (_isVideo && _selectedMedia != null) ? _selectedMedia!.path.trim() : null;
+    final path = (_isVideo && _selectedVideo != null) ? _selectedVideo!.path.trim() : null;
     if (path == null || path.isEmpty) {
       await _disposeVideoPreview();
       if (mounted) setState(() {});
@@ -108,17 +115,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() {});
   }
 
+  @override
   void initState() {
     super.initState();
 
     final args = Get.arguments as Map<String, dynamic>?;
 
     if (args != null && args['type'] != null) {
-      _isVideo = args['type'] == 'video' || args['type'] == 'record';
-
-      if (args['type'] == 'record') {
+      final type = args['type'];
+      if (type == 'record') {
         _recordVideo();
-      } else if (args['type'] == 'video') {
+      } else if (type == 'video') {
         _pickVideo();
       }
       // 'image': show create screen first; user picks from Add Media / Photo (no auto gallery).
@@ -139,6 +146,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     _descriptionController.dispose();
 
     _tagsController.dispose();
+    _imagePageController.dispose();
 
     super.dispose();
   }
@@ -187,7 +195,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                               style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 2),
-                            Text('Choose from your photos', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 13)),
+                            Text('Choose one or more photos', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 13)),
                           ],
                         ),
                       ),
@@ -250,33 +258,121 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
   }
 
+  void _clearImages() {
+    _selectedImages.clear();
+    _previewImageIndex = 0;
+  }
+
+  void _clearVideo() {
+    _selectedVideo = null;
+    unawaited(_disposeVideoPreview());
+  }
+
   Future<void> _pickImageFromSource(ImageSource source) async {
     try {
-      final XFile? image = await _picker.pickImage(source: source, imageQuality: 85);
+      if (source == ImageSource.gallery) {
+        final picked = await _picker.pickMultiImage(imageQuality: 85);
+        if (picked.isEmpty) return;
 
-      if (image != null) {
+        if (_remainingImageSlots <= 0) {
+          Get.snackbar(
+            'Limit reached',
+            'You can add up to $_maxImages images per post.',
+            backgroundColor: AppColors.upcoming,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          return;
+        }
+
+        final beforeCount = _selectedImages.length;
+        _clearVideo();
         setState(() {
-          _selectedMedia = image;
-
-          _isVideo = false;
+          _selectedImages.addAll(picked.take(_remainingImageSlots));
+          _previewImageIndex = _selectedImages.length - 1;
         });
-        unawaited(_disposeVideoPreview());
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_imagePageController.hasClients) {
+            _imagePageController.jumpToPage(_previewImageIndex);
+          }
+        });
+
+        if (picked.length > _selectedImages.length - beforeCount) {
+          Get.snackbar(
+            'Limit reached',
+            'You can add up to $_maxImages images per post.',
+            backgroundColor: AppColors.upcoming,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+        return;
+      }
+
+      if (_remainingImageSlots <= 0) {
+        Get.snackbar(
+          'Limit reached',
+          'You can add up to $_maxImages images per post.',
+          backgroundColor: AppColors.upcoming,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+
+      final image = await _picker.pickImage(source: source, imageQuality: 85);
+      if (image != null) {
+        _clearVideo();
+        setState(() {
+          _selectedImages.add(image);
+          _previewImageIndex = _selectedImages.length - 1;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_imagePageController.hasClients) {
+            _imagePageController.jumpToPage(_previewImageIndex);
+          }
+        });
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to pick image: $e', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
     }
   }
 
+  void _goToPreviewImage(int index) {
+    if (index < 0 || index >= _selectedImages.length) return;
+    setState(() => _previewImageIndex = index);
+    if (_imagePageController.hasClients) {
+      _imagePageController.animateToPage(index, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    }
+  }
+
+  void _removeImageAt(int index) {
+    if (index < 0 || index >= _selectedImages.length) return;
+    setState(() {
+      _selectedImages.removeAt(index);
+      if (_selectedImages.isEmpty) {
+        _previewImageIndex = 0;
+      } else if (_previewImageIndex >= _selectedImages.length) {
+        _previewImageIndex = _selectedImages.length - 1;
+      } else if (_previewImageIndex > index) {
+        _previewImageIndex--;
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_selectedImages.isEmpty) return;
+      if (_imagePageController.hasClients) {
+        _imagePageController.jumpToPage(_previewImageIndex);
+      }
+    });
+  }
+
   Future<void> _pickVideo() async {
     try {
-      final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
+      final video = await _picker.pickVideo(source: ImageSource.gallery);
 
       if (video != null) {
-        setState(() {
-          _selectedMedia = video;
-
-          _isVideo = true;
-        });
+        _clearImages();
+        setState(() => _selectedVideo = video);
         await _syncVideoPreview();
       }
     } catch (e) {
@@ -286,14 +382,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Future<void> _recordVideo() async {
     try {
-      final XFile? video = await _picker.pickVideo(source: ImageSource.camera);
+      final video = await _picker.pickVideo(source: ImageSource.camera);
 
       if (video != null) {
-        setState(() {
-          _selectedMedia = video;
-
-          _isVideo = true;
-        });
+        _clearImages();
+        setState(() => _selectedVideo = video);
         await _syncVideoPreview();
       }
     } catch (e) {
@@ -302,14 +395,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Future<void> _publishPost() async {
-    if (_selectedMedia == null) {
-      Get.snackbar(
-        'Media Required',
-        'Please select an image or video',
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+    if (!_hasMedia) {
+      Get.snackbar('Media Required', 'Please select an image or video', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
 
       return;
     }
@@ -317,7 +404,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     if (_feed.isPublishing.value) return;
 
     await _feed.publish(
-      mediaPath: _selectedMedia!.path,
+      mediaPaths: _isVideo ? [_selectedVideo!.path] : _selectedImages.map((e) => e.path).toList(),
       isVideo: _isVideo,
       title: _titleController.text,
       description: _descriptionController.text,
@@ -426,6 +513,168 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
   }
 
+  Widget _buildImagePreviewPanel() {
+    if (_selectedImages.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 400,
+          child: PageView.builder(
+            itemCount: _selectedImages.length,
+            controller: _imagePageController,
+            onPageChanged: (index) => setState(() => _previewImageIndex = index),
+            itemBuilder: (context, index) {
+              return Image.file(File(_selectedImages[index].path), fit: BoxFit.contain);
+            },
+          ),
+        ),
+        if (_selectedImages.length > 1) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_selectedImages.length, (index) {
+              final active = index == _previewImageIndex;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: active ? 10 : 8,
+                height: active ? 10 : 8,
+                decoration: BoxDecoration(color: active ? AppColors.accent : AppColors.primaryGray.withOpacity(0.4), shape: BoxShape.circle),
+              );
+            }),
+          ),
+        ],
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 72,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _selectedImages.length + (_remainingImageSlots > 0 ? 1 : 0),
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              if (index == _selectedImages.length) {
+                return InkWell(
+                  onTap: _pickImage,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 72,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.accent.withOpacity(0.5), width: 1.5),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_photo_alternate_outlined, color: AppColors.accent, size: 24),
+                        const SizedBox(height: 4),
+                        Text('Add', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent)),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final selected = index == _previewImageIndex;
+              return GestureDetector(
+                onTap: () => _goToPreviewImage(index),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 72,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: selected ? AppColors.accent : Colors.transparent, width: 2),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.file(File(_selectedImages[index].path), width: 72, height: 72, fit: BoxFit.cover),
+                      ),
+                    ),
+                    Positioned(
+                      top: -6,
+                      right: -6,
+                      child: GestureDetector(
+                        onTap: () => _removeImageAt(index),
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
+                          child: const Icon(Icons.close, color: Colors.white, size: 14),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMediaPreview() {
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          color: Colors.black,
+          child: _isVideo ? SizedBox(height: 400, child: _buildVideoPreviewPanel()) : _buildImagePreviewPanel(),
+        ),
+        Positioned(
+          top: 16,
+          right: 16,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!_isVideo && _remainingImageSlots > 0)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+                  child: IconButton(
+                    icon: const Icon(Icons.add_photo_alternate_outlined, color: Colors.white),
+                    tooltip: 'Add photos',
+                    onPressed: _pickImage,
+                  ),
+                ),
+              Container(
+                decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+                child: IconButton(
+                  icon: Icon(_isVideo ? Icons.videocam : Icons.edit, color: Colors.white),
+                  tooltip: _isVideo ? 'Change video' : 'Change photos',
+                  onPressed: () {
+                    if (_isVideo) {
+                      _pickVideo();
+                    } else {
+                      _pickImage();
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (!_isVideo && _selectedImages.length > 1)
+          Positioned(
+            top: 16,
+            left: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(20)),
+              child: Text(
+                '${_previewImageIndex + 1}/${_selectedImages.length}',
+                style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   String _phaseLabel(FeedPublishController c) {
     switch (c.publishPhase.value) {
       case 'creating':
@@ -475,11 +724,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 onPressed: busy ? null : _publishPost,
 
                 child: busy
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent)),
-                      )
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent)))
                     : Text(
                         'Publish',
 
@@ -548,42 +793,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
 
                   children: [
-                    if (_selectedMedia != null)
-                      Stack(
-                        children: [
-                          Container(
-                            width: double.infinity,
-
-                            height: 400,
-
-                            color: Colors.black,
-
-                            child: _isVideo ? _buildVideoPreviewPanel() : Image.file(File(_selectedMedia!.path), fit: BoxFit.contain),
-                          ),
-
-                          Positioned(
-                            top: 16,
-
-                            right: 16,
-
-                            child: Container(
-                              decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
-
-                              child: IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.white),
-
-                                onPressed: () {
-                                  if (_isVideo) {
-                                    _pickVideo();
-                                  } else {
-                                    _pickImage();
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
+                    if (_hasMedia)
+                      _buildMediaPreview()
                     else
                       Container(
                         width: double.infinity,

@@ -27,6 +27,23 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
 
   bool _isProcessing = false;
 
+  String _enrolledItemTitle() {
+    if (paymentData['isBundle'] == true) {
+      final bundle = paymentData['bundle'];
+      if (bundle is Map) {
+        final title = bundle['title']?.toString().trim();
+        if (title != null && title.isNotEmpty) return title;
+      }
+      return paymentData['title']?.toString().trim() ?? 'Bundle';
+    }
+    final program = paymentData['program'];
+    if (program is Map) {
+      final title = program['title']?.toString().trim();
+      if (title != null && title.isNotEmpty) return title;
+    }
+    return paymentData['title']?.toString().trim() ?? 'Program';
+  }
+
   @override
   void dispose() {
     _cardNumberController.dispose();
@@ -98,12 +115,24 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
       await Future.delayed(const Duration(milliseconds: 500));
       Get.back(); // Go back to previous screen
     } else {
-      // Regular program payment - navigate to program terms screen
       setState(() {
         _isProcessing = false;
       });
 
-      Get.offNamed(AppRoutes.programTerms, arguments: paymentData);
+      final title = _enrolledItemTitle();
+      Get.offNamed(AppRoutes.myPrograms, arguments: {'enrolled': true, 'program': paymentData});
+
+      Future.delayed(const Duration(milliseconds: 500), () {
+        Get.snackbar(
+          'Success!',
+          'You have been successfully enrolled in $title',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: AppColors.completed,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+          icon: const Icon(Icons.check_circle, color: Colors.white),
+        );
+      });
     }
   }
 

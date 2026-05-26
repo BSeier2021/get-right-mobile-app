@@ -13,8 +13,6 @@ class ProgramTermsScreen extends StatefulWidget {
 }
 
 class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
-  static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
-
   final Map<String, dynamic> programData = Get.arguments ?? {};
   bool _termsAccepted = false;
   bool _privacyAccepted = false;
@@ -28,225 +26,25 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
       return;
     }
 
-    // Show enrollment confirmation dialog
-    Get.dialog(_buildEnrollmentConfirmationDialog(), barrierDismissible: false);
+    _openPurchaseDetails();
   }
 
   void _declineTerms() {
-    Get.back(); // Navigate back to purchase details screen
-  }
-
-  void _onEnrollmentConfirmed() {
-    // Close dialog
     Get.back();
-
-    // Navigate to My Programs screen with success message
-    Get.toNamed(AppRoutes.myPrograms, arguments: {'enrolled': true, 'program': programData});
-
-    // Show success snackbar
-    Future.delayed(const Duration(milliseconds: 500), () {
-      Get.snackbar(
-        'Success!',
-        'You have been successfully enrolled in ${programData['title']}',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: AppColors.completed,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-        icon: Icon(Icons.check_circle, color: Colors.white),
-      );
-    });
   }
 
-  bool get _dialogIsBundle => programData['isBundle'] == true;
-
-  Map<String, dynamic>? get _dialogEnrollmentMap {
-    final e = programData['enrollment'];
-    if (e is Map) return Map<String, dynamic>.from(e);
-    return null;
-  }
-
-  List<Map<String, dynamic>> get _dialogBundlePrograms {
-    final raw = programData['programs'];
-    if (raw is! List) return [];
-    return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
-  }
-
-  dynamic _dialogEffectiveStartDate() {
-    final enc = _dialogEnrollmentMap;
-    if (enc != null && enc['startDate'] != null) return enc['startDate'];
-    final list = enc?['enrollments'];
-    if (list is List && list.isNotEmpty && list.first is Map) {
-      final m = list.first as Map;
-      if (m['startDate'] != null) return m['startDate'];
+  void _openPurchaseDetails() {
+    if (_isBundle) {
+      final bundle = programData['bundle'];
+      Get.toNamed(AppRoutes.purchaseDetails, arguments: {'isBundle': true, 'bundle': bundle is Map ? Map<String, dynamic>.from(bundle) : programData});
+      return;
     }
-    return programData['startDate'];
+
+    final program = programData['program'];
+    Get.toNamed(AppRoutes.purchaseDetails, arguments: {'isBundle': false, 'program': program is Map ? Map<String, dynamic>.from(program) : Map<String, dynamic>.from(programData)});
   }
 
-  dynamic _dialogEffectiveEndDate() {
-    final enc = _dialogEnrollmentMap;
-    if (enc != null && enc['endDate'] != null) return enc['endDate'];
-    final list = enc?['enrollments'];
-    if (list is List && list.isNotEmpty && list.first is Map) {
-      final m = list.first as Map;
-      if (m['endDate'] != null) return m['endDate'];
-    }
-    return programData['endDate'];
-  }
-
-  String _dialogTrainerDisplayName() {
-    final t = programData['trainer'];
-    if (t is Map) {
-      final name = t['name']?.toString().trim();
-      if (name != null && name.isNotEmpty) return name;
-    }
-    if (t is String && t.trim().isNotEmpty && !_mongoIdRe.hasMatch(t.trim())) return t.trim();
-    for (final p in _dialogBundlePrograms) {
-      final tp = p['trainer'];
-      if (tp is Map) {
-        final n = tp['name']?.toString().trim();
-        if (n != null && n.isNotEmpty) return n;
-      }
-    }
-    return 'Trainer';
-  }
-
-  String _dialogProgramTitle() {
-    final t = programData['title']?.toString().trim();
-    if (t != null && t.isNotEmpty) return t;
-    return _dialogIsBundle ? 'Bundle' : 'Program';
-  }
-
-  String _dialogAmountPaidLabel() {
-    final total = programData['total'];
-    if (total == null) return '—';
-    final n = total is num ? total.toDouble() : double.tryParse(total.toString());
-    if (n == null) return '—';
-    return '\$${n.toStringAsFixed(2)}';
-  }
-
-  Widget _buildEnrollmentConfirmationDialog() {
-    final startFormatted = _formatDate(_dialogEffectiveStartDate());
-    final startLabel = startFormatted.isEmpty ? '—' : startFormatted;
-    final endRaw = _formatDate(_dialogEffectiveEndDate());
-    final showEnd = endRaw.isNotEmpty;
-
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      backgroundColor: Color(0xFFF8FFE9),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(color: Color(0xFFF8FFE9), borderRadius: BorderRadius.circular(20)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Enrollment Confirmed!',
-              style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'You have been successfully enrolled in',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.75)),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _dialogProgramTitle(),
-              style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800),
-              textAlign: TextAlign.center,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 15),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color.fromARGB(255, 236, 247, 213),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE8EFE0)),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Starts', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-                      Flexible(
-                        child: Text(
-                          startLabel,
-                          textAlign: TextAlign.right,
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (showEnd) ...[
-                    const Divider(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Ends', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-                        Flexible(
-                          child: Text(
-                            endRaw,
-                            textAlign: TextAlign.right,
-                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  const Divider(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Trainer', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-                      Flexible(
-                        child: Text(
-                          _dialogTrainerDisplayName(),
-                          textAlign: TextAlign.right,
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Amount paid', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-                      Flexible(
-                        child: Text(
-                          _dialogAmountPaidLabel(),
-                          textAlign: TextAlign.right,
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 15),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _onEnrollmentConfirmed,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                  elevation: 0,
-                ),
-                child: Text('Continue', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onAccent)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  bool get _isBundle => programData['isBundle'] == true;
 
   @override
   Widget build(BuildContext context) {
@@ -376,7 +174,7 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    "title",
+                    title,
                     style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -465,24 +263,5 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
 6. Special Circumstances: Medical emergencies or extenuating circumstances will be reviewed on a case-by-case basis.
 
 7. Trainer Cancellation: If a trainer cancels the program, you will receive a full refund or the option to transfer to another program.''';
-  }
-
-  String _formatDate(dynamic date) {
-    if (date == null) return '';
-    try {
-      DateTime dateTime;
-      if (date is DateTime) {
-        dateTime = date;
-      } else if (date is String) {
-        dateTime = DateTime.parse(date);
-      } else {
-        return '';
-      }
-
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return '${months[dateTime.month - 1]} ${dateTime.day}, ${dateTime.year}';
-    } catch (_) {
-      return '';
-    }
   }
 }
