@@ -1,9 +1,9 @@
 class AppUrl {
-  //   static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
-  //   static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
+  static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
+  static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
   // development url
-  static const String baseUrl = 'http://getright.prodservers.com:8004/api/v1';
-  static const String imnageUrl = 'http://getright.prodservers.com:8004/api/v1';
+  // static const String baseUrl = 'http://getright.prodservers.com:8004/api/v1';
+  // static const String imnageUrl = 'http://getright.prodservers.com:8004/api/v1';
   // static const String socketUrl = 'http://getright.prodservers.com:8004/';
 
   static String signUp = '$baseUrl/user/auth/signup';
