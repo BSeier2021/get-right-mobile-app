@@ -70,6 +70,36 @@ class FeedRepository {
     return _network.patch(AppUrl.feedById(feedId), body);
   }
 
+  /// `PATCH /user/feed/:feedId` — multipart with `images` to replace photo post media.
+  Future<dynamic> updateFeedWithImagesMultipartRepo({
+    required String feedId,
+    required String title,
+    required String description,
+    required String categoryId,
+    required List<String> tags,
+    required List<File> imageFiles,
+    String? status,
+  }) async {
+    if (imageFiles.isEmpty) {
+      throw ArgumentError('At least one image is required.');
+    }
+    final fields = <String, dynamic>{
+      'title': title.trim(),
+      'description': description.trim(),
+      'category': categoryId.trim(),
+      'tags[]': tags,
+    };
+    final st = status?.trim();
+    if (st != null && st.isNotEmpty) {
+      fields['status'] = st;
+    }
+    return _network.patchMultipart(
+      url: AppUrl.feedById(feedId),
+      fields: fields,
+      files: <String, List<File>>{'images': imageFiles},
+    );
+  }
+
   /// `DELETE` — [AppUrl.feedDelete] → `/api/v1/user/feed/:feedId`.
   Future<dynamic> deleteFeedRepo(String feedId) async {
     return _network.delete(AppUrl.feedDelete(feedId));

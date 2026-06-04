@@ -1066,45 +1066,48 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                       const SizedBox(height: 24),
                     ],
 
-                    // Trainer rating (enrolled customers)
-                    if (_canLeaveProgramReview) ...[
-                      Text(
-                        _userHasAlreadyReviewed ? 'Your Trainer Rating' : 'Rate Your Trainer',
-                        style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      if (_userHasAlreadyReviewed) _buildExistingRatingCard() else _buildReviewPromptCard(),
-                      const SizedBox(height: 24),
-                    ],
+                    // // Trainer rating (enrolled customers)
+                    // if (_canLeaveProgramReview) ...[
+                    //   Text(
+                    //     _userHasAlreadyReviewed ? 'Your Trainer Rating' : 'Rate Your Trainer',
+                    //     style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                    //   ),
+                    //   const SizedBox(height: 12),
+                    //   if (_userHasAlreadyReviewed) _buildExistingRatingCard() else _buildReviewPromptCard(),
+                    //   const SizedBox(height: 24),
+                    // ],
 
                     // Student Reviews
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Text(
-                            'Reviews',
-                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
-                          ),
+                        Text(
+                          'Reviews',
+                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                         ),
-                        Icon(Icons.star, color: AppColors.upcoming, size: 20),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            '${(_safeProgram['rating'] as num?)?.toStringAsFixed(1) ?? '0.0'} (${_safeProgram['reviews']} reviews)',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
-                          ),
+
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Icon(Icons.star, color: AppColors.upcoming, size: 20),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${(_safeProgram['rating'] as num?)?.toStringAsFixed(1) ?? '0.0'} (${_safeProgram['reviews']} reviews)',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                            ),
+                            if (_isEnrolled && !_userHasAlreadyReviewed)
+                              IconButton(
+                                tooltip: 'Add review',
+                                onPressed: _onAddReviewTap,
+                                icon: const Icon(Icons.add_circle_outline, color: AppColors.accent, size: 26),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                              ),
+                          ],
                         ),
-                        if (_isEnrolled && !_userHasAlreadyReviewed)
-                          IconButton(
-                            tooltip: 'Add review',
-                            onPressed: _onAddReviewTap,
-                            icon: const Icon(Icons.add_circle_outline, color: AppColors.accent, size: 26),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                          ),
                       ],
                     ),
                     const SizedBox(height: 12),

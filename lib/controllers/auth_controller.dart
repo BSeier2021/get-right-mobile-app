@@ -834,6 +834,31 @@ class AuthController extends GetxController {
       }
     }
 
+    var trainerName = 'Trainer';
+    var trainerInitials = 'T';
+    String? trainerId;
+    String? trainerAvatarUrl;
+    final tr = inner['trainer'];
+    if (tr is Map) {
+      final tm = Map<String, dynamic>.from(tr);
+      trainerId = tm['_id']?.toString().trim();
+      if (trainerId != null && trainerId.isEmpty) trainerId = null;
+      final prof = tm['profile'];
+      if (prof is Map) {
+        final fn = prof['fullName']?.toString().trim();
+        if (fn != null && fn.isNotEmpty) trainerName = fn;
+        final pic = prof['profilePicture'];
+        if (pic is Map) {
+          trainerAvatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+        }
+      }
+      trainerAvatarUrl ??= ImageUrlSanitizer.asHttpUrlOrNull(tm['profilePictureUrl']?.toString());
+    }
+    if (trainerName.isNotEmpty) {
+      trainerInitials = trainerName.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2).map((p) => p[0].toUpperCase()).join();
+      if (trainerInitials.isEmpty) trainerInitials = trainerName.substring(0, 1).toUpperCase();
+    }
+
     return {
       'id': inner['_id']?.toString() ?? '',
       'title': inner['title']?.toString() ?? '',
@@ -846,6 +871,11 @@ class AuthController extends GetxController {
       'programs': programs,
       'whatsIncluded': inner['whatsIncluded'],
       'marketplace_detail': inner['marketplace_detail'],
+      if (trainerId != null) 'trainerId': trainerId,
+      'trainer': trainerName,
+      'trainerImage': trainerInitials,
+      if (trainerAvatarUrl != null) 'trainerImageUrl': trainerAvatarUrl,
+      'isCertified': inner['isCertified'] == true,
       '_apiBundle': inner,
     };
   }

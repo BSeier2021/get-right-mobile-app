@@ -82,9 +82,188 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     return out;
   }
 
+  String? _trainerAvatarUrlFromBundleApi(Map<String, dynamic> api) {
+    final tr = api['trainer'];
+    if (tr is! Map) return null;
+    final t = Map<String, dynamic>.from(tr);
+    final pic = t['profilePicture'];
+    if (pic is Map) {
+      final url = ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+      if (url != null) return url;
+    }
+    final prof = t['profile'];
+    if (prof is Map) {
+      final profPic = prof['profilePicture'];
+      if (profPic is Map) {
+        return ImageUrlSanitizer.asHttpUrlOrNull(profPic['url']?.toString());
+      }
+    }
+    return ImageUrlSanitizer.asHttpUrlOrNull(t['profilePictureUrl']?.toString());
+  }
+
+  String? _trainerIdFromNode(dynamic node) {
+    if (node is! Map) return null;
+    final id = (node['_id'] ?? node['id'] ?? '').toString().trim();
+    return id.isEmpty ? null : id;
+  }
+
+  Map<String, dynamic> _resolveBundleTrainer(List<Map<String, dynamic>> programs) {
+    var trainerId = (_bundle['trainerId'] ?? '').toString().trim();
+    var name = (_bundle['trainer'] ?? '').toString().trim();
+    var initials = (_bundle['trainerImage'] ?? 'T').toString().trim();
+    var avatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(_bundle['trainerImageUrl']?.toString());
+
+    final api = _bundle['_apiBundle'];
+    if (api is Map) {
+      final apiMap = Map<String, dynamic>.from(api);
+      trainerId = trainerId.isNotEmpty ? trainerId : (_trainerIdFromNode(apiMap['trainer']) ?? '');
+      if (name.isEmpty) {
+        final tr = apiMap['trainer'];
+        if (tr is Map) {
+          final prof = tr['profile'];
+          if (prof is Map) {
+            final fn = prof['fullName']?.toString().trim();
+            if (fn != null && fn.isNotEmpty) name = fn;
+          }
+        }
+      }
+      avatarUrl ??= _trainerAvatarUrlFromBundleApi(apiMap);
+    }
+
+    if (programs.isNotEmpty) {
+      final primary = programs.first;
+      if (trainerId.isEmpty) {
+        trainerId = (primary['trainerId'] ?? '').toString().trim();
+        if (trainerId.isEmpty) trainerId = _trainerIdFromNode(primary['trainer']) ?? '';
+      }
+      if (name.isEmpty) name = (primary['trainer'] ?? '').toString().trim();
+      if (initials == 'T') initials = (primary['trainerImage'] ?? initials).toString().trim();
+      avatarUrl ??= ImageUrlSanitizer.asHttpUrlOrNull(primary['trainerImageUrl']?.toString());
+    }
+
+    if (name.isEmpty) name = 'Trainer';
+    if (initials.isEmpty) initials = name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'T';
+
+    var rating = 0.0;
+    var students = 0;
+    var certified = _bundle['isCertified'] == true;
+    if (programs.isNotEmpty) {
+      rating = programs.map((p) => ((p['rating'] as num?) ?? 0).toDouble()).fold<double>(0, (a, b) => a + b) / programs.length;
+      students = programs.map((p) => ((p['students'] as num?) ?? 0).toInt()).fold<int>(0, (a, b) => a + b);
+      certified = certified || programs.every((p) => p['certified'] == true);
+    }
+
+    return {
+      if (trainerId.isNotEmpty) ...{'id': trainerId, '_id': trainerId, 'trainerId': trainerId},
+      'name': name,
+      'initials': initials,
+      if (avatarUrl != null) 'avatarUrl': avatarUrl,
+      'rating': rating,
+      'students': students,
+      'certified': certified,
+      'role': 'Trainer',
+      'isTrainer': true,
+    };
+  }
+
+  void _openTrainerProfile(Map<String, dynamic> trainer) {
+    final tid = (trainer['id'] ?? trainer['_id'] ?? trainer['trainerId'] ?? '').toString().trim();
+    if (tid.isEmpty) {
+      Get.snackbar('Trainer', 'Trainer profile is not available.', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+      return;
+    }
+    final args = Map<String, dynamic>.from(trainer);
+    args['id'] = tid;
+    args['_id'] = tid;
+    Get.toNamed(AppRoutes.trainerProfile, arguments: args);
+  }
+
+  Widget _buildTrainerProfileBar(Map<String, dynamic> trainer) {
+    final name = (trainer['name'] ?? 'Trainer').toString();
+    final initials = (trainer['initials'] ?? 'T').toString();
+    final avatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(trainer['avatarUrl']?.toString());
+    final rating = ((trainer['rating'] as num?) ?? 0).toDouble();
+    final students = ((trainer['students'] as num?) ?? 0).toInt();
+    final certified = trainer['certified'] == true;
+
+    return GestureDetector(
+      onTap: () => _openTrainerProfile(trainer),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FFE9),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE8EFE0)),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          children: [
+            if (avatarUrl != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: Image.network(
+                  avatarUrl,
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => CircleAvatar(
+                    radius: 28,
+                    backgroundColor: AppColors.accent,
+                    child: Text(initials, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent)),
+                  ),
+                ),
+              )
+            else
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: AppColors.accent,
+                child: Text(initials, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent)),
+              ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Created by', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark)),
+                  const SizedBox(height: 2),
+                  Text(
+                    name,
+                    style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, size: 15, color: Color(0xFFF6A623)),
+                      const SizedBox(width: 4),
+                      Text(rating.toStringAsFixed(1), style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
+                      const SizedBox(width: 10),
+                      Text('$students students', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark)),
+                    ],
+                  ),
+                  if (certified) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.verified, color: AppColors.completed, size: 16),
+                        const SizedBox(width: 4),
+                        Text('Certified Trainer', style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface)),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: AppColors.accent, size: 26),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final programs = _programsList();
+    final trainer = _resolveBundleTrainer(programs);
 
     final String title = (_bundle['title'] ?? 'Bundle Deal').toString();
     final String? subtitle = _bundle['subtitle']?.toString();
@@ -163,7 +342,9 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
                         const SizedBox(height: 8),
                         Text(description, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75))),
                       ],
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
+                      _buildTrainerProfileBar(trainer),
+                      const SizedBox(height: 14),
                       _buildPricingCard(totalValue: totalValue, bundlePrice: bundlePrice, discount: discount),
                       const SizedBox(height: 14),
                       Row(
@@ -462,6 +643,9 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
       'totalValue': 64.99,
       'bundlePrice': 49.99,
       'imageUrl': 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=1200&h=800&fit=crop',
+      'trainer': 'Sarah Johnson',
+      'trainerImage': 'SJ',
+      'trainerId': 'trainer_mock_1',
       'programs': [
         {'id': 'program_1', 'title': 'Complete Strength Program', 'trainer': 'Sarah', 'trainerImage': 'S', 'price': 49.99, 'duration': '12 Weeks', 'rating': 4.8},
         {'id': 'program_2', 'title': 'Cardio Blast Challenge', 'trainer': 'Mike Chen', 'trainerImage': 'M', 'price': 49.99, 'duration': '12 Weeks', 'rating': 4.8},

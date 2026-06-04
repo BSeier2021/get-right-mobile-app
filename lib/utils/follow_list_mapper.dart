@@ -13,7 +13,7 @@ class FollowListPageResult {
   final int currentPage;
 }
 
-Map<String, dynamic> mapFollowPersonToUi(Map<String, dynamic> person) {
+Map<String, dynamic> mapFollowPersonToUi(Map<String, dynamic> person, {bool isFollowing = false}) {
   final profile = person['profile'] is Map ? Map<String, dynamic>.from(person['profile'] as Map) : <String, dynamic>{};
   final pic = profile['profilePicture'];
   String? avatarUrl;
@@ -30,7 +30,10 @@ Map<String, dynamic> mapFollowPersonToUi(Map<String, dynamic> person) {
   final initials = parts.isEmpty ? 'U' : parts.join();
 
   final role = (person['role'] ?? '').toString();
-  final id = (person['_id'] ?? '').toString();
+  final id = (person['_id'] ?? person['id'] ?? '').toString();
+
+  final relationFollowing =
+      isFollowing || person['isFollowing'] == true || person['isFollowedByMe'] == true;
 
   return <String, dynamic>{
     'id': id,
@@ -41,41 +44,90 @@ Map<String, dynamic> mapFollowPersonToUi(Map<String, dynamic> person) {
     'initials': initials,
     'role': role,
     'isTrainer': role.toLowerCase() == 'trainer',
-    'isFollowing': false,
+    'isFollowing': relationFollowing,
   };
+}
+
+bool _isRelationFollowing(Map<String, dynamic> item) {
+  if (item['isFollowing'] == true) return true;
+  if (item['isFollowedByMe'] == true) return true;
+  return false;
+}
+
+Map<String, dynamic>? _personFromFollowItem(Map<String, dynamic> item, {required bool followers}) {
+  final personKeys = followers
+      ? const ['followedBy', 'follower', 'user']
+      : const ['user', 'following', 'followed', 'followedBy'];
+
+  for (final key in personKeys) {
+    final raw = item[key];
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+  }
+
+  if (item['_id'] != null && (item['email'] != null || item['profile'] != null)) {
+    return item;
+  }
+  return null;
+}
+
+List<Map<String, dynamic>> _usersFromFollowsList(List follows, {required bool followers}) {
+  final users = <Map<String, dynamic>>[];
+  for (final item in follows) {
+    if (item is! Map) continue;
+    final m = Map<String, dynamic>.from(item);
+    final person = _personFromFollowItem(m, followers: followers);
+    if (person == null) continue;
+    final mapped = mapFollowPersonToUi(person, isFollowing: _isRelationFollowing(m));
+    if ((mapped['id'] ?? '').toString().isNotEmpty) {
+      users.add(mapped);
+    }
+  }
+  return users;
 }
 
 FollowListPageResult? parseFollowListResponse(dynamic raw, {required bool followers}) {
   if (raw is! Map) return null;
+  if (raw['success'] == false) return null;
+
   final data = raw['data'];
   if (data is! Map) return null;
 
   final blockKey = followers ? 'followers' : 'following';
   final block = data[blockKey];
-  if (block is! Map) return null;
 
-  final followsRaw = block['follows'];
-  final follows = followsRaw is List ? followsRaw : const [];
+  List<Map<String, dynamic>> users;
+  int totalDocs;
+  bool hasNextPage;
+  int currentPage;
 
-  final users = <Map<String, dynamic>>[];
-  for (final item in follows) {
-    if (item is! Map) continue;
-    final m = Map<String, dynamic>.from(item);
-    final personRaw = followers ? m['followedBy'] : m['user'];
-    if (personRaw is! Map) continue;
-    final mapped = mapFollowPersonToUi(Map<String, dynamic>.from(personRaw));
-    if ((mapped['id'] ?? '').toString().isNotEmpty) {
-      users.add(mapped);
+  if (block is Map) {
+    final followsRaw = block['follows'];
+    final follows = followsRaw is List ? followsRaw : const [];
+    users = _usersFromFollowsList(follows, followers: followers);
+    totalDocs = block['totalDocs'] is num ? (block['totalDocs'] as num).toInt() : users.length;
+    hasNextPage = block['hasNextPage'] == true;
+    currentPage = block['currentPage'] is num ? (block['currentPage'] as num).toInt() : 1;
+  } else if (block is List) {
+    users = _usersFromFollowsList(block, followers: followers);
+    totalDocs = users.length;
+    hasNextPage = false;
+    currentPage = 1;
+  } else {
+    final altList = data['follows'] ?? data['docs'] ?? data['results'];
+    if (altList is List) {
+      users = _usersFromFollowsList(altList, followers: followers);
+      totalDocs = data['totalDocs'] is num ? (data['totalDocs'] as num).toInt() : users.length;
+      hasNextPage = data['hasNextPage'] == true;
+      currentPage = data['currentPage'] is num ? (data['currentPage'] as num).toInt() : 1;
+    } else {
+      return const FollowListPageResult(users: [], totalDocs: 0, hasNextPage: false, currentPage: 1);
     }
   }
 
-  final totalDocs = block['totalDocs'];
-  final currentPage = block['currentPage'];
-
   return FollowListPageResult(
     users: users,
-    totalDocs: totalDocs is num ? totalDocs.toInt() : users.length,
-    hasNextPage: block['hasNextPage'] == true,
-    currentPage: currentPage is num ? currentPage.toInt() : 1,
+    totalDocs: totalDocs,
+    hasNextPage: hasNextPage,
+    currentPage: currentPage,
   );
 }

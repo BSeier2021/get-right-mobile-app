@@ -19,15 +19,78 @@ import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/utils/feed_post_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/utils/profile_contact_fields.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:get_right/models/feed_multipart_init_model.dart';
 import 'package:video_player/video_player.dart';
 
 List<String> _parseFeedTagsForApi(String raw) {
   return raw.split(RegExp(r'\s+')).map((t) => t.replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).toList();
+}
+
+/// One image slot while editing a photo post (existing URL and/or new local file).
+class _EditFeedImage {
+  const _EditFeedImage({this.serverId, this.networkUrl, this.localPath});
+
+  final String? serverId;
+  final String? networkUrl;
+  final String? localPath;
+
+  bool get isNew => localPath != null && localPath!.isNotEmpty;
+
+  String get snapshotKey => localPath ?? networkUrl ?? serverId ?? '';
+}
+
+List<_EditFeedImage> _editFeedImagesFromPost(Map<String, dynamic> post) {
+  final raw = post['feedImages'];
+  if (raw is List) {
+    final out = <_EditFeedImage>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final m = Map<String, dynamic>.from(item);
+      final url = ImageUrlSanitizer.asHttpUrlOrNull((m['url'] ?? '').toString());
+      if (url == null) continue;
+      final id = (m['id'] ?? '').toString().trim();
+      out.add(_EditFeedImage(serverId: id.isEmpty ? null : id, networkUrl: url));
+    }
+    if (out.isNotEmpty) return out;
+  }
+
+  final urls = post['imageUrls'];
+  if (urls is List) {
+    final out = <_EditFeedImage>[];
+    for (final item in urls) {
+      final url = ImageUrlSanitizer.asHttpUrlOrNull(item?.toString());
+      if (url != null) out.add(_EditFeedImage(networkUrl: url));
+    }
+    if (out.isNotEmpty) return out;
+  }
+
+  final single = ImageUrlSanitizer.asHttpUrlOrNull((post['imageUrl'] ?? post['thumbnail'] ?? '').toString());
+  if (single != null) return [_EditFeedImage(networkUrl: single)];
+  return const [];
+}
+
+List<Map<String, String>> _feedImagesMetaFromApi(dynamic images) {
+  if (images is! List) return const [];
+  final out = <Map<String, String>>[];
+  for (final item in images) {
+    final url = feedMediaUrlFromApiNode(item);
+    if (url == null) continue;
+    final entry = <String, String>{'url': url};
+    if (item is Map) {
+      final id = (item['_id'] ?? item['id'] ?? '').toString().trim();
+      if (id.isNotEmpty) entry['id'] = id;
+    }
+    out.add(entry);
+  }
+  return out;
 }
 
 String _normalizeFeedPostStatus(String? raw) {
@@ -41,9 +104,6 @@ const Color _kProfileCream = Color(0xFFF9FAF0);
 const Color _kProfileForestGreen = Color(0xFF2D4635);
 const Color _kRecordPink = Color(0xFFF4CCE9);
 const Color _kRecordBlue = Color(0xFFB6D7E8);
-const Color _kStatPostsOrange = Color(0xFFEA580C);
-const Color _kStatFollowersBlue = Color(0xFF2563EB);
-const Color _kStatFollowingGreen = Color(0xFF16A34A);
 
 /// Personal Record model
 class PersonalRecord {
@@ -88,8 +148,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int? _postCount;
   int? _followersCount;
   int? _followingCount;
+  Map<String, dynamic> _profileContact = {};
+  bool _bioExpanded = false;
   Worker? _profileTabWorker;
   bool _lazyBootstrapped = false;
+
+  static const int _bioCollapsedMaxLines = 2;
 
   @override
   void initState() {
@@ -244,13 +308,232 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return t.split('_').where((s) => s.isNotEmpty).map((s) => '${s[0].toUpperCase()}${s.length > 1 ? s.substring(1).toLowerCase() : ''}').join(' ');
   }
 
+  TextStyle _profileBioTextStyle() {
+    return AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.8), fontSize: 14, height: 1.4);
+  }
+
+  Widget _buildExpandableBio(String bio) {
+    final text = bio.trim();
+    if (text.isEmpty) return const SizedBox.shrink();
+
+    final textStyle = _profileBioTextStyle();
+    final actionStyle = textStyle.copyWith(fontWeight: FontWeight.w700, color: _kProfileForestGreen);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final overflowPainter = TextPainter(
+          text: TextSpan(text: text, style: textStyle),
+          maxLines: _bioCollapsedMaxLines,
+          textDirection: Directionality.of(context),
+        )..layout(maxWidth: constraints.maxWidth);
+
+        final canExpand = overflowPainter.didExceedMaxLines;
+        final showToggle = canExpand || _bioExpanded;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(text, maxLines: _bioExpanded ? null : _bioCollapsedMaxLines, overflow: _bioExpanded ? TextOverflow.visible : TextOverflow.ellipsis, style: textStyle),
+            if (showToggle)
+              GestureDetector(
+                onTap: () => setState(() => _bioExpanded = !_bioExpanded),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(_bioExpanded ? 'View less' : 'View more', style: actionStyle),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildProfileStatColumn(String count, String label, {VoidCallback? onTap}) {
+    final column = Column(
+      children: [
+        Text(
+          count,
+          style: AppTextStyles.titleLarge.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(label, style: AppTextStyles.bodySmall.copyWith(color: _kProfileForestGreen.withOpacity(0.65))),
+      ],
+    );
+    if (onTap == null) return column;
+    return GestureDetector(onTap: onTap, behavior: HitTestBehavior.opaque, child: column);
+  }
+
+  Widget _buildEditProfileButton() {
+    return SizedBox(
+      width: 110,
+      child: TextButton.icon(
+        onPressed: () => Get.toNamed(AppRoutes.editProfile),
+        style: TextButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: _kProfileForestGreen,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          minimumSize: const Size(88, 36),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: _kProfileForestGreen.withOpacity(0.35)),
+          ),
+        ),
+        icon: Icon(Icons.edit_outlined, size: 16, color: _kProfileForestGreen),
+        label: Text(
+          'Edit',
+          style: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w700, color: _kProfileForestGreen),
+        ),
+      ),
+    );
+  }
+
+  String _normalizeSocialPlatformKey(String platform) {
+    final p = platform.toLowerCase().trim().replaceAll(RegExp(r'[\s_-]+'), '');
+    if (p.isEmpty) return '';
+    if (p.contains('instagram') || p == 'ig') return 'instagram';
+    if (p.contains('facebook') || p == 'fb') return 'facebook';
+    if (p.contains('linkedin')) return 'linkedin';
+    if (p.contains('twitter') || p == 'x') return 'x';
+    if (p.contains('tiktok')) return 'tiktok';
+    if (p.contains('youtube') || p == 'yt') return 'youtube';
+    if (p.contains('snapchat') || p == 'snap') return 'snapchat';
+    if (p.contains('website') || p == 'web' || p == 'url' || p == 'site' || p == 'homepage') return 'website';
+    return p;
+  }
+
+  String? _socialPlatformAsset(String platform) {
+    switch (_normalizeSocialPlatformKey(platform)) {
+      case 'facebook':
+        return 'assets/images/facebook-logo-facebook-icon-transparent-free-png.webp';
+      case 'x':
+        return 'assets/images/new-twitter-x-logo-twitter-icon-x-social-media-icon-free-png.webp';
+      case 'tiktok':
+        return 'assets/images/tiktok-icon-free-png.webp';
+      case 'instagram':
+        return 'assets/images/images.jfif';
+      default:
+        return null;
+    }
+  }
+
+  IconData _socialPlatformIcon(String platform) {
+    switch (_normalizeSocialPlatformKey(platform)) {
+      case 'instagram':
+        return Icons.photo_camera_outlined;
+      case 'facebook':
+        return Icons.groups_outlined;
+      case 'linkedin':
+        return Icons.business_center_outlined;
+      case 'x':
+        return Icons.close_rounded;
+      case 'tiktok':
+        return Icons.music_video_outlined;
+      case 'youtube':
+        return Icons.play_circle_outline_rounded;
+      case 'website':
+        return Icons.language_rounded;
+      case 'snapchat':
+        return Icons.bolt_outlined;
+      default:
+        return Icons.link_rounded;
+    }
+  }
+
+  Widget _socialPlatformLeading(String platform, {double size = 30}) {
+    final asset = _socialPlatformAsset(platform);
+    if (asset != null) {
+      return Image.asset(asset, width: size, height: size, fit: BoxFit.contain);
+    }
+    return Icon(_socialPlatformIcon(platform), color: _kProfileForestGreen, size: size);
+  }
+
+  Widget _buildSocialLinkChip(String platform, String url) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          final uri = Uri.tryParse(url);
+          if (uri != null) _launchExternalUri(uri);
+        },
+        onLongPress: () => _copyToClipboard(_normalizeSocialPlatformKey(platform), url),
+        borderRadius: BorderRadius.circular(20),
+        child: _socialPlatformLeading(platform),
+      ),
+    );
+  }
+
+  Widget _buildSocialAccountsCompact() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kProfileForestGreen.withOpacity(0.15)),
+      ),
+      child: Wrap(spacing: 8, runSpacing: 8, children: _socialAccounts.entries.map((e) => _buildSocialLinkChip(e.key, e.value)).toList()),
+    );
+  }
+
+  Widget _buildProfileDetailsSection() {
+    if (!_hasSocialAccounts) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_hasAddress) ...[
+          Text(
+            'Address',
+            style: AppTextStyles.titleMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _kProfileForestGreen.withOpacity(0.15)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: AppColors.completed.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                  child: Icon(Icons.location_on_rounded, color: AppColors.completed, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    _displayAddress!,
+                    style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w600, height: 1.35),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (_hasAddress && _hasSocialAccounts) const SizedBox(height: 20),
+        if (_hasSocialAccounts) ...[
+          Text(
+            'Social Accounts',
+            style: AppTextStyles.titleMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          _buildSocialAccountsCompact(),
+        ],
+      ],
+    );
+  }
+
   Widget _buildPublicProfile(AuthController auth) {
     final p = auth.customerProfile;
     var displayName = 'Your profile';
-    var email = '';
     String? photoUrl;
     if (p != null) {
-      email = p.email;
       photoUrl = p.profilePictureUrl;
       final n = p.fullName?.trim();
       if (n != null && n.isNotEmpty) {
@@ -259,114 +542,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
         displayName = p.email.split('@').first;
       }
     }
-    var bioLine = p?.bio?.trim();
-    if (bioLine != null && bioLine.isEmpty) bioLine = null;
+    final bioLine = p?.bio?.trim() ?? '';
+    final userId = _resolvedUserId();
+    final hasStats = userId != null;
 
     return Column(
       children: [
         if (auth.customerProfileLoading && auth.customerProfile != null) const LinearProgressIndicator(minHeight: 2, color: _kProfileForestGreen),
-        const SizedBox(height: 8),
-        // Centered avatar + camera (mockup)
-        Center(
-          child: SizedBox(
-            width: 104,
-            height: 104,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.white,
-                  child: CircleAvatar(
-                    radius: 46,
-                    backgroundColor: _kProfileForestGreen.withOpacity(0.08),
-                    child: photoUrl != null && photoUrl.isNotEmpty
-                        ? ClipOval(
-                            child: Image.network(
-                              photoUrl,
-                              width: 92,
-                              height: 92,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(Icons.person, size: 52, color: _kProfileForestGreen.withOpacity(0.45)),
-                            ),
-                          )
-                        : Icon(Icons.person, size: 52, color: _kProfileForestGreen.withOpacity(0.45)),
-                  ),
-                ),
-                Positioned(
-                  right: -2,
-                  bottom: -2,
-                  child: GestureDetector(
-                    onTap: () => Get.toNamed(AppRoutes.editProfile),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _kProfileForestGreen,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _kProfileCream, width: 3),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 2))],
-                      ),
-                      child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _kProfileForestGreen, width: 3),
+                    ),
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundColor: Colors.white,
+                      backgroundImage: photoUrl != null && photoUrl.isNotEmpty ? NetworkImage(ImageUrlSanitizer.asHttpUrlOrFallback(photoUrl)) : null,
+                      child: (photoUrl == null || photoUrl.isEmpty) ? Icon(Icons.person, size: 40, color: _kProfileForestGreen.withOpacity(0.45)) : null,
                     ),
                   ),
-                ),
-              ],
-            ),
+                  Positioned(
+                    right: -2,
+                    bottom: -2,
+                    child: GestureDetector(
+                      onTap: () => Get.toNamed(AppRoutes.editProfile),
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: _kProfileForestGreen,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _kProfileCream, width: 2),
+                        ),
+                        child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 20),
+              _buildProfileStatColumn(hasStats ? _formatProfileStat(_postCount) : '…', 'Posts'),
+              _buildProfileStatColumn(
+                hasStats ? _formatProfileStat(_followersCount) : '…',
+                'Followers',
+                onTap: hasStats
+                    ? () => Get.toNamed(AppRoutes.followers, arguments: <String, dynamic>{'userId': userId!, 'profileName': displayName})
+                    : null,
+              ),
+              _buildProfileStatColumn(
+                hasStats ? _formatProfileStat(_followingCount) : '…',
+                'Following',
+                onTap: hasStats
+                    ? () => Get.toNamed(AppRoutes.following, arguments: <String, dynamic>{'userId': userId!, 'profileName': displayName})
+                    : null,
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 14),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                displayName,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.headlineSmall.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w800, fontSize: 22),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Text(
+                      displayName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.titleLarge.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.bold, fontSize: 17.sp),
+                    ),
+                  ),
+                  _buildEditProfileButton(),
+                ],
               ),
-              if (email.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  email,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.65), fontSize: 14),
-                ),
-              ],
-              if (bioLine != null) ...[
+              if (bioLine.isNotEmpty) ...[const SizedBox(height: 8), _buildExpandableBio(bioLine)],
+              if (_profileMetaLine(p).isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
-                  bioLine,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.8), height: 1.35),
-                ),
-              ],
-              if (_profileMetaLine(p).isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Text(
                   _profileMetaLine(p),
-                  textAlign: TextAlign.center,
                   style: AppTextStyles.labelSmall.copyWith(color: _kProfileForestGreen.withOpacity(0.75), fontWeight: FontWeight.w600, height: 1.4),
                 ),
               ],
+              if (_hasProfileDetails) ...[const SizedBox(height: 20), _buildProfileDetailsSection()],
             ],
           ),
         ),
-        const SizedBox(height: 20),
-        // Stat cards row
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          child: Row(
-            children: [
-              Expanded(child: _buildStatCard(_formatProfileStat(_postCount), 'Posts', _kStatPostsOrange)),
-              const SizedBox(width: 10),
-              Expanded(child: _buildStatCard(_formatProfileStat(_followersCount), 'Followers', _kStatFollowersBlue, onTap: () => Get.toNamed(AppRoutes.followers))),
-              const SizedBox(width: 10),
-              Expanded(child: _buildStatCard(_formatProfileStat(_followingCount), 'Following', _kStatFollowingGreen, onTap: () => Get.toNamed(AppRoutes.following))),
-            ],
-          ),
-        ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 24),
 
         // Nutrition / records section (label matches mockup)
         Padding(
@@ -413,17 +687,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 28),
 
-        // Posts Section
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'Posts',
-                    style: AppTextStyles.titleMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w700),
+                    style: AppTextStyles.titleMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.bold),
                   ),
                   Material(
                     color: Colors.transparent,
@@ -469,39 +743,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       parts.add(profile.mainGoals.map(_formatSlugLabel).join(' · '));
     }
     return parts.join(' · ');
-  }
-
-  Widget _buildStatCard(String count, String label, Color countColor, {VoidCallback? onTap}) {
-    final card = Container(
-      padding: const EdgeInsets.symmetric(vertical: 25, horizontal: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FFE9),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 10, offset: const Offset(0, 3))],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            count,
-            style: AppTextStyles.titleLarge.copyWith(color: countColor, fontWeight: FontWeight.w800, fontSize: 20),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: AppTextStyles.labelSmall.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w600, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-
-    if (onTap != null) {
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(14), child: card),
-      );
-    }
-    return card;
   }
 
   Widget _buildPersonalRecordsGrid() {
@@ -595,11 +836,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = data['user'];
     if (user is! Map) return;
     final u = Map<String, dynamic>.from(user);
+    final profile = u['profile'] is Map ? Map<String, dynamic>.from(u['profile'] as Map) : <String, dynamic>{};
+    final contact = extractProfileContactFields(profile: profile, user: u);
     setState(() {
       _postCount = _statIntFrom(u['postCount']);
       _followersCount = _statIntFrom(u['followersCount']);
       _followingCount = _statIntFrom(u['followingCount']);
+      _profileContact = contact;
     });
+  }
+
+  Map<String, String> get _socialAccounts => socialAccountsFromContactFields(_profileContact);
+
+  bool get _hasSocialAccounts => hasSocialAccountsInContactFields(_profileContact);
+
+  bool get _hasAddress => addressFromContactFields(_profileContact) != null;
+
+  bool get _hasProfileDetails => _hasSocialAccounts;
+
+  String? get _displayAddress => addressFromContactFields(_profileContact);
+
+  Future<void> _launchExternalUri(Uri uri) async {
+    try {
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        Get.snackbar('Open link', 'Could not open link.', snackPosition: SnackPosition.BOTTOM);
+      }
+    } catch (_) {
+      Get.snackbar('Open link', 'Could not open link.', snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  void _copyToClipboard(String label, String value) {
+    Clipboard.setData(ClipboardData(text: value));
+    Get.snackbar(
+      'Copied!',
+      '$label copied to clipboard',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: _kProfileForestGreen.withOpacity(0.1),
+      colorText: _kProfileForestGreen,
+      duration: const Duration(seconds: 2),
+      margin: const EdgeInsets.all(16),
+      borderRadius: 12,
+    );
   }
 
   String _formatProfileStat(int? value) => value != null ? '$value' : '…';
@@ -664,6 +942,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final thumbRaw = extractFeedThumbnailUrl(m, video: video).trim();
     final thumb = ImageUrlSanitizer.asHttpUrlOrNull(thumbRaw) ?? '';
+    final imageUrls = allFeedImageUrlsFromApiList(m['images']);
+    final feedImages = _feedImagesMetaFromApi(m['images']);
     final videoUrl = extractFeedVideoUrl(m, video) ?? '';
     final isVideo = videoUrl.isNotEmpty;
 
@@ -702,7 +982,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'id': id,
       'isVideo': isVideo,
       'thumbnail': thumb,
-      if (!isVideo && thumb.isNotEmpty) 'imageUrl': thumb,
+      'imageUrls': imageUrls,
+      'feedImages': feedImages,
+      if (!isVideo && imageUrls.isNotEmpty) 'imageUrl': imageUrls.first,
+      if (!isVideo && imageUrls.isEmpty && thumb.isNotEmpty) 'imageUrl': thumb,
       'videoUrl': videoUrl,
       'title': (m['title'] ?? '').toString(),
       'description': (m['description'] ?? '').toString(),
@@ -1532,13 +1815,53 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
   String _saveBusyLabel = '';
   double _saveUploadProgress = 0;
 
+  static const int _maxEditImages = 5;
+
   final ImagePicker _imagePicker = ImagePicker();
   XFile? _replacementVideo;
+  final List<_EditFeedImage> _editImages = [];
+  late final List<String> _initialImageSnapshot;
+  int _previewImageIndex = 0;
+  final PageController _imagePageController = PageController();
   VideoPlayerController? _videoPreviewController;
   String? _videoPreviewPath;
   String? _videoPreviewInitError;
 
   bool get _isVideoPost => widget.post['isVideo'] == true;
+  bool get _imagesDirty {
+    final current = _editImages.map((e) => e.snapshotKey).toList();
+    if (current.length != _initialImageSnapshot.length) return true;
+    for (var i = 0; i < current.length; i++) {
+      if (current[i] != _initialImageSnapshot[i]) return true;
+    }
+    return false;
+  }
+
+  void _restoreOriginalEditImages() {
+    setState(() {
+      _editImages
+        ..clear()
+        ..addAll(_editFeedImagesFromPost(widget.post));
+      _previewImageIndex = 0;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_editImages.isEmpty || !_imagePageController.hasClients) return;
+      _imagePageController.jumpToPage(0);
+    });
+  }
+
+  void _setReplacedEditImages(List<_EditFeedImage> next) {
+    setState(() {
+      _editImages
+        ..clear()
+        ..addAll(next);
+      _previewImageIndex = 0;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_editImages.isEmpty || !_imagePageController.hasClients) return;
+      _imagePageController.jumpToPage(0);
+    });
+  }
 
   void _videoPreviewListener() {
     if (!mounted) return;
@@ -1621,6 +1944,209 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
   void _clearReplacementVideo() {
     _disposeVideoPreview();
     setState(() => _replacementVideo = null);
+  }
+
+  Future<void> _pickEditImagesFromGallery() async {
+    try {
+      final picked = await _imagePicker.pickMultiImage(imageQuality: 88);
+      if (!mounted || picked.isEmpty) return;
+      final next = picked.take(_maxEditImages).map((image) => _EditFeedImage(localPath: image.path)).toList();
+      _setReplacedEditImages(next);
+      if (picked.length > _maxEditImages) {
+        Get.snackbar(
+          'Limit reached',
+          'Only the first $_maxEditImages images were used.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.upcoming,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Error', 'Could not pick images: $e', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+    }
+  }
+
+  Future<void> _pickEditImageFromCamera() async {
+    try {
+      final image = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 88);
+      if (!mounted || image == null) return;
+      _setReplacedEditImages([_EditFeedImage(localPath: image.path)]);
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Error', 'Could not capture image: $e', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
+    }
+  }
+
+  void _goToPreviewImage(int index) {
+    if (index < 0 || index >= _editImages.length) return;
+    setState(() => _previewImageIndex = index);
+    if (_imagePageController.hasClients) {
+      _imagePageController.animateToPage(index, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    }
+  }
+
+  void _removeEditImageAt(int index) {
+    if (index < 0 || index >= _editImages.length) return;
+    if (_editImages.length <= 1) {
+      Get.snackbar('Cannot remove', 'A post must have at least one image.', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.upcoming, colorText: Colors.white);
+      return;
+    }
+    setState(() {
+      _editImages.removeAt(index);
+      if (_previewImageIndex >= _editImages.length) {
+        _previewImageIndex = _editImages.length - 1;
+      } else if (_previewImageIndex > index) {
+        _previewImageIndex--;
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_editImages.isEmpty || !_imagePageController.hasClients) return;
+      _imagePageController.jumpToPage(_previewImageIndex);
+    });
+  }
+
+  Future<File?> _downloadNetworkImageToTemp(String url) async {
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode != 200 || response.bodyBytes.isEmpty) return null;
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/feed_edit_${DateTime.now().millisecondsSinceEpoch}_${url.hashCode.abs()}.jpg');
+    await file.writeAsBytes(response.bodyBytes);
+    return file;
+  }
+
+  Future<void> _uploadEditedImages({required String feedId}) async {
+    if (_editImages.isEmpty) {
+      throw StateError('At least one image is required.');
+    }
+
+    if (mounted) {
+      setState(() {
+        _saveBusyLabel = 'Preparing images…';
+        _saveUploadProgress = 0.15;
+      });
+    }
+
+    final files = <File>[];
+    for (var i = 0; i < _editImages.length; i++) {
+      final img = _editImages[i];
+      if (img.localPath != null) {
+        final file = File(img.localPath!);
+        if (!await file.exists() || await file.length() <= 0) {
+          throw StateError('Image file ${i + 1} is missing or empty.');
+        }
+        files.add(file);
+      } else if (img.networkUrl != null) {
+        final file = await _downloadNetworkImageToTemp(img.networkUrl!);
+        if (file == null) throw StateError('Could not download image ${i + 1}.');
+        files.add(file);
+      }
+      if (mounted) {
+        setState(() => _saveUploadProgress = 0.15 + ((i + 1) / _editImages.length) * 0.35);
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _saveBusyLabel = 'Uploading images…';
+        _saveUploadProgress = 0.55;
+      });
+    }
+
+    final raw = await widget.feedRepo.updateFeedWithImagesMultipartRepo(
+      feedId: feedId,
+      title: _titleController.text,
+      description: _descriptionController.text,
+      categoryId: (_categoryId ?? '').trim(),
+      tags: _tagsForSave(),
+      status: _status,
+      imageFiles: files,
+    );
+
+    if (mounted) setState(() => _saveUploadProgress = 1);
+
+    if (raw is! Map || raw['success'] != true) {
+      final msg = raw is Map ? raw['message']?.toString() : null;
+      throw Exception(msg ?? 'Could not update images');
+    }
+  }
+
+  Widget _buildEditImagePreview() {
+    if (_editImages.isEmpty) {
+      return const ColoredBox(
+        color: AppColors.surface,
+        child: Center(child: Icon(Icons.image_outlined, color: AppColors.primaryGray, size: 48)),
+      );
+    }
+
+    return PageView.builder(
+      controller: _imagePageController,
+      itemCount: _editImages.length,
+      onPageChanged: (index) => setState(() => _previewImageIndex = index),
+      itemBuilder: (context, index) {
+        final img = _editImages[index];
+        if (img.localPath != null) {
+          return Image.file(File(img.localPath!), fit: BoxFit.cover, width: double.infinity, height: 200);
+        }
+        return Image.network(
+          img.networkUrl!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: 200,
+          errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image_outlined, color: AppColors.primaryGray, size: 48)),
+        );
+      },
+    );
+  }
+
+  Widget _buildEditImageThumbnails() {
+    if (_editImages.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 72,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _editImages.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final selected = index == _previewImageIndex;
+          final img = _editImages[index];
+          final thumb = img.localPath != null
+              ? Image.file(File(img.localPath!), width: 72, height: 72, fit: BoxFit.cover)
+              : Image.network(img.networkUrl!, width: 72, height: 72, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined));
+
+          return GestureDetector(
+            onTap: () => _goToPreviewImage(index),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 72,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: selected ? _kProfileForestGreen : Colors.transparent, width: 2),
+                  ),
+                  child: ClipRRect(borderRadius: BorderRadius.circular(10), child: thumb),
+                ),
+                if (_editImages.length > 1)
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: GestureDetector(
+                      onTap: () => _removeEditImageAt(index),
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
+                        child: const Icon(Icons.close, color: Colors.white, size: 14),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   FeedVideoUploadController _resolveVideoUploader() {
@@ -1767,12 +2293,19 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
     _status = _normalizeFeedPostStatus(p['status']?.toString());
     final cid = (p['categoryId'] ?? '').toString().trim();
     _categoryId = cid.isEmpty ? null : cid;
+    if (!_isVideoPost) {
+      _editImages.addAll(_editFeedImagesFromPost(p));
+      _initialImageSnapshot = _editImages.map((e) => e.snapshotKey).toList();
+    } else {
+      _initialImageSnapshot = const [];
+    }
     _loadCategories();
   }
 
   @override
   void dispose() {
     _disposeVideoPreview();
+    _imagePageController.dispose();
     _titleController.dispose();
     _descriptionController.dispose();
     _tagsController.dispose();
@@ -1850,33 +2383,45 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
       _saveUploadProgress = 0;
     });
     try {
-      final raw = await widget.feedRepo.updateFeedRepo(
-        feedId: id,
-        title: _titleController.text,
-        description: _descriptionController.text,
-        categoryId: catId,
-        tags: _tagsForSave(),
-        status: _status,
-      );
+      final updatingImages = !_isVideoPost && _imagesDirty;
 
-      if (raw is! Map || raw['success'] != true) {
-        final msg = raw is Map ? raw['message']?.toString() : null;
-        throw Exception(msg ?? 'Could not update post');
-      }
+      dynamic raw;
+      if (updatingImages) {
+        await _uploadEditedImages(feedId: id);
+        raw = <String, dynamic>{'success': true};
+      } else {
+        raw = await widget.feedRepo.updateFeedRepo(
+          feedId: id,
+          title: _titleController.text,
+          description: _descriptionController.text,
+          categoryId: catId,
+          tags: _tagsForSave(),
+          status: _status,
+        );
 
-      if (_isVideoPost && _replacementVideo != null) {
-        await _uploadReplacementVideo(feedId: id, mediaPath: _replacementVideo!.path);
+        if (raw is! Map || raw['success'] != true) {
+          final msg = raw is Map ? raw['message']?.toString() : null;
+          throw Exception(msg ?? 'Could not update post');
+        }
+
+        if (_isVideoPost && _replacementVideo != null) {
+          await _uploadReplacementVideo(feedId: id, mediaPath: _replacementVideo!.path);
+        }
       }
 
       await widget.onSaved();
       if (!mounted) return;
       Navigator.pop(context);
 
-      final okMsg = raw['message']?.toString();
-      final videoNote = _isVideoPost && _replacementVideo != null ? ' New video is processing.' : '';
+      final okMsg = raw is Map ? raw['message']?.toString() : null;
+      final mediaNote = _isVideoPost && _replacementVideo != null
+          ? ' New video is processing.'
+          : updatingImages
+          ? ' Images updated.'
+          : '';
       Get.snackbar(
         'Saved',
-        (okMsg != null && okMsg.isNotEmpty ? okMsg : 'Post updated') + videoNote,
+        (okMsg != null && okMsg.isNotEmpty ? okMsg : 'Post updated') + mediaNote,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: _kProfileForestGreen,
         colorText: Colors.white,
@@ -1994,6 +2539,75 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
               ),
               Text(
                 _replacementVideo != null ? 'New video selected. Tap Save to upload.' : 'Replace video from gallery or camera.',
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 12, fontWeight: FontWeight.w400),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ] else ...[
+            Text('Images', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _editImages.length > 1
+                    ? 'Gallery/Camera replace all images. Tap × to remove one (at least one required).'
+                    : 'Gallery/Camera replace the image. Tap Save to upload.',
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 12, fontWeight: FontWeight.w400),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(height: 200, width: double.infinity, child: _buildEditImagePreview()),
+            ),
+            if (_editImages.length > 1) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(_editImages.length, (index) {
+                  final active = index == _previewImageIndex;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: active ? 10 : 8,
+                    height: active ? 10 : 8,
+                    decoration: BoxDecoration(color: active ? _kProfileForestGreen : AppColors.primaryGray.withValues(alpha: 0.4), shape: BoxShape.circle),
+                  );
+                }),
+              ),
+            ],
+            const SizedBox(height: 10),
+            _buildEditImageThumbnails(),
+            const SizedBox(height: 8),
+            if (!_saving) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickEditImagesFromGallery,
+                      icon: const Icon(Icons.photo_library_outlined, size: 18),
+                      label: const Text('Gallery'),
+                      style: OutlinedButton.styleFrom(foregroundColor: _kProfileForestGreen),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickEditImageFromCamera,
+                      icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                      label: const Text('Camera'),
+                      style: OutlinedButton.styleFrom(foregroundColor: _kProfileForestGreen),
+                    ),
+                  ),
+                  if (_imagesDirty)
+                    IconButton(
+                      tooltip: 'Keep original images',
+                      onPressed: _restoreOriginalEditImages,
+                      icon: Icon(Icons.undo, color: AppColors.primaryGray.withValues(alpha: 0.95)),
+                    ),
+                ],
+              ),
+              Text(
+                _imagesDirty ? 'New images selected. Tap Save to upload.' : 'Replace all images from gallery or camera.',
                 style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 12, fontWeight: FontWeight.w400),
               ),
               const SizedBox(height: 8),

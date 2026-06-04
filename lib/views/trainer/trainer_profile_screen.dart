@@ -7,6 +7,7 @@ import 'package:get_right/repo/blocks_repo.dart';
 import 'package:get_right/repo/trainer_profile_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
+import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/feed_post_mapper.dart';
@@ -348,11 +349,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       _nonEmptyString(address['address_line1']),
       _nonEmptyString(address['line1']),
     ]);
-    final line2 = _firstNonEmpty([
-      _nonEmptyString(address['addressLine2']),
-      _nonEmptyString(address['address_line2']),
-      _nonEmptyString(address['line2']),
-    ]);
+    final line2 = _firstNonEmpty([_nonEmptyString(address['addressLine2']), _nonEmptyString(address['address_line2']), _nonEmptyString(address['line2'])]);
     final cityStateZip = [
       _nonEmptyString(address['city']),
       _nonEmptyString(address['state'] ?? address['province']),
@@ -482,7 +479,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
   bool get _hasSocialAccounts => _socialAccounts.isNotEmpty;
 
-  bool get _hasProfileDetails => _hasContactDetails || _hasAddress || _hasSocialAccounts;
+  bool get _hasProfileDetails => _hasSocialAccounts;
 
   Future<void> _launchExternalUri(Uri uri) async {
     try {
@@ -518,17 +515,30 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     );
   }
 
+  String _normalizeSocialPlatformKey(String platform) {
+    final p = platform.toLowerCase().trim().replaceAll(RegExp(r'[\s_-]+'), '');
+    if (p.isEmpty) return '';
+    if (p.contains('instagram') || p == 'ig') return 'instagram';
+    if (p.contains('facebook') || p == 'fb') return 'facebook';
+    if (p.contains('linkedin')) return 'linkedin';
+    if (p.contains('twitter') || p == 'x') return 'x';
+    if (p.contains('tiktok')) return 'tiktok';
+    if (p.contains('youtube') || p == 'yt') return 'youtube';
+    if (p.contains('snapchat') || p == 'snap') return 'snapchat';
+    if (p.contains('website') || p == 'web' || p == 'url' || p == 'site' || p == 'homepage') return 'website';
+    return p;
+  }
+
   String _socialPlatformLabel(String platform) {
-    switch (platform.toLowerCase()) {
+    switch (_normalizeSocialPlatformKey(platform)) {
       case 'instagram':
         return 'Instagram';
       case 'facebook':
         return 'Facebook';
       case 'linkedin':
         return 'LinkedIn';
-      case 'twitter':
       case 'x':
-        return 'X (Twitter)';
+        return 'X';
       case 'tiktok':
         return 'TikTok';
       case 'youtube':
@@ -543,42 +553,86 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     }
   }
 
-  IconData _socialPlatformIcon(String platform) {
-    switch (platform.toLowerCase()) {
-      case 'instagram':
-        return Icons.camera_alt_outlined;
+  String? _socialPlatformAsset(String platform) {
+    switch (_normalizeSocialPlatformKey(platform)) {
       case 'facebook':
-        return Icons.facebook_outlined;
-      case 'linkedin':
-        return Icons.work_outline_rounded;
-      case 'twitter':
+        return 'assets/images/facebook-logo-facebook-icon-transparent-free-png.webp';
       case 'x':
-        return Icons.alternate_email_rounded;
+        return 'assets/images/new-twitter-x-logo-twitter-icon-x-social-media-icon-free-png.webp';
       case 'tiktok':
-        return Icons.music_note_outlined;
+        return 'assets/images/tiktok-icon-free-png.webp';
+      case 'instagram':
+        return 'assets/images/images.jfif';
+      default:
+        return null;
+    }
+  }
+
+  IconData _socialPlatformIcon(String platform) {
+    switch (_normalizeSocialPlatformKey(platform)) {
+      case 'instagram':
+        return Icons.photo_camera_outlined;
+      case 'facebook':
+        return Icons.groups_outlined;
+      case 'linkedin':
+        return Icons.business_center_outlined;
+      case 'x':
+        return Icons.close_rounded;
+      case 'tiktok':
+        return Icons.music_video_outlined;
       case 'youtube':
         return Icons.play_circle_outline_rounded;
       case 'website':
         return Icons.language_rounded;
+      case 'snapchat':
+        return Icons.bolt_outlined;
       default:
         return Icons.link_rounded;
     }
   }
 
-  Widget _buildProfileSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [AppColors.accent.withOpacity(0.2), AppColors.accentVariant.withOpacity(0.1)]),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: AppColors.accent, size: 22),
-        ),
-        const SizedBox(width: 12),
-        Text(title, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold)),
-      ],
+  Widget _socialPlatformLeading(String platform, Color color, {double size = 30}) {
+    final asset = _socialPlatformAsset(platform);
+    if (asset != null) {
+      return Image.asset(asset, width: size, height: size, fit: BoxFit.contain);
+    }
+    return Icon(_socialPlatformIcon(platform), color: color, size: size);
+  }
+
+  Widget _buildSocialLinkChip(String platform, String url) {
+    final label = _socialPlatformLabel(platform);
+    final color = AppColors.accent;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          final uri = Uri.tryParse(url);
+          if (uri != null) _launchExternalUri(uri);
+        },
+        onLongPress: () => _copyToClipboard(label, url, color),
+        borderRadius: BorderRadius.circular(20),
+        child: _socialPlatformLeading(platform, color),
+      ),
+    );
+  }
+
+  Widget _buildSocialAccountsCompact() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+      ),
+      child: Wrap(spacing: 8, runSpacing: 8, children: _socialAccounts.entries.map((e) => _buildSocialLinkChip(e.key, e.value)).toList()),
+    );
+  }
+
+  Widget _buildProfileSectionHeader(String title) {
+    return Text(
+      title,
+      style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
     );
   }
 
@@ -603,9 +657,15 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w500)),
+                    Text(
+                      label,
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w500),
+                    ),
                     const SizedBox(height: 4),
-                    Text(value, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600, height: 1.35)),
+                    Text(
+                      value,
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600, height: 1.35),
+                    ),
                   ],
                 ),
               ),
@@ -643,69 +703,39 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   }
 
   Widget _buildProfileDetailsSection() {
+    if (!_hasSocialAccounts) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_hasContactDetails) ...[
-          _buildProfileSectionHeader('Contact Details', Icons.contact_phone_outlined),
-          const SizedBox(height: 12),
-          _buildProfileDetailsCard(
-            children: [
-              if (_displayPhone != null)
-                _buildProfileDetailTile(
-                  icon: Icons.phone_rounded,
-                  label: 'Phone',
-                  value: _displayPhone!,
-                  color: AppColors.accent,
-                  onTap: () => _launchPhone(_displayPhone!),
-                ),
-              if (_displayEmail != null)
-                _buildProfileDetailTile(
-                  icon: Icons.email_rounded,
-                  label: 'Email',
-                  value: _displayEmail!,
-                  color: AppColors.accentVariant,
-                  onTap: () => _launchEmail(_displayEmail!),
-                ),
-            ],
-          ),
-        ],
+        // if (_hasContactDetails) ...[
+        // _buildProfileSectionHeader('Contact Details', Icons.contact_phone_outlined),
+        //   const SizedBox(height: 12),
+        //   _buildProfileDetailsCard(
+        //     children: [
+        //       if (_displayPhone != null)
+        //         _buildProfileDetailTile(icon: Icons.phone_rounded, label: 'Phone', value: _displayPhone!, color: AppColors.accent, onTap: () => _launchPhone(_displayPhone!)),
+        //       if (_displayEmail != null)
+        //         _buildProfileDetailTile(
+        //           icon: Icons.email_rounded,
+        //           label: 'Email',
+        //           value: _displayEmail!,
+        //           color: AppColors.accentVariant,
+        //           onTap: () => _launchEmail(_displayEmail!),
+        //         ),
+        //     ],
+        //   ),
+        // ],
         if (_hasContactDetails && (_hasAddress || _hasSocialAccounts)) const SizedBox(height: 20),
         if (_hasAddress) ...[
-          _buildProfileSectionHeader('Address', Icons.location_on_outlined),
+          _buildProfileSectionHeader('Address'),
           const SizedBox(height: 12),
           _buildProfileDetailsCard(
-            children: [
-              _buildProfileDetailTile(
-                icon: Icons.location_on_rounded,
-                label: 'Location',
-                value: _displayAddress!,
-                color: AppColors.completed,
-              ),
-            ],
+            children: [_buildProfileDetailTile(icon: Icons.location_on_rounded, label: 'Location', value: _displayAddress!, color: AppColors.completed)],
           ),
         ],
         if (_hasAddress && _hasSocialAccounts) const SizedBox(height: 20),
-        if (_hasSocialAccounts) ...[
-          _buildProfileSectionHeader('Social Accounts', Icons.share_outlined),
-          const SizedBox(height: 12),
-          _buildProfileDetailsCard(
-            children: _socialAccounts.entries
-                .map(
-                  (entry) => _buildProfileDetailTile(
-                    icon: _socialPlatformIcon(entry.key),
-                    label: _socialPlatformLabel(entry.key),
-                    value: entry.value,
-                    color: AppColors.accent,
-                    onTap: () {
-                      final uri = Uri.tryParse(entry.value);
-                      if (uri != null) _launchExternalUri(uri);
-                    },
-                  ),
-                )
-                .toList(),
-          ),
-        ],
+        if (_hasSocialAccounts) ...[_buildProfileSectionHeader('Social Accounts'), const SizedBox(height: 8), _buildSocialAccountsCompact()],
       ],
     );
   }
@@ -1054,6 +1084,21 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     });
   }
 
+  bool _blockApiSucceeded(dynamic raw) {
+    if (raw is! Map) return true;
+    final status = raw['status'];
+    if (status is num) return status.toInt() == 200;
+    if (status is String) return status.trim() == '200';
+    return raw['success'] != false;
+  }
+
+  void _navigateToMarketplaceAfterBlock() {
+    if (Get.isRegistered<HomeNavigationController>()) {
+      Get.find<HomeNavigationController>().changeTab(0);
+    }
+    Get.offAllNamed(AppRoutes.home, arguments: <String, dynamic>{'navigateToTab': 0});
+  }
+
   Future<void> _showBlockUserDialog() async {
     final blockedId = _mongoUserId;
     if (blockedId == null || _currentUserIdOrNull() == null) return;
@@ -1098,13 +1143,13 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     setState(() => _blockInFlight = true);
     try {
       final raw = await _blocksRepo.blockUserRepo(blockedId);
+      if (!_blockApiSucceeded(raw)) {
+        final msg = raw is Map ? raw['message']?.toString() : null;
+        throw Exception(msg ?? 'Could not block user');
+      }
       final message = raw is Map ? (raw['message']?.toString() ?? 'User blocked successfully') : 'User blocked successfully';
       Get.snackbar('Blocked', message, snackPosition: SnackPosition.BOTTOM);
-      if (Get.key.currentState?.canPop() ?? false) {
-        Get.back();
-      } else if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
+      _navigateToMarketplaceAfterBlock();
     } catch (e) {
       Get.snackbar('Could not block', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
@@ -1960,8 +2005,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                                   arguments: {
                                     'trainerId': trainer['id'],
                                     'trainerName': trainer['name'],
-                                    'initialMessage':
-                                        'Hi! I\'m interested in booking an in-person training session. Can you tell me more about availability at $_displayAddress?',
+                                    'initialMessage': 'Hi! I\'m interested in booking an in-person training session. Can you tell me more about availability at $_displayAddress?',
                                   },
                                 );
                               },
@@ -2364,14 +2408,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                   ],
                 ),
                 const SizedBox(height: 24),
-                if (phone != null) ...[
-                  _buildContactCard(Icons.phone_rounded, 'Phone', phone, AppColors.accent),
-                  const SizedBox(height: 12),
-                ],
-                if (email != null) ...[
-                  _buildContactCard(Icons.email_rounded, 'Email', email, AppColors.accentVariant),
-                  const SizedBox(height: 12),
-                ],
+                if (phone != null) ...[_buildContactCard(Icons.phone_rounded, 'Phone', phone, AppColors.accent), const SizedBox(height: 12)],
+                if (email != null) ...[_buildContactCard(Icons.email_rounded, 'Email', email, AppColors.accentVariant), const SizedBox(height: 12)],
                 if (address != null) _buildContactCard(Icons.location_on_rounded, 'Location', address, AppColors.completed),
                 const SizedBox(height: 24),
                 SizedBox(

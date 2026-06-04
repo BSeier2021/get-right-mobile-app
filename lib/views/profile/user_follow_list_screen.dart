@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/repo/trainer_profile_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
@@ -54,6 +55,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
   void initState() {
     super.initState();
     _readArguments();
+    _resolveProfileUserId();
     if (Get.isRegistered<StorageService>()) {
       _currentUserId = Get.find<StorageService>().getUserId();
     }
@@ -72,6 +74,31 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
     if (args is Map) {
       _userId = (args['userId'] ?? args['id'] ?? args['_id'])?.toString().trim();
       _profileName = (args['profileName'] ?? args['name'] ?? '').toString().trim();
+    }
+  }
+
+  void _resolveProfileUserId() {
+    if (_userId != null && _userId!.isNotEmpty) return;
+
+    if (Get.isRegistered<AuthController>()) {
+      final auth = Get.find<AuthController>();
+      final id = auth.customerProfile?.userId.trim();
+      if (id != null && id.isNotEmpty) {
+        _userId = id;
+        if (_profileName.isEmpty) {
+          final p = auth.customerProfile;
+          final n = p?.fullName?.trim();
+          if (n != null && n.isNotEmpty) {
+            _profileName = n;
+          } else if (p != null && p.email.isNotEmpty) {
+            _profileName = p.email.split('@').first;
+          }
+        }
+      }
+    }
+
+    if ((_userId == null || _userId!.isEmpty) && Get.isRegistered<StorageService>()) {
+      _userId = Get.find<StorageService>().getUserId()?.trim();
     }
   }
 
@@ -112,9 +139,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
     final pageToFetch = reset ? 1 : _page;
 
     try {
-      final raw = _isFollowers
-          ? await _repo.getFollowersRepo(id, page: pageToFetch, limit: _perPage)
-          : await _repo.getFollowingRepo(id, page: pageToFetch, limit: _perPage);
+      final raw = _isFollowers ? await _repo.getFollowersRepo(id, page: pageToFetch, limit: _perPage) : await _repo.getFollowingRepo(id, page: pageToFetch, limit: _perPage);
 
       final parsed = parseFollowListResponse(raw, followers: _isFollowers);
       if (!mounted) return;
@@ -132,7 +157,8 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
               ..clear()
               ..addAll(batch);
           } else {
-            _users.addAll(batch);
+            final existing = _users.map((u) => (u['id'] ?? '').toString()).toSet();
+            _users.addAll(batch.where((u) => !existing.contains((u['id'] ?? '').toString())));
           }
           _totalDocs = parsed.totalDocs;
           _hasNext = parsed.hasNextPage;
@@ -145,7 +171,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        if (reset) _error = e.toString();
+        if (reset) _error = e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Could not load $_title';
       });
     } finally {
       if (mounted) {
@@ -161,16 +187,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
     final id = (user['id'] ?? '').toString();
     if (id.isEmpty) return;
 
-    Get.toNamed(
-      AppRoutes.trainerProfile,
-      arguments: <String, dynamic>{
-        '_id': id,
-        'id': id,
-        'name': user['name'],
-        'avatarUrl': user['avatarUrl'],
-        'role': user['role'],
-      },
-    );
+    Get.toNamed(AppRoutes.trainerProfile, arguments: <String, dynamic>{'_id': id, 'id': id, 'name': user['name'], 'avatarUrl': user['avatarUrl'], 'role': user['role']});
   }
 
   Future<void> _toggleFollow(Map<String, dynamic> user) async {
@@ -249,7 +266,11 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(_error!, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray), textAlign: TextAlign.center),
+              Text(
+                _error!,
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: () => _load(reset: true), child: const Text('Retry')),
             ],
@@ -274,7 +295,9 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
           if (index >= _users.length) {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))),
+              child: Center(
+                child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+              ),
             );
           }
           return _buildUserCard(_users[index]);
@@ -292,10 +315,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
           children: [
             Icon(Icons.people_outline, size: 64, color: AppColors.accent.withOpacity(0.6)),
             const SizedBox(height: 16),
-            Text(
-              _isFollowers ? 'No followers yet' : 'Not following anyone',
-              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold),
-            ),
+            Text(_isFollowers ? 'No followers yet' : 'Not following anyone', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(
               _isFollowers ? 'When people follow this account, they will appear here.' : 'Accounts this user follows will appear here.',
@@ -332,7 +352,12 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
               radius: 28,
               backgroundColor: AppColors.accent.withOpacity(0.2),
               backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-              child: avatarUrl == null ? Text(initials, style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold)) : null,
+              child: avatarUrl == null
+                  ? Text(
+                      initials,
+                      style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                    )
+                  : null,
             ),
           ),
           const SizedBox(width: 12),
@@ -353,10 +378,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (user['isTrainer'] == true) ...[
-                        const SizedBox(width: 4),
-                        Icon(Icons.verified, size: 16, color: AppColors.accent),
-                      ],
+                      if (user['isTrainer'] == true) ...[const SizedBox(width: 4), Icon(Icons.verified, size: 16, color: AppColors.accent)],
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -372,7 +394,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
   }
 
   Widget _buildFollowAction(Map<String, dynamic> user, {required bool isFollowing, required bool busy}) {
-    final showUnfollow = !_isFollowers && (_isOwnProfile || isFollowing);
+    final showUnfollow = isFollowing || (!_isFollowers && _isOwnProfile);
 
     if (showUnfollow) {
       return OutlinedButton(
@@ -386,11 +408,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         child: busy
-            ? SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onSurface.withOpacity(0.7)),
-              )
+            ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onSurface.withOpacity(0.7)))
             : Text(
                 'Unfollow',
                 style: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.w600, color: AppColors.onSurface),

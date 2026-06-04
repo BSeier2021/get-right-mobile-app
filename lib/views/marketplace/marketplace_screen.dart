@@ -2496,6 +2496,22 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
+  int _bundleProgramCount(Map<String, dynamic> bundle) {
+    final programs = bundle['programs'];
+    if (programs is List) return programs.length;
+    final api = bundle['_apiBundle'];
+    if (api is Map) {
+      final raw = api['programs'];
+      if (raw is List) return raw.length;
+    }
+    return 0;
+  }
+
+  String _bundleProgramCountLabel(Map<String, dynamic> bundle) {
+    final count = _bundleProgramCount(bundle);
+    return count == 1 ? '1 Program' : '$count Programs';
+  }
+
   Widget _buildBundleCard(Map<String, dynamic> bundle) {
     final programs = bundle['programs'] as List<Map<String, dynamic>>;
     final totalValue = ((bundle['totalValue'] as num?) ?? 0).toDouble();
@@ -2631,7 +2647,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         Row(
                           children: [
                             Text(
-                              'Q3 Programs',
+                              _bundleProgramCountLabel(bundle),
                               style: TextStyle(color: Colors.black, fontSize: 13.sp),
                             ),
                             SizedBox(width: 10.w),
