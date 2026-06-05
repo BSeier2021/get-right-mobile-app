@@ -39,6 +39,27 @@ class WorkoutRepository {
 
   static bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 
+  /// API stores timed sets in `reps` (same field as rep count). Values >= [timedRepsOffset] encode seconds.
+  static const int timedRepsOffset = 10000;
+
+  static int encodeTimedRepsForApi(int seconds) => timedRepsOffset + seconds;
+
+  /// Decodes timed seconds from API `reps` (offset encoding or legacy `1000 + seconds`).
+  static int? decodeTimedSecondsFromApiReps(dynamic repsRaw) {
+    int? asOffset(int n) {
+      if (n >= timedRepsOffset) return n - timedRepsOffset;
+      if (n > 1000 && n < timedRepsOffset) return n - 1000;
+      return null;
+    }
+
+    if (repsRaw is num) {
+      return asOffset(repsRaw.toInt());
+    }
+    final parsed = int.tryParse(repsRaw?.toString() ?? '');
+    if (parsed == null) return null;
+    return asOffset(parsed);
+  }
+
   /// Resolves a workout journal id from API responses (`data`, nested `workoutJournal`, list `data[]`, etc.).
   static String? journalIdFrom(dynamic response) {
     if (response is! Map) return null;
@@ -266,32 +287,41 @@ class WorkoutRepository {
 
   static ExerciseSetModel _exerciseSetFromApi(Map<String, dynamic> sm, int fallbackIndex) {
     final repsRaw = sm['reps'];
+    final apiRepsType = sm['repsType']?.toString().toUpperCase();
     String? repsType;
     int? reps;
     int? timeSeconds;
+
+    final timeField = sm['time'];
+    if (timeField is num && timeField > 0) {
+      timeSeconds = timeField.toInt();
+    }
 
     if (repsRaw == 'FAILURE') {
       repsType = 'FAILURE';
     } else if (repsRaw == 'AMRAP') {
       repsType = 'AMRAP';
-    } else if (repsRaw is num) {
-      if (repsRaw > 1000) {
-        timeSeconds = repsRaw.toInt();
-      } else {
-        reps = repsRaw.toInt();
-      }
+    } else if (apiRepsType == 'TIME' || repsRaw == 'TIME') {
+      final decoded = decodeTimedSecondsFromApiReps(repsRaw);
+      if (decoded != null && decoded > 0) timeSeconds = decoded;
     } else {
-      final parsed = int.tryParse(repsRaw?.toString() ?? '');
-      if (parsed != null && parsed > 1000) {
-        timeSeconds = parsed;
+      final timed = decodeTimedSecondsFromApiReps(repsRaw);
+      if (timed != null && timed > 0) {
+        timeSeconds = timed;
+      } else if (repsRaw is num) {
+        reps = repsRaw.toInt();
       } else {
-        reps = parsed;
+        reps = int.tryParse(repsRaw?.toString() ?? '');
       }
     }
 
     double? weight;
     final w = sm['weight'];
     if (w != null) weight = double.tryParse(w.toString());
+
+    double? distance;
+    final d = sm['distance'];
+    if (d != null) distance = double.tryParse(d.toString());
 
     return ExerciseSetModel(
       id: sm['_id']?.toString() ?? 'set_$fallbackIndex',
@@ -300,6 +330,8 @@ class WorkoutRepository {
       repsType: repsType,
       timeSeconds: timeSeconds,
       weight: weight,
+      distance: distance,
+      distanceUnit: sm['distanceUnit']?.toString(),
     );
   }
 

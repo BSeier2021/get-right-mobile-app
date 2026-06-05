@@ -90,7 +90,7 @@ ReportItem? _mapReportItem(Map<String, dynamic> json) {
 
   final reportedUser = json['reportedUser'];
   var title = 'Report';
-  var subtitle = json['details']?.toString().trim() ?? '';
+  final additionalDetails = _reportDetailsText(json['details']);
   String? avatarUrl;
 
   if (reportedUser is Map) {
@@ -117,10 +117,6 @@ ReportItem? _mapReportItem(Map<String, dynamic> json) {
     title = _postTitleFromRefType(refType);
   }
 
-  if (subtitle.isEmpty) {
-    subtitle = _subtitleFromReportRef(refType, json['reportRef']) ?? _defaultSubtitleForType(type);
-  }
-
   final apiReason = json['reason']?.toString() ?? '';
   final reason = ReportReasons.displayLabelFromApi(apiReason);
 
@@ -134,10 +130,11 @@ ReportItem? _mapReportItem(Map<String, dynamic> json) {
     id: id,
     type: type,
     title: title,
-    subtitle: subtitle,
+    subtitle: additionalDetails ?? ReportItem.noAdditionalDetailsLabel,
     reason: reason,
     createdAt: createdAt,
     status: json['status']?.toString() ?? 'Pending',
+    hasAdditionalDetails: additionalDetails != null,
     avatarUrl: avatarUrl,
   );
 }
@@ -190,55 +187,12 @@ String _postTitleFromRefType(String refType) {
   }
 }
 
-String? _subtitleFromReportRef(String refType, dynamic reportRef) {
-  if (reportRef is! Map) return null;
-  final ref = Map<String, dynamic>.from(reportRef);
-
-  String? firstNonEmpty(Iterable<String?> values) {
-    for (final value in values) {
-      final trimmed = value?.trim();
-      if (trimmed != null && trimmed.isNotEmpty) return trimmed;
-    }
-    return null;
-  }
-
-  switch (refType) {
-    case ReportRefType.feeds:
-    case ReportRefType.post:
-      return firstNonEmpty([ref['title']?.toString(), ref['description']?.toString()]);
-    case ReportRefType.feedComment:
-      return firstNonEmpty([ref['text']?.toString()]);
-    case ReportRefType.programs:
-      return firstNonEmpty([ref['title']?.toString(), ref['description']?.toString()]);
-    case ReportRefType.auth:
-      return firstNonEmpty([ref['email']?.toString()]);
-    default:
-      final lower = refType.toLowerCase();
-      if (lower == 'feeds' || lower == 'post') {
-        return firstNonEmpty([ref['title']?.toString(), ref['description']?.toString()]);
-      }
-      if (lower == 'feedcomment') {
-        return firstNonEmpty([ref['text']?.toString()]);
-      }
-      if (lower == 'programs') {
-        return firstNonEmpty([ref['title']?.toString(), ref['description']?.toString()]);
-      }
-      if (lower == 'auth') {
-        return firstNonEmpty([ref['email']?.toString()]);
-      }
-      return null;
-  }
-}
-
-String _defaultSubtitleForType(ReportType type) {
-  switch (type) {
-    case ReportType.user:
-      return 'No additional details';
-    case ReportType.post:
-      return 'Feed post';
-    case ReportType.programs:
-      return 'Program';
-    case ReportType.feedComment:
-      return 'Comment';
-  }
+/// User-entered optional notes from the report dialog (`details` field only).
+String? _reportDetailsText(dynamic raw) {
+  if (raw == null) return null;
+  final text = raw.toString().trim();
+  if (text.isEmpty) return null;
+  final lower = text.toLowerCase();
+  if (lower == 'null' || lower == 'undefined') return null;
+  return text;
 }

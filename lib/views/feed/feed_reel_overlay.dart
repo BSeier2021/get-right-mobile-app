@@ -355,6 +355,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       builder: (context) {
         return FeedCommentsSheet(
           feedId: feedId,
+          feedOwnerId: _reelCreatorUserId(),
           initialCommentCount: initialCount,
           onCommentCountChanged: (count) {
             _post['comments'] = count;

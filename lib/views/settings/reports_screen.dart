@@ -250,7 +250,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600, fontSize: 15),
                   ),
                   const SizedBox(height: 3),
-                  Text(r.subtitle, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12.5)),
+                  Text(
+                    r.subtitle,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.primaryGray,
+                      fontSize: 12.5,
+                      fontStyle: r.hasAdditionalDetails ? FontStyle.normal : FontStyle.italic,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Wrap(spacing: 8, runSpacing: 6, children: [_pill(r.reason, AppColors.accent), _pill(r.status, statusColor)]),
                 ],

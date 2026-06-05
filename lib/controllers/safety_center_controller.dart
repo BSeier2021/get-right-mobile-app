@@ -25,6 +25,8 @@ class BlockedUser {
 }
 
 class ReportItem {
+  static const String noAdditionalDetailsLabel = 'No additional details';
+
   final String id;
   final ReportType type;
   final String title;
@@ -33,6 +35,7 @@ class ReportItem {
   final DateTime createdAt;
   final String status; // e.g. Pending/Resolved
   final String? avatarUrl;
+  final bool hasAdditionalDetails;
 
   const ReportItem({
     required this.id,
@@ -42,6 +45,7 @@ class ReportItem {
     required this.reason,
     required this.createdAt,
     required this.status,
+    this.hasAdditionalDetails = false,
     this.avatarUrl,
   });
 }

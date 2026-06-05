@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
@@ -215,15 +216,10 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   }
 
   void _openExerciseSelectionForCard(int cardIndex) {
-    Get.toNamed(AppRoutes.exerciseSelection, arguments: {
-      'isWarmup': _isWarmup,
-      'exerciseType': _exerciseType,
-      'isSuperset': false,
-      'workoutJournalId': _workoutJournalId,
-      'journalWorkoutIds': _journalWorkoutIds,
-    })?.then((
-      result,
-    ) {
+    Get.toNamed(
+      AppRoutes.exerciseSelection,
+      arguments: {'isWarmup': _isWarmup, 'exerciseType': _exerciseType, 'isSuperset': false, 'workoutJournalId': _workoutJournalId, 'journalWorkoutIds': _journalWorkoutIds},
+    )?.then((result) {
       if (result != null && result['exercise'] != null) {
         final ex = result['exercise'] as ExerciseLibraryModel;
         setState(() {
@@ -250,16 +246,74 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     super.dispose();
   }
 
+  static const int _maxExerciseNameLength = 80;
+  static const int _maxReps = 999;
+  static const int _maxTimeMinutes = 180;
+  static const int _maxTimeSeconds = _maxTimeMinutes * 60;
+  static const double _maxWeight = 2000;
+  static const double _maxDistance = 1000;
+
+  static final _decimalInputFormatter = FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'));
+
+  String? _validateConfig(_Config cfg, int exerciseNumber) {
+    final name = (cfg.name.isNotEmpty ? cfg.name : _nameController.text).trim();
+    if (name.isEmpty) {
+      return _configs.length > 1 ? 'Please enter a name for exercise $exerciseNumber' : 'Please enter exercise name';
+    }
+    if (name.length > _maxExerciseNameLength) {
+      return 'Exercise name cannot exceed $_maxExerciseNameLength characters';
+    }
+
+    var activeSets = 0;
+    for (var j = 0; j < cfg.sets.length; j++) {
+      final setErr = _validateSetForSave(cfg.sets[j], cfg, j + 1);
+      if (setErr != null) return setErr;
+      if (_setHasData(cfg.sets[j], cfg)) activeSets++;
+    }
+
+    if (activeSets == 0) {
+      return _configs.length > 1 ? 'Add at least one valid set for exercise $exerciseNumber' : 'Add at least one valid set';
+    }
+    return null;
+  }
+
+  String? _validateSetForSave(_SetData setData, _Config cfg, int setNumber) {
+    if (!_setHasData(setData, cfg)) return null;
+
+    if (cfg.mainType == 'Time') {
+      if (setData.time <= 0) return 'Set $setNumber: enter a valid time greater than 0';
+      if (setData.time > _maxTimeSeconds) return 'Set $setNumber: time cannot exceed $_maxTimeSeconds seconds';
+    } else if (setData.repsType != 'AMRAP' && setData.repsType != 'FAILURE') {
+      if (setData.reps <= 0) return 'Set $setNumber: enter reps between 1 and $_maxReps';
+      if (setData.reps > _maxReps) return 'Set $setNumber: reps cannot exceed $_maxReps';
+    }
+
+    if (cfg.extraType == 'Weight') {
+      if (setData.weight < 0) return 'Set $setNumber: weight cannot be negative';
+      if (!setData.isBodyweight && setData.weight > _maxWeight) {
+        return 'Set $setNumber: weight cannot exceed ${_maxWeight.toInt()}';
+      }
+    }
+
+    if (cfg.extraType == 'Distance') {
+      if (setData.distance <= 0) return 'Set $setNumber: enter distance greater than 0';
+      if (setData.distance > _maxDistance) return 'Set $setNumber: distance cannot exceed $_maxDistance';
+    }
+
+    return null;
+  }
+
   Future<void> _onSave() async {
-    final List<WorkoutExerciseModel> exercises = [];
-    final now = DateTime.now();
-    for (var cfg in _configs) {
-      final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
-      if (name.isEmpty) {
-        Get.snackbar('Error', 'Please enter exercise name', backgroundColor: AppColors.error, colorText: AppColors.onError);
+    for (var i = 0; i < _configs.length; i++) {
+      final err = _validateConfig(_configs[i], i + 1);
+      if (err != null) {
+        Get.snackbar('Invalid values', err, backgroundColor: AppColors.error, colorText: AppColors.onError);
         return;
       }
     }
+
+    final List<WorkoutExerciseModel> exercises = [];
+    final now = DateTime.now();
 
     final createdApiIds = <String>[];
     if (_isEditing) {
@@ -304,11 +358,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         }
 
         if (createdApiIds.isNotEmpty) {
-          journalId = await _workoutRepo.ensureWorkoutJournalLinked(
-            workoutIds: createdApiIds,
-            existingJournalId: journalId,
-            existingJournalWorkoutIds: _journalWorkoutIds,
-          );
+          journalId = await _workoutRepo.ensureWorkoutJournalLinked(workoutIds: createdApiIds, existingJournalId: journalId, existingJournalWorkoutIds: _journalWorkoutIds);
           _workoutJournalId = journalId;
         }
       } catch (e) {
@@ -323,7 +373,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     for (var i = 0; i < _configs.length; i++) {
       final cfg = _configs[i];
       final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
-      final sets = cfg.sets.asMap().entries.map((e) {
+      final sets = cfg.sets.asMap().entries.where((e) => _setHasData(e.value, cfg)).map((e) {
         final setIdx = e.key;
         final s = e.value;
         return ExerciseSetModel(
@@ -331,7 +381,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           setNumber: setIdx + 1,
           reps: cfg.mainType != 'Time' ? (s.repsType == 'AMRAP' || s.repsType == 'FAILURE' ? null : s.reps) : null,
           repsType: cfg.mainType != 'Time' ? (s.repsType ?? 'standard') : null,
-          timeSeconds: cfg.mainType == 'Time' ? s.time : null,
+          timeSeconds: cfg.mainType == 'Time' && s.time > 0 ? s.time : null,
           weight: cfg.extraType == 'Weight' ? s.weight : null,
           weightType: cfg.extraType == 'Weight' ? (s.isBodyweight || s.weight == 0 ? 'BW' : 'standard') : null,
           distance: cfg.extraType == 'Distance' ? s.distance : null,
@@ -368,7 +418,9 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       final entry = <String, dynamic>{'sets': i + 1, 'restTime': defaultRestTime};
 
       if (cfg.mainType == 'Time') {
-        entry['reps'] = s.time;
+        entry['reps'] = WorkoutRepository.encodeTimedRepsForApi(s.time);
+        entry['repsType'] = 'TIME';
+        entry['time'] = s.time;
       } else if (s.repsType == 'FAILURE') {
         entry['reps'] = 'FAILURE';
       } else if (s.repsType == 'AMRAP') {
@@ -382,10 +434,6 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       }
 
       sets.add(entry);
-    }
-
-    if (sets.isEmpty) {
-      sets.add({'sets': 1, 'reps': 0, 'restTime': defaultRestTime});
     }
 
     return sets;
@@ -556,6 +604,10 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
 
   @override
   Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+    final keyboardOpen = keyboardInset > 0;
+    final showSaveButton = _focusedFieldType == null && !keyboardOpen;
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -567,7 +619,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        resizeToAvoidBottomInset: true,
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           backgroundColor: AppColors.backgroundColor,
           elevation: 0,
@@ -589,7 +641,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           children: [
             SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 140),
+              padding: EdgeInsets.fromLTRB(16, 20, 16, showSaveButton ? 140 : 24 + keyboardInset),
               child: Column(
                 children: [
                   // Create Superset toggle
@@ -658,9 +710,9 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 0,
+                bottom: MediaQuery.of(context).viewInsets.bottom,
                 child: Container(
-                  padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 16, left: 20, right: 20, top: 16),
+                  padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 16),
                   decoration: BoxDecoration(
                     color: AppColors.background,
                     boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
@@ -820,8 +872,8 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                         ),
                 ),
               ),
-            // Fixed save button at bottom (hidden when keyboard is showing)
-            if (_focusedFieldType == null || MediaQuery.of(context).viewInsets.bottom == 0)
+            // Save button — only when keyboard is closed (hidden for exercise name + reps/weight fields)
+            if (showSaveButton)
               Positioned(
                 left: 0,
                 right: 0,
@@ -883,6 +935,8 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         children: [
           TextField(
             controller: cfg.nameController,
+            maxLength: _maxExerciseNameLength,
+            inputFormatters: [LengthLimitingTextInputFormatter(_maxExerciseNameLength)],
             onChanged: (value) {
               setState(() {
                 cfg.name = value;
@@ -1139,7 +1193,9 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                           textAlign: TextAlign.center,
                           keyboardType: TextInputType.number,
                           textInputAction: TextInputAction.done,
-
+                          inputFormatters: cfg.mainType == 'Time' || (data.repsType != 'AMRAP' && data.repsType != 'FAILURE')
+                              ? [FilteringTextInputFormatter.digitsOnly]
+                              : null,
                           readOnly: cfg.mainType != 'Time' && (data.repsType == 'AMRAP' || data.repsType == 'FAILURE'),
                           decoration: InputDecoration(
                             enabledBorder: OutlineInputBorder(
@@ -1172,19 +1228,17 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                           onChanged: (v) {
                             if (cfg.mainType == 'Time') {
                               final n = int.tryParse(v) ?? 0;
-                              // Convert to seconds based on timeUnit
+                              final maxDisplay = data.timeUnit == 'M' ? _maxTimeMinutes : _maxTimeSeconds;
+                              final clamped = n.clamp(0, maxDisplay);
                               setState(() {
-                                data.time = data.timeUnit == 'M' ? n * 60 : n;
+                                data.time = data.timeUnit == 'M' ? clamped * 60 : clamped;
                               });
-                            } else {
-                              // Only allow numeric input if not AMRAP or FAILURE
-                              if (data.repsType == null || data.repsType == 'standard') {
-                                final n = int.tryParse(v) ?? 0;
-                                setState(() {
-                                  data.reps = n;
-                                  data.repsType = null; // Standard reps
-                                });
-                              }
+                            } else if (data.repsType == null || data.repsType == 'standard') {
+                              final n = int.tryParse(v) ?? 0;
+                              setState(() {
+                                data.reps = n.clamp(0, _maxReps);
+                                data.repsType = null;
+                              });
                             }
                           },
                           onSubmitted: (_) {
@@ -1293,6 +1347,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                             textAlign: TextAlign.center,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             textInputAction: TextInputAction.done,
+                            inputFormatters: [_decimalInputFormatter],
                             decoration: InputDecoration(
                               filled: true,
                               fillColor: AppColors.white,
@@ -1306,7 +1361,10 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                             ),
                             style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600, fontSize: 15),
-                            onChanged: (v) => setState(() => data.distance = double.tryParse(v) ?? 0),
+                            onChanged: (v) {
+                              final parsed = double.tryParse(v) ?? 0;
+                              setState(() => data.distance = parsed.clamp(0, _maxDistance));
+                            },
                             onSubmitted: (_) => FocusScope.of(context).unfocus(),
                           ),
                         ),
@@ -1335,6 +1393,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                             textAlign: TextAlign.center,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             textInputAction: TextInputAction.done,
+                            inputFormatters: [_decimalInputFormatter],
                             decoration: InputDecoration(
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(50),
@@ -1360,15 +1419,17 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                               });
                             },
                             onChanged: (v) {
-                              // Only update data model, don't trigger rebuild that recreates controller
                               if (v.toUpperCase() == 'BW' || v.toLowerCase() == 'bw') {
                                 data.weight = 0;
                                 data.isBodyweight = true;
+                              } else if (v.isEmpty) {
+                                data.weight = 0;
+                                data.isBodyweight = false;
                               } else {
                                 final parsed = double.tryParse(v);
                                 if (parsed != null) {
-                                  data.weight = parsed;
-                                  data.isBodyweight = false; // Clear BW flag when user types a number
+                                  data.weight = parsed.clamp(0, _maxWeight);
+                                  data.isBodyweight = false;
                                 }
                               }
                             },

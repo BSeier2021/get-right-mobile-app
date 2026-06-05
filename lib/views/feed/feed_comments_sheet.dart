@@ -30,10 +30,13 @@ class _ReplyThreadState {
 /// Bottom sheet: top-level comments from `GET /user/feed/:feedId/comments`;
 /// replies from `GET /user/feed/comments/:commentId/replies` on demand.
 class FeedCommentsSheet extends StatefulWidget {
-  const FeedCommentsSheet({super.key, required this.feedId, required this.initialCommentCount, this.onCommentCountChanged});
+  const FeedCommentsSheet({super.key, required this.feedId, required this.initialCommentCount, this.feedOwnerId, this.onCommentCountChanged});
 
   final String feedId;
   final int initialCommentCount;
+
+  /// Post/reel creator — can delete any comment on this feed.
+  final String? feedOwnerId;
   final ValueChanged<int>? onCommentCountChanged;
 
   @override
@@ -128,6 +131,12 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     final authorId = (comment['authorId'] ?? '').toString().trim();
     final myId = (_currentUserId ?? '').toString().trim();
     return authorId.isNotEmpty && myId.isNotEmpty && authorId == myId;
+  }
+
+  bool get _isFeedOwner {
+    final owner = (widget.feedOwnerId ?? '').toString().trim();
+    final myId = (_currentUserId ?? '').toString().trim();
+    return owner.isNotEmpty && myId.isNotEmpty && owner == myId;
   }
 
   bool _canReportComment(Map<String, dynamic> comment) {
@@ -318,15 +327,17 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     }
   }
 
-  Future<void> _confirmDeleteTopLevel(int index) async {
+  Future<void> _confirmDeleteTopLevel(int index, {bool asPostOwner = false}) async {
     final comment = _comments[index];
     final replyHint = _replyCountHint(comment);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete comment'),
+        title: Text(asPostOwner ? 'Remove comment' : 'Delete comment'),
         content: Text(
-          replyHint > 0 ? 'This will delete your comment and all $replyHint ${replyHint == 1 ? 'reply' : 'replies'}.' : 'Are you sure you want to delete this comment?',
+          asPostOwner
+              ? (replyHint > 0 ? 'Remove this comment and its $replyHint ${replyHint == 1 ? 'reply' : 'replies'} from your post?' : 'Remove this comment from your post?')
+              : (replyHint > 0 ? 'This will delete your comment and all $replyHint ${replyHint == 1 ? 'reply' : 'replies'}.' : 'Are you sure you want to delete this comment?'),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -342,12 +353,14 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     await _deleteTopLevelComment(index);
   }
 
-  Future<void> _confirmDeleteReply(String parentId, int replyIndex, {bool asCommentOwner = false}) async {
+  Future<void> _confirmDeleteReply(String parentId, int replyIndex, {bool asCommentOwner = false, bool asPostOwner = false}) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(asCommentOwner ? 'Remove reply' : 'Delete reply'),
-        content: Text(asCommentOwner ? 'Remove this reply from your comment?' : 'Are you sure you want to delete this reply?'),
+        title: Text(asPostOwner || asCommentOwner ? 'Remove reply' : 'Delete reply'),
+        content: Text(
+          asPostOwner ? 'Remove this reply from your post?' : (asCommentOwner ? 'Remove this reply from your comment?' : 'Are you sure you want to delete this reply?'),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
@@ -701,6 +714,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     final comment = _comments[index];
     final commentId = (comment['id'] ?? '').toString();
     final isOwn = _isOwnComment(comment);
+    final canDelete = isOwn || _isFeedOwner;
     final authorName = (comment['authorName'] ?? 'User').toString();
 
     return Column(
@@ -712,7 +726,8 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
           onReply: () => _startReplyToComment(commentId, authorName),
           onReport: _canReportComment(comment) ? () => _showReportCommentDialog(comment) : null,
           onEdit: isOwn ? () => _editComment(comment, onUpdated: (m) => setState(() => _comments[index] = m)) : null,
-          onDelete: isOwn ? () => _confirmDeleteTopLevel(index) : null,
+          onDelete: canDelete ? () => _confirmDeleteTopLevel(index, asPostOwner: _isFeedOwner && !isOwn) : null,
+          deleteMenuLabel: _isFeedOwner && !isOwn ? 'Remove' : 'Delete',
         ),
         _buildRepliesSection(comment),
       ],
@@ -789,7 +804,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     final isOwnReply = _isOwnComment(reply);
     final parentIdx = _comments.indexWhere((c) => (c['id'] ?? '').toString() == parentId);
     final isParentOwner = parentIdx >= 0 && _isOwnComment(_comments[parentIdx]);
-    final canDeleteReply = isOwnReply || isParentOwner;
+    final canDeleteReply = isOwnReply || _isFeedOwner || isParentOwner;
     final replyToName = parentIdx >= 0 ? (_comments[parentIdx]['authorName'] ?? 'User').toString() : 'User';
 
     return _buildCommentContent(
@@ -798,8 +813,10 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
       onReply: () => _startReplyToComment(parentId, replyToName),
       onReport: _canReportComment(reply) ? () => _showReportCommentDialog(reply) : null,
       onEdit: isOwnReply ? () => _editComment(reply, onUpdated: (m) => setState(() => _threadFor(parentId).replies[replyIndex] = m)) : null,
-      onDelete: canDeleteReply ? () => _confirmDeleteReply(parentId, replyIndex, asCommentOwner: isParentOwner && !isOwnReply) : null,
-      deleteMenuLabel: isParentOwner && !isOwnReply ? 'Remove' : 'Delete',
+      onDelete: canDeleteReply
+          ? () => _confirmDeleteReply(parentId, replyIndex, asPostOwner: _isFeedOwner && !isOwnReply, asCommentOwner: isParentOwner && !isOwnReply && !_isFeedOwner)
+          : null,
+      deleteMenuLabel: (_isFeedOwner || isParentOwner) && !isOwnReply ? 'Remove' : 'Delete',
     );
   }
 

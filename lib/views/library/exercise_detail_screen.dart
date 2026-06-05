@@ -182,7 +182,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                     ),
                     icon: const Icon(Icons.add_circle_outline, size: 22),
                     label: Text(
-                      'Add O Workout',
+                      'Add to Workout',
                       style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
                     ),
                   ),
