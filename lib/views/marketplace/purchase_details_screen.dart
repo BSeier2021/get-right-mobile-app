@@ -5,6 +5,7 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// Purchase Details Screen with Payment Gateway Integration
@@ -54,15 +55,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
     return double.tryParse(value.toString().trim());
   }
 
-  /// Week count from API fields that may be num or numeric String (e.g. `"3"`).
-  static int _durationWeeksFrom(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    final s = value.toString().trim();
-    if (s.isEmpty) return 0;
-    return int.tryParse(s) ?? double.tryParse(s)?.round() ?? 0;
-  }
+  static int _durationWeeksFrom(dynamic value) => MarketplaceRepository.durationWeeksFrom(value);
 
   double get _tax => _subtotal * 0.1; // 10% tax
   double get _total => _subtotal + _tax;
@@ -75,6 +68,13 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
 
   Map<String, dynamic>? get _apiProgram {
     final raw = _item['_apiProgram'];
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  Map<String, dynamic>? get _apiBundle {
+    final raw = _item['_apiBundle'];
     if (raw is Map<String, dynamic>) return raw;
     if (raw is Map) return Map<String, dynamic>.from(raw);
     return null;
@@ -107,6 +107,8 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
   String _startDateDisplay() {
     final raw = _effectiveStartDate();
     if (raw != null) return _dateLabelOrDash(raw);
+    final weeks = _programWeeksFromItem();
+    if (weeks > 0) return '${_formatDate(DateTime.now())} (est.)';
     return 'Upon enrollment';
   }
 
@@ -199,22 +201,37 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
   }
 
   String? _trainerAvatarUrl() {
-    dynamic t = _item['trainer'];
-    if (t is! Map && _apiProgram != null) {
-      t = _apiProgram!['trainer'];
+    final fromItem = ImageUrlSanitizer.asHttpUrlOrNull(_item['trainerImageUrl']?.toString());
+    if (fromItem != null) return fromItem;
+
+    final api = _apiProgram;
+    if (api != null) {
+      final display = api['display'];
+      final fromDisplay = display is Map ? ImageUrlSanitizer.asHttpUrlOrNull(display['instructor_avatar_url']?.toString()) : null;
+      if (fromDisplay != null) return fromDisplay;
+      final fromTrainer = MarketplaceRepository.trainerAvatarUrlFromApiNode(api['trainer']);
+      if (fromTrainer != null) return fromTrainer;
     }
-    if (t is Map) {
-      final pic = t['profilePicture'];
-      if (pic is Map) return ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+
+    final bundleApi = _apiBundle;
+    if (bundleApi != null) {
+      final fromTrainer = MarketplaceRepository.trainerAvatarUrlFromApiNode(bundleApi['trainer']);
+      if (fromTrainer != null) return fromTrainer;
     }
+
     if (_isBundle && _bundlePrograms.isNotEmpty) {
-      final tp = _bundlePrograms.first['trainer'];
-      if (tp is Map) {
-        final pic = tp['profilePicture'];
-        if (pic is Map) return ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+      for (final p in _bundlePrograms) {
+        final fromProgram = ImageUrlSanitizer.asHttpUrlOrNull(p['trainerImageUrl']?.toString());
+        if (fromProgram != null) return fromProgram;
+        final apiProgram = p['_apiProgram'];
+        if (apiProgram is Map) {
+          final fromTrainer = MarketplaceRepository.trainerAvatarUrlFromApiNode(apiProgram['trainer']);
+          if (fromTrainer != null) return fromTrainer;
+        }
       }
     }
-    return null;
+
+    return MarketplaceRepository.trainerAvatarUrlFromApiNode(_item['trainer']);
   }
 
   String _trainerInitials() {
@@ -358,19 +375,42 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
   }
 
   String _trainerDisplayName() {
-    final t = _item['trainer'];
-    if (t is Map) {
-      final name = t['name']?.toString().trim();
-      if (name != null && name.isNotEmpty) return name;
+    final api = _apiProgram;
+    if (api != null) {
+      final display = api['display'] is Map ? Map<String, dynamic>.from(api['display'] as Map) : null;
+      final name = MarketplaceRepository.trainerDisplayName(trainer: api['trainer'], display: display);
+      if (name != 'Trainer') return name;
     }
-    if (t is String && t.trim().isNotEmpty && !_mongoIdRe.hasMatch(t.trim())) return t.trim();
+
+    final bundleApi = _apiBundle;
+    if (bundleApi != null) {
+      final name = MarketplaceRepository.trainerDisplayName(trainer: bundleApi['trainer']);
+      if (name != 'Trainer') return name;
+    }
+
+    final top = _item['trainer'];
+    if (top is String) {
+      final name = MarketplaceRepository.trainerDisplayName(trainer: top);
+      if (name != 'Trainer') return name;
+    }
+    if (top is Map) {
+      final name = MarketplaceRepository.trainerDisplayName(trainer: top);
+      if (name != 'Trainer') return name;
+    }
+
     for (final p in _bundlePrograms) {
       final tp = p['trainer'];
-      if (tp is Map) {
-        final n = tp['name']?.toString().trim();
-        if (n != null && n.isNotEmpty) return n;
+      final display = p['display'] is Map ? Map<String, dynamic>.from(p['display'] as Map) : null;
+      final name = MarketplaceRepository.trainerDisplayName(trainer: tp, display: display);
+      if (name != 'Trainer') return name;
+      final apiProgram = p['_apiProgram'];
+      if (apiProgram is Map) {
+        final apiDisplay = apiProgram['display'] is Map ? Map<String, dynamic>.from(apiProgram['display'] as Map) : null;
+        final apiName = MarketplaceRepository.trainerDisplayName(trainer: apiProgram['trainer'], display: apiDisplay);
+        if (apiName != 'Trainer') return apiName;
       }
     }
+
     return 'Trainer';
   }
 

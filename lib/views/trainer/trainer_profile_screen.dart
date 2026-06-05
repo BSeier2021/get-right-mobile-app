@@ -1497,7 +1497,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
         void openPost() {
           if (_mongoUserId != null && id.isNotEmpty) {
-            Get.toNamed(AppRoutes.feedSingleReel, arguments: {'feedId': id});
+            Get.toNamed(AppRoutes.feedSingleReel, arguments: {'feedId': id, 'post': post});
           } else {
             Get.toNamed(AppRoutes.postDetail, arguments: post);
           }

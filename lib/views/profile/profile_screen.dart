@@ -1235,7 +1235,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _navigateToPostDetail(Map<String, dynamic> post) {
     final id = (post['id'] ?? '').toString().trim();
     if (id.isEmpty) return;
-    Get.toNamed(AppRoutes.feedSingleReel, arguments: <String, dynamic>{'feedId': id});
+    Get.toNamed(AppRoutes.feedSingleReel, arguments: <String, dynamic>{'feedId': id, 'post': post});
   }
 
   void _showCreatePostOptions() {

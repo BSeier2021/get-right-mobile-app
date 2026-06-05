@@ -204,7 +204,7 @@ class RunningLogRepository {
     final id = json['_id']?.toString() ?? '';
     final userId = json['user']?.toString() ?? '';
     final activityType = json['runningType']?.toString() ?? 'Run';
-    final distanceMeters = (json['distance'] as num?)?.toDouble() ?? 0.0;
+    var distanceMeters = (json['distance'] as num?)?.toDouble() ?? 0.0;
     final durationSeconds = (json['duration'] as num?)?.toInt() ?? 0;
     final startTime = DateTime.tryParse(json['startTime']?.toString() ?? '') ?? DateTime.now();
     final endTime = DateTime.tryParse(json['endTime']?.toString() ?? '') ?? startTime;
@@ -213,9 +213,21 @@ class RunningLogRepository {
     List<LocationPoint>? routePoints;
     final route = json['route'];
     if (route is Map) {
-      routePoints = locationPointsFromApi(Map<String, dynamic>.from(route)['location']);
+      final routeMap = Map<String, dynamic>.from(route);
+      routePoints = locationPointsFromApi(routeMap['location']);
+      if (distanceMeters <= 0) {
+        final estimated = (routeMap['estimatedDistance'] as num?)?.toDouble();
+        if (estimated != null && estimated > 0) {
+          distanceMeters = estimated;
+        }
+      }
     }
     if (routePoints != null && routePoints.isEmpty) routePoints = null;
+
+    double? averagePace;
+    if (distanceMeters > 0 && durationSeconds > 0) {
+      averagePace = (durationSeconds / 60) / (distanceMeters / 1000);
+    }
 
     return RunModel(
       id: id,
@@ -227,7 +239,7 @@ class RunningLogRepository {
       endTime: endTime,
       routePoints: routePoints,
       elevationGain: (json['elevationGain'] as num?)?.toDouble(),
-      averagePace: (json['averagePace'] as num?)?.toDouble(),
+      averagePace: averagePace,
       maxPace: null,
       maxSpeed: (json['averageSpeed'] as num?)?.toDouble(),
       caloriesBurned: (json['caloriesBurned'] as num?)?.toInt(),

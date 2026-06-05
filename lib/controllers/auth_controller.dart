@@ -15,6 +15,7 @@ import 'package:get_right/models/nutrition_custom_foods_page.dart';
 import 'package:get_right/models/nutrition_meal_type_option.dart';
 import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/repo/auth_repo.dart';
+import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/network/network_services.dart';
@@ -1047,11 +1048,13 @@ class AuthController extends GetxController {
     if (progRaw is! Map) return null;
     final inner = Map<String, dynamic>.from(progRaw);
 
-    final trainerRef = enrollment['trainer'];
+    final trainerRef = enrollment['trainer'] ?? inner['trainer'];
     final trainerId = trainerRef is Map ? (trainerRef['_id'] ?? trainerRef['id'])?.toString().trim() ?? '' : trainerRef?.toString().trim() ?? '';
+    final display = inner['display'] is Map ? Map<String, dynamic>.from(inner['display'] as Map) : null;
+    final trainerName = MarketplaceRepository.trainerDisplayName(trainer: trainerRef, display: display);
 
-    final weeks = inner['durationWeeks'] ?? inner['duration'];
-    final duration = weeks != null ? '${weeks is num ? weeks.toInt() : weeks} weeks' : '—';
+    final durationWeeks = MarketplaceRepository.durationWeeksFrom(inner['durationWeeks'] ?? inner['duration']);
+    final duration = durationWeeks > 0 ? '$durationWeeks weeks' : '—';
 
     String? img = ImageUrlSanitizer.asHttpUrlOrNull(inner['coverImageUrl']?.toString());
     final promoMedia = inner['promoMedia'];
@@ -1087,8 +1090,9 @@ class AuthController extends GetxController {
       'trainerId': trainerId.isNotEmpty ? trainerId : inner['trainerId']?.toString(),
       'title': inner['title']?.toString() ?? 'Program',
       'subtitle': inner['subtitle']?.toString(),
-      'trainer': trainerId.isNotEmpty ? 'Trainer' : 'Trainer',
-      'trainerImage': 'T',
+      'trainer': trainerName,
+      'trainerImage': MarketplaceRepository.initialsFromName(trainerName),
+      'trainerAvatarUrl': MarketplaceRepository.trainerAvatarUrlFromApiNode(trainerRef is Map ? trainerRef : inner['trainer']),
       'price': price,
       if (discount != null) 'discount': discount,
       'duration': duration,

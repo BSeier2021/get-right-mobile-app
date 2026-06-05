@@ -6,6 +6,7 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// Tabs match API enrollment `status`: active | scheduled | completed | cancelled.
@@ -95,6 +96,11 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     return int.tryParse(v.toString())?.clamp(0, 100) ?? 0;
   }
 
+  static String _trainerNameFromEnrollment(Map<String, dynamic> e, Map<String, dynamic> prog) {
+    final display = prog['display'] is Map ? Map<String, dynamic>.from(prog['display'] as Map) : null;
+    return MarketplaceRepository.trainerDisplayName(trainer: e['trainer'] ?? prog['trainer'], display: display);
+  }
+
   /// One list row for UI + [rawEnrollment] for navigation.
   static Map<String, dynamic> _enrollmentToCard(Map<String, dynamic> e) {
     final prog = e['program'] is Map ? Map<String, dynamic>.from(e['program'] as Map) : <String, dynamic>{};
@@ -102,13 +108,17 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     final title = prog['title']?.toString() ?? 'Program';
     final bundlePrograms = e['bundlePrograms'];
     final isBundlePart = bundlePrograms is List && bundlePrograms.isNotEmpty;
+    final trainerName = _trainerNameFromEnrollment(e, prog);
+    final startDate = _parseDate(e['startDate']) ?? DateTime.now();
+    final durationWeeks = MarketplaceRepository.durationWeeksFrom(prog['durationWeeks'] ?? prog['duration']);
+    final endDate = _parseDate(e['endDate']) ?? MarketplaceRepository.endDateFromStartAndWeeks(startDate, durationWeeks) ?? startDate.add(const Duration(days: 30));
 
     return <String, dynamic>{
       'id': e['_id']?.toString(),
       'title': title,
-      'trainer': 'Trainer',
-      'startDate': _parseDate(e['startDate']) ?? DateTime.now(),
-      'endDate': _parseDate(e['endDate']) ?? DateTime.now().add(const Duration(days: 30)),
+      'trainer': trainerName,
+      'startDate': startDate,
+      'endDate': endDate,
       'progress': _progressPct(e['progress']),
       'status': status,
       'image': _coverFromProgram(prog),
@@ -152,8 +162,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
   }
 
   static Map<String, dynamic> _bundleCardFromGroup(List<Map<String, dynamic>> programCards) {
-    final sorted = List<Map<String, dynamic>>.from(programCards)
-      ..sort((a, b) => (a['title']?.toString() ?? '').compareTo(b['title']?.toString() ?? ''));
+    final sorted = List<Map<String, dynamic>>.from(programCards)..sort((a, b) => (a['title']?.toString() ?? '').compareTo(b['title']?.toString() ?? ''));
 
     final totalProgress = sorted.fold<int>(0, (sum, c) => sum + _progressPct(c['progress']));
     final avgProgress = sorted.isEmpty ? 0 : (totalProgress / sorted.length).round();
@@ -593,10 +602,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
                                     program['title']?.toString() ?? 'Program',
                                     style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
                                   ),
-                                  Text(
-                                    '${program['progress'] ?? 0}% complete',
-                                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-                                  ),
+                                  Text('${program['progress'] ?? 0}% complete', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                                 ],
                               ),
                             ),
@@ -614,10 +620,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
                   }),
                 ],
                 if (isScheduledTab || isCompletedTab || isCancelledTab) ...[const SizedBox(height: 14), _progressSection(progress)],
-                if (isScheduledTab && programs.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _cancelButton(programs.first),
-                ],
+                if (isScheduledTab && programs.isNotEmpty) ...[const SizedBox(height: 16), _cancelButton(programs.first)],
               ],
             ),
           ),

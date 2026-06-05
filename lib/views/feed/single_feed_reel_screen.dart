@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_right/network/network_services.dart';
 import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -49,9 +50,91 @@ class _SingleFeedReelScreenState extends State<SingleFeedReelScreen> {
     return null;
   }
 
+  Map<String, dynamic>? _readPostFromArguments() {
+    final raw = Get.arguments;
+    if (raw is Map) {
+      final post = raw['post'];
+      if (post is Map) {
+        return Map<String, dynamic>.from(post);
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _normalizePassedPost(Map<String, dynamic> post) {
+    final normalized = Map<String, dynamic>.from(post);
+    if (!normalized.containsKey('creatorImage') && normalized.containsKey('creatorInitials')) {
+      normalized['creatorImage'] = normalized['creatorInitials'];
+    }
+    normalized['isLiked'] ??= false;
+    normalized['isSaved'] ??= false;
+    return normalized;
+  }
+
+  Map<String, dynamic>? _postFromDetailResponse(dynamic raw) {
+    final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data'] as Map) : <String, dynamic>{};
+    final feedRaw = data['feed'];
+    if (feedRaw == null || feedRaw is! Map) {
+      throw StateError('Invalid response: missing data.feed');
+    }
+    final likedByMe = data['likedByMe'] == true;
+    final savedByMe = data['savedByMe'] == true;
+    return mapApiFeedDocumentToUiPost(Map<String, dynamic>.from(feedRaw), likedByMe: likedByMe, savedByMe: savedByMe);
+  }
+
+  void _mergePersistedLikeState(Map<String, dynamic> post) {
+    if (!Get.isRegistered<StorageService>()) return;
+    mergePersistedLikeStateOnFeedPosts([post], Get.find<StorageService>().getLikedFeedPostIds());
+  }
+
+  /// `GET /user/feed/:id` only returns published reels; drafts return 404.
+  Future<Map<String, dynamic>?> _findInMyFeeds(String feedId) async {
+    try {
+      final raw = await _feedRepo.getMyFeedsRepo(page: 1, limit: 50);
+      final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data'] as Map) : <String, dynamic>{};
+      final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds']) : const [];
+      for (final item in feedsRaw) {
+        if (item is! Map) continue;
+        final feed = Map<String, dynamic>.from(item);
+        final id = (feed['_id'] ?? feed['id'] ?? '').toString();
+        if (id == feedId) {
+          return mapApiFeedDocumentToUiPost(feed);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> _resolvePost({required String? feedId, Map<String, dynamic>? passedPost}) async {
+    if (feedId != null) {
+      try {
+        final raw = await _feedRepo.getFeedByIdRepo(feedId);
+        return _postFromDetailResponse(raw);
+      } on NotFoundException {
+        if (passedPost != null) {
+          return _normalizePassedPost(passedPost);
+        }
+        return _findInMyFeeds(feedId);
+      }
+    }
+    if (passedPost != null) {
+      return _normalizePassedPost(passedPost);
+    }
+    return null;
+  }
+
+  String _friendlyError(Object e) {
+    if (e is NotFoundException) {
+      return 'This post is not available. It may still be a draft or has been removed.';
+    }
+    final msg = e.toString().replaceFirst('Exception: ', '').trim();
+    return msg.isEmpty ? 'Could not load reel' : msg;
+  }
+
   Future<void> _load() async {
     final feedId = _readFeedIdFromArguments();
-    if (feedId == null) {
+    final passedPost = _readPostFromArguments();
+    if (feedId == null && passedPost == null) {
       setState(() {
         _loading = false;
         _error = 'Missing feed id';
@@ -65,22 +148,16 @@ class _SingleFeedReelScreenState extends State<SingleFeedReelScreen> {
     });
 
     try {
-      final raw = await _feedRepo.getFeedByIdRepo(feedId);
-      final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data'] as Map) : <String, dynamic>{};
-      final feedRaw = data['feed'];
-      if (feedRaw == null || feedRaw is! Map) {
-        throw StateError('Invalid response: missing data.feed');
+      final post = await _resolvePost(feedId: feedId, passedPost: passedPost);
+      if (post == null) {
+        throw NotFoundException('Feed not found');
       }
-      final likedByMe = data['likedByMe'] == true;
-      final savedByMe = data['savedByMe'] == true;
-      final post = mapApiFeedDocumentToUiPost(Map<String, dynamic>.from(feedRaw), likedByMe: likedByMe, savedByMe: savedByMe);
-      if (Get.isRegistered<StorageService>()) {
-        mergePersistedLikeStateOnFeedPosts([post], Get.find<StorageService>().getLikedFeedPostIds());
-      }
-      final idStr = (post['id'] ?? '').toString();
+      _mergePersistedLikeState(post);
+      final idStr = (post['id'] ?? feedId ?? '').toString();
       if (idStr.isEmpty) {
         throw StateError('Feed has no id');
       }
+      post['id'] = idStr;
 
       if (!mounted) return;
       setState(() {
@@ -92,7 +169,7 @@ class _SingleFeedReelScreenState extends State<SingleFeedReelScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = e.toString();
+        _error = _friendlyError(e);
         _posts = [];
       });
     }

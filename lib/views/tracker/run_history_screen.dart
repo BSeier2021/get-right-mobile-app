@@ -494,6 +494,8 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
   /// Build planned route card
   Widget _buildPlannedRouteCard(PlannedRouteModel route) {
     final dateFormat = DateFormat('MMM d, yyyy');
+    final timeFormat = DateFormat('h:mm a');
+    final createdAt = route.createdAt.toLocal();
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -531,8 +533,8 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
                             style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 2),
-                          Text(DateFormat('yyyy-MM-dd HH:mm').format(route.createdAt), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12)),
-                          Text(dateFormat.format(route.createdAt), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12)),
+                          Text(dateFormat.format(createdAt), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12)),
+                          Text(timeFormat.format(createdAt), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -604,6 +606,8 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
   Widget _buildRunCard(RunModel run, int index) {
     final dateFormat = DateFormat('MMM d, yyyy');
     final timeFormat = DateFormat('h:mm a');
+    final startTime = run.startTime.toLocal();
+    final endTime = run.endTime.toLocal();
 
     return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 300 + (index * 50)),
@@ -653,12 +657,17 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
                                   style: AppTextStyles.titleSmall.copyWith(color: _getActivityColor(run.activityType), fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(width: 8),
-                                Text(dateFormat.format(run.startTime), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12)),
+                                Text(
+                                  _formatDistanceKm(run.distanceMeters),
+                                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 12),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(dateFormat.format(startTime), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12)),
                               ],
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${timeFormat.format(run.startTime)} - ${timeFormat.format(run.endTime)}',
+                              '${timeFormat.format(startTime)} - ${timeFormat.format(endTime)}',
                               style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 12),
                             ),
                           ],
@@ -671,9 +680,9 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildRunStat(Icons.straighten_rounded, '${(run.distanceMeters / 1000).toStringAsFixed(2)} km'),
+                      _buildRunStat(Icons.straighten_rounded, _formatDistanceKm(run.distanceMeters)),
                       _buildRunStat(Icons.timer_rounded, _formatDuration(run.duration)),
-                      if (run.averagePace != null) _buildRunStat(Icons.speed_rounded, '${run.averagePace!.toStringAsFixed(1)}\'/km'),
+                      if (_formatPace(run.averagePace) != null) _buildRunStat(Icons.speed_rounded, _formatPace(run.averagePace)!),
                       if (run.caloriesBurned != null) _buildRunStat(Icons.local_fire_department_rounded, '${run.caloriesBurned} cal'),
                     ],
                   ),
@@ -739,6 +748,17 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
         ),
       ),
     );
+  }
+
+  String _formatDistanceKm(double meters) {
+    return '${(meters / 1000).toStringAsFixed(2)} km';
+  }
+
+  String? _formatPace(double? paceMinPerKm) {
+    if (paceMinPerKm == null || paceMinPerKm <= 0) return null;
+    final minutes = paceMinPerKm.floor();
+    final seconds = ((paceMinPerKm - minutes) * 60).round();
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}/km';
   }
 
   /// Format duration

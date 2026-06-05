@@ -382,15 +382,79 @@ class MarketplaceRepository {
 
   static double _programCardPrice(Map<String, dynamic> p) => ((p['price'] as num?) ?? 0).toDouble();
 
-  static String _trainerNameFromBundleApi(Map<String, dynamic> b) {
-    final tr = b['trainer'];
-    if (tr is! Map) return 'Trainer';
-    final prof = tr['profile'];
-    if (prof is Map) {
-      final fn = prof['fullName']?.toString().trim();
-      if (fn != null && fn.isNotEmpty) return fn;
+  static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
+
+  /// Trainer display name from API trainer node, optional `display` map, or plain string.
+  static String trainerDisplayName({
+    dynamic trainer,
+    Map<String, dynamic>? display,
+    String fallback = 'Trainer',
+  }) {
+    if (display != null) {
+      final instructor = display['instructor_name']?.toString().trim();
+      if (instructor != null && instructor.isNotEmpty) return instructor;
     }
-    return 'Trainer';
+    if (trainer is String) {
+      final s = trainer.trim();
+      if (s.isNotEmpty && s.toLowerCase() != 'trainer' && !_mongoIdRe.hasMatch(s)) return s;
+    }
+    if (trainer is Map) {
+      final t = Map<String, dynamic>.from(trainer);
+      final name = t['name']?.toString().trim();
+      if (name != null && name.isNotEmpty && name.toLowerCase() != 'trainer') return name;
+      final prof = t['profile'];
+      if (prof is Map) {
+        final fn = prof['fullName']?.toString().trim();
+        if (fn != null && fn.isNotEmpty) return fn;
+      }
+    }
+    return fallback;
+  }
+
+  static String initialsFromName(String name) => _initials(name);
+
+  /// Parses week count from num or strings like `"12 weeks"`.
+  static int durationWeeksFrom(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    final s = value.toString().trim();
+    if (s.isEmpty || s == '—') return 0;
+    final direct = int.tryParse(s);
+    if (direct != null && direct > 0) return direct;
+    final match = RegExp(r'(\d+)').firstMatch(s);
+    if (match != null) {
+      final parsed = int.tryParse(match.group(1)!);
+      if (parsed != null && parsed > 0) return parsed;
+    }
+    return 0;
+  }
+
+  static DateTime? endDateFromStartAndWeeks(DateTime? start, dynamic durationWeeks) {
+    final weeks = durationWeeksFrom(durationWeeks);
+    if (start == null || weeks <= 0) return null;
+    return start.add(Duration(days: weeks * 7));
+  }
+
+  static String? trainerAvatarUrlFromApiNode(dynamic trainer) {
+    if (trainer is! Map) return null;
+    final t = Map<String, dynamic>.from(trainer);
+    final pic = t['profilePicture'];
+    if (pic is Map) {
+      return ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
+    }
+    final prof = t['profile'];
+    if (prof is Map) {
+      final profPic = prof['profilePicture'];
+      if (profPic is Map) {
+        return ImageUrlSanitizer.asHttpUrlOrNull(profPic['url']?.toString());
+      }
+    }
+    return ImageUrlSanitizer.asHttpUrlOrNull(t['profilePictureUrl']?.toString());
+  }
+
+  static String _trainerNameFromBundleApi(Map<String, dynamic> b) {
+    return trainerDisplayName(trainer: b['trainer']);
   }
 
   static String? _trainerAvatarUrlFromBundleApi(Map<String, dynamic> b) {
@@ -558,24 +622,16 @@ class MarketplaceRepository {
     final rating = (display['average_rating'] as num?)?.toDouble() ?? 0.0;
     final students = (display['enrollment_count'] as num?)?.toInt() ?? 0;
     final price = (p['price'] as num?)?.toDouble() ?? 0.0;
-    final weeks = p['durationWeeks'];
-    final duration = weeks is num ? '${weeks.toInt()} weeks' : (p['duration']?.toString().trim().isNotEmpty == true ? p['duration'].toString() : '—');
+    final weeks = durationWeeksFrom(p['durationWeeks'] ?? p['duration']);
+    final duration = weeks > 0 ? '$weeks weeks' : (p['duration']?.toString().trim().isNotEmpty == true ? p['duration'].toString() : '—');
     final focus = p['focus']?.toString() ?? '';
     final level = p['level']?.toString() ?? '';
-    String trainer = 'Trainer';
-    String? trainerMongoId;
     final t = p['trainer'];
+    final trainer = trainerDisplayName(trainer: t, display: display);
+    String? trainerMongoId;
     if (t is Map) {
       trainerMongoId = t['_id']?.toString().trim();
       if (trainerMongoId != null && trainerMongoId.isEmpty) trainerMongoId = null;
-    }
-    if (display['instructor_name']?.toString().trim().isNotEmpty == true) {
-      trainer = display['instructor_name'].toString().trim();
-    } else if (t is Map) {
-      final prof = t['profile'];
-      if (prof is Map && prof['fullName']?.toString().trim().isNotEmpty == true) {
-        trainer = prof['fullName'].toString().trim();
-      }
     }
     String? imageUrl = ImageUrlSanitizer.asHttpUrlOrNull(p['coverImageUrl']?.toString());
     imageUrl ??= () {

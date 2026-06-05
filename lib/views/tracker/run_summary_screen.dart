@@ -59,7 +59,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
                       'Run Complete!',
                       style: AppTextStyles.titleLarge.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.bold),
                     ),
-                    Text(DateFormat('EEEE, MMM d, yyyy').format(run.startTime), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11)),
+                    Text(DateFormat('EEEE, MMM d, yyyy').format(run.startTime.toLocal()), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11)),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -198,7 +198,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
           children: [
             _buildSecondaryStatItem(Icons.timer_rounded, 'Time', _formatDuration(run.duration)),
             Container(width: 1, height: 40, color: AppColors.primaryGray.withOpacity(0.3)),
-            _buildSecondaryStatItem(Icons.speed_rounded, 'Avg Pace', run.averagePace != null ? '${run.averagePace!.toStringAsFixed(1)}\'/km' : '--'),
+            _buildSecondaryStatItem(Icons.speed_rounded, 'Avg Pace', _formatPace(run.averagePace)),
             Container(width: 1, height: 40, color: AppColors.primaryGray.withOpacity(0.3)),
             _buildSecondaryStatItem(Icons.local_fire_department_rounded, 'Calories', run.caloriesBurned != null ? '${run.caloriesBurned}' : '--'),
           ],
@@ -225,6 +225,8 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
   /// Build detailed stats section
   Widget _buildDetailedStats(RunModel run) {
     final timeFormat = DateFormat('h:mm a');
+    final startTime = run.startTime.toLocal();
+    final endTime = run.endTime.toLocal();
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -243,11 +245,11 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
           ),
           const SizedBox(height: 16),
           _buildDetailRow('Activity Type', run.activityType),
-          _buildDetailRow('Start Time', timeFormat.format(run.startTime)),
-          _buildDetailRow('End Time', timeFormat.format(run.endTime)),
+          _buildDetailRow('Start Time', timeFormat.format(startTime)),
+          _buildDetailRow('End Time', timeFormat.format(endTime)),
           _buildDetailRow('Duration', _formatDuration(run.duration)),
           _buildDetailRow('Distance', '${(run.distanceMeters / 1000).toStringAsFixed(2)} km'),
-          if (run.averagePace != null) _buildDetailRow('Average Pace', '${run.averagePace!.toStringAsFixed(2)} min/km'),
+          if (run.averagePace != null && run.averagePace! > 0) _buildDetailRow('Average Pace', _formatPace(run.averagePace)),
           if (run.maxPace != null) _buildDetailRow('Best Pace', '${run.maxPace!.toStringAsFixed(2)} min/km'),
           if (run.elevationGain != null) _buildDetailRow('Elevation Gain', '${run.elevationGain!.toStringAsFixed(0)} m'),
           if (run.caloriesBurned != null) _buildDetailRow('Calories Burned', '${run.caloriesBurned} cal'),
@@ -385,8 +387,14 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
             height: 56,
             child: OutlinedButton(
               onPressed: () {
-                Get.close(2);
-                Get.put(HomeNavigationController()).changeTab(2, journalTab: 1);
+                if (Get.isRegistered<HomeNavigationController>()) {
+                  if (Get.currentRoute != AppRoutes.home) {
+                    Get.until((route) => route.settings.name == AppRoutes.home);
+                  }
+                  Get.find<HomeNavigationController>().changeTab(2, journalTab: 1);
+                  return;
+                }
+                Get.offNamed(AppRoutes.home, arguments: {'navigateToTab': 2, 'journalTabIndex': 1});
               },
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 2),
@@ -414,6 +422,13 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
     }
 
     return LatLng(lat / points.length, lng / points.length);
+  }
+
+  String _formatPace(double? paceMinPerKm) {
+    if (paceMinPerKm == null || paceMinPerKm <= 0) return '--';
+    final minutes = paceMinPerKm.floor();
+    final seconds = ((paceMinPerKm - minutes) * 60).round();
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}/km';
   }
 
   /// Format duration
