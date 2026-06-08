@@ -155,6 +155,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   @override
   void dispose() {
+    _chatController?.leaveActiveConversation();
     _messageController.dispose();
     _scrollController.dispose();
     if (_isRecorderInitialized && _audioRecorder != null) {
@@ -615,10 +616,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     return Obx(() {
       // Rebuild when messages load so participant profiles are available.
       _chatController!.messages.length;
+      _chatController!.isOtherUserTyping.value;
       final other = _chatController!.otherParticipant;
       final name = other?.name ?? _trainerName ?? 'User';
       final imageUrl = other?.imageUrl;
       final isOnline = other?.isOnlineNow ?? false;
+      final isTyping = _chatController!.isOtherUserTyping.value;
+      final statusText = isTyping ? 'typing...' : (isOnline ? 'Online' : 'Offline');
+      final statusColor = isTyping ? AppColors.accent : (isOnline ? Colors.green : AppColors.primaryGrayDark);
 
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -652,10 +657,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: BoxDecoration(color: isOnline ? Colors.green : AppColors.primaryGray, shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: isTyping ? AppColors.accent : (isOnline ? Colors.green : AppColors.primaryGray), shape: BoxShape.circle),
                     ),
                     const SizedBox(width: 6),
-                    Text(isOnline ? 'Online' : 'Offline', style: AppTextStyles.labelSmall.copyWith(color: isOnline ? Colors.green : AppColors.primaryGrayDark)),
+                    Text(statusText, style: AppTextStyles.labelSmall.copyWith(color: statusColor)),
                   ],
                 ),
                 if (_programTitle != null)
@@ -685,7 +690,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
-          onPressed: () => Get.back(),
+          onPressed: () {
+            _chatController?.leaveActiveConversation();
+            Get.back();
+          },
         ),
         actions: [IconButton(icon: const Icon(Icons.more_vert), onPressed: _showReportBlockOptions)],
       ),
@@ -809,6 +817,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                             ),
                             maxLines: null,
                             textCapitalization: TextCapitalization.sentences,
+                            onChanged: _chatController!.notifyTypingInRoom,
                             onSubmitted: (_) => _sendMessage(),
                           ),
                         ),

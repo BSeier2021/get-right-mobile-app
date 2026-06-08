@@ -184,6 +184,15 @@ class ChatParticipantProfile {
   final bool? isOnline;
 
   bool get isOnlineNow => isOnline == true;
+
+  ChatParticipantProfile copyWith({String? id, String? name, String? imageUrl, bool? isOnline}) {
+    return ChatParticipantProfile(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      imageUrl: imageUrl ?? this.imageUrl,
+      isOnline: isOnline ?? this.isOnline,
+    );
+  }
 }
 
 /// Conversation model
@@ -292,6 +301,34 @@ class ConversationModel {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
+  }
+
+  ConversationModel copyWith({
+    String? id,
+    String? userId,
+    String? trainerId,
+    String? trainerName,
+    String? trainerImage,
+    String? programId,
+    String? programTitle,
+    ChatMessageModel? lastMessage,
+    int? unreadCount,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return ConversationModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      trainerId: trainerId ?? this.trainerId,
+      trainerName: trainerName ?? this.trainerName,
+      trainerImage: trainerImage ?? this.trainerImage,
+      programId: programId ?? this.programId,
+      programTitle: programTitle ?? this.programTitle,
+      lastMessage: lastMessage ?? this.lastMessage,
+      unreadCount: unreadCount ?? this.unreadCount,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }
 

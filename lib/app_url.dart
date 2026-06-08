@@ -7,6 +7,7 @@ class AppUrl {
   // static const String baseUrl = 'http://getright.prodservers.com:8004/api/v1';
   // static const String imnageUrl = 'http://getright.prodservers.com:8004/api/v1';
   // static const String socketUrl = 'http://getright.prodservers.com:8004/';
+  static const String socketUrl = 'http://getright.prodservers.com:8003';
 
   static String signUp = '$baseUrl/user/auth/signup';
   static String verifyOTP = '$baseUrl/user/auth/verify-otp';

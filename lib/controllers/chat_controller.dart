@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/repo/chat_repo.dart';
 import 'package:get_right/services/api_service.dart';
 import 'package:get_right/services/chat_audio_player_service.dart';
+import 'package:get_right/services/chat_socket_service.dart';
 import 'package:get_right/services/storage_service.dart';
 
 /// Chat Controller - Manages chat functionality
@@ -10,8 +13,17 @@ class ChatController extends GetxController {
   final ApiService _apiService;
   final StorageService _storageService;
   final ChatRepository _chatRepo = ChatRepository();
+  final ChatSocketService _chatSocket = ChatSocketService.instance;
 
   ChatController(this._apiService, this._storageService);
+
+  StreamSubscription<Map<String, dynamic>>? _newMessageSub;
+  StreamSubscription<Map<String, dynamic>>? _userTypingSub;
+  StreamSubscription<Map<String, dynamic>>? _userStatusSub;
+  Timer? _typingIdleTimer;
+  Timer? _remoteTypingClearTimer;
+  bool _isLocalTyping = false;
+  bool _socketListenersAttached = false;
 
   // Observable lists
   final RxList<ConversationModel> conversations = <ConversationModel>[].obs;
@@ -27,6 +39,7 @@ class ChatController extends GetxController {
   final RxInt totalUnreadCount = 0.obs;
   final RxBool hasNextPage = false.obs;
   final RxBool hasNextMessagesPage = false.obs;
+  final RxBool isOtherUserTyping = false.obs;
   final Rxn<String> currentConversationId = Rxn<String>();
   final Rxn<String> currentTrainerId = Rxn<String>();
   final Rxn<String> currentProgramId = Rxn<String>();
@@ -42,11 +55,183 @@ class ChatController extends GetxController {
   void onInit() {
     super.onInit();
     loadUnreadCount();
+    _attachSocketListeners();
+    unawaited(_ensureSocketConnected());
   }
 
   @override
   void onClose() {
+    _detachSocketListeners();
+    _typingIdleTimer?.cancel();
+    _remoteTypingClearTimer?.cancel();
+    _chatSocket.disconnect();
     super.onClose();
+  }
+
+  void _attachSocketListeners() {
+    if (_socketListenersAttached) return;
+    _socketListenersAttached = true;
+
+    _newMessageSub = _chatSocket.onNewMessage.listen(_handleSocketNewMessage);
+    _userTypingSub = _chatSocket.onUserTyping.listen(_handleSocketUserTyping);
+    _userStatusSub = _chatSocket.onUserStatusChanged.listen(_handleSocketUserStatusChanged);
+  }
+
+  void _detachSocketListeners() {
+    _newMessageSub?.cancel();
+    _userTypingSub?.cancel();
+    _userStatusSub?.cancel();
+    _newMessageSub = null;
+    _userTypingSub = null;
+    _userStatusSub = null;
+    _socketListenersAttached = false;
+  }
+
+  Future<void> _ensureSocketConnected() async {
+    if (!_chatSocket.isConnected) {
+      await _chatSocket.connect();
+    }
+  }
+
+  void _joinConversationSocket(String conversationId) {
+    unawaited(_ensureSocketConnected().then((_) => _chatSocket.joinConversation(conversationId)));
+  }
+
+  void _leaveConversationSocket() {
+    final conversationId = currentConversationId.value;
+    if (conversationId == null) return;
+    stopTypingInRoom();
+    _chatSocket.leaveConversation(conversationId);
+    isOtherUserTyping.value = false;
+  }
+
+  void _handleSocketNewMessage(Map<String, dynamic> payload) {
+    final messageRaw = payload['message'] is Map
+        ? Map<String, dynamic>.from(payload['message'] as Map)
+        : payload;
+    final conversationId = _chatStr(messageRaw['conversationId'] ?? payload['conversationId'] ?? currentConversationId.value);
+    if (conversationId.isEmpty) return;
+
+    final message = _enrichMessage(ChatMessageModel.fromApi(_withConversationId(messageRaw, conversationId)));
+    if (message.id.isEmpty) return;
+
+    _updateConversationPreview(message);
+
+    if (currentConversationId.value != conversationId) {
+      loadUnreadCount();
+      return;
+    }
+
+    if (messages.any((m) => m.id == message.id)) return;
+
+    messages.insert(0, message);
+    messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+  }
+
+  void _handleSocketUserTyping(Map<String, dynamic> payload) {
+    final conversationId = _chatStr(payload['conversationId']);
+    if (conversationId.isEmpty || currentConversationId.value != conversationId) return;
+
+    final typingUserId = _chatStr(payload['userId'] ?? payload['user'] ?? payload['senderId'] ?? payload['sender']);
+    final me = currentUserId;
+    if (me != null && typingUserId.isNotEmpty && typingUserId == me) return;
+
+    if (payload.containsKey('isTyping') || payload.containsKey('typing') || payload.containsKey('status')) {
+      final isTyping = payload['isTyping'] == true || payload['typing'] == true || payload['status'] == 'typing';
+      isOtherUserTyping.value = isTyping;
+      if (!isTyping) {
+        _remoteTypingClearTimer?.cancel();
+      }
+      return;
+    }
+
+    isOtherUserTyping.value = true;
+    _remoteTypingClearTimer?.cancel();
+    _remoteTypingClearTimer = Timer(const Duration(seconds: 3), () {
+      isOtherUserTyping.value = false;
+    });
+  }
+
+  void _handleSocketUserStatusChanged(Map<String, dynamic> payload) {
+    final userId = _chatStr(payload['userId'] ?? payload['user'] ?? payload['_id'] ?? payload['id']);
+    if (userId.isEmpty) return;
+
+    final isOnline = payload['isOnline'] == true || payload['status'] == 'online' || payload['online'] == true;
+    final profile = _participantProfiles[userId];
+    if (profile != null) {
+      _participantProfiles[userId] = profile.copyWith(isOnline: isOnline);
+    }
+
+    final me = currentUserId;
+    if (me != null && userId != me) {
+      messages.refresh();
+    }
+  }
+
+  void _updateConversationPreview(ChatMessageModel message) {
+    final index = conversations.indexWhere((c) => c.id == message.conversationId);
+    if (index < 0) return;
+
+    final current = conversations[index];
+    final isActiveConversation = currentConversationId.value == message.conversationId;
+    final senderId = message.senderId;
+    final me = currentUserId;
+    final unreadDelta = (!isActiveConversation && me != null && senderId != me) ? 1 : 0;
+
+    conversations[index] = current.copyWith(
+      lastMessage: message,
+      updatedAt: message.timestamp,
+      unreadCount: isActiveConversation ? 0 : current.unreadCount + unreadDelta,
+    );
+
+    if (index > 0) {
+      final updated = conversations.removeAt(index);
+      conversations.insert(0, updated);
+    }
+  }
+
+  Map<String, dynamic> _withConversationId(Map<String, dynamic> json, String conversationId) {
+    if (_chatStr(json['conversationId'] ?? json['conversation']).isEmpty) {
+      return {...json, 'conversationId': conversationId};
+    }
+    return json;
+  }
+
+  String _chatStr(dynamic value) => value?.toString().trim() ?? '';
+
+  /// Emit typing-start while composing; auto typing-stop after idle.
+  void notifyTypingInRoom(String text) {
+    final conversationId = currentConversationId.value;
+    if (conversationId == null) return;
+
+    if (text.trim().isEmpty) {
+      stopTypingInRoom();
+      return;
+    }
+
+    if (!_isLocalTyping) {
+      _isLocalTyping = true;
+      _chatSocket.typingStart(conversationId);
+    }
+
+    _typingIdleTimer?.cancel();
+    _typingIdleTimer = Timer(const Duration(seconds: 2), stopTypingInRoom);
+  }
+
+  void stopTypingInRoom() {
+    _typingIdleTimer?.cancel();
+    final conversationId = currentConversationId.value;
+    if (conversationId == null) return;
+
+    if (_isLocalTyping) {
+      _isLocalTyping = false;
+      _chatSocket.typingStop(conversationId);
+    }
+  }
+
+  /// Call when leaving the chat room screen.
+  void leaveActiveConversation() {
+    _leaveConversationSocket();
   }
 
   /// Get current user ID
@@ -209,6 +394,7 @@ class ChatController extends GetxController {
       _messagesPage = 1;
       final result = await _chatRepo.fetchMessages(conversationId, page: 1, limit: _messagesPageLimit);
       _applyMessagesPage(result);
+      _joinConversationSocket(conversationId);
     } catch (e) {
       Get.snackbar('Error', 'Failed to load messages: $e');
     } finally {
@@ -299,6 +485,7 @@ class ChatController extends GetxController {
 
       // Sort messages by timestamp (newest first since list is reversed)
       messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      stopTypingInRoom();
     } catch (e) {
       Get.snackbar('Error', 'Failed to send message: $e');
       // Remove failed message
@@ -440,6 +627,7 @@ class ChatController extends GetxController {
 
   /// Clear current conversation
   void clearConversation() {
+    _leaveConversationSocket();
     messages.clear();
     currentConversationId.value = null;
     currentTrainerId.value = null;
