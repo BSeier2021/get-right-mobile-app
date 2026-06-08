@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:get_right/app_url.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/network/network_services.dart';
@@ -10,6 +12,7 @@ class ChatMessagesPage {
     required this.hasNextPage,
     required this.hasPrevPage,
     required this.totalDocs,
+    this.participantProfiles = const {},
   });
 
   final List<ChatMessageModel> messages;
@@ -18,6 +21,7 @@ class ChatMessagesPage {
   final bool hasNextPage;
   final bool hasPrevPage;
   final int totalDocs;
+  final Map<String, ChatParticipantProfile> participantProfiles;
 }
 
 class ChatConversationsPage {
@@ -46,6 +50,7 @@ class ChatRepository {
     int page = 1,
     int limit = 10,
     String search = '',
+    String? currentUserId,
   }) async {
     final params = <String, dynamic>{
       'page': page,
@@ -57,7 +62,7 @@ class ChatRepository {
     }
 
     final raw = await _network.get(AppUrl.chatConversations, params: params);
-    return _parseConversationsPage(raw);
+    return _parseConversationsPage(raw, currentUserId: currentUserId);
   }
 
   /// `GET /user/chat/conversations/unread-count`.
@@ -84,17 +89,64 @@ class ChatRepository {
     return _parseMessagesPage(raw, fallbackConversationId: id);
   }
 
+  /// `POST /user/chat/conversations/:conversationId/messages` — multipart: `content`, optional `attachments`.
+  Future<ChatMessageModel> sendMessage({
+    required String conversationId,
+    required String content,
+    String? attachmentPath,
+  }) async {
+    final id = conversationId.trim();
+    if (id.isEmpty) {
+      throw ArgumentError('conversationId is required');
+    }
+
+    final trimmedContent = content.trim();
+    final files = <String, List<File>>{};
+    if (attachmentPath != null && attachmentPath.trim().isNotEmpty) {
+      final file = File(attachmentPath);
+      if (await file.exists()) {
+        files['attachments'] = [file];
+      } else {
+        throw Exception('Attachment file not found');
+      }
+    }
+
+    if (trimmedContent.isEmpty && files.isEmpty) {
+      throw ArgumentError('content or attachment is required');
+    }
+
+    final raw = await _network.postMultipart(
+      url: AppUrl.chatConversationMessages(id),
+      fields: <String, dynamic>{'content': trimmedContent.isEmpty ? ' ' : trimmedContent},
+      files: files,
+    );
+    return _parseSendMessageResponse(raw, fallbackConversationId: id);
+  }
+
+  /// `DELETE /user/chat/messages/:messageId`.
+  Future<void> deleteMessage(String messageId) async {
+    final id = messageId.trim();
+    if (id.isEmpty || id.startsWith('temp_')) {
+      throw ArgumentError('messageId is required');
+    }
+
+    final raw = await _network.delete(AppUrl.chatMessageDelete(id));
+    if (raw is Map && raw['success'] == false) {
+      throw Exception(raw['message']?.toString() ?? 'Failed to delete message');
+    }
+  }
+
   /// `GET /user/chat/conversations/with/:otherUserId` → `data.conversation`.
-  Future<ConversationModel> createConversationWith(String otherUserId) async {
+  Future<ConversationModel> createConversationWith(String otherUserId, {String? currentUserId}) async {
     final id = otherUserId.trim();
     if (id.isEmpty) {
       throw ArgumentError('otherUserId is required');
     }
     final raw = await _network.get(AppUrl.chatConversationWith(id));
-    return _parseConversationResponse(raw);
+    return _parseConversationResponse(raw, currentUserId: currentUserId);
   }
 
-  static ConversationModel _parseConversationResponse(dynamic raw) {
+  static ConversationModel _parseConversationResponse(dynamic raw, {String? currentUserId}) {
     if (raw is! Map<String, dynamic> || raw['success'] != true) {
       final msg = raw is Map ? raw['message']?.toString() : null;
       throw Exception(msg ?? 'Could not start conversation');
@@ -107,21 +159,21 @@ class ChatRepository {
     final dm = Map<String, dynamic>.from(data);
     final conversation = dm['conversation'];
     if (conversation is Map) {
-      final model = ConversationModel.fromApi(Map<String, dynamic>.from(conversation));
+      final model = ConversationModel.fromApi(Map<String, dynamic>.from(conversation), currentUserId: currentUserId);
       if (model.id.isNotEmpty) return model;
     }
 
     final directId = (dm['_id'] ?? dm['id'] ?? dm['conversationId'])?.toString().trim();
     if (directId != null && directId.isNotEmpty) {
-      final model = ConversationModel.fromApi(dm);
+      final model = ConversationModel.fromApi(dm, currentUserId: currentUserId);
       if (model.id.isNotEmpty) return model;
-      return ConversationModel.fromApi({'_id': directId, ...dm});
+      return ConversationModel.fromApi({'_id': directId, ...dm}, currentUserId: currentUserId);
     }
 
     throw Exception('Invalid conversation response');
   }
 
-  static ChatConversationsPage _parseConversationsPage(dynamic raw) {
+  static ChatConversationsPage _parseConversationsPage(dynamic raw, {String? currentUserId}) {
     if (raw is! Map) {
       return const ChatConversationsPage(
         conversations: [],
@@ -149,7 +201,11 @@ class ChatRepository {
     final dm = Map<String, dynamic>.from(data);
     final listRaw = dm['conversations'];
     final conversations = listRaw is List
-        ? listRaw.whereType<Map>().map((e) => ConversationModel.fromApi(Map<String, dynamic>.from(e))).where((c) => c.id.isNotEmpty).toList()
+        ? listRaw
+              .whereType<Map>()
+              .map((e) => ConversationModel.fromApi(Map<String, dynamic>.from(e), currentUserId: currentUserId))
+              .where((c) => c.id.isNotEmpty)
+              .toList()
         : <ConversationModel>[];
 
     return ChatConversationsPage(
@@ -160,6 +216,25 @@ class ChatRepository {
       hasPrevPage: dm['hasPrevPage'] == true,
       totalDocs: _intFrom(dm['totalDocs']),
     );
+  }
+
+  static ChatMessageModel _parseSendMessageResponse(dynamic raw, {required String fallbackConversationId}) {
+    if (raw is! Map || raw['success'] != true) {
+      final msg = raw is Map ? raw['message']?.toString() : null;
+      throw Exception(msg ?? 'Failed to send message');
+    }
+
+    final data = raw['data'];
+    if (data is Map) {
+      final dm = Map<String, dynamic>.from(data);
+      final message = dm['message'];
+      if (message is Map) {
+        return ChatMessageModel.fromApi(_withConversationId(Map<String, dynamic>.from(message), fallbackConversationId));
+      }
+      return ChatMessageModel.fromApi(_withConversationId(dm, fallbackConversationId));
+    }
+
+    throw Exception('Invalid message response');
   }
 
   static ChatMessagesPage _parseMessagesPage(dynamic raw, {required String fallbackConversationId}) {
@@ -209,11 +284,12 @@ class ChatRepository {
     }
 
     final dm = Map<String, dynamic>.from(data);
+    final participantProfiles = _participantProfiles(dm['conversation']);
     final listRaw = dm['messages'] ?? dm['items'] ?? dm['docs'];
     final messages = listRaw is List
         ? listRaw
               .whereType<Map>()
-              .map((e) => ChatMessageModel.fromApi(_withConversationId(Map<String, dynamic>.from(e), fallbackConversationId)))
+              .map((e) => _parseMessage(Map<String, dynamic>.from(e), fallbackConversationId: fallbackConversationId, participantProfiles: participantProfiles))
               .where((m) => m.id.isNotEmpty)
               .toList()
         : <ChatMessageModel>[];
@@ -225,6 +301,57 @@ class ChatRepository {
       hasNextPage: dm['hasNextPage'] == true,
       hasPrevPage: dm['hasPrevPage'] == true,
       totalDocs: _intFrom(dm['totalDocs']),
+      participantProfiles: participantProfiles,
+    );
+  }
+
+  static Map<String, ChatParticipantProfile> _participantProfiles(dynamic conversation) {
+    if (conversation is! Map) return const {};
+    final listRaw = conversation['participants'];
+    if (listRaw is! List) return const {};
+
+    final profiles = <String, ChatParticipantProfile>{};
+    for (final item in listRaw.whereType<Map>()) {
+      final participant = Map<String, dynamic>.from(item);
+      final id = _chatStr(participant['_id'] ?? participant['id']);
+      if (id.isEmpty) continue;
+
+      final profile = participant['profile'];
+      var name = _chatStr(participant['email']);
+      String? imageUrl;
+      if (profile is Map) {
+        final profileMap = Map<String, dynamic>.from(profile);
+        final fullName = _chatStr(profileMap['fullName']);
+        if (fullName.isNotEmpty) name = fullName;
+        final profilePic = profileMap['profilePicture'];
+        if (profilePic is Map) {
+          final url = _chatStr(Map<String, dynamic>.from(profilePic)['url']);
+          if (url.isNotEmpty) imageUrl = url;
+        }
+      }
+
+      profiles[id] = ChatParticipantProfile(
+        id: id,
+        name: name.isNotEmpty ? name : 'User',
+        imageUrl: imageUrl,
+        isOnline: participant['isOnline'] == true,
+      );
+    }
+    return profiles;
+  }
+
+  static ChatMessageModel _parseMessage(
+    Map<String, dynamic> json, {
+    required String fallbackConversationId,
+    Map<String, ChatParticipantProfile> participantProfiles = const {},
+  }) {
+    final model = ChatMessageModel.fromApi(_withConversationId(json, fallbackConversationId));
+    final profile = participantProfiles[model.senderId];
+    if (profile == null) return model;
+
+    return model.copyWith(
+      senderName: (model.senderName?.trim().isNotEmpty ?? false) ? model.senderName : profile.name,
+      senderImage: model.senderImage ?? profile.imageUrl,
     );
   }
 

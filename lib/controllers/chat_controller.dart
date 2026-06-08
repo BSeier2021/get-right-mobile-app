@@ -1,8 +1,8 @@
-import 'dart:async';
 import 'package:get/get.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/repo/chat_repo.dart';
 import 'package:get_right/services/api_service.dart';
+import 'package:get_right/services/chat_audio_player_service.dart';
 import 'package:get_right/services/storage_service.dart';
 
 /// Chat Controller - Manages chat functionality
@@ -30,15 +30,13 @@ class ChatController extends GetxController {
   final Rxn<String> currentConversationId = Rxn<String>();
   final Rxn<String> currentTrainerId = Rxn<String>();
   final Rxn<String> currentProgramId = Rxn<String>();
+  final Map<String, ChatParticipantProfile> _participantProfiles = {};
 
   static const int _pageLimit = 10;
   static const int _messagesPageLimit = 20;
   int _currentPage = 1;
   int _messagesPage = 1;
   String _currentSearch = '';
-
-  // Timer for polling messages (simulating real-time)
-  Timer? _messagePollTimer;
 
   @override
   void onInit() {
@@ -48,12 +46,45 @@ class ChatController extends GetxController {
 
   @override
   void onClose() {
-    _messagePollTimer?.cancel();
     super.onClose();
   }
 
   /// Get current user ID
   String? get currentUserId => _storageService.getUserId();
+
+  ChatMessageModel _enrichMessage(ChatMessageModel message) {
+    if ((message.senderName?.trim().isNotEmpty ?? false) && message.senderImage != null) return message;
+    final profile = _participantProfiles[message.senderId];
+    if (profile == null) return message;
+    return message.copyWith(
+      senderName: (message.senderName?.trim().isNotEmpty ?? false) ? message.senderName : profile.name,
+      senderImage: message.senderImage ?? profile.imageUrl,
+    );
+  }
+
+  List<ChatMessageModel> _enrichMessages(List<ChatMessageModel> list) => list.map(_enrichMessage).toList();
+
+  /// Other participant in the active conversation (not the logged-in user).
+  ChatParticipantProfile? get otherParticipant {
+    final me = currentUserId?.trim();
+    if (me == null || me.isEmpty) {
+      return _participantProfiles.values.isNotEmpty ? _participantProfiles.values.first : null;
+    }
+    for (final profile in _participantProfiles.values) {
+      if (profile.id != me) return profile;
+    }
+    return null;
+  }
+
+  void _applyMessagesPage(ChatMessagesPage result) {
+    if (result.participantProfiles.isNotEmpty) {
+      _participantProfiles.addAll(result.participantProfiles);
+    }
+    messages.value = _enrichMessages(result.messages);
+    hasNextMessagesPage.value = result.hasNextPage;
+    _messagesPage = result.currentPage;
+    messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+  }
 
   /// Load conversations from `GET /user/chat/conversations`.
   Future<void> loadConversations({int page = 1, String? search, bool append = false}) async {
@@ -68,7 +99,12 @@ class ChatController extends GetxController {
       _currentSearch = query;
       _currentPage = page;
 
-      final result = await _chatRepo.fetchConversations(page: page, limit: _pageLimit, search: query);
+      final result = await _chatRepo.fetchConversations(
+        page: page,
+        limit: _pageLimit,
+        search: query,
+        currentUserId: currentUserId,
+      );
       if (append && page > 1) {
         conversations.addAll(result.conversations);
       } else {
@@ -109,7 +145,7 @@ class ChatController extends GetxController {
 
     try {
       isLoading.value = true;
-      final conversation = await _chatRepo.createConversationWith(id);
+      final conversation = await _chatRepo.createConversationWith(id, currentUserId: currentUserId);
       final index = conversations.indexWhere((c) => c.id == conversation.id);
       if (index >= 0) {
         conversations[index] = conversation;
@@ -172,16 +208,25 @@ class ChatController extends GetxController {
 
       _messagesPage = 1;
       final result = await _chatRepo.fetchMessages(conversationId, page: 1, limit: _messagesPageLimit);
-      messages.value = result.messages;
-      hasNextMessagesPage.value = result.hasNextPage;
-      _messagesPage = result.currentPage;
-      messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-      _startMessagePolling(conversationId);
+      _applyMessagesPage(result);
     } catch (e) {
       Get.snackbar('Error', 'Failed to load messages: $e');
     } finally {
       isLoadingMessages.value = false;
+    }
+  }
+
+  /// Reload latest messages without showing the full-screen loader.
+  Future<void> refreshMessages() async {
+    final conversationId = currentConversationId.value;
+    if (conversationId == null || isLoadingMessages.value) return;
+
+    try {
+      _messagesPage = 1;
+      final result = await _chatRepo.fetchMessages(conversationId, page: 1, limit: _messagesPageLimit);
+      _applyMessagesPage(result);
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to refresh messages: $e');
     }
   }
 
@@ -196,7 +241,10 @@ class ChatController extends GetxController {
       final result = await _chatRepo.fetchMessages(conversationId, page: nextPage, limit: _messagesPageLimit);
 
       final existingIds = messages.map((m) => m.id).toSet();
-      final older = result.messages.where((m) => !existingIds.contains(m.id)).toList();
+      if (result.participantProfiles.isNotEmpty) {
+        _participantProfiles.addAll(result.participantProfiles);
+      }
+      final older = _enrichMessages(result.messages.where((m) => !existingIds.contains(m.id)).toList());
       if (older.isNotEmpty) {
         messages.addAll(older);
         messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
@@ -221,25 +269,26 @@ class ChatController extends GetxController {
       final userId = currentUserId;
       if (userId == null) return;
 
-      final trainerId = currentTrainerId.value ?? '';
-
       // Optimistically add message to UI
+      final profile = _participantProfiles[userId];
       final tempMessage = ChatMessageModel(
         id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
         conversationId: conversationId,
         senderId: userId,
-        receiverId: trainerId,
+        receiverId: currentTrainerId.value ?? '',
         message: message.trim(),
         type: 'text',
+        senderName: profile?.name ?? _storageService.getName(),
+        senderImage: profile?.imageUrl,
         timestamp: DateTime.now(),
       );
       messages.insert(0, tempMessage);
 
-      // Send to API
-      final response = await _apiService.sendMessage(conversationId: conversationId, senderId: userId, receiverId: trainerId, message: message.trim(), type: 'text');
+      final actualMessage = _enrichMessage(await _chatRepo.sendMessage(
+        conversationId: conversationId,
+        content: message.trim(),
+      ));
 
-      // Replace temp message with actual message from server
-      final actualMessage = ChatMessageModel.fromJson(response);
       final messageIndex = messages.indexWhere((m) => m.id == tempMessage.id);
       if (messageIndex != -1) {
         messages[messageIndex] = actualMessage;
@@ -270,36 +319,21 @@ class ChatController extends GetxController {
 
     try {
       isSending.value = true;
-      final userId = currentUserId;
-      if (userId == null) return;
+      if (currentUserId == null) return;
 
-      final trainerId = currentTrainerId.value ?? '';
+      final caption = switch (type) {
+        'image' => '📷 Photo',
+        'video' => '🎥 Video',
+        'audio' => '🎤 Audio',
+        _ => '📎 Attachment',
+      };
 
-      // Upload file first
-      final uploadResponse = await _apiService.uploadChatFile(filePath: filePath, conversationId: conversationId, type: type);
-
-      final fileUrl = uploadResponse['fileUrl'] as String?;
-      if (fileUrl == null) {
-        throw Exception('File upload failed');
-      }
-
-      // Send message with file
-      final response = await _apiService.sendMessage(
+      final fileMessage = _enrichMessage(await _chatRepo.sendMessage(
         conversationId: conversationId,
-        senderId: userId,
-        receiverId: trainerId,
-        message: type == 'image'
-            ? '📷 Photo'
-            : type == 'video'
-            ? '🎥 Video'
-            : '🎤 Audio',
-        type: type,
-        fileUrl: fileUrl,
-        fileName: fileName ?? filePath.split('/').last,
-      );
+        content: caption,
+        attachmentPath: filePath,
+      ));
 
-      // Add message to list
-      final fileMessage = ChatMessageModel.fromJson(response);
       messages.insert(0, fileMessage);
 
       // Sort messages by timestamp (newest first since list is reversed)
@@ -325,6 +359,23 @@ class ChatController extends GetxController {
       await refreshConversations();
     } catch (e) {
       // Silent fail
+    }
+  }
+
+  /// `DELETE /user/chat/messages/:messageId`
+  Future<void> deleteMessage(String messageId) async {
+    final id = messageId.trim();
+    if (id.isEmpty || id.startsWith('temp_')) return;
+
+    try {
+      if (ChatAudioPlayerService.instance.isActive(id)) {
+        await ChatAudioPlayerService.instance.stop();
+      }
+
+      await _chatRepo.deleteMessage(id);
+      messages.removeWhere((m) => m.id == id);
+    } catch (e) {
+      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
@@ -387,39 +438,14 @@ class ChatController extends GetxController {
     return blockedUsers.contains(userId);
   }
 
-  /// Start polling for new messages (simulating real-time)
-  void _startMessagePolling(String conversationId) {
-    _messagePollTimer?.cancel();
-    _messagePollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
-      try {
-        final result = await _chatRepo.fetchMessages(conversationId, page: 1, limit: _messagesPageLimit);
-        final existingMessageIds = messages.map((m) => m.id).toSet();
-        final newMessagesFromServer = result.messages.where((msg) => !existingMessageIds.contains(msg.id)).toList();
-
-        if (newMessagesFromServer.isNotEmpty) {
-          messages.addAll(newMessagesFromServer);
-          messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-        }
-      } catch (e) {
-        // Silent fail for polling
-      }
-    });
-  }
-
-  /// Stop polling
-  void stopPolling() {
-    _messagePollTimer?.cancel();
-    _messagePollTimer = null;
-  }
-
   /// Clear current conversation
   void clearConversation() {
-    stopPolling();
     messages.clear();
     currentConversationId.value = null;
     currentTrainerId.value = null;
     currentProgramId.value = null;
     _messagesPage = 1;
     hasNextMessagesPage.value = false;
+    _participantProfiles.clear();
   }
 }

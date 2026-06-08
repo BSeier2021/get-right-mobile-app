@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_sound/flutter_sound.dart';
+import 'package:get_right/services/chat_audio_player_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:get_right/controllers/chat_controller.dart';
+import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/models/enrolled_program_model.dart';
 import 'package:get_right/services/api_service.dart';
@@ -159,7 +162,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       _audioRecorder = null;
     }
     _recordingTimer?.cancel();
-    _chatController?.stopPolling();
+    ChatAudioPlayerService.instance.stop();
     super.dispose();
   }
 
@@ -198,6 +201,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
   }
 
+  Future<void> _pickAudioFile() async {
+    if (_chatController == null) return;
+    final result = await FilePicker.platform.pickFiles(type: FileType.audio, allowMultiple: false);
+    final path = result?.files.single.path;
+    if (path == null || path.isEmpty) return;
+
+    await _chatController!.sendFileMessage(filePath: path, type: 'audio', fileName: result!.files.single.name);
+    _scrollToBottom();
+  }
+
   Future<void> _startRecording() async {
     try {
       // Check microphone permission
@@ -231,29 +244,49 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Future<void> _stopRecording(bool send) async {
     _recordingTimer?.cancel();
 
-    if (_isRecording && _recordingPath != null && _audioRecorder != null) {
-      final path = _recordingPath!;
+    if (!_isRecording || _recordingPath == null || _audioRecorder == null) return;
+
+    final path = _recordingPath!;
+
+    try {
       await _audioRecorder!.stopRecorder();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isRecording = false;
+          _recordingPath = null;
+          _recordingDuration = 0;
+        });
+      }
+      Get.snackbar('Error', 'Failed to stop recording: $e');
+      return;
+    }
 
-      setState(() {
-        _isRecording = false;
-        _recordingPath = null;
-        _recordingDuration = 0;
-      });
+    if (!mounted) return;
+    setState(() {
+      _isRecording = false;
+      _recordingPath = null;
+      _recordingDuration = 0;
+    });
 
-      if (send && _recordingDuration > 0 && _chatController != null) {
-        await _chatController!.sendFileMessage(filePath: path, type: 'audio', fileName: 'audio_message.aac');
-        _scrollToBottom();
-      } else {
-        // Delete unsent recording
-        try {
-          final file = File(path);
-          if (await file.exists()) {
-            await file.delete();
-          }
-        } catch (e) {
-          // Ignore
-        }
+    final file = File(path);
+    if (!await file.exists()) {
+      if (send) {
+        Get.snackbar('Audio', 'Recording file not found. Please try again.');
+      }
+      return;
+    }
+
+    final fileSize = await file.length();
+    if (send && fileSize > 0 && _chatController != null) {
+      await _chatController!.sendFileMessage(filePath: path, type: 'audio', fileName: 'audio_message.aac');
+      _scrollToBottom();
+    } else {
+      try {
+        await file.delete();
+      } catch (_) {}
+      if (send) {
+        Get.snackbar('Audio', 'Recording was too short. Please try again.');
       }
     }
   }
@@ -286,7 +319,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.mic, color: AppColors.onSurface),
-              title: Text('Audio', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+              title: Text('Record voice', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
               onTap: () {
                 Navigator.pop(context);
                 _startRecording();
@@ -296,6 +329,57 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         ),
       ),
     );
+  }
+
+  void _showMessageOptions(ChatMessageModel message) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: AppColors.error),
+              title: Text('Delete message', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _confirmDeleteMessage(message);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteMessage(ChatMessageModel message) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete message?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+        content: Text('This message will be removed for everyone in the chat.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              'Delete',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || _chatController == null || !mounted) return;
+    await _chatController!.deleteMessage(message.id);
   }
 
   void _showReportBlockOptions() {
@@ -523,17 +607,85 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
+  Widget _buildAppBarTitle() {
+    if (_chatController == null) {
+      return Text(_trainerName ?? 'Chat', style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent));
+    }
+
+    return Obx(() {
+      // Rebuild when messages load so participant profiles are available.
+      _chatController!.messages.length;
+      final other = _chatController!.otherParticipant;
+      final name = other?.name ?? _trainerName ?? 'User';
+      final imageUrl = other?.imageUrl;
+      final isOnline = other?.isOnlineNow ?? false;
+
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: AppColors.accent.withOpacity(0.15),
+            backgroundImage: imageUrl != null && imageUrl.startsWith('http') ? NetworkImage(imageUrl) : null,
+            child: imageUrl != null && imageUrl.startsWith('http')
+                ? null
+                : Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
+                  ),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(color: isOnline ? Colors.green : AppColors.primaryGray, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(isOnline ? 'Online' : 'Offline', style: AppTextStyles.labelSmall.copyWith(color: isOnline ? Colors.green : AppColors.primaryGrayDark)),
+                  ],
+                ),
+                if (_programTitle != null)
+                  Text(
+                    _programTitle!,
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.onPrimary.withOpacity(0.7)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.backgroundColor,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_trainerName ?? 'Trainer', style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent)),
-            if (_programTitle != null) Text(_programTitle!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onPrimary.withOpacity(0.7))),
-          ],
+        title: _buildAppBarTitle(),
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+          ),
+          onPressed: () => Get.back(),
         ),
         actions: [IconButton(icon: const Icon(Icons.more_vert), onPressed: _showReportBlockOptions)],
       ),
@@ -549,38 +701,52 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 children: [
                   // Messages list
                   Expanded(
-                    child: isLoading && messages.isEmpty
-                        ? const Center(child: CircularProgressIndicator())
-                        : messages.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                    child: RefreshIndicator(
+                      onRefresh: () => _chatController!.refreshMessages(),
+                      child: isLoading && messages.isEmpty
+                          ? const Center(child: CircularProgressIndicator())
+                          : messages.isEmpty
+                          ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
                               children: [
-                                Icon(Icons.chat_bubble_outline, size: 64, color: AppColors.primaryGray),
-                                const SizedBox(height: 16),
-                                Text('No messages yet', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-                                const SizedBox(height: 8),
-                                Text('Start the conversation!', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark)),
+                                SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.chat_bubble_outline, size: 64, color: AppColors.primaryGray),
+                                    const SizedBox(height: 16),
+                                    Text('No messages yet', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                                    const SizedBox(height: 8),
+                                    Text('Start the conversation!', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark)),
+                                  ],
+                                ),
                               ],
+                            )
+                          : ListView.builder(
+                              reverse: true,
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              controller: _scrollController,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              itemCount: messages.length + (isLoadingMore ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (isLoadingMore && index == messages.length) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Center(child: CircularProgressIndicator()),
+                                  );
+                                }
+                                final message = messages[index];
+                                final isCurrentUser = message.senderId == _chatController!.currentUserId;
+                                final bubble = ChatMessageBubble(message: message, isCurrentUser: isCurrentUser, currentUserId: _chatController!.currentUserId);
+
+                                if (isCurrentUser && !message.id.startsWith('temp_')) {
+                                  return GestureDetector(onLongPress: () => _showMessageOptions(message), child: bubble);
+                                }
+
+                                return bubble;
+                              },
                             ),
-                          )
-                        : ListView.builder(
-                            reverse: true,
-                            controller: _scrollController,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            itemCount: messages.length + (isLoadingMore ? 1 : 0),
-                            itemBuilder: (context, index) {
-                              if (isLoadingMore && index == messages.length) {
-                                return const Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: Center(child: CircularProgressIndicator()),
-                                );
-                              }
-                              final message = messages[index];
-                              final isCurrentUser = message.senderId == _chatController!.currentUserId;
-                              return ChatMessageBubble(message: message, isCurrentUser: isCurrentUser, currentUserId: _chatController!.currentUserId);
-                            },
-                          ),
+                    ),
                   ),
 
                   // Recording indicator

@@ -302,7 +302,10 @@ class AppUrl {
   /// `GET /user/chat/conversations/with/:otherUserId` — get or create direct conversation.
   static String chatConversationWith(String otherUserId) => '$chatConversations/with/${Uri.encodeComponent(otherUserId.trim())}';
 
-  /// `GET /user/chat/conversations/:conversationId/messages` — query: `page`, `limit`.
+  /// `GET`/`POST /user/chat/conversations/:conversationId/messages` — GET query: `page`, `limit`; POST multipart: `content`, `attachments`.
   static String chatConversationMessages(String conversationId) =>
       '$chatConversations/${Uri.encodeComponent(conversationId.trim())}/messages';
+
+  /// `DELETE /user/chat/messages/:messageId` — delete a chat message.
+  static String chatMessageDelete(String messageId) => '$baseUrl/user/chat/messages/${Uri.encodeComponent(messageId.trim())}';
 }

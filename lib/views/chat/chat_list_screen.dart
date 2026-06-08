@@ -240,6 +240,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
           }
           final conversation = conversations[index];
           final lastMessage = conversation.lastMessage;
+          final displayTime = lastMessage?.timestamp ?? conversation.updatedAt;
+          final previewText = lastMessage == null
+              ? 'No messages yet'
+              : lastMessage.type == 'image'
+              ? '📷 Photo'
+              : lastMessage.type == 'video'
+              ? '🎥 Video'
+              : lastMessage.type == 'audio'
+              ? '🎤 Audio'
+              : lastMessage.message;
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -261,7 +271,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onAccent),
                       ),
               ),
-              title: Text(conversation.trainerName, style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground)),
+              title: Text(
+                conversation.trainerName,
+                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: conversation.unreadCount > 0 ? FontWeight.w700 : FontWeight.w600),
+              ),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -274,26 +287,22 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     ),
                     const SizedBox(height: 2),
                   ],
-                  if (lastMessage != null)
-                    Text(
-                      lastMessage.type == 'image'
-                          ? '📷 Photo'
-                          : lastMessage.type == 'video'
-                          ? '🎥 Video'
-                          : lastMessage.type == 'audio'
-                          ? '🎤 Audio'
-                          : lastMessage.message,
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    previewText,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: conversation.unreadCount > 0 ? AppColors.onBackground : AppColors.primaryGrayDark,
+                      fontWeight: conversation.unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
               trailing: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  if (lastMessage != null) Text(_formatTimestamp(lastMessage.timestamp), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark)),
+                  Text(_formatTimestamp(displayTime), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark)),
                   if (conversation.unreadCount > 0) ...[
                     const SizedBox(height: 4),
                     Container(

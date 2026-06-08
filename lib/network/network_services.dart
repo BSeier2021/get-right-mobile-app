@@ -342,7 +342,7 @@ class NetworkApiService extends GetxService {
 
           final fileStream = http.ByteStream(file.openRead());
           final fileExtension = file.path.split('.').last;
-          final fileName = file.path.split('/').last;
+          final fileName = file.path.split(Platform.pathSeparator).last;
           final contentType = _getContentType(fileExtension);
 
           Utils.logInfo("Adding file: $fileName, size: $fileSize bytes, type: ${contentType.mimeType}", name: "NetworkApiService");
