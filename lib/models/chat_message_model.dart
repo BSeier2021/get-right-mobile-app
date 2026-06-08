@@ -24,19 +24,22 @@ class ChatMessageModel {
     required this.timestamp,
   });
 
-  /// From JSON
-  factory ChatMessageModel.fromJson(Map<String, dynamic> json) {
+  /// From JSON (legacy mock + API).
+  factory ChatMessageModel.fromJson(Map<String, dynamic> json) => ChatMessageModel.fromApi(json);
+
+  factory ChatMessageModel.fromApi(Map<String, dynamic> json) {
+    final conversationId = _chatEntityId(json['conversationId'] ?? json['conversation']);
     return ChatMessageModel(
-      id: json['id'] ?? '',
-      conversationId: json['conversationId'] ?? '',
-      senderId: json['senderId'] ?? '',
-      receiverId: json['receiverId'] ?? '',
-      message: json['message'] ?? '',
-      type: json['type'] ?? 'text',
-      fileUrl: json['fileUrl'],
-      fileName: json['fileName'],
-      isRead: json['isRead'] ?? false,
-      timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp']) : DateTime.now(),
+      id: _chatStr(json['_id'] ?? json['id']),
+      conversationId: conversationId,
+      senderId: _chatEntityId(json['senderId'] ?? json['sender']),
+      receiverId: _chatEntityId(json['receiverId'] ?? json['receiver']),
+      message: _chatStr(json['message'] ?? json['content'] ?? json['text']),
+      type: _chatStr(json['type']).isEmpty ? 'text' : _chatStr(json['type']),
+      fileUrl: _chatStr(json['fileUrl'] ?? json['url']).isEmpty ? null : _chatStr(json['fileUrl'] ?? json['url']),
+      fileName: _chatStr(json['fileName'] ?? json['originalName']).isEmpty ? null : _chatStr(json['fileName'] ?? json['originalName']),
+      isRead: json['isRead'] == true || json['read'] == true,
+      timestamp: _chatDate(json['timestamp'] ?? json['createdAt'] ?? json['updatedAt']),
     );
   }
 
@@ -110,18 +113,38 @@ class ConversationModel {
     required this.createdAt,
   });
 
-  factory ConversationModel.fromJson(Map<String, dynamic> json) {
+  factory ConversationModel.fromJson(Map<String, dynamic> json) => ConversationModel.fromApi(json);
+
+  factory ConversationModel.fromApi(Map<String, dynamic> json) {
+    final trainer = _chatMap(json['trainer']) ?? _chatMap(json['otherUser']) ?? _chatMap(json['participant']);
+    final trainerProfile = trainer != null ? (_chatMap(trainer['profile']) ?? trainer) : null;
+    final program = _chatMap(json['program']);
+
+    final lastRaw = json['lastMessage'] ?? json['last_message'] ?? json['latestMessage'];
+    final lastMessage = lastRaw is Map ? ChatMessageModel.fromApi(Map<String, dynamic>.from(lastRaw)) : null;
+
+    final trainerName = _chatStr(
+      json['trainerName'] ?? trainerProfile?['fullName'] ?? trainer?['fullName'] ?? trainer?['name'] ?? trainer?['email'],
+    );
+
+    String? trainerImage = _chatStr(json['trainerImage']).isEmpty ? null : _chatStr(json['trainerImage']);
+    final profilePic = trainerProfile?['profilePicture'];
+    if (profilePic is Map) {
+      final url = _chatStr(Map<String, dynamic>.from(profilePic)['url']);
+      if (url.isNotEmpty) trainerImage = url;
+    }
+
     return ConversationModel(
-      id: json['id'] ?? '',
-      userId: json['userId'] ?? '',
-      trainerId: json['trainerId'] ?? '',
-      trainerName: json['trainerName'] ?? '',
-      trainerImage: json['trainerImage'],
-      programId: json['programId'] ?? '',
-      programTitle: json['programTitle'] ?? '',
-      lastMessage: json['lastMessage'] != null ? ChatMessageModel.fromJson(json['lastMessage']) : null,
-      unreadCount: json['unreadCount'] ?? 0,
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      id: _chatStr(json['_id'] ?? json['id']),
+      userId: _chatStr(json['userId'] ?? json['user'] ?? json['customer']),
+      trainerId: _chatStr(json['trainerId'] ?? trainer?['_id'] ?? trainer?['id']),
+      trainerName: trainerName,
+      trainerImage: trainerImage,
+      programId: _chatStr(json['programId'] ?? program?['_id'] ?? program?['id']),
+      programTitle: _chatStr(json['programTitle'] ?? program?['title'] ?? program?['name']),
+      lastMessage: lastMessage,
+      unreadCount: _chatInt(json['unreadCount'] ?? json['unread']),
+      createdAt: _chatDate(json['createdAt'] ?? json['updatedAt']),
     );
   }
 
@@ -139,4 +162,27 @@ class ConversationModel {
       'createdAt': createdAt.toIso8601String(),
     };
   }
+}
+
+String _chatStr(dynamic value) => value?.toString().trim() ?? '';
+
+String _chatEntityId(dynamic value) {
+  if (value is Map) {
+    final m = Map<String, dynamic>.from(value);
+    return _chatStr(m['_id'] ?? m['id'] ?? m['userId'] ?? m['user']);
+  }
+  return _chatStr(value);
+}
+
+Map<String, dynamic>? _chatMap(dynamic value) => value is Map ? Map<String, dynamic>.from(value) : null;
+
+int _chatInt(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+DateTime _chatDate(dynamic value) {
+  if (value == null) return DateTime.now();
+  return DateTime.tryParse(value.toString())?.toLocal() ?? DateTime.now();
 }

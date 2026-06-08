@@ -151,7 +151,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     setState(() => _isSavingJournal = true);
     try {
-      await _workoutRepo.updateWorkoutJournal(journalId: journalId, workoutIds: workoutIds, duration: duration ?? entry.durationSeconds ?? 0, notes: notes ?? entry.notes ?? '');
+      await _workoutRepo.updateWorkoutJournal(journalId: journalId, workoutIds: workoutIds, duration: duration ?? entry.durationSeconds ?? 0, notes: notes ?? '');
       await _refreshWorkoutJournalFromApi();
       return true;
     } catch (e) {
@@ -208,7 +208,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       for (final journalId in idsByJournal.keys) {
         final entry = WorkoutRepository.journalEntryById(_journalEntries, journalId);
         if (entry == null) continue;
-        await _workoutRepo.updateWorkoutJournal(journalId: journalId, workoutIds: idsByJournal[journalId]!, duration: entry.durationSeconds ?? 0, notes: entry.notes ?? '');
+        await _workoutRepo.updateWorkoutJournal(journalId: journalId, workoutIds: idsByJournal[journalId]!, duration: entry.durationSeconds ?? 0, notes: '');
       }
       await _refreshWorkoutJournalFromApi();
     } catch (e) {
@@ -220,32 +220,36 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     }
   }
 
+  List<WorkoutExerciseModel> _applyExerciseNotes(List<WorkoutExerciseModel> exercises, String targetExerciseId, String notes) {
+    final trimmed = notes.trim();
+    return exercises.map((e) => e.id == targetExerciseId ? e.copyWith(notes: trimmed.isEmpty ? null : trimmed) : e).toList();
+  }
+
   Future<void> _saveJournalNotes(WorkoutExerciseModel ex, String notes) async {
-    final journalId = _workoutJournalByExerciseId[ex.id];
-    if (journalId == null || !WorkoutRepository.isValidMongoId(journalId)) {
-      setState(() {
-        if (_workout == null) return;
-        final idxWarmup = _workout!.warmupExercises.indexWhere((e) => e.id == ex.id);
-        if (idxWarmup != -1) {
-          final list = List<WorkoutExerciseModel>.from(_workout!.warmupExercises);
-          list[idxWarmup] = ex.copyWith(notes: notes);
-          _workout = _workout!.copyWith(warmupExercises: list);
-          return;
-        }
-        final idxWorkout = _workout!.workoutExercises.indexWhere((e) => e.id == ex.id);
-        if (idxWorkout != -1) {
-          final list = List<WorkoutExerciseModel>.from(_workout!.workoutExercises);
-          list[idxWorkout] = ex.copyWith(notes: notes);
-          _workout = _workout!.copyWith(workoutExercises: list);
-        }
-      });
-      return;
+    setState(() {
+      if (_workout == null) return;
+      _workout = _workout!.copyWith(
+        warmupExercises: _applyExerciseNotes(_workout!.warmupExercises, ex.id, notes),
+        workoutExercises: _applyExerciseNotes(_workout!.workoutExercises, ex.id, notes),
+      );
+    });
+
+    if (!WorkoutRepository.isValidMongoId(ex.id)) return;
+
+    setState(() => _isSavingJournal = true);
+    try {
+      await _workoutRepo.updateWorkout(
+        ex.id,
+        WorkoutRepository.updateWorkoutBody(name: ex.exerciseName, exercise: WorkoutRepository.exerciseSetsToApi(ex.sets), notes: notes.trim()),
+      );
+      await _refreshWorkoutJournalFromApi();
+    } catch (e) {
+      if (mounted) {
+        Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingJournal = false);
     }
-
-    final entry = WorkoutRepository.journalEntryById(_journalEntries, journalId);
-    if (entry == null) return;
-
-    await _persistJournalEntry(journalId: journalId, workoutIds: WorkoutRepository.workoutIdsFrom(entry), notes: notes);
   }
 
   void _startWorkout() {
@@ -317,9 +321,9 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     try {
       if (WorkoutRepository.isValidMongoId(_workoutJournalId)) {
-        await _workoutRepo.updateWorkoutJournal(journalId: _workoutJournalId!, workoutIds: workoutIds, duration: _seconds, notes: _workout!.notes ?? '');
+        await _workoutRepo.updateWorkoutJournal(journalId: _workoutJournalId!, workoutIds: workoutIds, duration: _seconds, notes: '');
       } else {
-        await _workoutRepo.submitWorkoutJournal(date: dateKey, workoutIds: workoutIds, duration: _seconds, notes: _workout!.notes ?? '');
+        await _workoutRepo.submitWorkoutJournal(date: dateKey, workoutIds: workoutIds, duration: _seconds, notes: '');
       }
       await _refreshWorkoutJournalFromApi();
     } catch (e) {
@@ -1071,15 +1075,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     ),
   );
 
-  WorkoutExerciseModel _exerciseWithJournalNotes(WorkoutExerciseModel ex) {
-    if (ex.notes != null && ex.notes!.trim().isNotEmpty) return ex;
-    final journalId = _workoutJournalByExerciseId[ex.id];
-    if (journalId == null) return ex;
-    final entry = WorkoutRepository.journalEntryById(_journalEntries, journalId);
-    final notes = entry?.notes?.trim();
-    if (notes == null || notes.isEmpty) return ex;
-    return ex.copyWith(notes: notes);
-  }
+  WorkoutExerciseModel _exerciseWithJournalNotes(WorkoutExerciseModel ex) => ex;
 
   (WorkoutExerciseModel, WorkoutExerciseModel) _orderedSupersetPair(WorkoutExerciseModel a, WorkoutExerciseModel b) {
     if (a.supersetOrder != null && b.supersetOrder != null) {
@@ -1266,8 +1262,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                     ? null
                     : () {
                         Get.back();
-                        final journalEntry = _journalEntryForExercise(ex.id);
-                        Get.toNamed(AppRoutes.addNotes, arguments: {'exerciseName': ex.exerciseName, 'existingNotes': journalEntry?.notes ?? ex.notes ?? ''})?.then((r) {
+                        Get.toNamed(AppRoutes.addNotes, arguments: {'exerciseName': ex.exerciseName, 'existingNotes': ex.notes ?? ''})?.then((r) {
                           if (r != null && r['notes'] != null) {
                             _saveJournalNotes(ex, r['notes'] as String);
                           }

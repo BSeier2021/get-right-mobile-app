@@ -7,13 +7,7 @@ import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
 class WorkoutJournalListPage {
-  const WorkoutJournalListPage({
-    required this.entries,
-    required this.page,
-    required this.limit,
-    this.syncFailed = false,
-    this.syncError,
-  });
+  const WorkoutJournalListPage({required this.entries, required this.page, required this.limit, this.syncFailed = false, this.syncError});
 
   final List<WorkoutJournalModel> entries;
   final int page;
@@ -34,8 +28,7 @@ class WorkoutRepository {
     return trimmed != null && trimmed.isNotEmpty && _mongoIdRe.hasMatch(trimmed);
   }
 
-  static String _dateKey(DateTime date) =>
-      '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  static String _dateKey(DateTime date) => '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
   static bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 
@@ -122,11 +115,7 @@ class WorkoutRepository {
   ///
   /// Returns an empty page with [WorkoutJournalListPage.syncFailed] when the server
   /// responds with 5xx (e.g. invalid Mongoose populate on `workout.refExercise.thumbnail`).
-  Future<WorkoutJournalListPage> fetchWorkoutJournalEntries({
-    int page = 1,
-    int limit = 10,
-    DateTime? dateFrom,
-  }) async {
+  Future<WorkoutJournalListPage> fetchWorkoutJournalEntries({int page = 1, int limit = 10, DateTime? dateFrom}) async {
     final fromKey = _dateKey(dateFrom ?? DateTime.now());
     try {
       final raw = await _network.get(AppUrl.customerWorkoutJournalList(page: page, limit: limit, dateFrom: fromKey));
@@ -159,7 +148,6 @@ class WorkoutRepository {
     final createdAt = DateTime.tryParse(entry['createdAt']?.toString() ?? '') ?? date;
     final updatedAt = DateTime.tryParse(entry['updatedAt']?.toString() ?? '');
     final duration = (entry['duration'] as num?)?.toInt();
-    final notes = entry['notes']?.toString();
     final journalType = entry['type']?.toString();
 
     final warmupExercises = <WorkoutExerciseModel>[];
@@ -169,7 +157,7 @@ class WorkoutRepository {
       for (final item in workoutItems) {
         if (item is! Map) continue;
         final map = Map<String, dynamic>.from(item);
-        final exercise = _exerciseWithJournalNotes(workoutExerciseFromApi(map), notes);
+        final exercise = workoutExerciseFromApi(map);
         final type = map['type']?.toString() ?? journalType;
         if (JournalExerciseType.fromApi(type)?.isWarmup == true) {
           warmupExercises.add(exercise);
@@ -188,14 +176,7 @@ class WorkoutRepository {
       createdAt: createdAt,
       updatedAt: updatedAt,
       durationSeconds: duration,
-      notes: notes,
     );
-  }
-
-  static WorkoutExerciseModel _exerciseWithJournalNotes(WorkoutExerciseModel exercise, String? journalNotes) {
-    final note = journalNotes?.trim();
-    if (note == null || note.isEmpty) return exercise;
-    return exercise.copyWith(notes: note);
   }
 
   static String _refExerciseId(dynamic refExercise) {
@@ -240,10 +221,7 @@ class WorkoutRepository {
 
   /// Video URL + thumbnail from a populated `refExercise` object (journal list API).
   static ({String? videoUrl, String? thumbnailUrl}) videoMediaFromRefExercise(dynamic refExercise) {
-    return (
-      videoUrl: _refExerciseVideoUrl(refExercise),
-      thumbnailUrl: _refExerciseVideoThumbnailUrl(refExercise),
-    );
+    return (videoUrl: _refExerciseVideoUrl(refExercise), thumbnailUrl: _refExerciseVideoThumbnailUrl(refExercise));
   }
 
   static WorkoutExerciseModel workoutExerciseFromApi(Map<String, dynamic> json) {
@@ -282,7 +260,43 @@ class WorkoutRepository {
       date: createdAt,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      notes: _workoutNotesFromApi(json['notes']),
     );
+  }
+
+  static String? _workoutNotesFromApi(dynamic raw) {
+    final note = raw?.toString().trim();
+    if (note == null || note.isEmpty) return null;
+    return note;
+  }
+
+  /// Encodes [ExerciseSetModel] list for `PUT /customer/workout/:id`.
+  static List<Map<String, dynamic>> exerciseSetsToApi(List<ExerciseSetModel> sets) {
+    const defaultRestTime = 90;
+    final out = <Map<String, dynamic>>[];
+    for (var i = 0; i < sets.length; i++) {
+      final s = sets[i];
+      final entry = <String, dynamic>{'sets': s.setNumber > 0 ? s.setNumber : i + 1, 'restTime': defaultRestTime};
+      if (s.isTimed && s.timeSeconds != null && s.timeSeconds! > 0) {
+        entry['reps'] = encodeTimedRepsForApi(s.timeSeconds!);
+        entry['repsType'] = 'TIME';
+        entry['time'] = s.timeSeconds;
+      } else if (s.isFAILURE) {
+        entry['reps'] = 'FAILURE';
+      } else if (s.isAMRAP) {
+        entry['reps'] = 'AMRAP';
+      } else {
+        entry['reps'] = s.reps ?? 0;
+      }
+      if (s.weight != null && s.weight! > 0) {
+        entry['weight'] = s.weight! % 1 == 0 ? s.weight!.toInt() : s.weight;
+      }
+      if (s.distance != null && s.distance! > 0) {
+        entry['distance'] = s.distance;
+      }
+      out.add(entry);
+    }
+    return out;
   }
 
   static ExerciseSetModel _exerciseSetFromApi(Map<String, dynamic> sm, int fallbackIndex) {
@@ -380,8 +394,7 @@ class WorkoutRepository {
     return null;
   }
 
-  static List<String> workoutIdsFrom(WorkoutJournalModel entry) =>
-      entry.allExercises.map((e) => e.id).where(isValidMongoId).toList();
+  static List<String> workoutIdsFrom(WorkoutJournalModel entry) => entry.allExercises.map((e) => e.id).where(isValidMongoId).toList();
 
   static WorkoutJournalModel _mergeJournalEntries(List<WorkoutJournalModel> entries) {
     final sorted = List<WorkoutJournalModel>.from(entries)..sort((a, b) => a.createdAt.compareTo(b.createdAt));
@@ -389,14 +402,11 @@ class WorkoutRepository {
     final warmupExercises = <WorkoutExerciseModel>[];
     final workoutExercises = <WorkoutExerciseModel>[];
     var totalDuration = 0;
-    final notesParts = <String>[];
 
     for (final entry in sorted) {
       warmupExercises.addAll(entry.warmupExercises);
       workoutExercises.addAll(entry.workoutExercises);
       totalDuration += entry.durationSeconds ?? 0;
-      final note = entry.notes?.trim();
-      if (note != null && note.isNotEmpty) notesParts.add(note);
     }
 
     final earliest = sorted.first;
@@ -411,34 +421,17 @@ class WorkoutRepository {
       createdAt: earliest.createdAt,
       updatedAt: latest.updatedAt,
       durationSeconds: totalDuration > 0 ? totalDuration : latest.durationSeconds,
-      notes: notesParts.isEmpty ? null : notesParts.join('\n'),
     );
   }
 
   /// Builds `PUT /customer/workout-journal/:id` body.
-  static Map<String, dynamic> updateJournalBody({
-    required List<String> workout,
-    required int duration,
-    required String notes,
-  }) {
-    return {
-      'workout': workout,
-      'duration': duration,
-      'notes': notes,
-    };
+  static Map<String, dynamic> updateJournalBody({required List<String> workout, required int duration, required String notes}) {
+    return {'workout': workout, 'duration': duration, 'notes': notes};
   }
 
   /// Updates an existing journal entry (`PUT /customer/workout-journal/:journalId`).
-  Future<Map<String, dynamic>> updateWorkoutJournal({
-    required String journalId,
-    required List<String> workoutIds,
-    required int duration,
-    required String notes,
-  }) async {
-    final raw = await _network.put(
-      AppUrl.customerWorkoutJournalById(journalId),
-      updateJournalBody(workout: workoutIds, duration: duration, notes: notes),
-    );
+  Future<Map<String, dynamic>> updateWorkoutJournal({required String journalId, required List<String> workoutIds, required int duration, required String notes}) async {
+    final raw = await _network.put(AppUrl.customerWorkoutJournalById(journalId), updateJournalBody(workout: workoutIds, duration: duration, notes: notes));
     if (!_isOk(raw)) {
       throw Exception(_messageFrom(raw) ?? 'Could not update workout journal');
     }
@@ -446,20 +439,8 @@ class WorkoutRepository {
   }
 
   /// Builds `POST /customer/workout-journal` body (all of `workout`, `duration`, `notes` are required).
-  static Map<String, dynamic> createJournalBody({
-    required String date,
-    List<String> workout = const [],
-    int duration = 0,
-    String notes = '',
-    String? type,
-  }) {
-    return {
-      'date': date,
-      if (type != null && type.isNotEmpty) 'type': type,
-      'workout': workout,
-      'duration': duration,
-      'notes': notes,
-    };
+  static Map<String, dynamic> createJournalBody({required String date, List<String> workout = const [], int duration = 0, String notes = '', String? type}) {
+    return {'date': date, if (type != null && type.isNotEmpty) 'type': type, 'workout': workout, 'duration': duration, 'notes': notes};
   }
 
   /// Returns today's journal id from list API, or null when none exists yet.
@@ -475,25 +456,13 @@ class WorkoutRepository {
   }
 
   /// Creates a journal entry — API requires at least one workout id.
-  Future<String> createWorkoutJournalEntry({
-    required String date,
-    required List<String> workoutIds,
-    int duration = 0,
-    String notes = '',
-    String? type,
-  }) async {
+  Future<String> createWorkoutJournalEntry({required String date, required List<String> workoutIds, int duration = 0, String notes = '', String? type}) async {
     if (workoutIds.isEmpty) {
       throw Exception('At least one workout is required');
     }
     final postRaw = await _network.post(
       AppUrl.customerWorkoutJournalCreate,
-      createJournalBody(
-        date: date,
-        workout: workoutIds,
-        duration: duration,
-        notes: notes,
-        type: type ?? JournalExerciseType.workout.apiValue,
-      ),
+      createJournalBody(date: date, workout: workoutIds, duration: duration, notes: notes, type: type ?? JournalExerciseType.workout.apiValue),
     );
     if (!_isOk(postRaw)) {
       throw Exception(_messageFrom(postRaw) ?? 'Could not create workout journal');
@@ -553,10 +522,7 @@ class WorkoutRepository {
     required String notes,
     String type = 'Workout',
   }) async {
-    final raw = await _network.post(
-      AppUrl.customerWorkoutJournalCreate,
-      createJournalBody(date: date, workout: workoutIds, duration: duration, notes: notes, type: type),
-    );
+    final raw = await _network.post(AppUrl.customerWorkoutJournalCreate, createJournalBody(date: date, workout: workoutIds, duration: duration, notes: notes, type: type));
     if (!_isOk(raw)) {
       throw Exception(_messageFrom(raw) ?? 'Could not save workout journal');
     }
@@ -572,11 +538,7 @@ class WorkoutRepository {
     String? supersetIdentifier,
     String? workoutJournal,
   }) {
-    final body = <String, dynamic>{
-      'type': type,
-      'name': name,
-      'exercise': exercise,
-    };
+    final body = <String, dynamic>{'type': type, 'name': name, 'exercise': exercise};
     if (refExercise != null && refExercise.trim().isNotEmpty) {
       body['refExercise'] = refExercise.trim();
     }
@@ -602,11 +564,11 @@ class WorkoutRepository {
   static Map<String, dynamic> updateWorkoutBody({
     required String name,
     required List<Map<String, dynamic>> exercise,
+    String? notes,
   }) {
-    return {
-      'name': name,
-      'exercise': exercise,
-    };
+    final body = <String, dynamic>{'name': name, 'exercise': exercise};
+    if (notes != null) body['notes'] = notes;
+    return body;
   }
 
   /// Updates an existing workout exercise (`PUT /customer/workout/:workoutId`).

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:get/get.dart';
 import 'package:get_right/models/chat_message_model.dart';
+import 'package:get_right/repo/chat_repo.dart';
 import 'package:get_right/services/api_service.dart';
 import 'package:get_right/services/storage_service.dart';
 
@@ -8,6 +9,7 @@ import 'package:get_right/services/storage_service.dart';
 class ChatController extends GetxController {
   final ApiService _apiService;
   final StorageService _storageService;
+  final ChatRepository _chatRepo = ChatRepository();
 
   ChatController(this._apiService, this._storageService);
 
@@ -18,10 +20,22 @@ class ChatController extends GetxController {
 
   // State
   final RxBool isLoading = false.obs;
+  final RxBool isLoadingMessages = false.obs;
+  final RxBool isLoadingMoreMessages = false.obs;
+  final RxBool isLoadingMore = false.obs;
   final RxBool isSending = false.obs;
+  final RxInt totalUnreadCount = 0.obs;
+  final RxBool hasNextPage = false.obs;
+  final RxBool hasNextMessagesPage = false.obs;
   final Rxn<String> currentConversationId = Rxn<String>();
   final Rxn<String> currentTrainerId = Rxn<String>();
   final Rxn<String> currentProgramId = Rxn<String>();
+
+  static const int _pageLimit = 10;
+  static const int _messagesPageLimit = 20;
+  int _currentPage = 1;
+  int _messagesPage = 1;
+  String _currentSearch = '';
 
   // Timer for polling messages (simulating real-time)
   Timer? _messagePollTimer;
@@ -29,7 +43,7 @@ class ChatController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    loadConversations();
+    loadUnreadCount();
   }
 
   @override
@@ -41,17 +55,72 @@ class ChatController extends GetxController {
   /// Get current user ID
   String? get currentUserId => _storageService.getUserId();
 
-  /// Load all conversations for the current user
-  Future<void> loadConversations() async {
+  /// Load conversations from `GET /user/chat/conversations`.
+  Future<void> loadConversations({int page = 1, String? search, bool append = false}) async {
+    try {
+      if (append) {
+        isLoadingMore.value = true;
+      } else {
+        isLoading.value = true;
+      }
+
+      final query = search ?? _currentSearch;
+      _currentSearch = query;
+      _currentPage = page;
+
+      final result = await _chatRepo.fetchConversations(page: page, limit: _pageLimit, search: query);
+      if (append && page > 1) {
+        conversations.addAll(result.conversations);
+      } else {
+        conversations.value = result.conversations;
+      }
+      hasNextPage.value = result.hasNextPage;
+      await loadUnreadCount();
+    } catch (e) {
+      if (!append) {
+        Get.snackbar('Error', 'Failed to load conversations: $e');
+      }
+    } finally {
+      isLoading.value = false;
+      isLoadingMore.value = false;
+    }
+  }
+
+  Future<void> loadMoreConversations() async {
+    if (isLoadingMore.value || !hasNextPage.value) return;
+    await loadConversations(page: _currentPage + 1, append: true);
+  }
+
+  /// `GET /user/chat/conversations/unread-count`
+  Future<void> loadUnreadCount() async {
+    try {
+      totalUnreadCount.value = await _chatRepo.fetchUnreadCount();
+    } catch (_) {
+      totalUnreadCount.value = conversations.fold(0, (sum, c) => sum + c.unreadCount);
+    }
+  }
+
+  Future<void> refreshConversations() => loadConversations(page: 1, search: _currentSearch);
+
+  /// `GET /user/chat/conversations/with/:otherUserId`
+  Future<ConversationModel?> startConversationWithUser(String otherUserId) async {
+    final id = otherUserId.trim();
+    if (id.isEmpty) return null;
+
     try {
       isLoading.value = true;
-      final userId = currentUserId;
-      if (userId == null) return;
-
-      final response = await _apiService.getConversations(userId);
-      conversations.value = (response as List).map((json) => ConversationModel.fromJson(json)).toList();
+      final conversation = await _chatRepo.createConversationWith(id);
+      final index = conversations.indexWhere((c) => c.id == conversation.id);
+      if (index >= 0) {
+        conversations[index] = conversation;
+      } else {
+        conversations.insert(0, conversation);
+      }
+      await loadUnreadCount();
+      return conversation;
     } catch (e) {
-      Get.snackbar('Error', 'Failed to load conversations: $e');
+      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''));
+      return null;
     } finally {
       isLoading.value = false;
     }
@@ -82,7 +151,7 @@ class ChatController extends GetxController {
       );
 
       // Reload conversations
-      await loadConversations();
+      await refreshConversations();
 
       return conversationId;
     } catch (e) {
@@ -96,20 +165,49 @@ class ChatController extends GetxController {
   /// Load messages for a conversation
   Future<void> loadMessages(String conversationId, {String? trainerId, String? programId}) async {
     try {
-      isLoading.value = true;
+      isLoadingMessages.value = true;
       currentConversationId.value = conversationId;
       if (trainerId != null) currentTrainerId.value = trainerId;
       if (programId != null) currentProgramId.value = programId;
 
-      final response = await _apiService.getMessages(conversationId);
-      messages.value = (response as List).map((json) => ChatMessageModel.fromJson(json)).toList();
+      _messagesPage = 1;
+      final result = await _chatRepo.fetchMessages(conversationId, page: 1, limit: _messagesPageLimit);
+      messages.value = result.messages;
+      hasNextMessagesPage.value = result.hasNextPage;
+      _messagesPage = result.currentPage;
+      messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-      // Start polling for new messages
       _startMessagePolling(conversationId);
     } catch (e) {
       Get.snackbar('Error', 'Failed to load messages: $e');
     } finally {
-      isLoading.value = false;
+      isLoadingMessages.value = false;
+    }
+  }
+
+  /// Load older messages (pagination).
+  Future<void> loadMoreMessages() async {
+    final conversationId = currentConversationId.value;
+    if (conversationId == null || isLoadingMoreMessages.value || !hasNextMessagesPage.value) return;
+
+    try {
+      isLoadingMoreMessages.value = true;
+      final nextPage = _messagesPage + 1;
+      final result = await _chatRepo.fetchMessages(conversationId, page: nextPage, limit: _messagesPageLimit);
+
+      final existingIds = messages.map((m) => m.id).toSet();
+      final older = result.messages.where((m) => !existingIds.contains(m.id)).toList();
+      if (older.isNotEmpty) {
+        messages.addAll(older);
+        messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      }
+
+      _messagesPage = result.currentPage;
+      hasNextMessagesPage.value = result.hasNextPage;
+    } catch (_) {
+      // Silent fail for pagination
+    } finally {
+      isLoadingMoreMessages.value = false;
     }
   }
 
@@ -224,7 +322,7 @@ class ChatController extends GetxController {
         }
       }
       // Update conversation unread count
-      await loadConversations();
+      await refreshConversations();
     } catch (e) {
       // Silent fail
     }
@@ -294,18 +392,12 @@ class ChatController extends GetxController {
     _messagePollTimer?.cancel();
     _messagePollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
       try {
-        final response = await _apiService.getMessages(conversationId);
-        final serverMessages = (response as List).map((json) => ChatMessageModel.fromJson(json)).toList();
-
-        // Merge server messages with local messages (preserve sent messages)
+        final result = await _chatRepo.fetchMessages(conversationId, page: 1, limit: _messagesPageLimit);
         final existingMessageIds = messages.map((m) => m.id).toSet();
-        final newMessagesFromServer = serverMessages.where((msg) => !existingMessageIds.contains(msg.id)).toList();
+        final newMessagesFromServer = result.messages.where((msg) => !existingMessageIds.contains(msg.id)).toList();
 
-        // Only update if there are new messages from server
         if (newMessagesFromServer.isNotEmpty) {
-          // Add new messages from server, keeping existing messages
           messages.addAll(newMessagesFromServer);
-          // Sort by timestamp (newest first since list is reversed)
           messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         }
       } catch (e) {
@@ -327,5 +419,7 @@ class ChatController extends GetxController {
     currentConversationId.value = null;
     currentTrainerId.value = null;
     currentProgramId.value = null;
+    _messagesPage = 1;
+    hasNextMessagesPage.value = false;
   }
 }

@@ -159,6 +159,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   List<PersonalRecord> _personalRecords = [];
+  final Set<String> _personalRecordBusyIds = {};
   final FeedRepository _feedRepo = FeedRepository();
   final TrainerProfileRepository _profileRepo = TrainerProfileRepository();
   List<Map<String, dynamic>> _myFeedPosts = [];
@@ -665,48 +666,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     'Nutrition (per serving)',
                     style: AppTextStyles.titleMedium.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w700),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.edit_note_rounded, color: _kProfileForestGreen, size: 26),
-                    onPressed: _showEditPersonalRecordsDialog,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+
+                  Container(
+                    width: 30,
+                    height: 30,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _kProfileForestGreen, width: 2),
+                    ),
+                    child: IconButton(
+                      icon: Icon(_personalRecords.isEmpty ? Icons.add : Icons.edit_note_rounded, color: _kProfileForestGreen, size: 26),
+                      onPressed: _personalRecords.isEmpty ? () => _showRecordFormDialog() : _showEditPersonalRecordsDialog,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              _personalRecords.isEmpty
-                  ? Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 3))],
-                        border: Border.all(color: _kProfileForestGreen.withOpacity(0.08)),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'No personal records yet.',
-                            style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.55)),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          OutlinedButton.icon(
-                            onPressed: _showAddRecordDialog,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: _kProfileForestGreen,
-                              side: BorderSide(color: _kProfileForestGreen.withOpacity(0.35)),
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            icon: const Icon(Icons.add, size: 20),
-                            label: Text('Add Record', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700)),
-                          ),
-                        ],
-                      ),
-                    )
-                  : _buildPersonalRecordsGrid(),
+              if (_personalRecords.isNotEmpty) ...[const SizedBox(height: 8), _buildPersonalRecordsGrid()],
             ],
           ),
         ),
@@ -730,8 +708,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: _showCreatePostOptions,
                       customBorder: const CircleBorder(),
                       child: Container(
-                        width: 40,
-                        height: 40,
+                        width: 30,
+                        height: 30,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -1478,7 +1456,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           itemCount: _personalRecords.length,
                           itemBuilder: (context, index) {
                             final record = _personalRecords[index];
-                            return _buildRecordListItem(record);
+                            return _buildRecordListItem(record, index, setDialogState);
                           },
                         ),
                 ),
@@ -1491,7 +1469,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: ElevatedButton.icon(
                       onPressed: () {
                         Navigator.pop(context);
-                        _showAddRecordDialog();
+                        _showRecordFormDialog();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.accent,
@@ -1513,8 +1491,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildRecordListItem(PersonalRecord record) {
+  Widget _buildRecordListItem(PersonalRecord record, int index, StateSetter setDialogState) {
     final dateFormat = DateFormat('MMM d, yyyy');
+    final busy = _personalRecordBusyIds.contains(record.id);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -1523,78 +1502,200 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  record.liftName,
-                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      record.liftName,
+                      style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${record.displayPublicly ? '${record.value} ${record.unit}' : 'Hidden'} • ${dateFormat.format(record.date)}',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${record.displayPublicly ? '${record.value} ${record.unit}' : 'Hidden'} • ${dateFormat.format(record.date)}',
-                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+              ),
+              if (busy)
+                const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
+              else ...[
+                Switch(
+                  value: record.displayPublicly,
+                  onChanged: (value) async {
+                    final ok = await _updatePersonalRecordOnServer(record: record, isPublic: value);
+                    if (ok && mounted) setDialogState(() {});
+                  },
+                  activeColor: AppColors.white,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, color: AppColors.accent, size: 20),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showRecordFormDialog(record: record);
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: AppColors.error, size: 20),
+                  onPressed: () async {
+                    final ok = await _deletePersonalRecord(record, index);
+                    if (ok && mounted) setDialogState(() {});
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 ),
               ],
-            ),
+            ],
           ),
-          if (!record.displayPublicly) Icon(Icons.visibility_off_outlined, color: AppColors.primaryGray.withOpacity(0.7), size: 20),
         ],
       ),
     );
+  }
+
+  PersonalRecord? _personalRecordFromApiResponse(dynamic raw, {required String fallbackMessage}) {
+    if (raw is! Map<String, dynamic> || raw['success'] != true) {
+      final msg = raw is Map ? raw['message']?.toString() : null;
+      throw Exception(msg ?? fallbackMessage);
+    }
+    final data = raw['data'];
+    if (data is! Map || data['personalRecord'] is! Map) {
+      throw Exception('Invalid response from server');
+    }
+    return PersonalRecord.fromApi(Map<String, dynamic>.from(data['personalRecord'] as Map));
+  }
+
+  void _showPersonalRecordMessage(String title, String message, {bool isError = false}) {
+    Get.snackbar(title, message, backgroundColor: isError ? AppColors.error : _kProfileForestGreen, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
+  }
+
+  Future<bool> _updatePersonalRecordOnServer({required PersonalRecord record, String? name, String? valueText, String? unit, DateTime? date, bool? isPublic}) async {
+    final parsedValue = num.tryParse((valueText ?? record.value).trim());
+    if (parsedValue == null) {
+      _showPersonalRecordMessage('Error', 'Please enter a valid numeric value', isError: true);
+      return false;
+    }
+
+    setState(() => _personalRecordBusyIds.add(record.id));
+    try {
+      final raw = await _profileRepo.updatePersonalRecordRepo(
+        recordId: record.id,
+        name: (name ?? record.liftName).trim(),
+        value: parsedValue,
+        unit: (unit ?? record.unit).trim(),
+        date: _personalRecordDateIso(date ?? record.date),
+        isPublic: isPublic ?? record.displayPublicly,
+      );
+      final updated = _personalRecordFromApiResponse(raw, fallbackMessage: 'Could not update personal record');
+      if (updated == null || !mounted) return false;
+      setState(() {
+        final i = _personalRecords.indexWhere((r) => r.id == record.id);
+        if (i >= 0) _personalRecords[i] = updated;
+      });
+      _showPersonalRecordMessage('Success', raw['message']?.toString() ?? 'Personal record updated successfully');
+      return true;
+    } catch (e) {
+      _showPersonalRecordMessage('Error', e.toString().replaceFirst('Exception: ', ''), isError: true);
+      return false;
+    } finally {
+      if (mounted) setState(() => _personalRecordBusyIds.remove(record.id));
+    }
+  }
+
+  Future<bool> _deletePersonalRecord(PersonalRecord record, int index) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete record?'),
+        content: Text('Remove "${record.liftName}" from your personal records?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return false;
+
+    setState(() => _personalRecordBusyIds.add(record.id));
+    try {
+      final raw = await _profileRepo.deletePersonalRecordRepo(record.id);
+      if (raw is! Map<String, dynamic> || raw['success'] != true) {
+        final msg = raw is Map ? raw['message']?.toString() : null;
+        throw Exception(msg ?? 'Could not delete personal record');
+      }
+      if (!mounted) return false;
+      setState(() {
+        if (index >= 0 && index < _personalRecords.length && _personalRecords[index].id == record.id) {
+          _personalRecords.removeAt(index);
+        } else {
+          _personalRecords.removeWhere((r) => r.id == record.id);
+        }
+      });
+      _showPersonalRecordMessage('Success', raw['message']?.toString() ?? 'Personal record deleted successfully');
+      return true;
+    } catch (e) {
+      _showPersonalRecordMessage('Error', e.toString().replaceFirst('Exception: ', ''), isError: true);
+      return false;
+    } finally {
+      if (mounted) setState(() => _personalRecordBusyIds.remove(record.id));
+    }
   }
 
   String _personalRecordDateIso(DateTime date) {
     return DateTime.utc(date.year, date.month, date.day, 10, 30).toIso8601String();
   }
 
-  Future<bool> _submitPersonalRecord({required String liftName, required String valueText, required String unit, required DateTime date, required bool displayPublicly}) async {
+  Future<bool> _submitPersonalRecord({
+    required String liftName,
+    required String valueText,
+    required String unit,
+    required DateTime date,
+    required bool displayPublicly,
+    PersonalRecord? existingRecord,
+  }) async {
+    if (existingRecord != null) {
+      return _updatePersonalRecordOnServer(record: existingRecord, name: liftName, valueText: valueText, unit: unit, date: date, isPublic: displayPublicly);
+    }
+
     final parsedValue = num.tryParse(valueText.trim());
     if (parsedValue == null) {
-      Get.snackbar('Error', 'Please enter a valid numeric value', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
+      _showPersonalRecordMessage('Error', 'Please enter a valid numeric value', isError: true);
       return false;
     }
 
     try {
       final raw = await _profileRepo.addPersonalRecordRepo(name: liftName, value: parsedValue, unit: unit, date: _personalRecordDateIso(date), isPublic: displayPublicly);
-
-      if (raw is! Map<String, dynamic> || raw['success'] != true) {
-        final msg = raw is Map ? raw['message']?.toString() : null;
-        throw Exception(msg ?? 'Could not add personal record');
-      }
-
-      final data = raw['data'];
-      if (data is! Map || data['personalRecord'] is! Map) {
-        throw Exception('Invalid response from server');
-      }
-
-      final record = PersonalRecord.fromApi(Map<String, dynamic>.from(data['personalRecord'] as Map));
-      if (!mounted) return false;
+      final record = _personalRecordFromApiResponse(raw, fallbackMessage: 'Could not add personal record');
+      if (record == null || !mounted) return false;
       setState(() => _personalRecords = [..._personalRecords, record]);
-      Get.snackbar(
-        'Success',
-        raw['message']?.toString() ?? 'Personal record added successfully',
-        backgroundColor: _kProfileForestGreen,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      _showPersonalRecordMessage('Success', raw['message']?.toString() ?? 'Personal record added successfully');
       return true;
     } catch (e) {
-      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
+      _showPersonalRecordMessage('Error', e.toString().replaceFirst('Exception: ', ''), isError: true);
       return false;
     }
   }
 
-  void _showAddRecordDialog() {
-    final liftNameController = TextEditingController();
-    final valueController = TextEditingController();
-    final unitController = TextEditingController(text: 'kg');
-    DateTime selectedDate = DateTime.now();
-    bool displayPublicly = true;
+  void _showRecordFormDialog({PersonalRecord? record}) {
+    final liftNameController = TextEditingController(text: record?.liftName ?? '');
+    final valueController = TextEditingController(text: record?.value ?? '');
+    final unitController = TextEditingController(text: record?.unit ?? 'kg');
+    DateTime selectedDate = record?.date ?? DateTime.now();
+    bool displayPublicly = record?.displayPublicly ?? true;
     bool saving = false;
+    final isEditMode = record != null;
 
     showModalBottomSheet(
       context: context,
@@ -1626,7 +1727,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Add Record',
+                          isEditMode ? 'Edit Record' : 'Add Record',
                           style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                         ),
                         IconButton(
@@ -1795,6 +1896,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   unit: unitController.text.trim().isEmpty ? 'kg' : unitController.text.trim(),
                                   date: selectedDate,
                                   displayPublicly: displayPublicly,
+                                  existingRecord: record,
                                 );
                                 if (!context.mounted) return;
                                 if (ok) {
@@ -1811,7 +1913,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         child: saving
                             ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
-                            : Text('Add Record', style: AppTextStyles.buttonLarge.copyWith(fontWeight: FontWeight.w700)),
+                            : Text(isEditMode ? 'Save Changes' : 'Add Record', style: AppTextStyles.buttonLarge.copyWith(fontWeight: FontWeight.w700)),
                       ),
                     ),
                   ),

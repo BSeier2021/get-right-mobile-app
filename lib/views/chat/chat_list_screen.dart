@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -22,29 +24,38 @@ class _ChatListScreenState extends State<ChatListScreen> {
   bool _isInitializing = true;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  Timer? _searchDebounce;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _initializeController();
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
-  List<ConversationModel> _filterConversations(List<ConversationModel> conversations, String query) {
-    if (query.isEmpty) {
-      return conversations;
+  void _onScroll() {
+    if (!_scrollController.hasClients || _chatController == null) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      _chatController!.loadMoreConversations();
     }
-    final lowerQuery = query.toLowerCase();
-    return conversations.where((conversation) {
-      return conversation.trainerName.toLowerCase().contains(lowerQuery) ||
-          conversation.programTitle.toLowerCase().contains(lowerQuery) ||
-          (conversation.lastMessage != null && conversation.lastMessage!.message.toLowerCase().contains(lowerQuery));
-    }).toList();
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() => _searchQuery = value);
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+      _chatController?.loadConversations(page: 1, search: value);
+    });
   }
 
   Future<void> _initializeController() async {
@@ -63,7 +74,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         setState(() {
           _isInitializing = false;
         });
-        _chatController?.loadConversations();
+        _chatController?.refreshConversations();
       }
     } catch (e) {
       if (mounted) {
@@ -122,7 +133,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
           : Obx(() {
               final conversations = _chatController!.conversations;
               final isLoading = _chatController!.isLoading.value;
-              final filteredConversations = _filterConversations(conversations, _searchQuery);
+              final isLoadingMore = _chatController!.isLoadingMore.value;
 
               return Column(
                 children: [
@@ -132,11 +143,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     color: AppColors.background,
                     child: TextField(
                       controller: _searchController,
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                      },
+                      onChanged: _onSearchChanged,
                       decoration: InputDecoration(
                         hintText: 'Search conversations...',
                         hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
@@ -145,10 +152,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             ? IconButton(
                                 icon: const Icon(Icons.clear, color: AppColors.primaryGray),
                                 onPressed: () {
-                                  setState(() {
-                                    _searchController.clear();
-                                    _searchQuery = '';
-                                  });
+                                  _searchController.clear();
+                                  _onSearchChanged('');
                                 },
                               )
                             : null,
@@ -171,14 +176,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     ),
                   ),
                   // Conversations List
-                  Expanded(child: _buildConversationsList(isLoading, filteredConversations)),
+                  Expanded(child: _buildConversationsList(isLoading, isLoadingMore, conversations)),
                 ],
               );
             }),
     );
   }
 
-  Widget _buildConversationsList(bool isLoading, List<ConversationModel> conversations) {
+  Widget _buildConversationsList(bool isLoading, bool isLoadingMore, List<ConversationModel> conversations) {
     if (isLoading && conversations.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -221,11 +226,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: () => _chatController!.loadConversations(),
+      onRefresh: () => _chatController!.refreshConversations(),
       child: ListView.builder(
-        itemCount: conversations.length,
+        controller: _scrollController,
+        itemCount: conversations.length + (isLoadingMore ? 1 : 0),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemBuilder: (context, index) {
+          if (index >= conversations.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
           final conversation = conversations[index];
           final lastMessage = conversation.lastMessage;
 
@@ -241,8 +253,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               leading: CircleAvatar(
                 backgroundColor: AppColors.accent,
-                child: conversation.trainerImage != null
-                    ? Text(conversation.trainerImage!, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onAccent))
+                backgroundImage: conversation.trainerImage != null && conversation.trainerImage!.startsWith('http') ? NetworkImage(conversation.trainerImage!) : null,
+                child: conversation.trainerImage != null && conversation.trainerImage!.startsWith('http')
+                    ? null
                     : Text(
                         conversation.trainerName.isNotEmpty ? conversation.trainerName[0].toUpperCase() : 'T',
                         style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onAccent),
@@ -252,9 +265,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 2),
-                  if (lastMessage != null) ...[
+                  if (conversation.programTitle.isNotEmpty) ...[
+                    Text(
+                      conversation.programTitle,
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 2),
+                  ],
+                  if (lastMessage != null)
                     Text(
                       lastMessage.type == 'image'
                           ? '📷 Photo'
@@ -267,7 +287,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ],
                 ],
               ),
               trailing: Column(

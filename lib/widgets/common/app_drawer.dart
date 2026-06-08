@@ -5,8 +5,10 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/controllers/auth_controller.dart';
+import 'package:get_right/controllers/chat_controller.dart';
 import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/models/customer_profile_dto.dart';
+import 'package:get_right/services/api_service.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/views/library/library_screen.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
@@ -19,6 +21,8 @@ class AppDrawer extends StatefulWidget {
 }
 
 class _AppDrawerState extends State<AppDrawer> {
+  int _chatUnreadCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -28,7 +32,24 @@ class _AppDrawerState extends State<AppDrawer> {
       if (auth.customerProfile == null && !auth.customerProfileLoading) {
         auth.fetchCustomerProfile();
       }
+      _initChatUnreadCount();
     });
+  }
+
+  Future<void> _initChatUnreadCount() async {
+    try {
+      ChatController controller;
+      if (Get.isRegistered<ChatController>()) {
+        controller = Get.find<ChatController>();
+      } else {
+        final apiService = await ApiService.getInstance();
+        final storageService = await StorageService.getInstance();
+        controller = Get.put(ChatController(apiService, storageService));
+      }
+      await controller.loadUnreadCount();
+      if (!mounted) return;
+      setState(() => _chatUnreadCount = controller.totalUnreadCount.value);
+    } catch (_) {}
   }
 
   String _displayName(CustomerProfileDto? p, StorageService storage) {
@@ -143,6 +164,15 @@ class _AppDrawerState extends State<AppDrawer> {
                         Get.toNamed(AppRoutes.notifications);
                       },
                     ),
+                  ),
+                  _drawerItem(
+                    fallbackIcon: Icons.chat_bubble_outline_rounded,
+                    title: 'Chat',
+                    badgeCount: _chatUnreadCount,
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed(AppRoutes.chatList)?.then((_) => _initChatUnreadCount());
+                    },
                   ),
                   _drawerItem(
                     fallbackIcon: Icons.bookmark_added_outlined,
@@ -277,7 +307,7 @@ class _AppDrawerState extends State<AppDrawer> {
     );
   }
 
-  Widget _drawerItem({String? asset, required IconData fallbackIcon, required String title, required VoidCallback onTap}) {
+  Widget _drawerItem({String? asset, required IconData fallbackIcon, required String title, required VoidCallback onTap, int badgeCount = 0}) {
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -287,15 +317,35 @@ class _AppDrawerState extends State<AppDrawer> {
             SizedBox(
               width: 24,
               height: 24,
-              child: asset != null
-                  ? Image.asset(
-                      asset,
-                      width: 20,
-                      height: 20,
-                      color: AppColors.accent,
-                      errorBuilder: (c, e, s) => Icon(fallbackIcon, color: AppColors.accent, size: 22),
-                    )
-                  : Icon(fallbackIcon, color: AppColors.accent, size: 24),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  asset != null
+                      ? Image.asset(
+                          asset,
+                          width: 20,
+                          height: 20,
+                          color: AppColors.accent,
+                          errorBuilder: (c, e, s) => Icon(fallbackIcon, color: AppColors.accent, size: 22),
+                        )
+                      : Icon(fallbackIcon, color: AppColors.accent, size: 24),
+                  if (badgeCount > 0)
+                    Positioned(
+                      right: -8,
+                      top: -6,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                        constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                        child: Text(
+                          badgeCount > 99 ? '99+' : '$badgeCount',
+                          style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold, height: 1.0),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(

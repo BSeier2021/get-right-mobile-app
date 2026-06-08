@@ -29,13 +29,52 @@ class TrainerProfileRepository {
     required String date,
     required bool isPublic,
   }) async {
-    return _network.post(AppUrl.userPersonalRecords, {
+    return _network.post(AppUrl.userPersonalRecords, _personalRecordBody(
+      name: name,
+      value: value,
+      unit: unit,
+      date: date,
+      isPublic: isPublic,
+    ));
+  }
+
+  /// `PUT /user/profiles/personal-records/:recordId` → `data.personalRecord`.
+  Future<dynamic> updatePersonalRecordRepo({
+    required String recordId,
+    required String name,
+    required num value,
+    required String unit,
+    required String date,
+    required bool isPublic,
+  }) async {
+    return _network.put(AppUrl.userPersonalRecordById(recordId), _personalRecordBody(
+      name: name,
+      value: value,
+      unit: unit,
+      date: date,
+      isPublic: isPublic,
+    ));
+  }
+
+  /// `DELETE /user/profiles/personal-records/:recordId` → `data.deleted`.
+  Future<dynamic> deletePersonalRecordRepo(String recordId) async {
+    return _network.delete(AppUrl.userPersonalRecordById(recordId));
+  }
+
+  Map<String, dynamic> _personalRecordBody({
+    required String name,
+    required num value,
+    required String unit,
+    required String date,
+    required bool isPublic,
+  }) {
+    return {
       'name': name.trim(),
       'value': value,
       'unit': unit.trim(),
       'date': date,
       'isPublic': isPublic,
-    });
+    };
   }
 
   /// `POST /user/follow/:userId` → `data.isFollowing` (true).

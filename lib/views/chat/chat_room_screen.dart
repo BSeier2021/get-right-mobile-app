@@ -26,7 +26,7 @@ class ChatRoomScreen extends StatefulWidget {
 class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final FlutterSoundRecorder _audioRecorder = FlutterSoundRecorder();
+  FlutterSoundRecorder? _audioRecorder;
   bool _isRecording = false;
   String? _recordingPath;
   Timer? _recordingTimer;
@@ -43,8 +43,25 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onMessagesScroll);
     _initializeController();
-    _initializeRecorder();
+  }
+
+  void _onMessagesScroll() {
+    if (!_scrollController.hasClients || _chatController == null) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      _chatController!.loadMoreMessages();
+    }
+  }
+
+  Future<FlutterSoundRecorder> _recorder() async {
+    _audioRecorder ??= FlutterSoundRecorder();
+    if (!_isRecorderInitialized) {
+      await _audioRecorder!.openRecorder();
+      _isRecorderInitialized = true;
+    }
+    return _audioRecorder!;
   }
 
   Future<void> _initializeController() async {
@@ -59,49 +76,61 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         _chatController = Get.put(ChatController(apiService, storageService));
       }
 
+      if (!mounted) return;
+      setState(() {});
+      await _loadChatData();
+    } catch (e) {
       if (mounted) {
-        _loadChatData();
+        Get.snackbar('Chat', e.toString().replaceFirst('Exception: ', ''), snackPosition: SnackPosition.BOTTOM);
       }
-    } catch (e) {
-      // Handle error
     }
   }
 
-  Future<void> _initializeRecorder() async {
-    try {
-      await _audioRecorder.openRecorder();
-      setState(() {
-        _isRecorderInitialized = true;
-      });
-    } catch (e) {
-      // Silent fail - recorder will be initialized when needed
-    }
-  }
-
-  void _loadChatData() {
+  Future<void> _loadChatData() async {
     final args = Get.arguments;
     if (args is Map) {
-      _conversationId = args['conversationId'];
-      _trainerId = args['trainerId'];
-      _trainerName = args['trainerName'];
-      _programId = args['programId'];
-      _programTitle = args['programTitle'];
+      final rawConversationId = args['conversationId']?.toString().trim();
+      _conversationId = (rawConversationId != null && rawConversationId.isNotEmpty) ? rawConversationId : null;
+      _trainerId = args['trainerId']?.toString().trim();
+      _trainerName = args['trainerName']?.toString();
+      _programId = args['programId']?.toString().trim();
+      _programTitle = args['programTitle']?.toString();
 
       if (_conversationId != null && _chatController != null) {
-        _chatController!.loadMessages(_conversationId!, trainerId: _trainerId, programId: _programId);
+        await _chatController!.loadMessages(_conversationId!, trainerId: _trainerId, programId: _programId);
       } else if (_trainerId != null && _programId != null) {
-        // Start new conversation
-        _startNewConversation();
+        await _startNewConversation();
+      } else if (_trainerId != null && _trainerId!.isNotEmpty) {
+        await _startConversationWithTrainer();
+      }
+
+      final initialMessage = args['initialMessage']?.toString().trim();
+      if (initialMessage != null && initialMessage.isNotEmpty && _chatController != null) {
+        await _chatController!.sendMessage(initialMessage);
       }
     } else if (args is EnrolledProgramModel) {
-      // Started from enrolled program
       final program = args;
       _trainerId = program.trainerId;
       _trainerName = program.trainerName;
       _programId = program.programId;
       _programTitle = program.programTitle;
-      _startNewConversation();
+      await _startNewConversation();
     }
+
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _startConversationWithTrainer() async {
+    if (_trainerId == null || _chatController == null) return;
+
+    final conversation = await _chatController!.startConversationWithUser(_trainerId!);
+    if (conversation == null || _chatController == null) return;
+
+    _conversationId = conversation.id;
+    _trainerName ??= conversation.trainerName;
+    _programId ??= conversation.programId.isNotEmpty ? conversation.programId : null;
+    _programTitle ??= conversation.programTitle.isNotEmpty ? conversation.programTitle : null;
+    await _chatController!.loadMessages(conversation.id, trainerId: _trainerId, programId: _programId);
   }
 
   Future<void> _startNewConversation() async {
@@ -125,8 +154,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
-    if (_isRecorderInitialized) {
-      _audioRecorder.closeRecorder();
+    if (_isRecorderInitialized && _audioRecorder != null) {
+      _audioRecorder!.closeRecorder();
+      _audioRecorder = null;
     }
     _recordingTimer?.cancel();
     _chatController?.stopPolling();
@@ -177,16 +207,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         return;
       }
 
-      // Initialize recorder if not already initialized
-      if (!_isRecorderInitialized) {
-        await _audioRecorder.openRecorder();
-        _isRecorderInitialized = true;
-      }
-
+      final recorder = await _recorder();
       final directory = await getApplicationDocumentsDirectory();
       _recordingPath = '${directory.path}/audio_${DateTime.now().millisecondsSinceEpoch}.aac';
 
-      await _audioRecorder.startRecorder(toFile: _recordingPath, codec: Codec.aacADTS);
+      await recorder.startRecorder(toFile: _recordingPath, codec: Codec.aacADTS);
 
       setState(() {
         _isRecording = true;
@@ -206,9 +231,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Future<void> _stopRecording(bool send) async {
     _recordingTimer?.cancel();
 
-    if (_isRecording && _recordingPath != null) {
+    if (_isRecording && _recordingPath != null && _audioRecorder != null) {
       final path = _recordingPath!;
-      await _audioRecorder.stopRecorder();
+      await _audioRecorder!.stopRecorder();
 
       setState(() {
         _isRecording = false;
@@ -516,7 +541,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Obx(() {
               final messages = _chatController!.messages;
-              final isLoading = _chatController!.isLoading.value;
+              final isLoading = _chatController!.isLoadingMessages.value;
+              final isLoadingMore = _chatController!.isLoadingMoreMessages.value;
               final isSending = _chatController!.isSending.value;
 
               return Column(
@@ -542,8 +568,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                             reverse: true,
                             controller: _scrollController,
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            itemCount: messages.length,
+                            itemCount: messages.length + (isLoadingMore ? 1 : 0),
                             itemBuilder: (context, index) {
+                              if (isLoadingMore && index == messages.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              }
                               final message = messages[index];
                               final isCurrentUser = message.senderId == _chatController!.currentUserId;
                               return ChatMessageBubble(message: message, isCurrentUser: isCurrentUser, currentUserId: _chatController!.currentUserId);

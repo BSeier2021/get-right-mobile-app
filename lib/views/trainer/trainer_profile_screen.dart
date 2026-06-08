@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/chat_controller.dart';
 import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/repo/blocks_repo.dart';
 import 'package:get_right/repo/trainer_profile_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/services/api_service.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -42,6 +44,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   bool _isFollowedByMe = false;
   bool _followActionLoading = false;
   bool _blockInFlight = false;
+  bool _messageLoading = false;
   bool _bioExpanded = false;
 
   static const int _bioCollapsedMaxLines = 2;
@@ -936,10 +939,47 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     }
   }
 
+  Future<void> _openChatWithTrainer({String? trainerId, String? trainerName, String? initialMessage}) async {
+    final id = (trainerId ?? _mongoUserId ?? trainer['id']?.toString() ?? '').trim();
+    if (id.isEmpty || _messageLoading) return;
+
+    setState(() => _messageLoading = true);
+    try {
+      ChatController controller;
+      if (Get.isRegistered<ChatController>()) {
+        controller = Get.find<ChatController>();
+      } else {
+        final apiService = await ApiService.getInstance();
+        final storageService = await StorageService.getInstance();
+        controller = Get.put(ChatController(apiService, storageService));
+      }
+
+      final conversation = await controller.startConversationWithUser(id);
+      if (!mounted || conversation == null) return;
+
+      final resolvedName = (trainerName ?? conversation.trainerName).trim();
+      await Get.toNamed(
+        AppRoutes.chatRoom,
+        arguments: <String, dynamic>{
+          'conversationId': conversation.id,
+          'trainerId': conversation.trainerId.isNotEmpty ? conversation.trainerId : id,
+          'trainerName': resolvedName.isNotEmpty ? resolvedName : _displayName,
+          if (conversation.programId.isNotEmpty) 'programId': conversation.programId,
+          if (conversation.programTitle.isNotEmpty) 'programTitle': conversation.programTitle,
+          if (initialMessage != null && initialMessage.trim().isNotEmpty) 'initialMessage': initialMessage.trim(),
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        Get.snackbar('Chat', e.toString().replaceFirst('Exception: ', ''), snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: AppColors.onError);
+      }
+    } finally {
+      if (mounted) setState(() => _messageLoading = false);
+    }
+  }
+
   void _onMessagePressed() {
-    final id = _mongoUserId ?? trainer['id']?.toString().trim();
-    if (id == null || id.isEmpty) return;
-    Get.toNamed(AppRoutes.chatRoom, arguments: <String, dynamic>{'trainerId': id, 'trainerName': _displayName});
+    _openChatWithTrainer(trainerName: _displayName);
   }
 
   Widget _buildProfileOverflowMenu() {
@@ -1190,7 +1230,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     return SizedBox(
       width: buttonWidth,
       child: TextButton.icon(
-        onPressed: _onMessagePressed,
+        onPressed: _messageLoading ? null : _onMessagePressed,
         style: TextButton.styleFrom(
           backgroundColor: AppColors.surface,
           foregroundColor: AppColors.accent,
@@ -1202,7 +1242,13 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             side: const BorderSide(color: AppColors.accent),
           ),
         ),
-        icon: Icon(Icons.chat_bubble_outline_rounded, size: compact ? 16 : 18, color: AppColors.accent),
+        icon: _messageLoading
+            ? SizedBox(
+                width: compact ? 16 : 18,
+                height: compact ? 16 : 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
+              )
+            : Icon(Icons.chat_bubble_outline_rounded, size: compact ? 16 : 18, color: AppColors.accent),
         label: Text(
           'Message',
           style: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w700, color: AppColors.accent),
@@ -1762,9 +1808,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                       boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 6))],
                     ),
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        Get.toNamed(AppRoutes.chatRoom, arguments: {'trainerId': trainer['id'], 'trainerName': trainer['name']});
-                      },
+                      onPressed: _messageLoading ? null : () => _openChatWithTrainer(trainerId: trainer['id']?.toString(), trainerName: trainer['name']?.toString()),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
@@ -2001,16 +2045,13 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                           child: Material(
                             color: Colors.transparent,
                             child: InkWell(
-                              onTap: () {
-                                Get.toNamed(
-                                  AppRoutes.chatRoom,
-                                  arguments: {
-                                    'trainerId': trainer['id'],
-                                    'trainerName': trainer['name'],
-                                    'initialMessage': 'Hi! I\'m interested in booking an in-person training session. Can you tell me more about availability at $_displayAddress?',
-                                  },
-                                );
-                              },
+                              onTap: _messageLoading
+                                  ? null
+                                  : () => _openChatWithTrainer(
+                                      trainerId: trainer['id']?.toString(),
+                                      trainerName: trainer['name']?.toString(),
+                                      initialMessage: 'Hi! I\'m interested in booking an in-person training session. Can you tell me more about availability at $_displayAddress?',
+                                    ),
                               borderRadius: BorderRadius.circular(12),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),

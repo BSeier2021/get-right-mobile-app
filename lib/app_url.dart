@@ -46,6 +46,9 @@ class AppUrl {
   /// `POST /user/profiles/personal-records` — body: `name`, `value`, `unit`, `date`, `isPublic`.
   static String get userPersonalRecords => '$baseUrl/user/profiles/personal-records';
 
+  /// `PUT`/`DELETE /user/profiles/personal-records/:recordId`.
+  static String userPersonalRecordById(String recordId) => '$userPersonalRecords/${Uri.encodeComponent(recordId.trim())}';
+
   /// `POST /user/follow/:userId` — follow user (Bearer). Response: `data.isFollowing`.
   /// `DELETE /user/follow/:userId` — unfollow (Bearer). Response: `data.isFollowing`.
   static String userFollow(String userId) => '$baseUrl/user/follow/${Uri.encodeComponent(userId.trim())}';
@@ -289,4 +292,17 @@ class AppUrl {
 
   /// `GET /customer/planned-routes/:routeId` → `data.route`.
   static String customerPlannedRouteById(String routeId) => '$baseUrl/customer/planned-routes/${Uri.encodeComponent(routeId.trim())}';
+
+  /// `GET /user/chat/conversations` — query: `page`, `limit`, optional `search`.
+  static String get chatConversations => '$baseUrl/user/chat/conversations';
+
+  /// `GET /user/chat/conversations/unread-count` — total unread messages.
+  static String get chatUnreadCount => '$chatConversations/unread-count';
+
+  /// `GET /user/chat/conversations/with/:otherUserId` — get or create direct conversation.
+  static String chatConversationWith(String otherUserId) => '$chatConversations/with/${Uri.encodeComponent(otherUserId.trim())}';
+
+  /// `GET /user/chat/conversations/:conversationId/messages` — query: `page`, `limit`.
+  static String chatConversationMessages(String conversationId) =>
+      '$chatConversations/${Uri.encodeComponent(conversationId.trim())}/messages';
 }
