@@ -126,6 +126,25 @@ class PersonalRecord {
       displayPublicly: displayPublicly ?? this.displayPublicly,
     );
   }
+
+  factory PersonalRecord.fromApi(Map<String, dynamic> json) {
+    final id = (json['_id'] ?? json['id'] ?? '').toString();
+    final valueRaw = json['value'];
+    final valueStr = valueRaw is num ? (valueRaw == valueRaw.roundToDouble() ? valueRaw.round().toString() : valueRaw.toString()) : (valueRaw?.toString() ?? '');
+    final dateStr = json['date']?.toString();
+    var date = DateTime.now();
+    if (dateStr != null && dateStr.isNotEmpty) {
+      date = DateTime.tryParse(dateStr)?.toLocal() ?? date;
+    }
+    return PersonalRecord(
+      id: id,
+      liftName: (json['name'] ?? '').toString(),
+      value: valueStr,
+      unit: (json['unit'] ?? '').toString(),
+      date: date,
+      displayPublicly: json['isPublic'] == true,
+    );
+  }
 }
 
 /// Profile screen - Social media style profile
@@ -176,10 +195,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _bootstrapIfNeeded();
       }
     });
-    _personalRecords = [
-      PersonalRecord(id: '1', liftName: 'Bench Press', value: '315', unit: 'lbs', date: DateTime(2024, 12, 12), displayPublicly: true),
-      PersonalRecord(id: '2', liftName: 'Squat', value: '405', unit: 'lbs', date: DateTime(2024, 12, 12), displayPublicly: true),
-    ];
   }
 
   void _bootstrapIfNeeded() {
@@ -594,16 +609,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildProfileStatColumn(
                 hasStats ? _formatProfileStat(_followersCount) : '…',
                 'Followers',
-                onTap: hasStats
-                    ? () => Get.toNamed(AppRoutes.followers, arguments: <String, dynamic>{'userId': userId!, 'profileName': displayName})
-                    : null,
+                onTap: hasStats ? () => Get.toNamed(AppRoutes.followers, arguments: <String, dynamic>{'userId': userId!, 'profileName': displayName}) : null,
               ),
               _buildProfileStatColumn(
                 hasStats ? _formatProfileStat(_followingCount) : '…',
                 'Following',
-                onTap: hasStats
-                    ? () => Get.toNamed(AppRoutes.following, arguments: <String, dynamic>{'userId': userId!, 'profileName': displayName})
-                    : null,
+                onTap: hasStats ? () => Get.toNamed(AppRoutes.following, arguments: <String, dynamic>{'userId': userId!, 'profileName': displayName}) : null,
               ),
             ],
           ),
@@ -673,12 +684,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 3))],
                         border: Border.all(color: _kProfileForestGreen.withOpacity(0.08)),
                       ),
-                      child: Center(
-                        child: Text(
-                          'No personal records yet.\nTap edit to add your records.',
-                          style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.55)),
-                          textAlign: TextAlign.center,
-                        ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'No personal records yet.',
+                            style: AppTextStyles.bodyMedium.copyWith(color: _kProfileForestGreen.withOpacity(0.55)),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: _showAddRecordDialog,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _kProfileForestGreen,
+                              side: BorderSide(color: _kProfileForestGreen.withOpacity(0.35)),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: const Icon(Icons.add, size: 20),
+                            label: Text('Add Record', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700)),
+                          ),
+                        ],
                       ),
                     )
                   : _buildPersonalRecordsGrid(),
@@ -838,11 +863,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final u = Map<String, dynamic>.from(user);
     final profile = u['profile'] is Map ? Map<String, dynamic>.from(u['profile'] as Map) : <String, dynamic>{};
     final contact = extractProfileContactFields(profile: profile, user: u);
+    final recordsRaw = u['personalRecords'];
+    final records = recordsRaw is List
+        ? recordsRaw.whereType<Map>().map((e) => PersonalRecord.fromApi(Map<String, dynamic>.from(e))).where((r) => r.id.isNotEmpty && r.liftName.isNotEmpty).toList()
+        : <PersonalRecord>[];
     setState(() {
       _postCount = _statIntFrom(u['postCount']);
       _followersCount = _statIntFrom(u['followersCount']);
       _followingCount = _statIntFrom(u['followingCount']);
       _profileContact = contact;
+      _personalRecords = records;
     });
   }
 
@@ -1433,15 +1463,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 24),
                 // Records list
                 Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    itemCount: _personalRecords.length,
-                    itemBuilder: (context, index) {
-                      final record = _personalRecords[index];
-                      return _buildRecordListItem(record, index, setDialogState);
-                    },
-                  ),
+                  child: _personalRecords.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          child: Text(
+                            'No records yet. Add your first personal record below.',
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          itemCount: _personalRecords.length,
+                          itemBuilder: (context, index) {
+                            final record = _personalRecords[index];
+                            return _buildRecordListItem(record);
+                          },
+                        ),
                 ),
                 const SizedBox(height: 16),
                 // Add button
@@ -1474,7 +1513,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildRecordListItem(PersonalRecord record, int index, StateSetter setDialogState) {
+  Widget _buildRecordListItem(PersonalRecord record) {
     final dateFormat = DateFormat('MMM d, yyyy');
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1484,77 +1523,78 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      record.liftName,
-                      style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text('${record.value} ${record.unit} • ${dateFormat.format(record.date)}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-                  ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  record.liftName,
+                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                 ),
-              ),
-              Row(
-                children: [
-                  // Display publicly toggle
-                  Switch(
-                    value: record.displayPublicly,
-                    onChanged: (value) {
-                      setState(() {
-                        _personalRecords[index] = record.copyWith(displayPublicly: value);
-                      });
-                      setDialogState(() {}); // Trigger dialog rebuild
-                    },
-                    activeColor: AppColors.white,
-                  ),
-                  const SizedBox(width: 8),
-                  // Edit button
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: AppColors.accent, size: 20),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _showAddRecordDialog(record: record, index: index);
-                    },
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  // Delete button
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: AppColors.error, size: 20),
-                    onPressed: () {
-                      setState(() {
-                        _personalRecords.removeAt(index);
-                      });
-                      setDialogState(() {}); // Trigger dialog rebuild
-                    },
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  '${record.displayPublicly ? '${record.value} ${record.unit}' : 'Hidden'} • ${dateFormat.format(record.date)}',
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                ),
+              ],
+            ),
           ),
+          if (!record.displayPublicly) Icon(Icons.visibility_off_outlined, color: AppColors.primaryGray.withOpacity(0.7), size: 20),
         ],
       ),
     );
   }
 
-  void _showAddRecordDialog({PersonalRecord? record, int? index}) {
-    final liftNameController = TextEditingController(text: record?.liftName ?? '');
-    final valueController = TextEditingController(text: record?.value ?? '');
-    final unitController = TextEditingController(text: record?.unit ?? 'lbs');
-    DateTime selectedDate = record?.date ?? DateTime.now();
-    bool displayPublicly = record?.displayPublicly ?? true;
-    final isEditMode = record != null;
+  String _personalRecordDateIso(DateTime date) {
+    return DateTime.utc(date.year, date.month, date.day, 10, 30).toIso8601String();
+  }
+
+  Future<bool> _submitPersonalRecord({required String liftName, required String valueText, required String unit, required DateTime date, required bool displayPublicly}) async {
+    final parsedValue = num.tryParse(valueText.trim());
+    if (parsedValue == null) {
+      Get.snackbar('Error', 'Please enter a valid numeric value', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+
+    try {
+      final raw = await _profileRepo.addPersonalRecordRepo(name: liftName, value: parsedValue, unit: unit, date: _personalRecordDateIso(date), isPublic: displayPublicly);
+
+      if (raw is! Map<String, dynamic> || raw['success'] != true) {
+        final msg = raw is Map ? raw['message']?.toString() : null;
+        throw Exception(msg ?? 'Could not add personal record');
+      }
+
+      final data = raw['data'];
+      if (data is! Map || data['personalRecord'] is! Map) {
+        throw Exception('Invalid response from server');
+      }
+
+      final record = PersonalRecord.fromApi(Map<String, dynamic>.from(data['personalRecord'] as Map));
+      if (!mounted) return false;
+      setState(() => _personalRecords = [..._personalRecords, record]);
+      Get.snackbar(
+        'Success',
+        raw['message']?.toString() ?? 'Personal record added successfully',
+        backgroundColor: _kProfileForestGreen,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return true;
+    } catch (e) {
+      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+  }
+
+  void _showAddRecordDialog() {
+    final liftNameController = TextEditingController();
+    final valueController = TextEditingController();
+    final unitController = TextEditingController(text: 'kg');
+    DateTime selectedDate = DateTime.now();
+    bool displayPublicly = true;
+    bool saving = false;
 
     showModalBottomSheet(
       context: context,
@@ -1586,7 +1626,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          isEditMode ? 'Edit Record' : 'Add Record',
+                          'Add Record',
                           style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                         ),
                         IconButton(
@@ -1735,41 +1775,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          if (liftNameController.text.trim().isEmpty || valueController.text.trim().isEmpty) {
-                            Get.snackbar(
-                              'Error',
-                              'Please fill in all required fields',
-                              backgroundColor: AppColors.error,
-                              colorText: Colors.white,
-                              snackPosition: SnackPosition.BOTTOM,
-                            );
-                            return;
-                          }
-                          setState(() {
-                            final newRecord = PersonalRecord(
-                              id: record?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-                              liftName: liftNameController.text.trim(),
-                              value: valueController.text.trim(),
-                              unit: unitController.text.trim(),
-                              date: selectedDate,
-                              displayPublicly: displayPublicly,
-                            );
-                            if (isEditMode && index != null) {
-                              _personalRecords[index] = newRecord;
-                            } else {
-                              _personalRecords.add(newRecord);
-                            }
-                          });
-                          Navigator.pop(context); // Close add/edit dialog
-                        },
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                if (liftNameController.text.trim().isEmpty || valueController.text.trim().isEmpty) {
+                                  Get.snackbar(
+                                    'Error',
+                                    'Please fill in all required fields',
+                                    backgroundColor: AppColors.error,
+                                    colorText: Colors.white,
+                                    snackPosition: SnackPosition.BOTTOM,
+                                  );
+                                  return;
+                                }
+                                setDialogState(() => saving = true);
+                                final ok = await _submitPersonalRecord(
+                                  liftName: liftNameController.text.trim(),
+                                  valueText: valueController.text.trim(),
+                                  unit: unitController.text.trim().isEmpty ? 'kg' : unitController.text.trim(),
+                                  date: selectedDate,
+                                  displayPublicly: displayPublicly,
+                                );
+                                if (!context.mounted) return;
+                                if (ok) {
+                                  Navigator.pop(context);
+                                } else {
+                                  setDialogState(() => saving = false);
+                                }
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accent,
                           foregroundColor: AppColors.onAccent,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: Text(isEditMode ? 'Save Changes' : 'Add Record', style: AppTextStyles.buttonLarge.copyWith(fontWeight: FontWeight.w700)),
+                        child: saving
+                            ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
+                            : Text('Add Record', style: AppTextStyles.buttonLarge.copyWith(fontWeight: FontWeight.w700)),
                       ),
                     ),
                   ),

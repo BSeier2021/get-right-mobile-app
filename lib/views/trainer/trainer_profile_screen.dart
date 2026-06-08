@@ -556,13 +556,15 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   String? _socialPlatformAsset(String platform) {
     switch (_normalizeSocialPlatformKey(platform)) {
       case 'facebook':
-        return 'assets/images/facebook-logo-facebook-icon-transparent-free-png.webp';
+        return 'assets/images/facebook1.png';
       case 'x':
-        return 'assets/images/new-twitter-x-logo-twitter-icon-x-social-media-icon-free-png.webp';
+        return 'assets/images/X.png';
       case 'tiktok':
-        return 'assets/images/tiktok-icon-free-png.webp';
+        return 'assets/images/TIKTOK.png';
       case 'instagram':
-        return 'assets/images/images.jfif';
+        return 'assets/images/instagram.png';
+      case 'snapchat':
+        return 'assets/images/snapchat.png';
       default:
         return null;
     }
@@ -625,7 +627,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
       ),
-      child: Wrap(spacing: 8, runSpacing: 8, children: _socialAccounts.entries.map((e) => _buildSocialLinkChip(e.key, e.value)).toList()),
+      child: Wrap(spacing: 15, runSpacing: 25, children: _socialAccounts.entries.map((e) => _buildSocialLinkChip(e.key, e.value)).toList()),
     );
   }
 

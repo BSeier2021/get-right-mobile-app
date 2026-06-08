@@ -43,6 +43,9 @@ class AppUrl {
   /// `GET /user/profiles/:userId/bundles` — paginated `data.bundles.bundles[]` (mirror of programs shape).
   static String profileUserBundles(String userId) => '$baseUrl/user/profiles/${Uri.encodeComponent(userId.trim())}/bundles';
 
+  /// `POST /user/profiles/personal-records` — body: `name`, `value`, `unit`, `date`, `isPublic`.
+  static String get userPersonalRecords => '$baseUrl/user/profiles/personal-records';
+
   /// `POST /user/follow/:userId` — follow user (Bearer). Response: `data.isFollowing`.
   /// `DELETE /user/follow/:userId` — unfollow (Bearer). Response: `data.isFollowing`.
   static String userFollow(String userId) => '$baseUrl/user/follow/${Uri.encodeComponent(userId.trim())}';

@@ -21,6 +21,23 @@ class TrainerProfileRepository {
     return _network.get(AppUrl.profileUserBundles(userId), params: {'page': page, 'limit': limit});
   }
 
+  /// `POST /user/profiles/personal-records` → `data.personalRecord`.
+  Future<dynamic> addPersonalRecordRepo({
+    required String name,
+    required num value,
+    required String unit,
+    required String date,
+    required bool isPublic,
+  }) async {
+    return _network.post(AppUrl.userPersonalRecords, {
+      'name': name.trim(),
+      'value': value,
+      'unit': unit.trim(),
+      'date': date,
+      'isPublic': isPublic,
+    });
+  }
+
   /// `POST /user/follow/:userId` → `data.isFollowing` (true).
   Future<bool> followUserRepo(String userId) async {
     final raw = await _network.post(AppUrl.userFollow(userId), <String, dynamic>{});

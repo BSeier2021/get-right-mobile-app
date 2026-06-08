@@ -259,10 +259,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 title,
                 style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
               ),
-              if (description.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray)),
-              ],
+              if (description.isNotEmpty) ...[const SizedBox(height: 2), Text(description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray))],
             ],
           ),
         ),
@@ -271,14 +268,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   /// Modern navigation item
-  Widget _buildNavItem({
-    required String icon,
-    required String activeIcon,
-    required String label,
-    required int index,
-    required bool isSelected,
-    bool isCenter = false,
-  }) {
+  Widget _buildNavItem({required String icon, required String activeIcon, required String label, required int index, required bool isSelected, bool isCenter = false}) {
     const greenAccent = Color(0xFF214E31);
     const blackPrimary = Color(0xFF000000);
     const textSecondary = Color(0xFF404040);
@@ -336,12 +326,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   return ScaleTransition(scale: animation, child: child);
                                 },
                                 child: isLocked
-                                    ? Icon(
-                                        Icons.lock,
-                                        key: ValueKey('$index-$isSelected-$isLocked-lock'),
-                                        color: isCenter ? Colors.white : greenAccent,
-                                        size: isCenter ? 24 : 20,
-                                      )
+                                    ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : greenAccent, size: isCenter ? 24 : 20)
                                     : _buildNavGraphic(
                                         activeIcon,
                                         isCenter: isCenter,
@@ -351,19 +336,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       ),
                               )
                             : isLocked
-                            ? Icon(
-                                Icons.lock,
-                                key: ValueKey('$index-$isSelected-$isLocked-lock'),
-                                color: isCenter ? Colors.white : textSecondary,
-                                size: isCenter ? 24 : 20,
-                              )
-                            : _buildNavGraphic(
-                                icon,
-                                isCenter: isCenter,
-                                isSelected: false,
-                                selectedColor: isCenter ? Colors.white : greenAccent,
-                                unselectedColor: textSecondary,
-                              ),
+                            ? Icon(Icons.lock, key: ValueKey('$index-$isSelected-$isLocked-lock'), color: isCenter ? Colors.white : textSecondary, size: isCenter ? 24 : 20)
+                            : _buildNavGraphic(icon, isCenter: isCenter, isSelected: false, selectedColor: isCenter ? Colors.white : greenAccent, unselectedColor: textSecondary),
                       ),
                     ),
                   ),
@@ -396,13 +370,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final targetColor = isSelected ? selectedColor : unselectedColor;
     final size = isCenter ? 35.0 : 20.0;
     if (assetPath.toLowerCase().endsWith('.svg')) {
-      return SvgPicture.asset(
-        assetPath,
-        width: size,
-        height: size,
-        colorFilter: ColorFilter.mode(targetColor, BlendMode.srcIn),
-        key: ValueKey('svg-$assetPath-$isSelected'),
-      );
+      return SvgPicture.asset(assetPath, width: size, height: size, colorFilter: ColorFilter.mode(targetColor, BlendMode.srcIn), key: ValueKey('svg-$assetPath-$isSelected'));
     } else {
       return Image.asset(assetPath, width: size, height: size, key: ValueKey('img-$assetPath-$isSelected'));
     }
