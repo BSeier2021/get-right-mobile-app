@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -62,7 +64,7 @@ class ChatMessageBubble extends StatelessWidget {
                               color: isCurrentUser ? AppColors.onAccent.withOpacity(0.7) : AppColors.onSurface.withOpacity(0.7),
                             ),
                           ),
-                          if (isCurrentUser) ...[
+                          if (isCurrentUser && !message.isPending) ...[
                             const SizedBox(width: 4),
                             Icon(
                               message.isRead ? Icons.done_all : Icons.done,
@@ -89,25 +91,10 @@ class ChatMessageBubble extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (message.fileUrl != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  message.fileUrl!,
-                  width: 220,
-                  height: 220,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 220,
-                    height: 220,
-                    color: AppColors.primaryGray,
-                    child: const Icon(Icons.broken_image, size: 48),
-                  ),
-                ),
-              ),
-            if (message.message.isNotEmpty && message.message != '📷 Photo') ...[
-              const SizedBox(height: 8),
-              Text(message.message, style: AppTextStyles.bodyMedium.copyWith(color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface)),
+            if (message.hasMediaAttachments) _buildImageAttachments(context),
+            if (message.displayCaption.isNotEmpty) ...[
+              if (message.hasMediaAttachments) const SizedBox(height: 8),
+              Text(message.displayCaption, style: AppTextStyles.bodyMedium.copyWith(color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface)),
             ],
           ],
         );
@@ -116,21 +103,29 @@ class ChatMessageBubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (message.fileUrl != null)
-              _VideoAttachmentPreview(
-                videoUrl: message.fileUrl!,
-                thumbnailUrl: message.thumbnailUrl,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ChatVideoPlayerScreen(
+              _buildPendingWrapper(
+                child: message.isPending
+                    ? const _LocalVideoPreview()
+                    : _VideoAttachmentPreview(
                         videoUrl: message.fileUrl!,
-                        title: message.fileName ?? 'Video',
+                        thumbnailUrl: message.thumbnailUrl ??
+                            (message.displayAttachments.isNotEmpty ? message.displayAttachments.first.thumbnailUrl : null),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ChatVideoPlayerScreen(
+                                videoUrl: message.fileUrl!,
+                                title: message.fileName ?? 'Video',
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    ),
-                  );
-                },
               ),
-            if (message.message.isNotEmpty && message.message != '🎥 Video') ...[
+            if (message.displayCaption.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(message.displayCaption, style: AppTextStyles.bodyMedium.copyWith(color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface)),
+            ] else if (message.message.isNotEmpty && message.message != '🎥 Video') ...[
               const SizedBox(height: 8),
               Text(message.message, style: AppTextStyles.bodyMedium.copyWith(color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface)),
             ],
@@ -139,8 +134,159 @@ class ChatMessageBubble extends StatelessWidget {
       case 'audio':
         return ChatAudioMessage(message: message, isCurrentUser: isCurrentUser);
       default:
-        return Text(message.message, style: AppTextStyles.bodyMedium.copyWith(color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface));
+        return Text(message.displayCaption.isNotEmpty ? message.displayCaption : message.message, style: AppTextStyles.bodyMedium.copyWith(color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface));
     }
+  }
+
+  Widget _buildImageAttachments(BuildContext context) {
+    final attachments = message.displayAttachments.where((a) => a.isImage).toList();
+    if (attachments.isEmpty) return const SizedBox.shrink();
+
+    if (attachments.length == 1) {
+      return _buildPendingWrapper(
+        child: _buildImageTile(attachments.first, width: 220, height: 220),
+      );
+    }
+
+    const tileSize = 104.0;
+    const spacing = 4.0;
+    final columns = attachments.length == 2 ? 2 : 2;
+    final visible = attachments.length > 4 ? attachments.take(4).toList() : attachments;
+    final extraCount = attachments.length - visible.length;
+
+    return _buildPendingWrapper(
+      child: SizedBox(
+        width: tileSize * columns + spacing * (columns - 1),
+        child: Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (var i = 0; i < visible.length; i++)
+              Stack(
+                children: [
+                  _buildImageTile(visible[i], width: tileSize, height: tileSize),
+                  if (extraCount > 0 && i == visible.length - 1)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.55),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '+$extraCount',
+                          style: AppTextStyles.titleMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPendingWrapper({required Widget child}) {
+    if (!message.isPending) return child;
+
+    final count = message.displayAttachments.length;
+    final label = count > 1 ? 'Sending $count photos...' : 'Sending...';
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: ColoredBox(
+              color: Colors.black.withOpacity(0.45),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: isCurrentUser ? AppColors.onAccent : AppColors.accent,
+                      ),
+                    ),
+                    if (count > 1) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageTile(ChatAttachment attachment, {required double width, required double height}) {
+    final borderRadius = BorderRadius.circular(8);
+
+    Widget imageWidget;
+    if (attachment.isLocal) {
+      imageWidget = Image.file(
+        File(attachment.url),
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _brokenImagePlaceholder(width, height),
+      );
+    } else {
+      imageWidget = Image.network(
+        attachment.url,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: width,
+            height: height,
+            color: AppColors.primaryGray.withOpacity(0.35),
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: isCurrentUser ? AppColors.onAccent : AppColors.accent,
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (_, __, ___) => _brokenImagePlaceholder(width, height),
+      );
+    }
+
+    return ClipRRect(borderRadius: borderRadius, child: imageWidget);
+  }
+
+  Widget _brokenImagePlaceholder(double width, double height) {
+    return Container(
+      width: width,
+      height: height,
+      color: AppColors.primaryGray,
+      child: const Icon(Icons.broken_image, size: 48),
+    );
   }
 
   String _formatTimestamp(DateTime timestamp) {
@@ -177,6 +323,34 @@ class _SenderAvatar extends StatelessWidget {
       child: hasImage
           ? null
           : Text(initial, style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700)),
+    );
+  }
+}
+
+class _LocalVideoPreview extends StatelessWidget {
+  const _LocalVideoPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        width: 220,
+        height: 160,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(color: AppColors.primaryGray),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: Colors.black.withOpacity(0.55), shape: BoxShape.circle),
+                child: const Icon(Icons.videocam, color: Colors.white, size: 36),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

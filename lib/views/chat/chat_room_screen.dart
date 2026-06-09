@@ -18,6 +18,14 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/chat_message_bubble.dart';
 
+class _PendingMedia {
+  const _PendingMedia({required this.path, required this.type, required this.name});
+
+  final String path;
+  final String type;
+  final String name;
+}
+
 /// Chat Room Screen - Full chat interface with trainer
 class ChatRoomScreen extends StatefulWidget {
   const ChatRoomScreen({super.key});
@@ -129,7 +137,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
     }
 
     if (mounted) setState(() {});
-    await _chatController?.resumeActiveConversation();
   }
 
   Future<void> _startConversationWithTrainer() async {
@@ -193,24 +200,38 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
     _scrollToBottom();
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImages() async {
     if (_chatController == null) return;
     final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      await _chatController!.sendFileMessage(filePath: image.path, type: 'image', fileName: image.name);
-      _scrollToBottom();
-    }
+    final images = await picker.pickMultiImage();
+    if (images.isEmpty) return;
+
+    await _showMediaComposer(
+      initialMedia: images.map((image) => _PendingMedia(path: image.path, type: 'image', name: image.name)).toList(),
+    );
   }
 
   Future<void> _pickVideo() async {
     if (_chatController == null) return;
     final picker = ImagePicker();
     final video = await picker.pickVideo(source: ImageSource.gallery);
-    if (video != null) {
-      await _chatController!.sendFileMessage(filePath: video.path, type: 'video', fileName: video.name);
-      _scrollToBottom();
-    }
+    if (video == null) return;
+
+    await _showMediaComposer(
+      initialMedia: [_PendingMedia(path: video.path, type: 'video', name: video.name)],
+    );
+  }
+
+  Future<void> _showMediaComposer({required List<_PendingMedia> initialMedia}) async {
+    if (_chatController == null || initialMedia.isEmpty) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => _MediaComposerSheet(initialMedia: initialMedia, chatController: _chatController!, onSent: _scrollToBottom),
+    );
   }
 
   Future<void> _pickAudioFile() async {
@@ -315,10 +336,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library, color: AppColors.onSurface),
-              title: Text('Photo', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+              title: Text('Photos', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+              subtitle: Text('Select multiple images', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark)),
               onTap: () {
                 Navigator.pop(context);
-                _pickImage();
+                _pickImages();
               },
             ),
             ListTile(
@@ -758,7 +780,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
                                 final isCurrentUser = message.senderId == _chatController!.currentUserId;
                                 final bubble = ChatMessageBubble(message: message, isCurrentUser: isCurrentUser, currentUserId: _chatController!.currentUserId);
 
-                                if (isCurrentUser && !message.id.startsWith('temp_')) {
+                                if (isCurrentUser && !message.isPending && !message.id.startsWith('temp_')) {
                                   return GestureDetector(onLongPress: () => _showMessageOptions(message), child: bubble);
                                 }
 
@@ -845,6 +867,189 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
                 ],
               );
             }),
+    );
+  }
+}
+
+class _MediaComposerSheet extends StatefulWidget {
+  const _MediaComposerSheet({required this.initialMedia, required this.chatController, required this.onSent});
+
+  final List<_PendingMedia> initialMedia;
+  final ChatController chatController;
+  final VoidCallback onSent;
+
+  @override
+  State<_MediaComposerSheet> createState() => _MediaComposerSheetState();
+}
+
+class _MediaComposerSheetState extends State<_MediaComposerSheet> {
+  late final TextEditingController _captionController;
+  late List<_PendingMedia> _items;
+  late final bool _isVideoComposer;
+
+  @override
+  void initState() {
+    super.initState();
+    _captionController = TextEditingController();
+    _items = List<_PendingMedia>.from(widget.initialMedia);
+    _isVideoComposer = _items.every((item) => item.type == 'video');
+  }
+
+  @override
+  void dispose() {
+    _captionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addMoreImages() async {
+    final images = await ImagePicker().pickMultiImage();
+    if (images.isEmpty || !mounted) return;
+    setState(() {
+      _items.addAll(images.map((image) => _PendingMedia(path: image.path, type: 'image', name: image.name)));
+    });
+  }
+
+  Future<void> _sendMedia() async {
+    if (_items.isEmpty || widget.chatController.isSending.value) return;
+
+    final caption = _captionController.text;
+    final paths = _items.map((item) => item.path).toList();
+    final type = _items.first.type;
+
+    Navigator.pop(context);
+    await widget.chatController.sendMediaMessage(filePaths: paths, type: type, caption: caption);
+    widget.onSent();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.85;
+
+    return Padding(
+      padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 16 + bottomInset),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Text(_isVideoComposer ? 'Send video' : 'Send photos', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: AppColors.onSurface),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 108,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _items.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final item = _items[index];
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: item.type == 'image'
+                              ? Image.file(File(item.path), width: 108, height: 108, fit: BoxFit.cover)
+                              : Container(
+                                  width: 108,
+                                  height: 108,
+                                  color: AppColors.primaryGray.withOpacity(0.25),
+                                  child: const Icon(Icons.videocam, size: 40, color: AppColors.onSurface),
+                                ),
+                        ),
+                        Positioned(
+                          top: -8,
+                          right: -8,
+                          child: IconButton(
+                            style: IconButton.styleFrom(
+                              backgroundColor: AppColors.error,
+                              foregroundColor: AppColors.onError,
+                              padding: const EdgeInsets.all(4),
+                              minimumSize: const Size(28, 28),
+                            ),
+                            icon: const Icon(Icons.close, size: 16),
+                            onPressed: () {
+                              setState(() {
+                                _items.removeAt(index);
+                                if (_items.isEmpty) Navigator.pop(context);
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              if (!_isVideoComposer) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _addMoreImages,
+                    icon: const Icon(Icons.add_photo_alternate_outlined, color: AppColors.accent),
+                    label: Text('Add more photos', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent)),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              TextField(
+                controller: _captionController,
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                decoration: InputDecoration(
+                  hintText: 'Add a caption...',
+                  hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.primaryGray),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.primaryGray),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.accent, width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+                maxLines: 3,
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: 16),
+              Obx(() {
+                final isSending = widget.chatController.isSending.value;
+                return ElevatedButton(
+                  onPressed: isSending || _items.isEmpty ? null : _sendMedia,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.onAccent,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: isSending
+                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
+                      : Text(
+                          'Send',
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600),
+                        ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

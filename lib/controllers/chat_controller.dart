@@ -147,6 +147,9 @@ class ChatController extends GetxController {
 
     if (messages.any((m) => m.id == message.id)) return;
 
+    // Replace optimistic pending upload from current user when socket delivers the real message.
+    messages.removeWhere((m) => m.isPending && m.id.startsWith('temp_') && m.senderId == message.senderId);
+
     messages.value = [message, ...messages];
     messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     debugPrint('[Chat] socket message added: ${message.id}');
@@ -561,37 +564,85 @@ class ChatController extends GetxController {
     }
   }
 
-  /// Send a file message (image, video, audio)
-  Future<void> sendFileMessage({
-    required String filePath,
-    required String type, // 'image', 'video', 'audio'
-    String? fileName,
+  /// Send image/video/audio with optional caption. Supports multiple attachments in one message.
+  Future<void> sendMediaMessage({
+    required List<String> filePaths,
+    required String type,
+    String? caption,
   }) async {
     final conversationId = currentConversationId.value;
-    if (conversationId == null) return;
+    if (conversationId == null || filePaths.isEmpty) return;
+
+    final userId = currentUserId;
+    if (userId == null) return;
+
+    final trimmedCaption = caption?.trim() ?? '';
+    final content = trimmedCaption.isNotEmpty
+        ? trimmedCaption
+        : switch (type) {
+            'image' => filePaths.length > 1 ? '📷 Photos' : '📷 Photo',
+            'video' => '🎥 Video',
+            'audio' => '🎤 Audio',
+            _ => '📎 Attachment',
+          };
+
+    final profile = _participantProfiles[userId];
+    final localAttachments = filePaths.map((path) => ChatAttachment.local(path: path, type: type)).toList();
+    final tempMessage = ChatMessageModel(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      conversationId: conversationId,
+      senderId: userId,
+      receiverId: currentTrainerId.value ?? '',
+      message: content,
+      type: type,
+      fileUrl: filePaths.first,
+      attachments: localAttachments,
+      isPending: true,
+      senderName: profile?.name ?? _storageService.getName(),
+      senderImage: profile?.imageUrl,
+      timestamp: DateTime.now(),
+    );
 
     try {
       isSending.value = true;
-      if (currentUserId == null) return;
+      messages.insert(0, tempMessage);
 
-      final caption = switch (type) {
-        'image' => '📷 Photo',
-        'video' => '🎥 Video',
-        'audio' => '🎤 Audio',
-        _ => '📎 Attachment',
-      };
+      final fileMessage = _enrichMessage(
+        await _chatRepo.sendMessage(
+          conversationId: conversationId,
+          content: content,
+          attachmentPaths: filePaths,
+        ),
+      );
 
-      final fileMessage = _enrichMessage(await _chatRepo.sendMessage(conversationId: conversationId, content: caption, attachmentPath: filePath));
+      final tempIndex = messages.indexWhere((m) => m.id == tempMessage.id);
+      if (tempIndex != -1) {
+        messages[tempIndex] = fileMessage;
+      } else if (!messages.any((m) => m.id == fileMessage.id)) {
+        messages.insert(0, fileMessage);
+      }
 
-      messages.insert(0, fileMessage);
-
-      // Sort messages by timestamp (newest first since list is reversed)
       messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     } catch (e) {
       Get.snackbar('Error', 'Failed to send file: $e');
+      messages.removeWhere((m) => m.id == tempMessage.id);
     } finally {
       isSending.value = false;
     }
+  }
+
+  /// Send a single file message (audio recording, etc.).
+  Future<void> sendFileMessage({
+    required String filePath,
+    required String type,
+    String? fileName,
+    String? caption,
+  }) async {
+    await sendMediaMessage(
+      filePaths: [filePath],
+      type: type,
+      caption: caption,
+    );
   }
 
   /// Mark messages as read

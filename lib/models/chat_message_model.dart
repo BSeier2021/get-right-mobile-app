@@ -1,3 +1,75 @@
+/// Chat attachment (image, video, audio) from API or local pending upload.
+class ChatAttachment {
+  const ChatAttachment({
+    this.id,
+    required this.url,
+    this.thumbnailUrl,
+    this.type = 'image',
+    this.originalName,
+    this.isLocal = false,
+  });
+
+  final String? id;
+  final String url;
+  final String? thumbnailUrl;
+  final String type;
+  final String? originalName;
+  final bool isLocal;
+
+  bool get isImage {
+    final normalized = type.toLowerCase();
+    return normalized == 'image' || normalized.startsWith('image/');
+  }
+
+  bool get isVideo {
+    final normalized = type.toLowerCase();
+    return normalized == 'video' || normalized.startsWith('video/');
+  }
+
+  factory ChatAttachment.fromApi(Map<String, dynamic> json) {
+    final typeRaw = _chatStr(json['type']);
+    final mimeType = _chatStr(json['mimeType']).toLowerCase();
+    var attachmentType = typeRaw.toLowerCase();
+    if (attachmentType.isEmpty) {
+      if (mimeType.startsWith('image/')) {
+        attachmentType = 'image';
+      } else if (mimeType.startsWith('video/')) {
+        attachmentType = 'video';
+      } else if (mimeType.startsWith('audio/')) {
+        attachmentType = 'audio';
+      } else {
+        attachmentType = 'file';
+      }
+    } else if (attachmentType == 'image' || attachmentType == 'video' || attachmentType == 'audio') {
+      // keep normalized lowercase values from API e.g. "Image"
+    } else {
+      attachmentType = attachmentType.toLowerCase();
+    }
+
+    String? thumbnailUrl;
+    final thumb = json['thumbnail'];
+    if (thumb is Map) {
+      final url = _chatStr(Map<String, dynamic>.from(thumb)['url']);
+      if (url.isNotEmpty) thumbnailUrl = url;
+    }
+
+    final url = _chatStr(json['url'] ?? json['fileUrl']);
+    final originalName = _chatStr(json['originalName'] ?? json['fileName'] ?? json['name']);
+
+    return ChatAttachment(
+      id: _chatStr(json['_id'] ?? json['id']).isEmpty ? null : _chatStr(json['_id'] ?? json['id']),
+      url: url,
+      thumbnailUrl: thumbnailUrl,
+      type: attachmentType,
+      originalName: originalName.isEmpty ? null : originalName,
+    );
+  }
+
+  factory ChatAttachment.local({required String path, required String type}) {
+    return ChatAttachment(url: path, type: type, isLocal: true);
+  }
+}
+
 /// Chat message model for trainer-client communication
 class ChatMessageModel {
   final String id;
@@ -9,6 +81,8 @@ class ChatMessageModel {
   final String? fileUrl;
   final String? fileName;
   final String? thumbnailUrl;
+  final List<ChatAttachment> attachments;
+  final bool isPending;
   final String? senderName;
   final String? senderImage;
   final bool isRead;
@@ -24,11 +98,39 @@ class ChatMessageModel {
     this.fileUrl,
     this.fileName,
     this.thumbnailUrl,
+    this.attachments = const [],
+    this.isPending = false,
     this.senderName,
     this.senderImage,
     this.isRead = false,
     required this.timestamp,
   });
+
+  List<ChatAttachment> get displayAttachments {
+    if (attachments.isNotEmpty) return attachments;
+    if (fileUrl != null && fileUrl!.isNotEmpty) {
+      return [
+        ChatAttachment(
+          url: fileUrl!,
+          thumbnailUrl: thumbnailUrl,
+          type: type,
+          originalName: fileName,
+        ),
+      ];
+    }
+    return const [];
+  }
+
+  bool get hasMediaAttachments => displayAttachments.isNotEmpty;
+
+  String get displayCaption {
+    final text = message.trim();
+    if (text.isEmpty) return '';
+    if (text == '📷 Photo' || text == '📷 Photos' || text == '🎥 Video' || text == '🎤 Audio' || text == '📎 Attachment') {
+      return '';
+    }
+    return text;
+  }
 
   String get displaySenderName {
     final name = senderName?.trim() ?? '';
@@ -40,26 +142,25 @@ class ChatMessageModel {
 
   factory ChatMessageModel.fromApi(Map<String, dynamic> json) {
     final conversationId = _chatEntityId(json['conversationId'] ?? json['conversation']);
-    final attachments = json['attachments'];
+    final attachmentsRaw = json['attachments'];
+    final parsedAttachments = <ChatAttachment>[];
     String? fileUrl = _chatStr(json['fileUrl'] ?? json['url']).isEmpty ? null : _chatStr(json['fileUrl'] ?? json['url']);
     String? fileName = _chatStr(json['fileName'] ?? json['originalName']).isEmpty ? null : _chatStr(json['fileName'] ?? json['originalName']);
     String? thumbnailUrl;
 
-    if (attachments is List && attachments.isNotEmpty) {
-      final first = attachments.first;
-      if (first is Map) {
-        final attachment = Map<String, dynamic>.from(first);
-        fileUrl ??= _chatStr(attachment['url'] ?? attachment['fileUrl']).isEmpty ? null : _chatStr(attachment['url'] ?? attachment['fileUrl']);
-        fileName ??= _chatStr(attachment['originalName'] ?? attachment['fileName'] ?? attachment['name']).isEmpty
-            ? null
-            : _chatStr(attachment['originalName'] ?? attachment['fileName'] ?? attachment['name']);
-        final thumb = attachment['thumbnail'];
-        if (thumb is Map) {
-          final url = _chatStr(Map<String, dynamic>.from(thumb)['url']);
-          if (url.isNotEmpty) thumbnailUrl = url;
-        }
-      } else if (first is String && first.isNotEmpty) {
-        fileUrl ??= first;
+    if (attachmentsRaw is List && attachmentsRaw.isNotEmpty) {
+      for (final item in attachmentsRaw) {
+        if (item is! Map) continue;
+        final attachment = ChatAttachment.fromApi(Map<String, dynamic>.from(item));
+        if (attachment.url.isEmpty) continue;
+        parsedAttachments.add(attachment);
+      }
+
+      if (parsedAttachments.isNotEmpty) {
+        final first = parsedAttachments.first;
+        fileUrl ??= first.url;
+        fileName ??= first.originalName;
+        thumbnailUrl ??= first.thumbnailUrl;
       }
     }
 
@@ -80,8 +181,17 @@ class ChatMessageModel {
     final rawType = _chatStr(json['messageType'] ?? json['type']);
     var type = rawType.isEmpty ? 'text' : rawType.toLowerCase();
 
-    if (attachments is List && attachments.isNotEmpty && attachments.first is Map) {
-      final attachment = Map<String, dynamic>.from(attachments.first as Map);
+    if (parsedAttachments.isNotEmpty) {
+      final attachmentTypes = parsedAttachments.map((a) => a.isVideo ? 'video' : a.isImage ? 'image' : a.type).toSet();
+      if (attachmentTypes.length == 1) {
+        type = attachmentTypes.first;
+      } else if (attachmentTypes.contains('video')) {
+        type = 'video';
+      } else if (attachmentTypes.every((t) => t == 'image')) {
+        type = 'image';
+      }
+    } else if (attachmentsRaw is List && attachmentsRaw.isNotEmpty && attachmentsRaw.first is Map) {
+      final attachment = Map<String, dynamic>.from(attachmentsRaw.first as Map);
       final attachmentType = _chatStr(attachment['type']).toLowerCase();
       final mimeType = _chatStr(attachment['mimeType']).toLowerCase();
 
@@ -115,6 +225,7 @@ class ChatMessageModel {
       fileUrl: fileUrl,
       fileName: fileName,
       thumbnailUrl: thumbnailUrl,
+      attachments: parsedAttachments,
       senderName: senderName.isEmpty ? null : senderName,
       senderImage: senderImage,
       isRead: json['isRead'] == true || json['read'] == true,
@@ -134,6 +245,8 @@ class ChatMessageModel {
       'fileUrl': fileUrl,
       'fileName': fileName,
       'thumbnailUrl': thumbnailUrl,
+      'attachments': attachments.map((a) => {'url': a.url, 'type': a.type, 'originalName': a.originalName}).toList(),
+      'isPending': isPending,
       'senderName': senderName,
       'senderImage': senderImage,
       'isRead': isRead,
@@ -152,6 +265,8 @@ class ChatMessageModel {
     String? fileUrl,
     String? fileName,
     String? thumbnailUrl,
+    List<ChatAttachment>? attachments,
+    bool? isPending,
     String? senderName,
     String? senderImage,
     bool? isRead,
@@ -167,6 +282,8 @@ class ChatMessageModel {
       fileUrl: fileUrl ?? this.fileUrl,
       fileName: fileName ?? this.fileName,
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      attachments: attachments ?? this.attachments,
+      isPending: isPending ?? this.isPending,
       senderName: senderName ?? this.senderName,
       senderImage: senderImage ?? this.senderImage,
       isRead: isRead ?? this.isRead,

@@ -266,6 +266,10 @@ class ChatSocketService {
       leaveConversation(_joinedConversationId!);
     }
 
+    if (_joinedConversationId == id && isConnected) {
+      return;
+    }
+
     _joinedConversationId = id;
     _joinRetryCount = 0;
     _joinRetryTimer?.cancel();

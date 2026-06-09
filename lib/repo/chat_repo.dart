@@ -93,7 +93,7 @@ class ChatRepository {
   Future<ChatMessageModel> sendMessage({
     required String conversationId,
     required String content,
-    String? attachmentPath,
+    List<String> attachmentPaths = const [],
   }) async {
     final id = conversationId.trim();
     if (id.isEmpty) {
@@ -101,19 +101,23 @@ class ChatRepository {
     }
 
     final trimmedContent = content.trim();
-    final files = <String, List<File>>{};
-    if (attachmentPath != null && attachmentPath.trim().isNotEmpty) {
-      final file = File(attachmentPath);
+    final attachmentFiles = <File>[];
+    for (final path in attachmentPaths) {
+      final trimmed = path.trim();
+      if (trimmed.isEmpty) continue;
+      final file = File(trimmed);
       if (await file.exists()) {
-        files['attachments'] = [file];
+        attachmentFiles.add(file);
       } else {
         throw Exception('Attachment file not found');
       }
     }
 
-    if (trimmedContent.isEmpty && files.isEmpty) {
+    if (trimmedContent.isEmpty && attachmentFiles.isEmpty) {
       throw ArgumentError('content or attachment is required');
     }
+
+    final files = attachmentFiles.isEmpty ? <String, List<File>>{} : <String, List<File>>{'attachments': attachmentFiles};
 
     final raw = await _network.postMultipart(
       url: AppUrl.chatConversationMessages(id),
