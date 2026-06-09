@@ -26,7 +26,7 @@ class ChatRoomScreen extends StatefulWidget {
   State<ChatRoomScreen> createState() => _ChatRoomScreenState();
 }
 
-class _ChatRoomScreenState extends State<ChatRoomScreen> {
+class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   FlutterSoundRecorder? _audioRecorder;
@@ -46,8 +46,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onMessagesScroll);
     _initializeController();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _chatController?.resumeActiveConversation();
+    }
   }
 
   void _onMessagesScroll() {
@@ -121,6 +129,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
 
     if (mounted) setState(() {});
+    await _chatController?.resumeActiveConversation();
   }
 
   Future<void> _startConversationWithTrainer() async {
@@ -155,7 +164,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   @override
   void dispose() {
-    _chatController?.leaveActiveConversation();
+    WidgetsBinding.instance.removeObserver(this);
+    // Keep socket room joined — only stop typing; leaving breaks live incoming messages
+    _chatController?.stopTypingInRoom();
     _messageController.dispose();
     _scrollController.dispose();
     if (_isRecorderInitialized && _audioRecorder != null) {
@@ -691,7 +702,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () {
-            _chatController?.leaveActiveConversation();
+            _chatController?.stopTypingInRoom();
             Get.back();
           },
         ),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -18,6 +19,7 @@ import 'package:get_right/repo/auth_repo.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
+import 'package:get_right/services/chat_socket_service.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
@@ -189,6 +191,20 @@ class AuthController extends GetxController {
     final ls = Get.isRegistered<LocalStorage>() ? Get.find<LocalStorage>() : Get.put(LocalStorage());
     ls.saveAccessToken(cleaned);
     _syncNetworkBearerFromStorage();
+    unawaited(_connectChatSocketAfterAuth());
+  }
+
+  /// Opens the chat socket once a JWT is available (login, OTP, auto-login, create profile).
+  Future<void> _connectChatSocketAfterAuth() async {
+    try {
+      await ChatSocketService.instance.connectAfterAuth();
+    } catch (e) {
+      debugPrint('[Auth] chat socket connect failed: $e');
+    }
+  }
+
+  void _disconnectChatSocket() {
+    ChatSocketService.instance.disconnect();
   }
 
   /// Removes only JWT storage so a stale token cannot be sent after OTP until a new token is saved.
@@ -1436,6 +1452,7 @@ class AuthController extends GetxController {
   }
 
   Future<void> _clearLocalAuthSession() async {
+    _disconnectChatSocket();
     await _storageService.logout();
     if (Get.isRegistered<LocalStorage>()) {
       Get.find<LocalStorage>().deleteAccessToken();
@@ -1549,6 +1566,7 @@ class AuthController extends GetxController {
       final response = await _authRepo.autoLoginRepo();
       if (response is! Map<String, dynamic>) {
         _syncNetworkBearerFromStorage();
+        unawaited(_connectChatSocketAfterAuth());
         return AppRoutes.home;
       }
       if (response['success'] != true) {
@@ -1571,15 +1589,19 @@ class AuthController extends GetxController {
       return null;
     } on NoInternetException catch (_) {
       _syncNetworkBearerFromStorage();
+      unawaited(_connectChatSocketAfterAuth());
       return AppRoutes.home;
     } on RequestTimeoutException catch (_) {
       _syncNetworkBearerFromStorage();
+      unawaited(_connectChatSocketAfterAuth());
       return AppRoutes.home;
     } on ServerException catch (_) {
       _syncNetworkBearerFromStorage();
+      unawaited(_connectChatSocketAfterAuth());
       return AppRoutes.home;
     } catch (_) {
       _syncNetworkBearerFromStorage();
+      unawaited(_connectChatSocketAfterAuth());
       return AppRoutes.home;
     }
   }
@@ -1960,6 +1982,7 @@ class AuthController extends GetxController {
         Get.snackbar('Success', message, snackPosition: SnackPosition.BOTTOM);
       }
 
+      await _connectChatSocketAfterAuth();
       Get.offNamed(AppRoutes.preferenceSelection);
       return true;
     } on BadRequestException catch (e) {
@@ -2442,6 +2465,7 @@ class AuthController extends GetxController {
     } finally {
       _customerProfile = null;
       _customerProfileError = null;
+      _disconnectChatSocket();
       await _storageService.logout();
       if (Get.isRegistered<LocalStorage>()) {
         Get.find<LocalStorage>().deleteAccessToken();

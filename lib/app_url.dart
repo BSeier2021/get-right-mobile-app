@@ -2,12 +2,12 @@ class AppUrl {
   // development url
   static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
   static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
+  static const String socketUrl = 'http://getright.prodservers.com:8003';
 
   // client url
   // static const String baseUrl = 'http://getright.prodservers.com:8004/api/v1';
   // static const String imnageUrl = 'http://getright.prodservers.com:8004/api/v1';
   // static const String socketUrl = 'http://getright.prodservers.com:8004/';
-  static const String socketUrl = 'http://getright.prodservers.com:8003';
 
   static String signUp = '$baseUrl/user/auth/signup';
   static String verifyOTP = '$baseUrl/user/auth/verify-otp';
@@ -304,8 +304,7 @@ class AppUrl {
   static String chatConversationWith(String otherUserId) => '$chatConversations/with/${Uri.encodeComponent(otherUserId.trim())}';
 
   /// `GET`/`POST /user/chat/conversations/:conversationId/messages` — GET query: `page`, `limit`; POST multipart: `content`, `attachments`.
-  static String chatConversationMessages(String conversationId) =>
-      '$chatConversations/${Uri.encodeComponent(conversationId.trim())}/messages';
+  static String chatConversationMessages(String conversationId) => '$chatConversations/${Uri.encodeComponent(conversationId.trim())}/messages';
 
   /// `DELETE /user/chat/messages/:messageId` — delete a chat message.
   static String chatMessageDelete(String messageId) => '$baseUrl/user/chat/messages/${Uri.encodeComponent(messageId.trim())}';

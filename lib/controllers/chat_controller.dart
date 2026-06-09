@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/repo/chat_repo.dart';
@@ -17,9 +18,9 @@ class ChatController extends GetxController {
 
   ChatController(this._apiService, this._storageService);
 
-  StreamSubscription<Map<String, dynamic>>? _newMessageSub;
   StreamSubscription<Map<String, dynamic>>? _userTypingSub;
   StreamSubscription<Map<String, dynamic>>? _userStatusSub;
+  StreamSubscription<bool>? _connectionSub;
   Timer? _typingIdleTimer;
   Timer? _remoteTypingClearTimer;
   bool _isLocalTyping = false;
@@ -64,7 +65,7 @@ class ChatController extends GetxController {
     _detachSocketListeners();
     _typingIdleTimer?.cancel();
     _remoteTypingClearTimer?.cancel();
-    _chatSocket.disconnect();
+    _leaveConversationSocket();
     super.onClose();
   }
 
@@ -72,18 +73,26 @@ class ChatController extends GetxController {
     if (_socketListenersAttached) return;
     _socketListenersAttached = true;
 
-    _newMessageSub = _chatSocket.onNewMessage.listen(_handleSocketNewMessage);
+    _chatSocket.onMessageReceived = _handleSocketNewMessage;
     _userTypingSub = _chatSocket.onUserTyping.listen(_handleSocketUserTyping);
     _userStatusSub = _chatSocket.onUserStatusChanged.listen(_handleSocketUserStatusChanged);
+    _connectionSub = _chatSocket.onConnectionChanged.listen((connected) {
+      if (!connected) return;
+      final conversationId = currentConversationId.value;
+      if (conversationId != null && conversationId.isNotEmpty) {
+        unawaited(_chatSocket.joinConversation(conversationId));
+      }
+    });
   }
 
   void _detachSocketListeners() {
-    _newMessageSub?.cancel();
+    _chatSocket.onMessageReceived = null;
     _userTypingSub?.cancel();
     _userStatusSub?.cancel();
-    _newMessageSub = null;
+    _connectionSub?.cancel();
     _userTypingSub = null;
     _userStatusSub = null;
+    _connectionSub = null;
     _socketListenersAttached = false;
   }
 
@@ -93,8 +102,13 @@ class ChatController extends GetxController {
     }
   }
 
-  void _joinConversationSocket(String conversationId) {
-    unawaited(_ensureSocketConnected().then((_) => _chatSocket.joinConversation(conversationId)));
+  /// Connect socket and join the active conversation room.
+  Future<void> _enterActiveConversation(String conversationId) async {
+    _attachSocketListeners();
+    if (!_chatSocket.isConnected) {
+      await _chatSocket.connect();
+    }
+    await _chatSocket.joinConversation(conversationId);
   }
 
   void _leaveConversationSocket() {
@@ -106,31 +120,90 @@ class ChatController extends GetxController {
   }
 
   void _handleSocketNewMessage(Map<String, dynamic> payload) {
-    final messageRaw = payload['message'] is Map
-        ? Map<String, dynamic>.from(payload['message'] as Map)
-        : payload;
-    final conversationId = _chatStr(messageRaw['conversationId'] ?? payload['conversationId'] ?? currentConversationId.value);
-    if (conversationId.isEmpty) return;
+    // Socket service already unwraps nested { data: { message } } envelopes.
+    final messageRaw = _extractSocketMessage(payload) ?? payload;
+    var conversationId = _extractConversationId(messageRaw, payload);
+    if (conversationId.isEmpty) {
+      conversationId = currentConversationId.value ?? '';
+    }
+    if (conversationId.isEmpty) {
+      debugPrint('[Chat] socket message ignored: no conversationId');
+      return;
+    }
 
     final message = _enrichMessage(ChatMessageModel.fromApi(_withConversationId(messageRaw, conversationId)));
-    if (message.id.isEmpty) return;
+    if (message.id.isEmpty) {
+      debugPrint('[Chat] socket message ignored: empty id ($messageRaw)');
+      return;
+    }
 
     _updateConversationPreview(message);
 
-    if (currentConversationId.value != conversationId) {
+    final activeId = currentConversationId.value;
+    if (activeId == null || activeId.isEmpty || !_isSameConversation(activeId, conversationId)) {
       loadUnreadCount();
       return;
     }
 
     if (messages.any((m) => m.id == message.id)) return;
 
-    messages.insert(0, message);
+    messages.value = [message, ...messages];
     messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    debugPrint('[Chat] socket message added: ${message.id}');
+  }
+
+  Map<String, dynamic>? _extractSocketMessage(Map<String, dynamic> payload) {
+    if (_looksLikeMessage(payload)) return payload;
+
+    Map<String, dynamic>? fromMap(Map<String, dynamic> root) {
+      final nestedMessage = root['message'];
+      if (nestedMessage is Map) {
+        return Map<String, dynamic>.from(nestedMessage);
+      }
+      if (_looksLikeMessage(root)) return root;
+      final data = root['data'];
+      if (data is Map) return fromMap(Map<String, dynamic>.from(data));
+      return null;
+    }
+
+    return fromMap(_unwrapSocketPayload(payload));
+  }
+
+  String _extractConversationId(Map<String, dynamic> messageRaw, Map<String, dynamic> payload) {
+    final conv = messageRaw['conversationId'] ?? messageRaw['conversation'] ?? payload['conversationId'] ?? currentConversationId.value;
+
+    if (conv is Map) {
+      return _chatStr(conv['_id'] ?? conv['id']);
+    }
+    return _chatStr(conv);
+  }
+
+  bool _isSameConversation(String? a, String? b) {
+    if (a == null || b == null) return false;
+    return a.trim().toLowerCase() == b.trim().toLowerCase();
+  }
+
+  Map<String, dynamic> _unwrapSocketPayload(Map<String, dynamic> payload) {
+    final data = payload['data'];
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+    return payload;
+  }
+
+  bool _looksLikeMessage(Map<String, dynamic> json) {
+    return json.containsKey('_id') ||
+        json.containsKey('id') ||
+        json.containsKey('content') ||
+        json.containsKey('message') ||
+        json.containsKey('text') ||
+        json.containsKey('messageType');
   }
 
   void _handleSocketUserTyping(Map<String, dynamic> payload) {
-    final conversationId = _chatStr(payload['conversationId']);
-    if (conversationId.isEmpty || currentConversationId.value != conversationId) return;
+    final root = _unwrapSocketPayload(payload);
+    final conversationId = _chatStr(root['conversationId'] ?? payload['conversationId']);
+    if (conversationId.isEmpty || !_isSameConversation(currentConversationId.value, conversationId)) return;
 
     final typingUserId = _chatStr(payload['userId'] ?? payload['user'] ?? payload['senderId'] ?? payload['sender']);
     final me = currentUserId;
@@ -178,11 +251,7 @@ class ChatController extends GetxController {
     final me = currentUserId;
     final unreadDelta = (!isActiveConversation && me != null && senderId != me) ? 1 : 0;
 
-    conversations[index] = current.copyWith(
-      lastMessage: message,
-      updatedAt: message.timestamp,
-      unreadCount: isActiveConversation ? 0 : current.unreadCount + unreadDelta,
-    );
+    conversations[index] = current.copyWith(lastMessage: message, updatedAt: message.timestamp, unreadCount: isActiveConversation ? 0 : current.unreadCount + unreadDelta);
 
     if (index > 0) {
       final updated = conversations.removeAt(index);
@@ -234,6 +303,14 @@ class ChatController extends GetxController {
     _leaveConversationSocket();
   }
 
+  /// Re-join socket room when chat screen becomes visible again.
+  Future<void> resumeActiveConversation() async {
+    final conversationId = currentConversationId.value;
+    if (conversationId == null || conversationId.isEmpty) return;
+    _attachSocketListeners();
+    await _chatSocket.joinConversation(conversationId);
+  }
+
   /// Get current user ID
   String? get currentUserId => _storageService.getUserId();
 
@@ -241,10 +318,7 @@ class ChatController extends GetxController {
     if ((message.senderName?.trim().isNotEmpty ?? false) && message.senderImage != null) return message;
     final profile = _participantProfiles[message.senderId];
     if (profile == null) return message;
-    return message.copyWith(
-      senderName: (message.senderName?.trim().isNotEmpty ?? false) ? message.senderName : profile.name,
-      senderImage: message.senderImage ?? profile.imageUrl,
-    );
+    return message.copyWith(senderName: (message.senderName?.trim().isNotEmpty ?? false) ? message.senderName : profile.name, senderImage: message.senderImage ?? profile.imageUrl);
   }
 
   List<ChatMessageModel> _enrichMessages(List<ChatMessageModel> list) => list.map(_enrichMessage).toList();
@@ -284,12 +358,7 @@ class ChatController extends GetxController {
       _currentSearch = query;
       _currentPage = page;
 
-      final result = await _chatRepo.fetchConversations(
-        page: page,
-        limit: _pageLimit,
-        search: query,
-        currentUserId: currentUserId,
-      );
+      final result = await _chatRepo.fetchConversations(page: page, limit: _pageLimit, search: query, currentUserId: currentUserId);
       if (append && page > 1) {
         conversations.addAll(result.conversations);
       } else {
@@ -394,7 +463,7 @@ class ChatController extends GetxController {
       _messagesPage = 1;
       final result = await _chatRepo.fetchMessages(conversationId, page: 1, limit: _messagesPageLimit);
       _applyMessagesPage(result);
-      _joinConversationSocket(conversationId);
+      await _enterActiveConversation(conversationId);
     } catch (e) {
       Get.snackbar('Error', 'Failed to load messages: $e');
     } finally {
@@ -402,7 +471,7 @@ class ChatController extends GetxController {
     }
   }
 
-  /// Reload latest messages without showing the full-screen loader.
+  /// Manual refresh (pull-to-refresh only — live updates come from socket).
   Future<void> refreshMessages() async {
     final conversationId = currentConversationId.value;
     if (conversationId == null || isLoadingMessages.value) return;
@@ -470,10 +539,7 @@ class ChatController extends GetxController {
       );
       messages.insert(0, tempMessage);
 
-      final actualMessage = _enrichMessage(await _chatRepo.sendMessage(
-        conversationId: conversationId,
-        content: message.trim(),
-      ));
+      final actualMessage = _enrichMessage(await _chatRepo.sendMessage(conversationId: conversationId, content: message.trim()));
 
       final messageIndex = messages.indexWhere((m) => m.id == tempMessage.id);
       if (messageIndex != -1) {
@@ -515,11 +581,7 @@ class ChatController extends GetxController {
         _ => '📎 Attachment',
       };
 
-      final fileMessage = _enrichMessage(await _chatRepo.sendMessage(
-        conversationId: conversationId,
-        content: caption,
-        attachmentPath: filePath,
-      ));
+      final fileMessage = _enrichMessage(await _chatRepo.sendMessage(conversationId: conversationId, content: caption, attachmentPath: filePath));
 
       messages.insert(0, fileMessage);
 
