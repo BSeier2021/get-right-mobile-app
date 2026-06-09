@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -248,32 +249,26 @@ class ChatMessageBubble extends StatelessWidget {
         errorBuilder: (_, __, ___) => _brokenImagePlaceholder(width, height),
       );
     } else {
-      imageWidget = Image.network(
-        attachment.url,
+      imageWidget = CachedNetworkImage(
+        imageUrl: attachment.url,
         width: width,
         height: height,
         fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            width: width,
-            height: height,
-            color: AppColors.primaryGray.withOpacity(0.35),
-            alignment: Alignment.center,
-            child: SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: isCurrentUser ? AppColors.onAccent : AppColors.accent,
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                    : null,
-              ),
+        placeholder: (_, __) => Container(
+          width: width,
+          height: height,
+          color: AppColors.primaryGray.withOpacity(0.35),
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: isCurrentUser ? AppColors.onAccent : AppColors.accent,
             ),
-          );
-        },
-        errorBuilder: (_, __, ___) => _brokenImagePlaceholder(width, height),
+          ),
+        ),
+        errorWidget: (_, __, ___) => _brokenImagePlaceholder(width, height),
       );
     }
 
@@ -319,7 +314,7 @@ class _SenderAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: 18,
       backgroundColor: AppColors.accent.withOpacity(0.15),
-      backgroundImage: hasImage ? NetworkImage(imageUrl!) : null,
+      backgroundImage: hasImage ? CachedNetworkImageProvider(imageUrl!) : null,
       child: hasImage
           ? null
           : Text(initial, style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700)),
@@ -379,10 +374,10 @@ class _VideoAttachmentPreview extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               if (thumbnailUrl != null && thumbnailUrl!.startsWith('http'))
-                Image.network(
-                  thumbnailUrl!,
+                CachedNetworkImage(
+                  imageUrl: thumbnailUrl!,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(color: AppColors.primaryGray),
+                  errorWidget: (_, __, ___) => Container(color: AppColors.primaryGray),
                 )
               else
                 Container(color: AppColors.primaryGray),

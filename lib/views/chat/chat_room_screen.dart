@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -428,7 +429,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
           children: [
             ListTile(
               leading: const Icon(Icons.flag, color: AppColors.error),
-              title: Text('Report Trainer', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+              title: Text('Report', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
               onTap: () {
                 Navigator.pop(context);
                 _showReportDialog();
@@ -436,7 +437,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
             ),
             ListTile(
               leading: const Icon(Icons.block, color: AppColors.error),
-              title: Text('Block Trainer', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+              title: Text('Block', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
               onTap: () {
                 Navigator.pop(context);
                 _showBlockDialog();
@@ -664,7 +665,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
           CircleAvatar(
             radius: 20,
             backgroundColor: AppColors.accent.withOpacity(0.15),
-            backgroundImage: imageUrl != null && imageUrl.startsWith('http') ? NetworkImage(imageUrl) : null,
+            backgroundImage: imageUrl != null && imageUrl.startsWith('http') ? CachedNetworkImageProvider(imageUrl) : null,
             child: imageUrl != null && imageUrl.startsWith('http')
                 ? null
                 : Text(
