@@ -83,6 +83,7 @@ class ExerciseLibraryItem {
         'image': displayImageUrl ?? '',
         'muscleGroup': muscleGroupName,
         'isFavorite': false,
+        'fromLibrary': true,
       };
 }
 

@@ -1994,16 +1994,16 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
     });
   }
 
-  void _setReplacedEditImages(List<_EditFeedImage> next) {
+  void _appendEditImages(List<_EditFeedImage> additions) {
+    if (additions.isEmpty) return;
+    final firstNewIndex = _editImages.length;
     setState(() {
-      _editImages
-        ..clear()
-        ..addAll(next);
-      _previewImageIndex = 0;
+      _editImages.addAll(additions);
+      _previewImageIndex = firstNewIndex;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_editImages.isEmpty || !_imagePageController.hasClients) return;
-      _imagePageController.jumpToPage(0);
+      _imagePageController.animateToPage(_previewImageIndex, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
     });
   }
 
@@ -2094,12 +2094,25 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
     try {
       final picked = await _imagePicker.pickMultiImage(imageQuality: 88);
       if (!mounted || picked.isEmpty) return;
-      final next = picked.take(_maxEditImages).map((image) => _EditFeedImage(localPath: image.path)).toList();
-      _setReplacedEditImages(next);
-      if (picked.length > _maxEditImages) {
+
+      final remainingSlots = _maxEditImages - _editImages.length;
+      if (remainingSlots <= 0) {
         Get.snackbar(
           'Limit reached',
-          'Only the first $_maxEditImages images were used.',
+          'You can add up to $_maxEditImages images per post.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.upcoming,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      final next = picked.take(remainingSlots).map((image) => _EditFeedImage(localPath: image.path)).toList();
+      _appendEditImages(next);
+      if (picked.length > remainingSlots) {
+        Get.snackbar(
+          'Limit reached',
+          'Only $remainingSlots more image${remainingSlots == 1 ? '' : 's'} could be added.',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.upcoming,
           colorText: Colors.white,
@@ -2115,7 +2128,19 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
     try {
       final image = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 88);
       if (!mounted || image == null) return;
-      _setReplacedEditImages([_EditFeedImage(localPath: image.path)]);
+
+      if (_editImages.length >= _maxEditImages) {
+        Get.snackbar(
+          'Limit reached',
+          'You can add up to $_maxEditImages images per post.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.upcoming,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      _appendEditImages([_EditFeedImage(localPath: image.path)]);
     } catch (e) {
       if (!mounted) return;
       Get.snackbar('Error', 'Could not capture image: $e', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
@@ -2693,8 +2718,8 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 _editImages.length > 1
-                    ? 'Gallery/Camera replace all images. Tap × to remove one (at least one required).'
-                    : 'Gallery/Camera replace the image. Tap Save to upload.',
+                    ? 'Tap Gallery or Camera to add images. Tap × to remove one (at least one required).'
+                    : 'Tap Gallery or Camera to add an image. Tap Save to upload.',
                 style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 12, fontWeight: FontWeight.w400),
               ),
             ),
@@ -2751,7 +2776,7 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
                 ],
               ),
               Text(
-                _imagesDirty ? 'New images selected. Tap Save to upload.' : 'Replace all images from gallery or camera.',
+                _imagesDirty ? 'Unsaved image changes. Tap Save to upload.' : 'Add images from gallery or camera.',
                 style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 12, fontWeight: FontWeight.w400),
               ),
               const SizedBox(height: 8),

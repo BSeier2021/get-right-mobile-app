@@ -375,6 +375,11 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     return _workout!.allExercises.where((e) => WorkoutRepository.isValidMongoId(e.id)).map((e) => e.id).toList();
   }
 
+  List<String> _currentAddedLibraryExerciseIds() {
+    if (_workout == null) return const [];
+    return _workout!.allExercises.map((e) => e.exerciseId).where((id) => id.isNotEmpty).toSet().toList();
+  }
+
   Future<void> _openAddExerciseFlow(JournalExerciseType exerciseType) async {
     try {
       await _ensureWorkoutJournalId();
@@ -386,7 +391,13 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     await Get.toNamed(
       AppRoutes.exerciseConfiguration,
-      arguments: {'exerciseType': exerciseType, 'isWarmup': exerciseType.isWarmup, 'workoutJournalId': _workoutJournalId, 'journalWorkoutIds': _currentJournalWorkoutIds()},
+      arguments: {
+        'exerciseType': exerciseType,
+        'isWarmup': exerciseType.isWarmup,
+        'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _currentJournalWorkoutIds(),
+        'addedExerciseIds': _currentAddedLibraryExerciseIds(),
+      },
     )?.then((r) async {
       if (r is! Map || r['exercises'] == null) return;
       _mergeExercisesFromSaveResult(Map<String, dynamic>.from(r));

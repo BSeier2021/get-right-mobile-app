@@ -70,6 +70,17 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
   bool get isFavorite => _favoritesController.isFavorite(_exerciseId);
 
+  bool get _showAddToWorkout {
+    if (_routeArgs['fromLibrary'] == true) return false;
+    if (_routeArgs['fromWorkout'] != true) return false;
+    final added = _routeArgs['addedExerciseIds'];
+    if (added is List) {
+      final ids = added.map((e) => e.toString()).toSet();
+      if (ids.contains(_exerciseId)) return false;
+    }
+    return true;
+  }
+
   Color _getDifficultyColor(String difficulty) {
     switch (difficulty.toLowerCase()) {
       case 'beginner':
@@ -157,38 +168,38 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: _detail == null
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 12.h),
-                child: SizedBox(
-                  height: 52.h,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Get.snackbar(
-                        'Added to Workout',
-                        '$_displayName has been added to your workout',
-                        backgroundColor: AppColors.completed,
-                        colorText: Colors.white,
-                        snackPosition: SnackPosition.BOTTOM,
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accentVariant,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                    ),
-                    icon: const Icon(Icons.add_circle_outline, size: 22),
-                    label: Text(
-                      'Add to Workout',
-                      style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+      // bottomNavigationBar: _detail == null || !_showAddToWorkout
+      //     ? null
+      //     : SafeArea(
+      //         child: Padding(
+      //           padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 12.h),
+      //           child: SizedBox(
+      //             height: 52.h,
+      //             child: ElevatedButton.icon(
+      //               onPressed: () {
+      //                 Get.snackbar(
+      //                   'Added to Workout',
+      //                   '$_displayName has been added to your workout',
+      //                   backgroundColor: AppColors.completed,
+      //                   colorText: Colors.white,
+      //                   snackPosition: SnackPosition.BOTTOM,
+      //                 );
+      //               },
+      //               style: ElevatedButton.styleFrom(
+      //                 backgroundColor: AppColors.accentVariant,
+      //                 foregroundColor: Colors.white,
+      //                 elevation: 0,
+      //                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+      //               ),
+      //               icon: const Icon(Icons.add_circle_outline, size: 22),
+      //               label: Text(
+      //                 'Add to Workout',
+      //                 style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+      //               ),
+      //             ),
+      //           ),
+      //         ),
+      //       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
           : _error != null

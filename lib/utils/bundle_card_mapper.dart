@@ -21,8 +21,9 @@ Map<String, dynamic> normalizeBundleForCard(Map<String, dynamic> b, {String defa
     resolvedPrograms = [
       {
         'trainer': trainer,
-        'rating': (b['rating'] as num?)?.toDouble() ?? 4.5,
+        'rating': (b['rating'] as num?)?.toDouble() ?? (b['ratingAvg'] as num?)?.toDouble() ?? 0.0,
         'students': (b['students'] as num?)?.toInt() ?? 0,
+        'ratingCount': (b['ratingCount'] as num?)?.toInt() ?? (b['reviews'] as num?)?.toInt() ?? 0,
       },
     ];
   }
@@ -47,10 +48,90 @@ Map<String, dynamic> normalizeBundleForCard(Map<String, dynamic> b, {String defa
     'bundlePrice': price,
     'imageUrl': imageUrl ?? '',
     'programs': resolvedPrograms,
+    'rating': bundleCardAverageRating({'programs': resolvedPrograms, ...b}),
+    'ratingCount': bundleCardReviewCount({'programs': resolvedPrograms, ...b}),
     'isHot': b['isHot'] == true,
     'isCertified': b['isCertified'] == true,
     if (b['_apiBundle'] != null) '_apiBundle': b['_apiBundle'],
   };
+}
+
+double _programCardRating(Map<String, dynamic> program) {
+  final direct = (program['rating'] as num?)?.toDouble();
+  if (direct != null && direct > 0) return direct;
+
+  final api = program['_apiProgram'];
+  if (api is Map) {
+    final fromApi = (api['ratingAvg'] as num?)?.toDouble();
+    if (fromApi != null && fromApi > 0) return fromApi;
+    final display = api['display'];
+    if (display is Map) {
+      return (display['average_rating'] as num?)?.toDouble() ?? 0.0;
+    }
+  }
+  return 0.0;
+}
+
+int _programCardReviewCount(Map<String, dynamic> program) {
+  final direct = (program['ratingCount'] as num?)?.toInt() ?? (program['reviews'] as num?)?.toInt();
+  if (direct != null && direct > 0) return direct;
+
+  final api = program['_apiProgram'];
+  if (api is Map) {
+    final fromApi = (api['ratingCount'] as num?)?.toInt();
+    if (fromApi != null && fromApi > 0) return fromApi;
+    final display = api['display'];
+    if (display is Map) {
+      return (display['review_count'] as num?)?.toInt() ?? 0;
+    }
+  }
+  return 0;
+}
+
+/// Average star rating for a normalized bundle card map.
+double bundleCardAverageRating(Map<String, dynamic> bundle) {
+  final direct = (bundle['rating'] as num?)?.toDouble() ?? (bundle['ratingAvg'] as num?)?.toDouble();
+  if (direct != null && direct > 0) return direct;
+
+  final api = bundle['_apiBundle'];
+  if (api is Map) {
+    final fromApi = (api['ratingAvg'] as num?)?.toDouble() ?? (api['averageRating'] as num?)?.toDouble();
+    if (fromApi != null && fromApi > 0) return fromApi;
+  }
+
+  final programs = bundle['programs'];
+  if (programs is! List || programs.isEmpty) return 0.0;
+
+  final ratings = <double>[];
+  for (final item in programs) {
+    if (item is! Map) continue;
+    final rating = _programCardRating(Map<String, dynamic>.from(item));
+    if (rating > 0) ratings.add(rating);
+  }
+  if (ratings.isEmpty) return 0.0;
+  return ratings.reduce((a, b) => a + b) / ratings.length;
+}
+
+/// Total review count for a normalized bundle card map.
+int bundleCardReviewCount(Map<String, dynamic> bundle) {
+  final direct = (bundle['ratingCount'] as num?)?.toInt() ?? (bundle['reviews'] as num?)?.toInt();
+  if (direct != null && direct > 0) return direct;
+
+  final api = bundle['_apiBundle'];
+  if (api is Map) {
+    final fromApi = (api['ratingCount'] as num?)?.toInt() ?? (api['reviewCount'] as num?)?.toInt();
+    if (fromApi != null && fromApi > 0) return fromApi;
+  }
+
+  final programs = bundle['programs'];
+  if (programs is! List || programs.isEmpty) return 0;
+
+  var total = 0;
+  for (final item in programs) {
+    if (item is! Map) continue;
+    total += _programCardReviewCount(Map<String, dynamic>.from(item));
+  }
+  return total;
 }
 
 List<Map<String, dynamic>> parseProfileBundlesList(dynamic raw, {String trainerName = 'Trainer'}) {

@@ -29,6 +29,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   bool _isSaving = false;
   String? _workoutJournalId;
   List<String> _journalWorkoutIds = const [];
+  List<String> _addedExerciseIds = const [];
   final WorkoutRepository _workoutRepo = WorkoutRepository();
   final TextEditingController _nameController = TextEditingController();
   List<_Config> _configs = [];
@@ -51,6 +52,10 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       final rawJournalWorkoutIds = args['journalWorkoutIds'];
       if (rawJournalWorkoutIds is List) {
         _journalWorkoutIds = rawJournalWorkoutIds.map((e) => e.toString()).where(WorkoutRepository.isValidMongoId).toList();
+      }
+      final rawAddedExerciseIds = args['addedExerciseIds'];
+      if (rawAddedExerciseIds is List) {
+        _addedExerciseIds = rawAddedExerciseIds.map((e) => e.toString()).where((id) => id.isNotEmpty).toList();
       }
 
       // Handle editing existing exercise
@@ -218,7 +223,14 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   void _openExerciseSelectionForCard(int cardIndex) {
     Get.toNamed(
       AppRoutes.exerciseSelection,
-      arguments: {'isWarmup': _isWarmup, 'exerciseType': _exerciseType, 'isSuperset': false, 'workoutJournalId': _workoutJournalId, 'journalWorkoutIds': _journalWorkoutIds},
+      arguments: {
+        'isWarmup': _isWarmup,
+        'exerciseType': _exerciseType,
+        'isSuperset': false,
+        'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _journalWorkoutIds,
+        'addedExerciseIds': _addedExerciseIds,
+      },
     )?.then((result) {
       if (result != null && result['exercise'] != null) {
         final ex = result['exercise'] as ExerciseLibraryModel;
@@ -913,7 +925,17 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   }
 
   void _openExerciseSelection(int cfgIndex) async {
-    final result = await Get.toNamed(AppRoutes.exerciseSelection, arguments: {'isWarmup': _isWarmup, 'exerciseType': _exerciseType, 'selectOnly': true});
+    final result = await Get.toNamed(
+      AppRoutes.exerciseSelection,
+      arguments: {
+        'isWarmup': _isWarmup,
+        'exerciseType': _exerciseType,
+        'selectOnly': true,
+        'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _journalWorkoutIds,
+        'addedExerciseIds': _addedExerciseIds,
+      },
+    );
     if (result != null && result['exercise'] != null) {
       final exercise = result['exercise'] as ExerciseLibraryModel;
       setState(() {

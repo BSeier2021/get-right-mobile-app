@@ -36,6 +36,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
   bool _selectOnly = false;
   String? _workoutJournalId;
   List<String> _journalWorkoutIds = const [];
+  List<String> _addedExerciseIds = const [];
   List<ExerciseLibraryModel> _allExercises = [];
   List<ExerciseLibraryModel> _filtered = [];
   final Set<ExerciseLibraryModel> _selected = {};
@@ -61,6 +62,10 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
       final rawJournalWorkoutIds = args['journalWorkoutIds'];
       if (rawJournalWorkoutIds is List) {
         _journalWorkoutIds = rawJournalWorkoutIds.map((e) => e.toString()).toList();
+      }
+      final rawAddedExerciseIds = args['addedExerciseIds'];
+      if (rawAddedExerciseIds is List) {
+        _addedExerciseIds = rawAddedExerciseIds.map((e) => e.toString()).where((id) => id.isNotEmpty).toList();
       }
     }
     _searchCtrl.addListener(_filter);
@@ -325,7 +330,13 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                       icon: const Icon(Icons.info_outline, color: AppColors.primaryGrayDark),
                       onPressed: () => Get.toNamed(
                         AppRoutes.exerciseDetail,
-                        arguments: {'_id': ex.id, 'id': ex.id, 'name': ex.name},
+                        arguments: {
+                          '_id': ex.id,
+                          'id': ex.id,
+                          'name': ex.name,
+                          'fromWorkout': true,
+                          'addedExerciseIds': _addedExerciseIds,
+                        },
                       ),
                     ),
                     const Icon(Icons.add_circle_outline, size: 25, color: AppColors.accent),

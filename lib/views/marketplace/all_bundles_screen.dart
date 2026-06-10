@@ -257,7 +257,7 @@ class _AllBundlesScreenState extends State<AllBundlesScreen> {
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.72, crossAxisSpacing: 12, mainAxisSpacing: 12),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.87, crossAxisSpacing: 12, mainAxisSpacing: 12),
               delegate: SliverChildBuilderDelegate((context, index) => _buildBundleCard(context, _bundles[index]), childCount: _bundles.length),
             ),
           ),
@@ -281,15 +281,7 @@ class _AllBundlesScreenState extends State<AllBundlesScreen> {
     final totalValue = (bundle['totalValue'] as num?)?.toDouble() ?? 0.0;
     final bundlePrice = (bundle['bundlePrice'] as num?)?.toDouble() ?? 0.0;
 
-    var avgRating = 4.7;
-    if (programs.isNotEmpty) {
-      final sum = programs.fold<double>(0, (s, p) => s + ((p['rating'] as num?)?.toDouble() ?? 0));
-      final computed = sum / programs.length;
-      if (computed > 0) avgRating = computed;
-    }
-    final totalRatings = programs.isNotEmpty ? programs.map((p) => (p['students'] as num?)?.toInt() ?? 0).fold<int>(0, (a, b) => a + b) : 0;
-
-    final primaryTrainer = programs.isNotEmpty ? (programs[0]['trainer'] ?? 'Trainer').toString() : 'Trainer';
+    final primaryTrainer = (bundle['trainer'] ?? (programs.isNotEmpty ? programs[0]['trainer'] : null) ?? 'Trainer').toString();
 
     final bundleIndex = _bundles.indexOf(bundle);
     const thumbnailUrls = [
@@ -368,25 +360,6 @@ class _AllBundlesScreenState extends State<AllBundlesScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 3),
-                          Row(
-                            children: [
-                              Text(
-                                avgRating.toStringAsFixed(1),
-                                style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600, fontSize: 11),
-                              ),
-                              const SizedBox(width: 3),
-                              ...List.generate(5, (i) => Icon(i < avgRating.floor() ? Icons.star : Icons.star_border, color: const Color(0xFFE59819), size: 11)),
-                              const SizedBox(width: 3),
-                              Expanded(
-                                child: Text(
-                                  '(${_formatNumber(totalRatings)})',
-                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 10),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
                         ],
                       ),
                     ),
@@ -414,11 +387,5 @@ class _AllBundlesScreenState extends State<AllBundlesScreen> {
         ),
       ),
     );
-  }
-
-  String _formatNumber(int number) {
-    if (number >= 1000000) return '${(number / 1000000).toStringAsFixed(1)}M';
-    if (number >= 1000) return '${(number / 1000).toStringAsFixed(1)}K';
-    return number.toString();
   }
 }
