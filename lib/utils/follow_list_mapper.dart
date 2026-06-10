@@ -33,7 +33,10 @@ Map<String, dynamic> mapFollowPersonToUi(Map<String, dynamic> person, {bool isFo
   final id = (person['_id'] ?? person['id'] ?? '').toString();
 
   final relationFollowing =
-      isFollowing || person['isFollowing'] == true || person['isFollowedByMe'] == true;
+      isFollowing ||
+      person['isFollowing'] == true ||
+      person['isFollowedByMe'] == true ||
+      person['isFollowedBack'] == true;
 
   return <String, dynamic>{
     'id': id,
@@ -51,6 +54,7 @@ Map<String, dynamic> mapFollowPersonToUi(Map<String, dynamic> person, {bool isFo
 bool _isRelationFollowing(Map<String, dynamic> item) {
   if (item['isFollowing'] == true) return true;
   if (item['isFollowedByMe'] == true) return true;
+  if (item['isFollowedBack'] == true) return true;
   return false;
 }
 

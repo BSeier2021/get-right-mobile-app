@@ -756,6 +756,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
     final creatorId = (post['creatorId'] ?? '').toString().trim();
 
     final trainerData = <String, dynamic>{
+      'returnToFeedOnBlock': true,
       if (creatorId.isNotEmpty) ...{'_id': creatorId, 'id': creatorId},
       'name': creatorName,
       'initials': initials,

@@ -324,6 +324,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     final String creatorId = (_post['creatorId'] ?? '').toString().trim();
 
     final trainerData = <String, dynamic>{
+      'returnToFeedOnBlock': true,
       if (creatorId.isNotEmpty) '_id': creatorId,
       if (creatorId.isNotEmpty) 'id': creatorId,
       if (creatorId.isEmpty) 'id': creatorName.toLowerCase().replaceAll(' ', '_'),

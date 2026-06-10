@@ -1256,11 +1256,14 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     return raw['success'] != false;
   }
 
-  void _navigateToMarketplaceAfterBlock() {
+  bool get _returnToFeedOnBlock => trainer['returnToFeedOnBlock'] == true;
+
+  void _navigateAfterBlock() {
+    final tabIndex = _returnToFeedOnBlock ? 1 : 0;
     if (Get.isRegistered<HomeNavigationController>()) {
-      Get.find<HomeNavigationController>().changeTab(0);
+      Get.find<HomeNavigationController>().changeTab(tabIndex);
     }
-    Get.offAllNamed(AppRoutes.home, arguments: <String, dynamic>{'navigateToTab': 0});
+    Get.offAllNamed(AppRoutes.home, arguments: <String, dynamic>{'navigateToTab': tabIndex});
   }
 
   Future<void> _showBlockUserDialog() async {
@@ -1313,7 +1316,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       }
       final message = raw is Map ? (raw['message']?.toString() ?? 'User blocked successfully') : 'User blocked successfully';
       Get.snackbar('Blocked', message, snackPosition: SnackPosition.BOTTOM);
-      _navigateToMarketplaceAfterBlock();
+      _navigateAfterBlock();
     } catch (e) {
       Get.snackbar('Could not block', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {

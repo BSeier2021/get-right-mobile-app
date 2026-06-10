@@ -277,6 +277,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     final avatarUrl = (comment['avatarUrl'] ?? '').toString().trim();
 
     final profileData = <String, dynamic>{
+      'returnToFeedOnBlock': true,
       if (authorId.isNotEmpty) '_id': authorId,
       if (authorId.isNotEmpty) 'id': authorId,
       if (authorId.isEmpty) 'id': authorName.toLowerCase().replaceAll(' ', '_'),
