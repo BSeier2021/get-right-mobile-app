@@ -4,6 +4,47 @@ import 'package:get_right/app_url.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/network/network_services.dart';
 
+class ConversationBlockStatus {
+  const ConversationBlockStatus({
+    this.isBlockedByMe = false,
+    this.isBlockedByOther = false,
+    this.isBlockedByBoth = false,
+  });
+
+  final bool isBlockedByMe;
+  final bool isBlockedByOther;
+  final bool isBlockedByBoth;
+
+  factory ConversationBlockStatus.fromPayload(Map<String, dynamic> payload) {
+    return ChatRepository.parseBlockStatusFromPayload(payload);
+  }
+
+  static bool payloadHasBlockStatus(Map<String, dynamic> map) {
+    bool hasFlags(Map<String, dynamic> source) {
+      return source.containsKey('isBlockedByMe') ||
+          source.containsKey('isBlockedByOther') ||
+          source.containsKey('isBlockedByBoth') ||
+          source.containsKey('blockedByMe') ||
+          source.containsKey('blockedByOther');
+    }
+
+    if (hasFlags(map)) return true;
+
+    final conversation = map['conversation'];
+    if (conversation is Map && hasFlags(Map<String, dynamic>.from(conversation))) return true;
+
+    final data = map['data'];
+    if (data is Map) {
+      final dataMap = Map<String, dynamic>.from(data);
+      if (hasFlags(dataMap)) return true;
+      final nestedConversation = dataMap['conversation'];
+      if (nestedConversation is Map && hasFlags(Map<String, dynamic>.from(nestedConversation))) return true;
+    }
+
+    return false;
+  }
+}
+
 class ChatMessagesPage {
   const ChatMessagesPage({
     required this.messages,
@@ -13,6 +54,9 @@ class ChatMessagesPage {
     required this.hasPrevPage,
     required this.totalDocs,
     this.participantProfiles = const {},
+    this.isBlockedByMe = false,
+    this.isBlockedByOther = false,
+    this.isBlockedByBoth = false,
   });
 
   final List<ChatMessageModel> messages;
@@ -22,6 +66,9 @@ class ChatMessagesPage {
   final bool hasPrevPage;
   final int totalDocs;
   final Map<String, ChatParticipantProfile> participantProfiles;
+  final bool isBlockedByMe;
+  final bool isBlockedByOther;
+  final bool isBlockedByBoth;
 }
 
 class ChatConversationsPage {
@@ -288,7 +335,9 @@ class ChatRepository {
     }
 
     final dm = Map<String, dynamic>.from(data);
-    final participantProfiles = _participantProfiles(dm['conversation']);
+    final conversation = dm['conversation'];
+    final blockStatus = ConversationBlockStatus.fromPayload(<String, dynamic>{'conversation': conversation, ...dm});
+    final participantProfiles = _participantProfiles(conversation);
     final listRaw = dm['messages'] ?? dm['items'] ?? dm['docs'];
     final messages = listRaw is List
         ? listRaw
@@ -306,7 +355,81 @@ class ChatRepository {
       hasPrevPage: dm['hasPrevPage'] == true,
       totalDocs: _intFrom(dm['totalDocs']),
       participantProfiles: participantProfiles,
+      isBlockedByMe: blockStatus.isBlockedByMe,
+      isBlockedByOther: blockStatus.isBlockedByOther,
+      isBlockedByBoth: blockStatus.isBlockedByBoth,
     );
+  }
+
+  /// Parses block flags from API `conversation`, `data`, or socket payloads.
+  static ConversationBlockStatus parseBlockStatusFromPayload(dynamic raw) {
+    if (raw is! Map) return const ConversationBlockStatus();
+
+    final root = Map<String, dynamic>.from(raw);
+    Map<String, dynamic>? conversation;
+    Map<String, dynamic>? dataMap;
+
+    if (root['conversation'] is Map) {
+      conversation = Map<String, dynamic>.from(root['conversation'] as Map);
+    }
+    if (root['data'] is Map) {
+      dataMap = Map<String, dynamic>.from(root['data'] as Map);
+      conversation ??= dataMap['conversation'] is Map ? Map<String, dynamic>.from(dataMap['conversation'] as Map) : null;
+    }
+
+    var isBlockedByMe = _parseBool(conversation?['isBlockedByMe']) ||
+        _parseBool(dataMap?['isBlockedByMe']) ||
+        _parseBool(root['isBlockedByMe']) ||
+        _parseBool(root['blockedByMe']);
+    var isBlockedByOther = _parseBool(conversation?['isBlockedByOther']) ||
+        _parseBool(dataMap?['isBlockedByOther']) ||
+        _parseBool(root['isBlockedByOther']) ||
+        _parseBool(root['blockedByOther']);
+    var isBlockedByBoth = _parseBool(conversation?['isBlockedByBoth']) ||
+        _parseBool(dataMap?['isBlockedByBoth']) ||
+        _parseBool(root['isBlockedByBoth']);
+
+    if (isBlockedByBoth && !isBlockedByMe && !isBlockedByOther) {
+      isBlockedByOther = true;
+    }
+
+    return ConversationBlockStatus(
+      isBlockedByMe: isBlockedByMe,
+      isBlockedByOther: isBlockedByOther,
+      isBlockedByBoth: isBlockedByBoth,
+    );
+  }
+
+  static bool _parseBool(dynamic value) {
+    if (value == true || value == 1) return true;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
+    }
+    return false;
+  }
+
+  /// Participant profiles from messages API or socket `conversation-updated` payload.
+  static Map<String, ChatParticipantProfile> participantProfilesFromPayload(Map<String, dynamic> payload) {
+    final conversation = payload['conversation'];
+    if (conversation is Map) {
+      return _participantProfiles(conversation);
+    }
+
+    final data = payload['data'];
+    if (data is Map) {
+      final dataMap = Map<String, dynamic>.from(data);
+      final nestedConversation = dataMap['conversation'];
+      if (nestedConversation is Map) {
+        return _participantProfiles(nestedConversation);
+      }
+    }
+
+    if (payload['participants'] is List) {
+      return _participantProfiles(payload);
+    }
+
+    return const {};
   }
 
   static Map<String, ChatParticipantProfile> _participantProfiles(dynamic conversation) {

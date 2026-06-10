@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get_right/models/planned_route_model.dart';
+import 'package:get_right/repo/running_log_repo.dart';
 import 'package:get_right/services/gps_service.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -28,6 +29,8 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
   double _totalDistance = 0.0;
   Position? _currentPosition;
   bool _isLoading = true;
+  bool _isSavingRoute = false;
+  final RunningLogRepository _runningLogRepo = RunningLogRepository();
 
   @override
   void initState() {
@@ -168,31 +171,41 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
     );
   }
 
-  /// Save planned route
+  /// Save planned route to backend (`POST /customer/planned-routes`) and local storage.
   Future<void> _saveRoute() async {
     if (_routePoints.isEmpty) {
       Get.snackbar('No Route', 'Please add at least one point to your route', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: AppColors.white);
       return;
     }
+    if (_isSavingRoute) return;
 
-    final route = PlannedRouteModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: 'Planned Route ${DateTime.now().toString().substring(0, 16)}',
-      routePoints: _routePoints,
-      estimatedDistance: _totalDistance,
-      createdAt: DateTime.now(),
-      isSaved: true,
-    );
+    setState(() => _isSavingRoute = true);
 
-    // Save to storage
-    final storageService = Get.find<StorageService>();
-    final saved = await storageService.addPlannedRoute(route);
+    try {
+      final estimatedTimeSeconds = (_totalDistance / 1000 * 6 * 60).round();
+      final route = await _runningLogRepo.savePlannedRouteFromMapPoints(
+        points: List<LatLng>.from(_routePoints),
+        estimatedDistanceMeters: _totalDistance,
+        estimatedTimeSeconds: estimatedTimeSeconds,
+      );
 
-    if (saved) {
+      final storageService = Get.find<StorageService>();
+      await storageService.addPlannedRoute(route);
+
+      if (!mounted) return;
       Get.back(result: route);
       Get.snackbar('Route Saved', 'Your planned route has been saved', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.completed, colorText: AppColors.white);
-    } else {
-      Get.snackbar('Error', 'Failed to save route', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: AppColors.white);
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar(
+        'Could not save route',
+        e.toString().replaceFirst('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: AppColors.white,
+      );
+    } finally {
+      if (mounted) setState(() => _isSavingRoute = false);
     }
   }
 
@@ -465,15 +478,17 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
                     child: SizedBox(
                       height: 52,
                       child: ElevatedButton.icon(
-                        onPressed: _saveRoute,
+                        onPressed: _isSavingRoute ? null : _saveRoute,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accent,
                           foregroundColor: AppColors.onAccent,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                           elevation: 0,
                         ),
-                        icon: const Icon(Icons.save, size: 20, color: AppColors.white),
-                        label: Text('Save', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onAccent)),
+                        icon: _isSavingRoute
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white))
+                            : const Icon(Icons.save, size: 20, color: AppColors.white),
+                        label: Text(_isSavingRoute ? 'Saving...' : 'Save', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onAccent)),
                       ),
                     ),
                   ),

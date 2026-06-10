@@ -664,6 +664,10 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   }
 
   void _enrollAndOpenCheckout() {
+    if (_isEnrolled) {
+      Get.snackbar('Already enrolled', 'This program is already enrolled.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
     final enrollId = _programEnrollMongoId();
     if (enrollId == null) {
       Get.snackbar('Enroll', 'This program cannot be enrolled (invalid id).', snackPosition: SnackPosition.BOTTOM);
@@ -1141,48 +1145,74 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
             ),
           ],
         ),
-        // Bottom Purchase Bar (hidden for enrolled programs: completed, active, or scheduled)
-        bottomNavigationBar: _isEnrolled
-            ? null
-            : Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
-                ),
-                child: SafeArea(
-                  child: Row(
-                    children: [
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Total Price', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
-                          Text(
-                            '\$${(((_safeProgram['price'] as num?) ?? 0)).toStringAsFixed(2)}',
-                            style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _enrolling ? null : _enrollAndOpenCheckout,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.accent,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                          ),
-                          icon: _enrolling
-                              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
-                              : const Icon(Icons.school, size: 20),
-                          label: Text('Enroll Now', style: AppTextStyles.labelLarge.copyWith(color: AppColors.onAccent)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+        // Bottom bar: enrolled users see status message; others see purchase/enroll.
+        bottomNavigationBar: _isEnrolled ? _buildAlreadyEnrolledBottomBar() : _buildPurchaseBottomBar(),
+      ),
+    );
+  }
+
+  Widget _buildAlreadyEnrolledBottomBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, color: AppColors.completed, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'This program is already enrolled.',
+                style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPurchaseBottomBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Total Price', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
+                Text(
+                  '\$${(((_safeProgram['price'] as num?) ?? 0)).toStringAsFixed(2)}',
+                  style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _enrolling ? null : _enrollAndOpenCheckout,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                ),
+                icon: _enrolling
+                    ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
+                    : const Icon(Icons.school, size: 20),
+                label: Text('Enroll Now', style: AppTextStyles.labelLarge.copyWith(color: AppColors.onAccent)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

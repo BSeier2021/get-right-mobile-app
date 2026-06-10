@@ -20,6 +20,7 @@ class ChatController extends GetxController {
 
   StreamSubscription<Map<String, dynamic>>? _userTypingSub;
   StreamSubscription<Map<String, dynamic>>? _userStatusSub;
+  StreamSubscription<Map<String, dynamic>>? _conversationBlockSub;
   StreamSubscription<bool>? _connectionSub;
   Timer? _typingIdleTimer;
   Timer? _remoteTypingClearTimer;
@@ -41,6 +42,8 @@ class ChatController extends GetxController {
   final RxBool hasNextPage = false.obs;
   final RxBool hasNextMessagesPage = false.obs;
   final RxBool isOtherUserTyping = false.obs;
+  final RxBool isBlockedByMe = false.obs;
+  final RxBool isBlockedByOther = false.obs;
   final Rxn<String> currentConversationId = Rxn<String>();
   final Rxn<String> currentTrainerId = Rxn<String>();
   final Rxn<String> currentProgramId = Rxn<String>();
@@ -76,11 +79,13 @@ class ChatController extends GetxController {
     _chatSocket.onMessageReceived = _handleSocketNewMessage;
     _userTypingSub = _chatSocket.onUserTyping.listen(_handleSocketUserTyping);
     _userStatusSub = _chatSocket.onUserStatusChanged.listen(_handleSocketUserStatusChanged);
+    _conversationBlockSub = _chatSocket.onConversationBlockChanged.listen(_handleConversationBlockChanged);
     _connectionSub = _chatSocket.onConnectionChanged.listen((connected) {
       if (!connected) return;
       final conversationId = currentConversationId.value;
       if (conversationId != null && conversationId.isNotEmpty) {
         unawaited(_chatSocket.joinConversation(conversationId));
+        unawaited(refreshConversationBlockStatus());
       }
     });
   }
@@ -89,9 +94,11 @@ class ChatController extends GetxController {
     _chatSocket.onMessageReceived = null;
     _userTypingSub?.cancel();
     _userStatusSub?.cancel();
+    _conversationBlockSub?.cancel();
     _connectionSub?.cancel();
     _userTypingSub = null;
     _userStatusSub = null;
+    _conversationBlockSub = null;
     _connectionSub = null;
     _socketListenersAttached = false;
   }
@@ -147,12 +154,39 @@ class ChatController extends GetxController {
 
     if (messages.any((m) => m.id == message.id)) return;
 
+    final me = currentUserId;
+    if (me != null && message.senderId == me) {
+      final tempIndex = messages.indexWhere((m) => m.id.startsWith('temp_') && m.senderId == me);
+      if (tempIndex != -1) {
+        messages[tempIndex] = message;
+        messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        debugPrint('[Chat] socket replaced temp message: ${message.id}');
+        return;
+      }
+    }
+
     // Replace optimistic pending upload from current user when socket delivers the real message.
     messages.removeWhere((m) => m.isPending && m.id.startsWith('temp_') && m.senderId == message.senderId);
 
-    messages.value = [message, ...messages];
+    if (messages.any((m) => m.id == message.id)) return;
+
+    messages.insert(0, message);
     messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     debugPrint('[Chat] socket message added: ${message.id}');
+  }
+
+  void _upsertMessage(ChatMessageModel message, {String? removeTempId}) {
+    if (removeTempId != null) {
+      messages.removeWhere((m) => m.id == removeTempId);
+    }
+
+    final existingIndex = messages.indexWhere((m) => m.id == message.id);
+    if (existingIndex != -1) {
+      messages[existingIndex] = message;
+    } else {
+      messages.insert(0, message);
+    }
+    messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
   }
 
   Map<String, dynamic>? _extractSocketMessage(Map<String, dynamic> payload) {
@@ -229,6 +263,8 @@ class ChatController extends GetxController {
   }
 
   void _handleSocketUserStatusChanged(Map<String, dynamic> payload) {
+    _applyConversationBlockStatus(payload);
+
     final userId = _chatStr(payload['userId'] ?? payload['user'] ?? payload['_id'] ?? payload['id']);
     if (userId.isEmpty) return;
 
@@ -241,6 +277,58 @@ class ChatController extends GetxController {
     final me = currentUserId;
     if (me != null && userId != me) {
       messages.refresh();
+    }
+  }
+
+  void _handleConversationBlockChanged(Map<String, dynamic> payload) {
+    _applyConversationBlockStatus(payload);
+  }
+
+  /// Live updates from socket `conversation-updated` (block status, participants, etc.).
+  void onConversationUpdated(Map<String, dynamic> payload) {
+    final activeId = currentConversationId.value;
+    if (activeId == null || activeId.isEmpty) return;
+
+    final conversationId = _extractConversationId(payload, payload);
+    if (conversationId.isNotEmpty && !_isSameConversation(activeId, conversationId)) return;
+
+    debugPrint('[Chat] conversation-updated → $conversationId');
+
+    _applyConversationBlockStatus(payload);
+
+    final profiles = ChatRepository.participantProfilesFromPayload(payload);
+    if (profiles.isNotEmpty) {
+      _participantProfiles.addAll(profiles);
+      messages.refresh();
+    }
+  }
+
+  void _applyConversationBlockStatus(Map<String, dynamic> payload) {
+    if (!ConversationBlockStatus.payloadHasBlockStatus(payload)) return;
+
+    final conversationId = _extractConversationId(payload, payload);
+    final activeId = currentConversationId.value;
+    if (conversationId.isNotEmpty && activeId != null && activeId.isNotEmpty && !_isSameConversation(activeId, conversationId)) {
+      return;
+    }
+
+    final status = ChatRepository.parseBlockStatusFromPayload(payload);
+    isBlockedByMe.value = status.isBlockedByMe;
+    isBlockedByOther.value = status.isBlockedByOther || (status.isBlockedByBoth && !status.isBlockedByMe);
+    debugPrint('[Chat] block status → me=${isBlockedByMe.value}, other=${isBlockedByOther.value}');
+  }
+
+  /// Refresh only conversation block flags (e.g. after resume or socket reconnect).
+  Future<void> refreshConversationBlockStatus() async {
+    final conversationId = currentConversationId.value;
+    if (conversationId == null || conversationId.isEmpty) return;
+
+    try {
+      final result = await _chatRepo.fetchMessages(conversationId, page: 1, limit: 1);
+      isBlockedByMe.value = result.isBlockedByMe;
+      isBlockedByOther.value = result.isBlockedByOther || (result.isBlockedByBoth && !result.isBlockedByMe);
+    } catch (_) {
+      // Silent — chat history may still be visible.
     }
   }
 
@@ -345,8 +433,13 @@ class ChatController extends GetxController {
     messages.value = _enrichMessages(result.messages);
     hasNextMessagesPage.value = result.hasNextPage;
     _messagesPage = result.currentPage;
+    isBlockedByMe.value = result.isBlockedByMe;
+    isBlockedByOther.value = result.isBlockedByOther || (result.isBlockedByBoth && !result.isBlockedByMe);
     messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
   }
+
+  bool get canSendMessages => !isBlockedByMe.value && !isBlockedByOther.value;
+  bool get hasBlockRestriction => isBlockedByMe.value || isBlockedByOther.value;
 
   /// Load conversations from `GET /user/chat/conversations`.
   Future<void> loadConversations({int page = 1, String? search, bool append = false}) async {
@@ -455,6 +548,18 @@ class ChatController extends GetxController {
     }
   }
 
+  /// Switch to a conversation — clears stale room state when the id changes.
+  Future<void> switchToConversation(String conversationId, {String? trainerId, String? programId}) async {
+    final id = conversationId.trim();
+    if (id.isEmpty) return;
+
+    if (currentConversationId.value != null && currentConversationId.value != id) {
+      clearConversation();
+    }
+
+    await loadMessages(id, trainerId: trainerId, programId: programId);
+  }
+
   /// Load messages for a conversation
   Future<void> loadMessages(String conversationId, {String? trainerId, String? programId}) async {
     try {
@@ -467,6 +572,7 @@ class ChatController extends GetxController {
       final result = await _chatRepo.fetchMessages(conversationId, page: 1, limit: _messagesPageLimit);
       _applyMessagesPage(result);
       await _enterActiveConversation(conversationId);
+      await refreshConversationBlockStatus();
     } catch (e) {
       Get.snackbar('Error', 'Failed to load messages: $e');
     } finally {
@@ -520,7 +626,7 @@ class ChatController extends GetxController {
   /// Send a text message
   Future<void> sendMessage(String message) async {
     final conversationId = currentConversationId.value;
-    if (message.trim().isEmpty || conversationId == null) return;
+    if (message.trim().isEmpty || conversationId == null || !canSendMessages) return;
 
     try {
       isSending.value = true;
@@ -544,18 +650,13 @@ class ChatController extends GetxController {
 
       final actualMessage = _enrichMessage(await _chatRepo.sendMessage(conversationId: conversationId, content: message.trim()));
 
-      final messageIndex = messages.indexWhere((m) => m.id == tempMessage.id);
-      if (messageIndex != -1) {
-        messages[messageIndex] = actualMessage;
-      } else {
-        // If temp message was removed somehow, just add the actual message
-        messages.insert(0, actualMessage);
-      }
-
-      // Sort messages by timestamp (newest first since list is reversed)
-      messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      _upsertMessage(actualMessage, removeTempId: tempMessage.id);
       stopTypingInRoom();
     } catch (e) {
+      final message = e.toString().toLowerCase();
+      if (message.contains('block') || message.contains('forbidden')) {
+        isBlockedByOther.value = true;
+      }
       Get.snackbar('Error', 'Failed to send message: $e');
       // Remove failed message
       messages.removeWhere((m) => m.id.startsWith('temp_'));
@@ -571,7 +672,7 @@ class ChatController extends GetxController {
     String? caption,
   }) async {
     final conversationId = currentConversationId.value;
-    if (conversationId == null || filePaths.isEmpty) return;
+    if (conversationId == null || filePaths.isEmpty || !canSendMessages) return;
 
     final userId = currentUserId;
     if (userId == null) return;
@@ -615,15 +716,12 @@ class ChatController extends GetxController {
         ),
       );
 
-      final tempIndex = messages.indexWhere((m) => m.id == tempMessage.id);
-      if (tempIndex != -1) {
-        messages[tempIndex] = fileMessage;
-      } else if (!messages.any((m) => m.id == fileMessage.id)) {
-        messages.insert(0, fileMessage);
-      }
-
-      messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      _upsertMessage(fileMessage, removeTempId: tempMessage.id);
     } catch (e) {
+      final message = e.toString().toLowerCase();
+      if (message.contains('block') || message.contains('forbidden')) {
+        isBlockedByOther.value = true;
+      }
       Get.snackbar('Error', 'Failed to send file: $e');
       messages.removeWhere((m) => m.id == tempMessage.id);
     } finally {
@@ -707,6 +805,7 @@ class ChatController extends GetxController {
       await _apiService.blockUser(blockerId: userId, blockedUserId: trainerId, reason: reason);
 
       blockedUsers.add(trainerId);
+      isBlockedByMe.value = true;
       Get.snackbar('Success', 'Trainer blocked successfully.');
     } catch (e) {
       Get.snackbar('Error', 'Failed to block trainer: $e');
@@ -725,7 +824,8 @@ class ChatController extends GetxController {
       await _apiService.unblockUser(blockerId: userId, blockedUserId: trainerId);
 
       blockedUsers.remove(trainerId);
-      Get.snackbar('Success', 'Trainer unblocked successfully.');
+      isBlockedByMe.value = false;
+      Get.snackbar('Success', 'User unblocked successfully.');
     } catch (e) {
       Get.snackbar('Error', 'Failed to unblock trainer: $e');
     } finally {
@@ -747,6 +847,8 @@ class ChatController extends GetxController {
     currentProgramId.value = null;
     _messagesPage = 1;
     hasNextMessagesPage.value = false;
+    isBlockedByMe.value = false;
+    isBlockedByOther.value = false;
     _participantProfiles.clear();
   }
 }

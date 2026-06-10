@@ -1284,7 +1284,7 @@ class AuthController extends GetxController {
       img = ImageUrlSanitizer.asHttpUrlOrNull(promoMedia['url']?.toString());
     }
 
-    final purchased = ext['purchased'] == true;
+    final purchased = ext['purchased'] == true || inner['isEnrolled'] == true;
     final price = (inner['price'] as num?)?.toDouble() ?? (ext['price'] as num?)?.toDouble() ?? 0.0;
     final demoVideo = inner['demoVideo'];
     final video = inner['video'];
@@ -1324,7 +1324,7 @@ class AuthController extends GetxController {
       'description': inner['description']?.toString() ?? '',
       'status': inner['status']?.toString(),
       'purchased': purchased,
-      'isEnrolled': purchased,
+      'isEnrolled': inner['isEnrolled'] == true || purchased,
       'imageUrl': img,
       'demoVideoUrl': demoVideoUrl,
       'programVideoUrl': programVideoUrl,

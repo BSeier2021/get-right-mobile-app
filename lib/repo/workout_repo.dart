@@ -279,8 +279,6 @@ class WorkoutRepository {
       final entry = <String, dynamic>{'sets': s.setNumber > 0 ? s.setNumber : i + 1, 'restTime': defaultRestTime};
       if (s.isTimed && s.timeSeconds != null && s.timeSeconds! > 0) {
         entry['reps'] = encodeTimedRepsForApi(s.timeSeconds!);
-        entry['repsType'] = 'TIME';
-        entry['time'] = s.timeSeconds;
       } else if (s.isFAILURE) {
         entry['reps'] = 'FAILURE';
       } else if (s.isAMRAP) {

@@ -58,6 +58,14 @@ class RunTrackingController extends GetxController {
     }
   }
 
+  /// Logs the planned-route payload that will be sent when this run is saved.
+  void logPlannedRouteSavePayloadPreview() {
+    RunningLogRepository.previewPlannedRouteSave(
+      points: routePoints.toList(),
+      existingRouteId: plannedRouteId,
+    );
+  }
+
   /// Start tracking run
   Future<bool> startTracking({String? activity, String? plannedRouteId}) async {
     // Check location permission

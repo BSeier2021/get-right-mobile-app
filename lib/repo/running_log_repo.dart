@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get_right/app_url.dart';
@@ -5,6 +7,7 @@ import 'package:get_right/models/planned_route_model.dart';
 import 'package:get_right/models/run_model.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/utils%20copy/utils.dart';
 
 class PlannedRouteListPage {
   const PlannedRouteListPage({
@@ -173,9 +176,10 @@ class RunningLogRepository {
     if (raw is Map) {
       final data = raw['data'];
       if (data is Map) {
-        final route = Map<String, dynamic>.from(data)['route'];
-        if (route is Map) {
-          return plannedRouteFromApi(Map<String, dynamic>.from(route));
+        final dm = Map<String, dynamic>.from(data);
+        final routeRaw = dm['route'] ?? dm;
+        if (routeRaw is Map) {
+          return plannedRouteFromApi(Map<String, dynamic>.from(routeRaw));
         }
       }
     }
@@ -319,6 +323,112 @@ class RunningLogRepository {
     return {'location': locationWaypointsFromRunPoints(points)};
   }
 
+  static String _locationNameForWaypoint(int index, int total) {
+    if (index == 0) return 'Start';
+    if (index == total - 1) return 'End';
+    return 'Point $index';
+  }
+
+  /// Builds `location[]` with GeoJSON points for route planning / full API body.
+  static List<Map<String, dynamic>> locationWaypointsFromLatLngs(List<LatLng> points) {
+    return List.generate(points.length, (index) {
+      final point = points[index];
+      return {
+        'geo': {
+          'type': 'Point',
+          'coordinates': [point.longitude, point.latitude],
+        },
+        'locationName': _locationNameForWaypoint(index, points.length),
+      };
+    });
+  }
+
+  /// Builds full `POST /customer/planned-routes` body from map-planned waypoints.
+  static Map<String, dynamic> createPlannedRouteBodyFromMapPoints({
+    required List<LatLng> points,
+    required double estimatedDistanceMeters,
+    int? estimatedTimeSeconds,
+  }) {
+    final estimatedTime = estimatedTimeSeconds ?? (estimatedDistanceMeters / 1000 * 6 * 60).round();
+    return {
+      'location': locationWaypointsFromLatLngs(points),
+      'estimatedTime': estimatedTime,
+      'estimatedDistance': estimatedDistanceMeters.round(),
+    };
+  }
+
+  /// Saves a user-planned route via `POST /customer/planned-routes`.
+  Future<PlannedRouteModel> savePlannedRouteFromMapPoints({
+    required List<LatLng> points,
+    required double estimatedDistanceMeters,
+    int? estimatedTimeSeconds,
+  }) async {
+    if (points.isEmpty) {
+      throw Exception('Add at least one point to save a route');
+    }
+
+    final body = createPlannedRouteBodyFromMapPoints(
+      points: points,
+      estimatedDistanceMeters: estimatedDistanceMeters,
+      estimatedTimeSeconds: estimatedTimeSeconds,
+    );
+    logPlannedRouteSavePayload(body);
+
+    final response = await createPlannedRoute(body);
+    final id = plannedRouteIdFrom(response);
+    if (id == null || id.isEmpty) {
+      throw Exception('Route saved but no id returned');
+    }
+
+    return PlannedRouteModel(
+      id: id,
+      name: 'Saved Route',
+      routePoints: List<LatLng>.from(points),
+      estimatedDistance: estimatedDistanceMeters,
+      createdAt: DateTime.now(),
+      isSaved: true,
+    );
+  }
+
+  /// Logs the `POST /customer/planned-routes` payload to the console ([APIX] tag).
+  static void logPlannedRouteSavePayload(Map<String, dynamic> body) {
+    try {
+      final pretty = const JsonEncoder.withIndent('  ').convert(body);
+      Utils.logSuccess('Planned Route Save Request Body:\n$pretty', name: 'APIX');
+    } catch (_) {
+      Utils.logSuccess('Planned Route Save Request Body: $body', name: 'APIX');
+    }
+  }
+
+  /// Logs the `POST /customer/running-logs` payload to the console ([APIX] tag).
+  static void logRunningLogSavePayload(Map<String, dynamic> body) {
+    try {
+      final pretty = const JsonEncoder.withIndent('  ').convert(body);
+      Utils.logSuccess('Running Log Save Request Body:\n$pretty', name: 'APIX');
+    } catch (_) {
+      Utils.logSuccess('Running Log Save Request Body: $body', name: 'APIX');
+    }
+  }
+
+  /// Preview/log what will be sent for planned-route save before a run is persisted.
+  static void previewPlannedRouteSave({
+    required List<LocationPoint> points,
+    String? existingRouteId,
+  }) {
+    if (WorkoutRepository.isValidMongoId(existingRouteId)) {
+      Utils.logInfo(
+        'Planned route save skipped — reusing existing route id: ${existingRouteId!.trim()}',
+        name: 'APIX',
+      );
+      return;
+    }
+    if (points.isEmpty) {
+      Utils.logInfo('Planned route save skipped — no GPS points captured', name: 'APIX');
+      return;
+    }
+    logPlannedRouteSavePayload(createPlannedRouteBody(points));
+  }
+
   /// `POST /customer/planned-routes` — creates a backend route from GPS waypoints.
   Future<Map<String, dynamic>> createPlannedRoute(Map<String, dynamic> body) async {
     final raw = await _network.post(AppUrl.customerPlannedRoutes, body);
@@ -334,13 +444,20 @@ class RunningLogRepository {
     String? existingRouteId,
   }) async {
     if (WorkoutRepository.isValidMongoId(existingRouteId)) {
-      return existingRouteId!.trim();
+      final routeId = existingRouteId!.trim();
+      Utils.logInfo(
+        'Planned route save skipped — reusing existing route id: $routeId',
+        name: 'APIX',
+      );
+      return routeId;
     }
     if (points.isEmpty) {
       throw Exception('No GPS points available to create route');
     }
 
-    final response = await createPlannedRoute(createPlannedRouteBody(points));
+    final body = createPlannedRouteBody(points);
+    logPlannedRouteSavePayload(body);
+    final response = await createPlannedRoute(body);
     final id = plannedRouteIdFrom(response);
     if (id == null || id.isEmpty) {
       throw Exception('Route saved but no id returned');
@@ -390,6 +507,7 @@ class RunningLogRepository {
     final points = run.routePoints ?? const <LocationPoint>[];
     final routeId = await ensureRouteId(points: points, existingRouteId: existingRouteId);
     final body = createRunningLogBody(run: run, routeId: routeId);
+    logRunningLogSavePayload(body);
     return createRunningLog(body);
   }
 

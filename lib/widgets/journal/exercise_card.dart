@@ -75,6 +75,28 @@ class _ExerciseCardState extends State<ExerciseCard> {
     );
   }
 
+  bool get _showDistanceColumn => widget.exercise.hasDistanceSets;
+
+  String _formatDistance(ExerciseSetModel set) {
+    if (!set.isDistanceBased) return '-';
+    final value = set.distance!;
+    final display = value % 1 == 0 ? value.toInt().toString() : value.toStringAsFixed(1);
+    final unit = set.distanceUnit?.toLowerCase().trim();
+    switch (unit) {
+      case 'meters':
+      case 'm':
+        return '$display m';
+      case 'km':
+      case 'kilometers':
+        return '$display km';
+      case 'miles':
+      case 'mi':
+        return '$display mi';
+      default:
+        return display;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -229,13 +251,13 @@ class _ExerciseCardState extends State<ExerciseCard> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Image.asset('assets/images/weight.png', width: 13.w),
+                        if (_showDistanceColumn) Icon(Icons.straighten, size: 14.sp, color: AppColors.black) else Image.asset('assets/images/weight.png', width: 13.w),
                         const SizedBox(width: 4),
                         Flexible(
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              'Weight',
+                              _showDistanceColumn ? 'Distance' : 'Weight',
                               textAlign: TextAlign.center,
                               style: AppTextStyles.labelSmall.copyWith(color: AppColors.black, fontSize: 13.sp),
                             ),
@@ -270,7 +292,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
             style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 12),
           ),
           _buildRepsOrTime(set),
-          _buildWeight(set),
+          _showDistanceColumn ? _buildDistance(set) : _buildWeight(set),
         ],
       ).paddingSymmetric(horizontal: 30),
     );
@@ -309,6 +331,14 @@ class _ExerciseCardState extends State<ExerciseCard> {
       '${set.reps ?? '-'}',
       textAlign: TextAlign.center,
       style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 12),
+    );
+  }
+
+  Widget _buildDistance(ExerciseSetModel set) {
+    return Text(
+      _formatDistance(set),
+      textAlign: TextAlign.center,
+      style: AppTextStyles.bodySmall.copyWith(color: set.isDistanceBased ? AppColors.onSurface : AppColors.primaryGrayDark, fontSize: 12),
     );
   }
 

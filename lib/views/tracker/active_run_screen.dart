@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/run_tracking_controller.dart';
 import 'package:get_right/models/planned_route_model.dart';
+import 'package:get_right/repo/running_log_repo.dart';
 import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -21,12 +22,16 @@ class ActiveRunScreen extends StatefulWidget {
 
 class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProviderStateMixin {
   late final RunTrackingController _controller;
+  final RunningLogRepository _runningLogRepo = RunningLogRepository();
+  final Rxn<PlannedRouteModel> _plannedRouteRx = Rxn<PlannedRouteModel>();
   GoogleMapController? _mapController;
   late AnimationController _pulseController;
   Timer? _mapUpdateTimer;
   bool _isLocked = false;
   bool _followUserOnMap = true;
   PlannedRouteModel? _plannedRoute;
+
+  PlannedRouteModel? get _activePlannedRoute => _plannedRouteRx.value ?? _plannedRoute;
 
   @override
   void initState() {
@@ -41,22 +46,50 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
     _startMapUpdates();
   }
 
+  PlannedRouteModel? _parsePlannedRouteFromArgs(Map<String, dynamic>? args) {
+    if (args == null) return null;
+    final raw = args['plannedRoute'];
+    if (raw is PlannedRouteModel) return raw;
+    if (raw is Map) {
+      try {
+        return PlannedRouteModel.fromJson(Map<String, dynamic>.from(raw));
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  Future<PlannedRouteModel?> _resolvePlannedRoute(PlannedRouteModel? route) async {
+    if (route == null) return null;
+    if (route.routePoints.isNotEmpty) return route;
+    if (!WorkoutRepository.isValidMongoId(route.id)) return route;
+
+    try {
+      return await _runningLogRepo.fetchPlannedRouteDetail(route.id);
+    } catch (e) {
+      if (mounted) {
+        Get.snackbar('Saved route', 'Could not load route points. Showing your live track only.', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 3));
+      }
+      return route;
+    }
+  }
+
   Future<void> _initializeRun() async {
     if (!mounted) return;
 
     final args = Get.arguments as Map<String, dynamic>?;
-    PlannedRouteModel? plannedRoute;
+    var plannedRoute = _parsePlannedRouteFromArgs(args);
     String? plannedRouteId;
 
-    if (args != null) {
-      if (args['activityType'] != null) {
-        _controller.activityType.value = args['activityType'].toString();
-      }
-      if (args['plannedRoute'] is PlannedRouteModel) {
-        plannedRoute = args['plannedRoute'] as PlannedRouteModel;
-        if (WorkoutRepository.isValidMongoId(plannedRoute.id)) {
-          plannedRouteId = plannedRoute.id;
-        }
+    if (args != null && args['activityType'] != null) {
+      _controller.activityType.value = args['activityType'].toString();
+    }
+
+    if (plannedRoute != null) {
+      plannedRoute = await _resolvePlannedRoute(plannedRoute);
+      if (WorkoutRepository.isValidMongoId(plannedRoute?.id)) {
+        plannedRouteId = plannedRoute!.id;
       }
     }
 
@@ -69,10 +102,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
     }
 
     if (!_controller.isTracking.value) {
-      await _controller.startTracking(
-        activity: _controller.activityType.value,
-        plannedRouteId: plannedRouteId,
-      );
+      await _controller.startTracking(activity: _controller.activityType.value, plannedRouteId: plannedRouteId);
     }
 
     if (plannedRoute != null) {
@@ -85,6 +115,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       _plannedRoute = route;
       _followUserOnMap = false;
     });
+    _plannedRouteRx.value = route;
     _controller.plannedRouteId = routeId ?? (WorkoutRepository.isValidMongoId(route.id) ? route.id : _controller.plannedRouteId);
   }
 
@@ -109,7 +140,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
         timer.cancel();
         return;
       }
-      if (!_followUserOnMap || _plannedRoute != null) return;
+      if (!_followUserOnMap || _activePlannedRoute != null) return;
       final position = _controller.currentPosition.value;
       if (position != null && _mapController != null) {
         _mapController!.animateCamera(CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)));
@@ -155,12 +186,13 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
     return Obx(() {
       final position = _controller.currentPosition.value;
       final routePoints = _controller.routePoints;
+      final plannedRoute = _activePlannedRoute;
 
       LatLng? mapCenter;
       if (position != null) {
         mapCenter = LatLng(position.latitude, position.longitude);
-      } else if (_plannedRoute != null && _plannedRoute!.routePoints.isNotEmpty) {
-        mapCenter = _plannedRoute!.routePoints.first;
+      } else if (plannedRoute != null && plannedRoute.routePoints.isNotEmpty) {
+        mapCenter = plannedRoute.routePoints.first;
       }
 
       if (mapCenter == null) {
@@ -174,16 +206,8 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       final Set<Polyline> polylines = {};
 
       // Add planned route polyline
-      if (_plannedRoute != null && _plannedRoute!.routePoints.isNotEmpty) {
-        polylines.add(
-          Polyline(
-            polylineId: const PolylineId('planned_route'),
-            points: _plannedRoute!.routePoints,
-            color: const Color(0xFF7C49E2),
-            width: 5,
-            geodesic: true,
-          ),
-        );
+      if (plannedRoute != null && plannedRoute.routePoints.isNotEmpty) {
+        polylines.add(Polyline(polylineId: const PolylineId('planned_route'), points: plannedRoute.routePoints, color: const Color(0xFF7C49E2), width: 5, geodesic: true));
       }
 
       // Add actual run route polyline (solid line for the path traveled)
@@ -213,9 +237,9 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
         );
       }
 
-      // Add planned route start marker
-      if (_plannedRoute != null && _plannedRoute!.routePoints.isNotEmpty) {
-        final startPoint = _plannedRoute!.routePoints.first;
+      // Add planned route start/end markers
+      if (plannedRoute != null && plannedRoute.routePoints.isNotEmpty) {
+        final startPoint = plannedRoute.routePoints.first;
         markers.add(
           Marker(
             markerId: const MarkerId('planned_route_start'),
@@ -225,27 +249,28 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
           ),
         );
 
-        // Add planned route end marker (if different from start)
-        if (_plannedRoute!.routePoints.length > 1) {
-          final endPoint = _plannedRoute!.routePoints.last;
-          markers.add(
-            Marker(
-              markerId: const MarkerId('planned_route_end'),
-              position: endPoint,
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-              infoWindow: const InfoWindow(title: 'Route End'),
-            ),
-          );
+        if (plannedRoute.routePoints.length > 1) {
+          final endPoint = plannedRoute.routePoints.last;
+          if (endPoint.latitude != startPoint.latitude || endPoint.longitude != startPoint.longitude) {
+            markers.add(
+              Marker(
+                markerId: const MarkerId('planned_route_end'),
+                position: endPoint,
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                infoWindow: const InfoWindow(title: 'Route End'),
+              ),
+            );
+          }
         }
       }
 
       return GoogleMap(
-        key: ValueKey('active_run_map_${_plannedRoute?.id ?? 'none'}'),
+        key: ValueKey('active_run_map_${plannedRoute?.id ?? 'none'}_${plannedRoute?.routePoints.length ?? 0}'),
         initialCameraPosition: CameraPosition(target: mapCenter, zoom: 16),
         onMapCreated: (controller) {
           _mapController = controller;
           _setMapStyle(controller);
-          if (_plannedRoute != null && _plannedRoute!.routePoints.isNotEmpty) {
+          if (plannedRoute != null && plannedRoute.routePoints.isNotEmpty) {
             _scheduleMapFit();
           }
         },
@@ -265,8 +290,9 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
     if (_mapController == null) return;
 
     final points = <LatLng>[];
-    if (_plannedRoute != null && _plannedRoute!.routePoints.isNotEmpty) {
-      points.addAll(_plannedRoute!.routePoints);
+    final plannedRoute = _activePlannedRoute;
+    if (plannedRoute != null && plannedRoute.routePoints.isNotEmpty) {
+      points.addAll(plannedRoute.routePoints);
     }
 
     final position = _controller.currentPosition.value;
@@ -293,10 +319,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       maxLng = maxLng > point.longitude ? maxLng : point.longitude;
     }
 
-    final bounds = LatLngBounds(
-      southwest: LatLng(minLat, minLng),
-      northeast: LatLng(maxLat, maxLng),
-    );
+    final bounds = LatLngBounds(southwest: LatLng(minLat, minLng), northeast: LatLng(maxLat, maxLng));
 
     _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
   }
@@ -383,6 +406,41 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
                   const SizedBox(width: 36),
                 ],
               ),
+              if (_activePlannedRoute != null && _activePlannedRoute!.routePoints.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6EAFE),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF7C49E2).withOpacity(0.35)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.route, color: Color(0xFF7C49E2), size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _activePlannedRoute!.name,
+                              style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '${(_activePlannedRoute!.estimatedDistance / 1000).toStringAsFixed(2)} km • ${_activePlannedRoute!.routePoints.length} points',
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 4),
               Text(
                 time,
@@ -537,7 +595,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       child: _smallRoundButton(
         icon: Icons.my_location_rounded,
         onTap: () {
-          if (_plannedRoute != null && _plannedRoute!.routePoints.isNotEmpty) {
+          if (_activePlannedRoute != null && _activePlannedRoute!.routePoints.isNotEmpty) {
             setState(() => _followUserOnMap = false);
             _fitMapToRouteAndUser();
             return;
@@ -880,6 +938,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
           ),
           TextButton(
             onPressed: () async {
+              _controller.logPlannedRouteSavePayloadPreview();
               final run = await _controller.stopTracking();
               if (!mounted) return;
               // Use Navigator — Get.back() can assert when closing a snackbar already disposed by route pop.

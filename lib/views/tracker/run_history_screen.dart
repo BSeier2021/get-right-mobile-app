@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:get_right/models/run_model.dart';
 import 'package:get_right/models/planned_route_model.dart';
@@ -89,10 +90,57 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
     }
   }
 
-  /// Start a run with a saved planned route (fetches full route from API when possible).
-  Future<void> _startRunWithRoute(PlannedRouteModel route) async {
+  /// Preview saved route on map, then optionally start a run with it.
+  Future<void> _showSavedRoutePreview(PlannedRouteModel route) async {
     var resolvedRoute = route;
     if (WorkoutRepository.isValidMongoId(route.id)) {
+      _showLoadingDialog();
+      try {
+        resolvedRoute = await _runningLogRepo.fetchPlannedRouteDetail(route.id);
+      } catch (e) {
+        _closeLoadingDialog();
+        Get.snackbar(
+          'Could not load route',
+          e.toString().replaceFirst('Exception: ', ''),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.error,
+          colorText: AppColors.onError,
+        );
+        return;
+      }
+      _closeLoadingDialog();
+    }
+
+    if (!mounted) return;
+    if (resolvedRoute.routePoints.isEmpty) {
+      Get.snackbar(
+        'No route data',
+        'This saved route has no points to display on the map.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+      );
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _SavedRoutePreviewSheet(
+        route: resolvedRoute,
+        onStartRun: () {
+          Navigator.pop(ctx);
+          _startRunWithRoute(resolvedRoute, skipFetch: true);
+        },
+      ),
+    );
+  }
+
+  /// Start a run with a saved planned route (fetches full route from API when possible).
+  Future<void> _startRunWithRoute(PlannedRouteModel route, {bool skipFetch = false}) async {
+    var resolvedRoute = route;
+    if (!skipFetch && WorkoutRepository.isValidMongoId(route.id)) {
       _showLoadingDialog();
       try {
         resolvedRoute = await _runningLogRepo.fetchPlannedRouteDetail(route.id);
@@ -508,7 +556,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _startRunWithRoute(route),
+          onTap: () => _showSavedRoutePreview(route),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -814,5 +862,162 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
       default:
         return Icons.directions_run;
     }
+  }
+}
+
+class _SavedRoutePreviewSheet extends StatelessWidget {
+  const _SavedRoutePreviewSheet({required this.route, required this.onStartRun});
+
+  final PlannedRouteModel route;
+  final VoidCallback onStartRun;
+
+  LatLng _centerFor(List<LatLng> points) {
+    if (points.isEmpty) return const LatLng(0, 0);
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+    for (final point in points) {
+      minLat = minLat < point.latitude ? minLat : point.latitude;
+      maxLat = maxLat > point.latitude ? maxLat : point.latitude;
+      minLng = minLng < point.longitude ? minLng : point.longitude;
+      maxLng = maxLng > point.longitude ? maxLng : point.longitude;
+    }
+    return LatLng((minLat + maxLat) / 2, (minLng + maxLng) / 2);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final points = route.routePoints;
+    final start = points.first;
+    final end = points.length > 1 ? points.last : start;
+    final dateFormat = DateFormat('MMM d, yyyy');
+    final createdAt = route.createdAt.toLocal();
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.72,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 10),
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.4), borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: const Color(0xFFF6EAFE), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.route, color: Color(0xFF7C49E2), size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(route.name, style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+                      Text(
+                        '${dateFormat.format(createdAt)} • ${(route.estimatedDistance / 1000).toStringAsFixed(2)} km • ${points.length} points',
+                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(target: _centerFor(points), zoom: 14),
+                  onMapCreated: (controller) {
+                    if (points.length < 2) return;
+                    var minLat = points.first.latitude;
+                    var maxLat = points.first.latitude;
+                    var minLng = points.first.longitude;
+                    var maxLng = points.first.longitude;
+                    for (final point in points) {
+                      minLat = minLat < point.latitude ? minLat : point.latitude;
+                      maxLat = maxLat > point.latitude ? maxLat : point.latitude;
+                      minLng = minLng < point.longitude ? minLng : point.longitude;
+                      maxLng = maxLng > point.longitude ? maxLng : point.longitude;
+                    }
+                    controller.animateCamera(
+                      CameraUpdate.newLatLngBounds(
+                        LatLngBounds(
+                          southwest: LatLng(minLat, minLng),
+                          northeast: LatLng(maxLat, maxLng),
+                        ),
+                        48,
+                      ),
+                    );
+                  },
+                  polylines: {
+                    Polyline(
+                      polylineId: const PolylineId('saved_route'),
+                      points: points,
+                      color: const Color(0xFF7C49E2),
+                      width: 5,
+                      geodesic: true,
+                    ),
+                  },
+                  markers: {
+                    Marker(
+                      markerId: const MarkerId('start'),
+                      position: start,
+                      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                      infoWindow: const InfoWindow(title: 'Start'),
+                    ),
+                    if (points.length > 1)
+                      Marker(
+                        markerId: const MarkerId('end'),
+                        position: end,
+                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                        infoWindow: const InfoWindow(title: 'End'),
+                      ),
+                  },
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: onStartRun,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: Text('Start Run With This Route', style: AppTextStyles.buttonLarge),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.onAccent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

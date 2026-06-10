@@ -88,6 +88,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   void _openChatRoom(ConversationModel conversation) {
     Get.toNamed(
       AppRoutes.chatRoom,
+      preventDuplicates: false,
       arguments: {
         'conversationId': conversation.id,
         'trainerId': conversation.trainerId,

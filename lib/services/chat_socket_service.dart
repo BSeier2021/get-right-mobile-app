@@ -27,6 +27,8 @@ class ChatSocketService {
   final StreamController<Map<String, dynamic>> _newMessageController = StreamController.broadcast();
   final StreamController<Map<String, dynamic>> _userTypingController = StreamController.broadcast();
   final StreamController<Map<String, dynamic>> _userStatusController = StreamController.broadcast();
+  final StreamController<Map<String, dynamic>> _conversationBlockController = StreamController.broadcast();
+  final StreamController<Map<String, dynamic>> _conversationUpdatedController = StreamController.broadcast();
   final StreamController<bool> _connectionController = StreamController.broadcast();
 
   /// Direct handler — always invoked before the stream (avoids missed broadcast events).
@@ -35,6 +37,8 @@ class ChatSocketService {
   Stream<Map<String, dynamic>> get onNewMessage => _newMessageController.stream;
   Stream<Map<String, dynamic>> get onUserTyping => _userTypingController.stream;
   Stream<Map<String, dynamic>> get onUserStatusChanged => _userStatusController.stream;
+  Stream<Map<String, dynamic>> get onConversationBlockChanged => _conversationBlockController.stream;
+  Stream<Map<String, dynamic>> get onConversationUpdated => _conversationUpdatedController.stream;
   Stream<bool> get onConnectionChanged => _connectionController.stream;
 
   bool get isConnected => _socket?.connected == true;
@@ -201,7 +205,29 @@ class ChatSocketService {
     for (final event in const ['user-status-changed', 'userStatusChanged']) {
       _socket!.on(event, (data) {
         final map = _asMap(data);
-        if (map != null) _userStatusController.add(map);
+        if (map != null) {
+          _userStatusController.add(map);
+          _dispatchConversationBlockIfPresent(map, source: event);
+        }
+      });
+    }
+
+    for (final event in const ['conversation-updated', 'conversationUpdated']) {
+      _socket!.on(event, (data) {
+        final map = _asMap(data);
+        if (map == null) return;
+        debugPrint('[ChatSocket] $event: $data');
+        if (!_conversationUpdatedController.isClosed) {
+          _conversationUpdatedController.add(map);
+        }
+        _dispatchConversationBlockIfPresent(map, source: event);
+      });
+    }
+
+    for (final event in const ['block-status-changed', 'blockStatusChanged', 'user-blocked', 'userBlocked']) {
+      _socket!.on(event, (data) {
+        final map = _asMap(data);
+        if (map != null) _dispatchConversationBlockIfPresent(map, source: event);
       });
     }
 
@@ -210,9 +236,43 @@ class ChatSocketService {
       if (event == 'new-message' || event == 'newMessage' || event == 'message') return;
       final map = _asMap(data);
       if (map == null) return;
+      _dispatchConversationBlockIfPresent(map, source: event);
       final payload = _unwrapMessagePayload(map);
       if (payload != null) _publishMessage(payload, source: event);
     });
+  }
+
+  void _dispatchConversationBlockIfPresent(Map<String, dynamic> map, {required String source}) {
+    if (!_containsBlockStatus(map)) return;
+    debugPrint('[ChatSocket] $source → block status update');
+    if (!_conversationBlockController.isClosed) {
+      _conversationBlockController.add(map);
+    }
+  }
+
+  bool _containsBlockStatus(Map<String, dynamic> map) {
+    bool hasFlags(Map<String, dynamic> source) {
+      return source.containsKey('isBlockedByMe') ||
+          source.containsKey('isBlockedByOther') ||
+          source.containsKey('isBlockedByBoth') ||
+          source.containsKey('blockedByMe') ||
+          source.containsKey('blockedByOther');
+    }
+
+    if (hasFlags(map)) return true;
+
+    final conversation = map['conversation'];
+    if (conversation is Map && hasFlags(Map<String, dynamic>.from(conversation))) return true;
+
+    final data = map['data'];
+    if (data is Map) {
+      final dataMap = Map<String, dynamic>.from(data);
+      if (hasFlags(dataMap)) return true;
+      final nestedConversation = dataMap['conversation'];
+      if (nestedConversation is Map && hasFlags(Map<String, dynamic>.from(nestedConversation))) return true;
+    }
+
+    return false;
   }
 
   void _dispatchNewMessage(String event, dynamic data) {

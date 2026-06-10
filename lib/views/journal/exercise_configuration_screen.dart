@@ -419,8 +419,6 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
 
       if (cfg.mainType == 'Time') {
         entry['reps'] = WorkoutRepository.encodeTimedRepsForApi(s.time);
-        entry['repsType'] = 'TIME';
-        entry['time'] = s.time;
       } else if (s.repsType == 'FAILURE') {
         entry['reps'] = 'FAILURE';
       } else if (s.repsType == 'AMRAP') {
@@ -431,6 +429,10 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
 
       if (cfg.extraType == 'Weight' && !s.isBodyweight && s.weight > 0) {
         entry['weight'] = s.weight % 1 == 0 ? s.weight.toInt() : s.weight;
+      }
+
+      if (cfg.extraType == 'Distance' && s.distance > 0) {
+        entry['distance'] = s.distance % 1 == 0 ? s.distance.toInt() : s.distance;
       }
 
       sets.add(entry);
@@ -1193,9 +1195,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                           textAlign: TextAlign.center,
                           keyboardType: TextInputType.number,
                           textInputAction: TextInputAction.done,
-                          inputFormatters: cfg.mainType == 'Time' || (data.repsType != 'AMRAP' && data.repsType != 'FAILURE')
-                              ? [FilteringTextInputFormatter.digitsOnly]
-                              : null,
+                          inputFormatters: cfg.mainType == 'Time' || (data.repsType != 'AMRAP' && data.repsType != 'FAILURE') ? [FilteringTextInputFormatter.digitsOnly] : null,
                           readOnly: cfg.mainType != 'Time' && (data.repsType == 'AMRAP' || data.repsType == 'FAILURE'),
                           decoration: InputDecoration(
                             enabledBorder: OutlineInputBorder(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:get_right/controllers/chat_controller.dart';
 import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/repo/blocks_repo.dart';
@@ -15,6 +16,40 @@ import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/feed_post_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+const Color _kProfileForestGreen = Color(0xFF2D4635);
+const Color _kRecordPink = Color(0xFFF4CCE9);
+const Color _kRecordBlue = Color(0xFFB6D7E8);
+
+class _ViewProfilePersonalRecord {
+  final String id;
+  final String liftName;
+  final String value;
+  final String unit;
+  final DateTime date;
+  final bool isPublic;
+
+  const _ViewProfilePersonalRecord({required this.id, required this.liftName, required this.value, required this.unit, required this.date, required this.isPublic});
+
+  factory _ViewProfilePersonalRecord.fromApi(Map<String, dynamic> json) {
+    final id = (json['_id'] ?? json['id'] ?? '').toString();
+    final valueRaw = json['value'];
+    final valueStr = valueRaw is num ? (valueRaw == valueRaw.roundToDouble() ? valueRaw.round().toString() : valueRaw.toString()) : (valueRaw?.toString() ?? '');
+    final dateStr = json['date']?.toString();
+    var date = DateTime.now();
+    if (dateStr != null && dateStr.isNotEmpty) {
+      date = DateTime.tryParse(dateStr)?.toLocal() ?? date;
+    }
+    return _ViewProfilePersonalRecord(
+      id: id,
+      liftName: (json['name'] ?? '').toString(),
+      value: valueStr,
+      unit: (json['unit'] ?? '').toString(),
+      date: date,
+      isPublic: json['isPublic'] == true,
+    );
+  }
+}
 
 /// Trainer Profile Screen with Tabs
 class TrainerProfileScreen extends StatefulWidget {
@@ -52,6 +87,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   List<Map<String, dynamic>> _posts = [];
   List<Map<String, dynamic>> _programs = [];
   List<Map<String, dynamic>> _bundles = [];
+  List<_ViewProfilePersonalRecord> _personalRecords = [];
 
   String? _programsLoadError;
   String? _bundlesLoadError;
@@ -323,6 +359,15 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     };
 
     _isFollowedByMe = user['isFollowedByMe'] == true || user['isFollowing'] == true || data['isFollowing'] == true;
+
+    final recordsRaw = user['personalRecords'];
+    _personalRecords = recordsRaw is List
+        ? recordsRaw
+              .whereType<Map>()
+              .map((e) => _ViewProfilePersonalRecord.fromApi(Map<String, dynamic>.from(e)))
+              .where((r) => r.isPublic && r.id.isNotEmpty && r.liftName.isNotEmpty)
+              .toList()
+        : [];
   }
 
   static String? _nonEmptyString(dynamic value) {
@@ -638,6 +683,75 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     return Text(
       title,
       style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+    );
+  }
+
+  Widget _buildPersonalRecordsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [_buildProfileSectionHeader('Personal Records'), const SizedBox(height: 12), _buildPersonalRecordsGrid()],
+    );
+  }
+
+  Widget _buildPersonalRecordsGrid() {
+    final rows = <List<_ViewProfilePersonalRecord>>[];
+    for (var i = 0; i < _personalRecords.length; i += 2) {
+      if (i + 1 < _personalRecords.length) {
+        rows.add([_personalRecords[i], _personalRecords[i + 1]]);
+      } else {
+        rows.add([_personalRecords[i]]);
+      }
+    }
+
+    return Column(
+      children: [
+        for (var i = 0; i < rows.length; i++)
+          Padding(
+            padding: EdgeInsets.only(bottom: i < rows.length - 1 ? 12 : 0),
+            child: Row(
+              children: [
+                Expanded(child: _buildPersonalRecordCard(rows[i][0])),
+                if (rows[i].length > 1) ...[const SizedBox(width: 12), Expanded(child: _buildPersonalRecordCard(rows[i][1]))],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Color _recordCardTint(_ViewProfilePersonalRecord record) {
+    final n = record.liftName.toLowerCase();
+    if (n.contains('bench')) return _kRecordPink;
+    if (n.contains('squat')) return _kRecordBlue;
+    return _kRecordPink;
+  }
+
+  Widget _buildPersonalRecordCard(_ViewProfilePersonalRecord record) {
+    final dateFormat = DateFormat('MMM d, yyyy');
+    final displayValue = '${record.value} ${record.unit}'.trim();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: _recordCardTint(record), borderRadius: BorderRadius.circular(14)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            record.liftName,
+            style: AppTextStyles.titleSmall.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            displayValue,
+            style: AppTextStyles.headlineSmall.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w800, fontSize: 20),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            dateFormat.format(record.date),
+            style: AppTextStyles.labelSmall.copyWith(color: _kProfileForestGreen, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
     );
   }
 
@@ -958,13 +1072,21 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       if (!mounted || conversation == null) return;
 
       final resolvedName = (trainerName ?? conversation.trainerName).trim();
+      final trainerIdArg = conversation.trainerId.isNotEmpty ? conversation.trainerId : id;
+      final programIdArg = conversation.programId.isNotEmpty ? conversation.programId : null;
+
+      await controller.switchToConversation(conversation.id, trainerId: trainerIdArg, programId: programIdArg);
+
+      if (!mounted) return;
+
       await Get.toNamed(
         AppRoutes.chatRoom,
+        preventDuplicates: false,
         arguments: <String, dynamic>{
           'conversationId': conversation.id,
-          'trainerId': conversation.trainerId.isNotEmpty ? conversation.trainerId : id,
+          'trainerId': trainerIdArg,
           'trainerName': resolvedName.isNotEmpty ? resolvedName : _displayName,
-          if (conversation.programId.isNotEmpty) 'programId': conversation.programId,
+          if (programIdArg != null) 'programId': programIdArg,
           if (conversation.programTitle.isNotEmpty) 'programTitle': conversation.programTitle,
           if (initialMessage != null && initialMessage.trim().isNotEmpty) 'initialMessage': initialMessage.trim(),
         },
@@ -1234,7 +1356,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         style: TextButton.styleFrom(
           backgroundColor: AppColors.surface,
           foregroundColor: AppColors.accent,
-          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 5),
+          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 0),
           minimumSize: Size(buttonWidth, 36),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           shape: RoundedRectangleBorder(
@@ -1242,17 +1364,18 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             side: const BorderSide(color: AppColors.accent),
           ),
         ),
-        icon: _messageLoading
+        label: _messageLoading
             ? SizedBox(
                 width: compact ? 16 : 18,
                 height: compact ? 16 : 18,
                 child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
               )
-            : Icon(Icons.chat_bubble_outline_rounded, size: compact ? 16 : 18, color: AppColors.accent),
-        label: Text(
-          'Message',
-          style: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w700, color: AppColors.accent),
-        ),
+            : Center(
+                child: Text(
+                  'Message',
+                  style: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w700, color: AppColors.accent),
+                ).paddingOnly(bottom: 3),
+              ),
       ),
     );
   }
@@ -1470,6 +1593,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                 ),
                 if (_displayBio.trim().isNotEmpty) ...[const SizedBox(height: 8), _buildExpandableBio()],
                 if (_hasProfileDetails) ...[const SizedBox(height: 20), _buildProfileDetailsSection()],
+                if (_personalRecords.isNotEmpty) ...[const SizedBox(height: 20), _buildPersonalRecordsSection()],
               ],
             ),
           ),

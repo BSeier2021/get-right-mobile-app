@@ -14,6 +14,7 @@ import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/models/enrolled_program_model.dart';
 import 'package:get_right/services/api_service.dart';
+import 'package:get_right/services/chat_socket_service.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -46,6 +47,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
   bool _isRecorderInitialized = false;
 
   ChatController? _chatController;
+  StreamSubscription<Map<String, dynamic>>? _conversationUpdatedSub;
   String? _conversationId;
   String? _trainerId;
   String? _trainerName;
@@ -64,6 +66,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _chatController?.resumeActiveConversation();
+      _chatController?.refreshConversationBlockStatus();
     }
   }
 
@@ -98,6 +101,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
 
       if (!mounted) return;
       setState(() {});
+      _attachConversationUpdatedListener();
       await _loadChatData();
     } catch (e) {
       if (mounted) {
@@ -117,7 +121,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
       _programTitle = args['programTitle']?.toString();
 
       if (_conversationId != null && _chatController != null) {
-        await _chatController!.loadMessages(_conversationId!, trainerId: _trainerId, programId: _programId);
+        await _chatController!.switchToConversation(_conversationId!, trainerId: _trainerId, programId: _programId);
       } else if (_trainerId != null && _programId != null) {
         await _startNewConversation();
       } else if (_trainerId != null && _trainerId!.isNotEmpty) {
@@ -150,7 +154,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
     _trainerName ??= conversation.trainerName;
     _programId ??= conversation.programId.isNotEmpty ? conversation.programId : null;
     _programTitle ??= conversation.programTitle.isNotEmpty ? conversation.programTitle : null;
-    await _chatController!.loadMessages(conversation.id, trainerId: _trainerId, programId: _programId);
+    await _chatController!.switchToConversation(conversation.id, trainerId: _trainerId, programId: _programId);
   }
 
   Future<void> _startNewConversation() async {
@@ -166,13 +170,27 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
 
     if (conversationId != null && _chatController != null) {
       _conversationId = conversationId;
-      await _chatController!.loadMessages(conversationId, trainerId: _trainerId, programId: _programId);
+      await _chatController!.switchToConversation(conversationId, trainerId: _trainerId, programId: _programId);
     }
+  }
+
+  void _attachConversationUpdatedListener() {
+    _conversationUpdatedSub?.cancel();
+    _conversationUpdatedSub = ChatSocketService.instance.onConversationUpdated.listen((payload) {
+      if (!mounted || _chatController == null) return;
+      _chatController!.onConversationUpdated(payload);
+    });
+  }
+
+  void _detachConversationUpdatedListener() {
+    _conversationUpdatedSub?.cancel();
+    _conversationUpdatedSub = null;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _detachConversationUpdatedListener();
     // Keep socket room joined — only stop typing; leaving breaks live incoming messages
     _chatController?.stopTypingInRoom();
     _messageController.dispose();
@@ -422,30 +440,38 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
       context: context,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.flag, color: AppColors.error),
-              title: Text('Report', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-              onTap: () {
-                Navigator.pop(context);
-                _showReportDialog();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.block, color: AppColors.error),
-              title: Text('Block', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-              onTap: () {
-                Navigator.pop(context);
-                _showBlockDialog();
-              },
-            ),
-          ],
-        ),
-      ),
+      builder: (context) => Obx(() {
+        final isBlockedByMe = _chatController?.isBlockedByMe.value ?? false;
+
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.flag, color: AppColors.error),
+                title: Text('Report', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showReportDialog();
+                },
+              ),
+              ListTile(
+                leading: Icon(isBlockedByMe ? Icons.lock_open_outlined : Icons.block, color: isBlockedByMe ? AppColors.accent : AppColors.error),
+                title: Text(isBlockedByMe ? 'Unblock' : 'Block', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                onTap: () {
+                  Navigator.pop(context);
+                  if (isBlockedByMe) {
+                    _onUnblockUser();
+                  } else {
+                    _showBlockDialog();
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 
@@ -636,6 +662,137 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
     );
   }
 
+  Future<void> _onUnblockUser() async {
+    final userId = _chatController?.otherParticipant?.id ?? _trainerId;
+    if (userId == null || userId.isEmpty || _chatController == null) return;
+
+    try {
+      await _chatController!.unblockTrainer(userId);
+    } catch (_) {
+      // Error snackbar is shown by the controller.
+    }
+  }
+
+  Widget _buildChatBottomBar() {
+    return Obx(() {
+      final blockedByMe = _chatController!.isBlockedByMe.value;
+      final blockedByOther = _chatController!.isBlockedByOther.value;
+      final otherName = _chatController!.otherParticipant?.name ?? _trainerName ?? 'This user';
+      final isUnblocking = _chatController!.isLoading.value;
+
+      if (blockedByOther || blockedByMe) {
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border(top: BorderSide(color: AppColors.primaryGray, width: 1)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (blockedByOther)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.error.withOpacity(0.25)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.block, color: AppColors.error, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text('$otherName has blocked you. You cannot send messages.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (blockedByMe) ...[
+                  if (blockedByOther) const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: isUnblocking ? null : _onUnblockUser,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.onAccent,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: isUnblocking
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
+                          : const Icon(Icons.lock_open_outlined),
+                      label: Text(
+                        'Unblock $otherName',
+                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      }
+
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.primaryGray, width: 1)),
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.attach_file, color: AppColors.onSurface),
+              onPressed: _showAttachmentOptions,
+            ),
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                decoration: InputDecoration(
+                  hintText: 'Type a message...',
+                  hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(color: AppColors.primaryGray),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(color: AppColors.primaryGray),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(color: AppColors.accent, width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                maxLines: null,
+                textCapitalization: TextCapitalization.sentences,
+                onChanged: _chatController!.notifyTypingInRoom,
+                onSubmitted: (_) => _sendMessage(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Obx(() {
+              final isSending = _chatController!.isSending.value;
+              return IconButton(
+                icon: isSending ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send, color: AppColors.accent),
+                onPressed: isSending ? null : _sendMessage,
+              );
+            }),
+          ],
+        ),
+      );
+    });
+  }
+
   String _formatDuration(int seconds) {
     final minutes = seconds ~/ 60;
     final secs = seconds % 60;
@@ -737,7 +894,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
               final messages = _chatController!.messages;
               final isLoading = _chatController!.isLoadingMessages.value;
               final isLoadingMore = _chatController!.isLoadingMoreMessages.value;
-              final isSending = _chatController!.isSending.value;
 
               return Column(
                 children: [
@@ -815,56 +971,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
                       ),
                     ),
 
-                  // Input area
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      border: Border(top: BorderSide(color: AppColors.primaryGray, width: 1)),
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.attach_file, color: AppColors.onSurface),
-                          onPressed: _showAttachmentOptions,
-                        ),
-                        Expanded(
-                          child: TextField(
-                            controller: _messageController,
-                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
-                            decoration: InputDecoration(
-                              hintText: 'Type a message...',
-                              hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide(color: AppColors.primaryGray),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide(color: AppColors.primaryGray),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide(color: AppColors.accent, width: 2),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            ),
-                            maxLines: null,
-                            textCapitalization: TextCapitalization.sentences,
-                            onChanged: _chatController!.notifyTypingInRoom,
-                            onSubmitted: (_) => _sendMessage(),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: isSending
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Icon(Icons.send, color: AppColors.accent),
-                          onPressed: isSending ? null : _sendMessage,
-                        ),
-                      ],
-                    ),
-                  ),
+                  // Input / block status area
+                  if (!_isRecording) _buildChatBottomBar(),
                 ],
               );
             }),
