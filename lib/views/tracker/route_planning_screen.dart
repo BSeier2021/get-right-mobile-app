@@ -224,8 +224,8 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
       createdAt: DateTime.now(),
     );
 
-    // Navigate directly to live tracking screen with this planned route
-    Get.toNamed(AppRoutes.runTracking, arguments: {'plannedRoute': route, 'activityType': 'run'});
+    // Let the user pick Walk / Jog / Run / Bike before live tracking.
+    Get.toNamed(AppRoutes.activityTypeSelection, arguments: {'plannedRoute': route});
   }
 
   @override
