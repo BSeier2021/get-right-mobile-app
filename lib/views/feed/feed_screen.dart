@@ -114,6 +114,16 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     }
   }
 
+  void _removePostFromFeedLists(String postId) {
+    if (postId.isEmpty) return;
+    setState(() {
+      _feedPosts.removeWhere((p) => (p['id'] ?? '').toString() == postId);
+      _followingPosts.removeWhere((p) => (p['id'] ?? '').toString() == postId);
+      _forYouFeedEpoch++;
+      _followingFeedEpoch++;
+    });
+  }
+
   Widget _feedReelOverlay(BuildContext ctx, Map<String, dynamic> post, int index, VideoPlayerController? controller) {
     return FeedReelChromeOverlay(
       post: post,
@@ -121,6 +131,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       onLikeStateChanged: _syncPostLikeState,
       onSaveStateChanged: _syncPostSaveState,
       onCommentCountChanged: _syncPostCommentCount,
+      onPostDeleted: _removePostFromFeedLists,
     );
   }
 

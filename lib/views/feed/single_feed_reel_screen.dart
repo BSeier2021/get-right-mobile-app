@@ -91,21 +91,22 @@ class _SingleFeedReelScreenState extends State<SingleFeedReelScreen> {
   Future<Map<String, dynamic>?> _findInMyFeeds(String feedId) async {
     try {
       final raw = await _feedRepo.getMyFeedsRepo(page: 1, limit: 50);
-      final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data'] as Map) : <String, dynamic>{};
-      final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds']) : const [];
-      for (final item in feedsRaw) {
-        if (item is! Map) continue;
-        final feed = Map<String, dynamic>.from(item);
-        final id = (feed['_id'] ?? feed['id'] ?? '').toString();
-        if (id == feedId) {
-          return mapApiFeedDocumentToUiPost(feed);
-        }
+      final feed = feedDocumentFromMineListResponse(raw, feedId);
+      if (feed != null) {
+        return mapApiFeedDocumentToUiPost(feed);
       }
     } catch (_) {}
     return null;
   }
 
   Future<Map<String, dynamic>?> _resolvePost({required String? feedId, Map<String, dynamic>? passedPost}) async {
+    if (passedPost != null) {
+      final normalized = _normalizePassedPost(passedPost);
+      if (!feedPostIsPublished(normalized)) {
+        return normalized;
+      }
+    }
+
     if (feedId != null) {
       try {
         final raw = await _feedRepo.getFeedByIdRepo(feedId);
@@ -216,7 +217,13 @@ class _SingleFeedReelScreenState extends State<SingleFeedReelScreen> {
                   onNearEndIndex: (_) {},
                   resolvePlaybackUrl: playbackUrlForFeedPost,
                   backdropForPost: (ctx, post) => FeedReelBackdrop(post: post),
-                  overlay: (ctx, post, index, controller) => FeedReelChromeOverlay(post: post, videoController: controller),
+                  overlay: (ctx, post, index, controller) => FeedReelChromeOverlay(
+                    post: post,
+                    videoController: controller,
+                    onPostDeleted: (_) {
+                      if (mounted) Get.back();
+                    },
+                  ),
                 ),
                 SafeArea(
                   child: Align(

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:get_right/models/feed_category_model.dart';
 import 'package:get_right/models/feed_multipart_init_model.dart';
 import 'package:get_right/repo/auth_repo.dart';
+import 'package:get_right/network/network_services.dart';
 import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/controllers/feed_video_upload_controller.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -121,6 +122,26 @@ class FeedPublishController extends GetxController {
   }
 
   /// Returns `true` if the reel is live (`Published`). `false` if we stopped waiting (still draft / processing).
+  Future<Map<String, dynamic>?> _fetchFeedDocForPolling(String feedId) async {
+    try {
+      final raw = await _feed.getFeedByIdRepo(feedId);
+      final doc = _feedDocFromGetResponse(raw);
+      if (doc != null) return doc;
+    } on NotFoundException {
+      // Draft reels are not available on GET /user/feed/:id.
+    } catch (_) {
+      return null;
+    }
+
+    try {
+      final raw = await _feed.getMyFeedsRepo(page: 1, limit: 50);
+      return feedDocumentFromMineListResponse(raw, feedId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Returns `true` if the reel is live (`Published`). `false` if we stopped waiting (still draft / processing).
   Future<bool> _waitForVideoReadyThenPublish({
     required String feedId,
     required String title,
@@ -136,13 +157,7 @@ class FeedPublishController extends GetxController {
     for (var i = 0; i < maxAttempts; i++) {
       if (i > 0) await Future<void>.delayed(poll);
 
-      Map<String, dynamic>? doc;
-      try {
-        final raw = await _feed.getFeedByIdRepo(feedId);
-        doc = _feedDocFromGetResponse(raw);
-      } catch (_) {
-        continue;
-      }
+      Map<String, dynamic>? doc = await _fetchFeedDocForPolling(feedId);
       if (doc == null) continue;
 
       if (_feedVideoProcessingFailed(doc)) {

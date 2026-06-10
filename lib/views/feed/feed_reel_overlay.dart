@@ -210,7 +210,7 @@ class _FeedReelPhotoCarouselState extends State<FeedReelPhotoCarousel> {
         ),
         Positioned(
           top: MediaQuery.paddingOf(context).top + 48,
-          right: 16,
+          left: 16,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(color: Colors.black.withOpacity(0.45), borderRadius: BorderRadius.circular(14)),
@@ -239,7 +239,15 @@ class FeedReelBackdrop extends StatelessWidget {
 
 /// Like / comment / caption overlay used on reels (tap-through gradient).
 class FeedReelChromeOverlay extends StatefulWidget {
-  const FeedReelChromeOverlay({super.key, required this.post, this.videoController, this.onLikeStateChanged, this.onSaveStateChanged, this.onCommentCountChanged});
+  const FeedReelChromeOverlay({
+    super.key,
+    required this.post,
+    this.videoController,
+    this.onLikeStateChanged,
+    this.onSaveStateChanged,
+    this.onCommentCountChanged,
+    this.onPostDeleted,
+  });
 
   final Map<String, dynamic> post;
   final VideoPlayerController? videoController;
@@ -253,6 +261,9 @@ class FeedReelChromeOverlay extends StatefulWidget {
   /// Syncs comment count when comments are fetched (uses `totalDocs` from API).
   final void Function(String postId, int commentCount)? onCommentCountChanged;
 
+  /// Called after the current user deletes this post successfully.
+  final void Function(String postId)? onPostDeleted;
+
   @override
   State<FeedReelChromeOverlay> createState() => _FeedReelChromeOverlayState();
 }
@@ -262,7 +273,6 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
   final FeedRepository _feedRepo = FeedRepository();
   bool _likeRequestInFlight = false;
   bool _saveRequestInFlight = false;
-  bool _repostRequestInFlight = false;
   bool _reportRequestInFlight = false;
   bool _descriptionExpanded = false;
 
@@ -432,6 +442,8 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
   }
 
   Widget _buildReelOverflowMenu(BuildContext context) {
+    final isOwn = _isOwnReel();
+    final isVideo = _post['isVideo'] == true;
     return PopupMenuButton<String>(
       tooltip: 'More options',
       padding: EdgeInsets.zero,
@@ -439,32 +451,46 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       color: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onSelected: (value) {
-        if (value == 'repost') {
-          unawaited(_repostReel());
-        } else if (value == 'report') {
+        if (value == 'report') {
           unawaited(_showReportReelDialog());
+        } else if (value == 'delete') {
+          unawaited(_confirmDeleteOwnReel());
         }
       },
-      itemBuilder: (context) => [
-        PopupMenuItem<String>(
-          value: 'report',
-          enabled: !_reportRequestInFlight,
-          child: Row(
-            children: [
-              Icon(Icons.flag_outlined, size: 22, color: _reportRequestInFlight ? AppColors.primaryGray : AppColors.error),
-              const SizedBox(width: 12),
-              Text(
-                'Report reel',
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+      itemBuilder: (context) {
+        if (isOwn) {
+          return [
+            PopupMenuItem<String>(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline, size: 22, color: AppColors.error),
+                  const SizedBox(width: 12),
+                  Text('Delete post', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600)),
+                ],
               ),
-            ],
+            ),
+          ];
+        }
+        return [
+          PopupMenuItem<String>(
+            value: 'report',
+            enabled: !_reportRequestInFlight,
+            child: Row(
+              children: [
+                Icon(Icons.flag_outlined, size: 22, color: _reportRequestInFlight ? AppColors.primaryGray : AppColors.error),
+                const SizedBox(width: 12),
+                Text(
+                  isVideo ? 'Report reel' : 'Report post',
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ];
+      },
       child: _reelTopActionChip(
-        child: _repostRequestInFlight
-            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : const Icon(Icons.more_horiz, color: Colors.white, size: 24),
+        child: const Icon(Icons.more_horiz, color: Colors.white, size: 24),
       ),
     );
   }
@@ -473,7 +499,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
 
   String? _reelCreatorUserId() => (_post['creatorId'] ?? '').toString().trim();
 
-  /// Hide overflow (⋯) when the logged-in user owns this reel.
+  /// True when the logged-in user owns this post.
   bool _isOwnReel() {
     final me = _currentUserIdOrNull();
     final creator = _reelCreatorUserId();
@@ -606,10 +632,9 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     }
   }
 
-  Future<void> _repostReel() async {
+  Future<void> _confirmDeleteOwnReel() async {
     final feedId = (_post['id'] ?? '').toString().trim();
     if (feedId.isEmpty) return;
-    if (_repostRequestInFlight) return;
 
     final dialogContext = Get.context;
     if (dialogContext == null || !dialogContext.mounted) return;
@@ -618,16 +643,13 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       context: dialogContext,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: Text('Repost reel?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-        content: Text('This will share the reel on your profile for your followers to see.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+        title: Text('Delete post?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+        content: Text('This post will be permanently removed.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              'Repost',
-              style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700),
-            ),
+            child: Text('Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -635,33 +657,14 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
 
     if (confirmed != true || !mounted) return;
 
-    setState(() => _repostRequestInFlight = true);
     try {
-      await _feedRepo.repostFeedRepo(feedId);
-      final shares = (_post['shares'] is num) ? (_post['shares'] as num).toInt() : 0;
-      _post['shares'] = shares + 1;
+      await _feedRepo.deleteFeedRepo(feedId);
       if (!mounted) return;
-      setState(() {});
-      Get.snackbar(
-        'Reposted',
-        'Reel reposted to your profile',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.accent,
-        colorText: AppColors.onAccent,
-        margin: const EdgeInsets.all(16),
-      );
+      widget.onPostDeleted?.call(feedId);
+      Get.snackbar('Deleted', 'Post removed', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.completed, colorText: Colors.white);
     } catch (e) {
       if (!mounted) return;
-      Get.snackbar(
-        'Could not repost',
-        e.toString(),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-      );
-    } finally {
-      if (mounted) setState(() => _repostRequestInFlight = false);
+      Get.snackbar('Could not delete', e.toString(), snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
     }
   }
 
@@ -858,26 +861,32 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
           ),
         ),
         Positioned(
-          top: 55,
-          right: 16,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!_isOwnReel()) _buildReelOverflowMenu(context),
-              if (_post['isVideo'] == true) ...[
-                const SizedBox(height: 8),
-                _reelTopActionChip(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(width: 4.w),
-                      _playbackDurationBadge(),
-                    ],
-                  ),
-                ),
-              ],
-            ],
+          top: 0,
+          right: 0,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8, right: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildReelOverflowMenu(context),
+                  if (_post['isVideo'] == true) ...[
+                    const SizedBox(height: 8),
+                    _reelTopActionChip(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(width: 4.w),
+                          _playbackDurationBadge(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
         Positioned(left: 0, right: 0, bottom: 0, child: _buildBottomOverlay(context)),

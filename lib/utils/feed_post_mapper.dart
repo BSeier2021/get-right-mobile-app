@@ -11,6 +11,28 @@ bool coerceFeedApiBool(dynamic v) {
   return false;
 }
 
+/// `GET /user/feed/:id` only returns published posts; drafts return 404.
+bool feedPostIsPublished(Map<String, dynamic> post) {
+  final status = (post['status'] ?? '').toString().trim().toLowerCase();
+  return status == 'published';
+}
+
+/// Finds a feed document in `GET /user/feed/mine` list response.
+Map<String, dynamic>? feedDocumentFromMineListResponse(dynamic raw, String feedId) {
+  if (feedId.trim().isEmpty) return null;
+  final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data'] as Map) : null;
+  if (data == null) return null;
+  final feedsRaw = data['feeds'];
+  if (feedsRaw is! List) return null;
+  for (final item in feedsRaw) {
+    if (item is! Map) continue;
+    final feed = Map<String, dynamic>.from(item);
+    final id = (feed['_id'] ?? feed['id'] ?? '').toString();
+    if (id == feedId) return feed;
+  }
+  return null;
+}
+
 /// List API often omits `savedByMe`; merge IDs the user saved locally (same session / device).
 void mergePersistedSaveStateOnFeedPosts(List<Map<String, dynamic>> posts, Set<String> savedPostIds) {
   if (savedPostIds.isEmpty) return;
