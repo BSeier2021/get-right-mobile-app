@@ -733,6 +733,112 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     );
   }
 
+  Widget _buildPostMetaColumn() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: _navigateToCreatorProfile,
+          child: Text(
+            '@${(_post['creator'] ?? 'user').toString().toLowerCase().replaceAll(' ', '')}',
+            style: AppTextStyles.titleSmall.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+            ),
+          ),
+        ),
+        if (((_post['title'] ?? '').toString().trim()).isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            (_post['title'] ?? '').toString(),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.titleSmall.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+            ),
+          ),
+        ],
+        if (((_post['description'] ?? '').toString().trim()).isNotEmpty) ...[const SizedBox(height: 8), _buildPostDescription(context)],
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children:
+              (_post['tags'] as List<String>?)
+                  ?.map(
+                    (tag) => Text(
+                      tag,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+                      ),
+                    ),
+                  )
+                  .toList() ??
+              [],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInteractionColumn(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: () {},
+          child: Image.asset('assets/images/verify.png', width: 35.w),
+        ),
+        const SizedBox(height: 20),
+        _likeButton(context),
+        const SizedBox(height: 20),
+        _commentButton(context),
+        const SizedBox(height: 20),
+        _saveButton(context),
+        const SizedBox(height: 20),
+        _buildVerticalInteractionSvgButton(assetPath: 'assets/icons/share.svg', count: _post['shares'] ?? 0, onTap: () => _showShareOptions(context)),
+      ],
+    );
+  }
+
+  Widget _buildBottomOverlay(BuildContext context) {
+    final isVideo = _post['isVideo'] == true;
+    return SafeArea(
+      top: false,
+      minimum: EdgeInsets.only(bottom: isVideo ? 4 : 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(child: _buildPostMetaColumn()),
+                const SizedBox(width: 12),
+                _buildInteractionColumn(context),
+              ],
+            ),
+          ),
+          if (isVideo)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: _FeedReelVideoProgressBar(controller: widget.videoController),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -774,99 +880,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
             ],
           ),
         ),
-        Positioned(
-          right: 16,
-          bottom: 64,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                onTap: () {},
-                child: Image.asset('assets/images/verify.png', width: 35.w),
-              ),
-              const SizedBox(height: 20),
-              _likeButton(context),
-              const SizedBox(height: 20),
-              _commentButton(context),
-              const SizedBox(height: 20),
-              _saveButton(context),
-              const SizedBox(height: 20),
-              _buildVerticalInteractionSvgButton(assetPath: 'assets/icons/share.svg', count: _post['shares'] ?? 0, onTap: () => _showShareOptions(context)),
-            ],
-          ),
-        ),
-        Positioned(
-          left: 16,
-          bottom: 30,
-          right: 100,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                onTap: _navigateToCreatorProfile,
-                child: Text(
-                  '@${(_post['creator'] ?? 'user').toString().toLowerCase().replaceAll(' ', '')}',
-                  style: AppTextStyles.titleSmall.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
-                  ),
-                ),
-              ),
-              if (((_post['title'] ?? '').toString().trim()).isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  (_post['title'] ?? '').toString(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.titleSmall.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
-                  ),
-                ),
-              ],
-              if (((_post['description'] ?? '').toString().trim()).isNotEmpty) ...[const SizedBox(height: 8), _buildPostDescription(context)],
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children:
-                    (_post['tags'] as List<String>?)
-                        ?.map(
-                          (tag) => Text(
-                            tag,
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
-                            ),
-                          ),
-                        )
-                        .toList() ??
-                    [],
-              ),
-            ],
-          ),
-        ),
-        if (_post['isVideo'] == true)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: SafeArea(
-              top: false,
-              minimum: const EdgeInsets.only(bottom: 4),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: _FeedReelVideoProgressBar(controller: widget.videoController),
-              ),
-            ),
-          ),
+        Positioned(left: 0, right: 0, bottom: 0, child: _buildBottomOverlay(context)),
       ],
     );
   }
