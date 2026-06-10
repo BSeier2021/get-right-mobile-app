@@ -5,6 +5,7 @@ import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/models/exercise_set_model.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/widgets/safe_network_image.dart';
 
 class ExerciseCard extends StatefulWidget {
   final WorkoutExerciseModel exercise;
@@ -60,7 +61,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
 
   Widget _buildExerciseIcon(String exerciseName, String? iconUrl, Color color) {
     if (iconUrl != null && iconUrl.isNotEmpty) {
-      return Image.network(iconUrl, width: 26.w, fit: BoxFit.contain, errorBuilder: (_, __, ___) => _buildAssetIcon(exerciseName, color));
+      return SafeNetworkImage(url: iconUrl, width: 26.w, fit: BoxFit.contain, fallback: _buildAssetIcon(exerciseName, color));
     }
     return _buildAssetIcon(exerciseName, color);
   }

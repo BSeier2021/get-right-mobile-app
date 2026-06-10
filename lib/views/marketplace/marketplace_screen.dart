@@ -6,9 +6,6 @@ import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/models/exercise_category_option.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
-import 'package:get_right/services/storage_service.dart';
-import 'package:get_right/utils/customer_profile_enums.dart';
-import 'package:get_right/utils/marketplace_user_filter_prefs.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
@@ -30,7 +27,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   String _sortBy = '';
   bool _showCertifiedOnly = false;
   List<ExerciseCategoryOption> _exerciseCategories = [];
-  bool _userQuizFiltersApplied = false;
 
   final MarketplaceRepository _marketplaceRepo = MarketplaceRepository();
   List<Map<String, dynamic>> _featuredSectionPrograms = [];
@@ -76,7 +72,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       if (!mounted) return;
       await _loadExerciseCategories();
       if (!mounted) return;
-      await _applyUserQuizDefaultsToFilters();
       await Future.wait([_loadMarketplaceSections(), _loadBrowsePrograms(reset: true)]);
       if (mounted) await _loadMarketplaceBundles();
     });
@@ -90,27 +85,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     } catch (_) {
       if (!mounted) return;
     }
-  }
-
-  Future<void> _applyUserQuizDefaultsToFilters() async {
-    if (_userQuizFiltersApplied) return;
-    _userQuizFiltersApplied = true;
-
-    final auth = Get.find<AuthController>();
-    final profile = auth.customerProfile;
-    final storage = await StorageService.getInstance();
-
-    final fitness = profile?.fitnessLevel ?? storage.getFitnessLevel();
-    final difficulty = MarketplaceUserFilterPrefs.difficultyFromFitnessLevel(fitness);
-    if (difficulty != null) _selectedDifficulties.add(difficulty);
-
-    final preferenceName = profile?.preferencesName ?? profile?.primaryFocus ?? storage.getUserPreference();
-    final primarySlug = CustomerProfileEnums.normalizePrimaryFocus(profile?.primaryFocus) ?? CustomerProfileEnums.primaryFocusFromDisplayName(preferenceName);
-    final goals = profile?.mainGoals.isNotEmpty == true ? profile!.mainGoals : storage.getUserGoals();
-
-    _selectedCategoryIds.addAll(
-      MarketplaceUserFilterPrefs.categoryIdsFromUserContext(categories: _exerciseCategories, preferenceName: preferenceName, primaryFocusSlug: primarySlug, goalNames: goals),
-    );
   }
 
   String? get _apiSort {

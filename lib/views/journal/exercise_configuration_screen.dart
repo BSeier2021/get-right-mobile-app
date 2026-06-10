@@ -604,122 +604,14 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
-    final keyboardOpen = keyboardInset > 0;
-    final showSaveButton = _focusedFieldType == null && !keyboardOpen;
-
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        setState(() {
-          _focusedFieldType = null;
-          _focusedConfigIdx = null;
-          _focusedSetIdx = null;
-        });
-      },
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        resizeToAvoidBottomInset: false,
-        appBar: AppBar(
-          backgroundColor: AppColors.backgroundColor,
-          elevation: 0,
-          leading: IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
-            ),
-            onPressed: () => Get.back(),
-          ),
-          title: Text(
-            'Configure Exercise',
-            style: AppTextStyles.titleLarge.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w600),
-          ),
-          centerTitle: true,
-        ),
-        body: Stack(
-          children: [
-            SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(16, 20, 16, showSaveButton ? 140 : 24 + keyboardInset),
-              child: Column(
-                children: [
-                  // Create Superset toggle
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _isSuperset,
-                        onChanged: (value) {
-                          setState(() {
-                            _isSuperset = value ?? false;
-                            if (_isSuperset && _configs.length < 2) {
-                              // Add second exercise for superset - create identical config
-                              final firstConfig = _configs[0];
-                              final secondConfig = _Config(
-                                name: '', // Start with empty name for second exercise
-                                id: 'manual_${DateTime.now().millisecondsSinceEpoch}',
-                              );
-                              secondConfig.mainType = firstConfig.mainType;
-                              secondConfig.extraType = firstConfig.extraType;
-                              // Copy sets structure
-                              secondConfig.sets.clear();
-                              for (var set in firstConfig.sets) {
-                                final newSet = _SetData();
-                                newSet.reps = set.reps;
-                                newSet.time = set.time;
-                                newSet.weight = set.weight;
-                                newSet.distance = set.distance;
-                                newSet.distanceUnit = set.distanceUnit;
-                                newSet.isBodyweight = set.isBodyweight;
-                                secondConfig.sets.add(newSet);
-                              }
-                              _configs.add(secondConfig);
-                            } else if (!_isSuperset && _configs.length > 1) {
-                              // Remove second exercise if not superset
-                              _configs.removeRange(1, _configs.length);
-                            }
-                          });
-                        },
-                        activeColor: AppColors.accent,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      Text(
-                        'Create Superset',
-                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // Exercise cards
-                  ..._configs
-                      .asMap()
-                      .entries
-                      .map(
-                        (e) => Padding(
-                          padding: EdgeInsets.only(bottom: e.key < _configs.length - 1 ? 20 : 0),
-                          child: _buildCard(e.value, e.key),
-                        ),
-                      )
-                      .toList(),
-                ],
-              ),
-            ),
-
-            // Keyboard toolbar (appears at bottom when keyboard is showing, replaces save button)
-            if (_focusedFieldType != null && MediaQuery.of(context).viewInsets.bottom > 0)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-                child: Container(
-                  padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
-                  ),
-                  child: _focusedFieldType == 'reps'
+  Widget _buildKeyboardToolbar() {
+    return Container(
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
+      ),
+      child: _focusedFieldType == 'reps'
                       ? Row(
                           children: [
                             // AMRAP button
@@ -872,36 +764,148 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                             ),
                           ],
                         ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: _isSaving ? null : _onSave,
+            icon: _isSaving
+                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
+                : const Icon(Icons.check_rounded, size: 22),
+            label: Text(
+              _isSaving ? 'Saving...' : 'Save Exercise',
+              style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: AppColors.onAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+              elevation: 6,
+              shadowColor: AppColors.accent.withOpacity(0.4),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+    final keyboardOpen = keyboardInset > 0;
+    final showSaveButton = _focusedFieldType == null && !keyboardOpen;
+    final showKeyboardToolbar = _focusedFieldType != null && keyboardOpen;
+
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+        setState(() {
+          _focusedFieldType = null;
+          _focusedConfigIdx = null;
+          _focusedSetIdx = null;
+        });
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        resizeToAvoidBottomInset: false,
+        appBar: AppBar(
+          backgroundColor: AppColors.backgroundColor,
+          elevation: 0,
+          leading: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+            ),
+            onPressed: () => Get.back(),
+          ),
+          title: Text(
+            'Configure Exercise',
+            style: AppTextStyles.titleLarge.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w600),
+          ),
+          centerTitle: true,
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _isSuperset,
+                          onChanged: (value) {
+                            setState(() {
+                              _isSuperset = value ?? false;
+                              if (_isSuperset && _configs.length < 2) {
+                                final firstConfig = _configs[0];
+                                final secondConfig = _Config(
+                                  name: '',
+                                  id: 'manual_${DateTime.now().millisecondsSinceEpoch}',
+                                );
+                                secondConfig.mainType = firstConfig.mainType;
+                                secondConfig.extraType = firstConfig.extraType;
+                                secondConfig.sets.clear();
+                                for (var set in firstConfig.sets) {
+                                  final newSet = _SetData();
+                                  newSet.reps = set.reps;
+                                  newSet.time = set.time;
+                                  newSet.weight = set.weight;
+                                  newSet.distance = set.distance;
+                                  newSet.distanceUnit = set.distanceUnit;
+                                  newSet.isBodyweight = set.isBodyweight;
+                                  secondConfig.sets.add(newSet);
+                                }
+                                _configs.add(secondConfig);
+                              } else if (!_isSuperset && _configs.length > 1) {
+                                _configs.removeRange(1, _configs.length);
+                              }
+                            });
+                          },
+                          activeColor: AppColors.accent,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        Text(
+                          'Create Superset',
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    ..._configs
+                        .asMap()
+                        .entries
+                        .map(
+                          (e) => Padding(
+                            padding: EdgeInsets.only(bottom: e.key < _configs.length - 1 ? 20 : 0),
+                            child: _buildCard(e.value, e.key),
+                          ),
+                        )
+                        .toList(),
+                  ],
                 ),
               ),
-            // Save button — only when keyboard is closed (hidden for exercise name + reps/weight fields)
-            if (showSaveButton)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: _isSaving ? null : _onSave,
-                    icon: _isSaving
-                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
-                        : const Icon(Icons.check_rounded, size: 22),
-                    label: Text(
-                      _isSaving ? 'Saving...' : 'Save Exercise',
-                      style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: AppColors.onAccent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                      elevation: 6,
-                      shadowColor: AppColors.accent.withOpacity(0.4),
-                    ),
-                  ),
-                ).paddingSymmetric(horizontal: 20),
-              ),
+            ),
+            AnimatedPadding(
+              duration: const Duration(milliseconds: 100),
+              padding: EdgeInsets.only(bottom: keyboardOpen ? keyboardInset : 0),
+              child: showKeyboardToolbar
+                  ? _buildKeyboardToolbar()
+                  : showSaveButton
+                      ? _buildSaveButton()
+                      : const SizedBox.shrink(),
+            ),
           ],
         ),
       ),

@@ -7,6 +7,7 @@ import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/widgets/safe_network_image.dart';
 
 /// Exercise list palette (creamy cards + cycling pastel icon circles).
 const Color _kExerciseCardBg = Color(0xFFF8FAF0);
@@ -211,10 +212,10 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
       child: iconUrl != null && iconUrl.isNotEmpty
           ? Padding(
               padding: const EdgeInsets.all(6),
-              child: Image.network(
-                iconUrl,
+              child: SafeNetworkImage(
+                url: iconUrl,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Center(child: Icon(Icons.fitness_center, color: _kExerciseNameColor.withOpacity(0.55), size: 20)),
+                fallback: Center(child: Icon(Icons.fitness_center, color: _kExerciseNameColor.withOpacity(0.55), size: 20)),
               ),
             )
           : Center(child: Icon(Icons.fitness_center, color: _kExerciseNameColor.withOpacity(0.55), size: 20)),
