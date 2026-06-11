@@ -100,22 +100,18 @@ class _SingleFeedReelScreenState extends State<SingleFeedReelScreen> {
   }
 
   Future<Map<String, dynamic>?> _resolvePost({required String? feedId, Map<String, dynamic>? passedPost}) async {
-    if (passedPost != null) {
-      final normalized = _normalizePassedPost(passedPost);
-      if (!feedPostIsPublished(normalized)) {
-        return normalized;
-      }
-    }
-
     if (feedId != null) {
-      try {
-        final raw = await _feedRepo.getFeedByIdRepo(feedId);
-        return _postFromDetailResponse(raw);
-      } on NotFoundException {
-        if (passedPost != null) {
-          return _normalizePassedPost(passedPost);
+      final isKnownDraft = passedPost != null && feedPostIsDraft(passedPost);
+      if (!isKnownDraft) {
+        try {
+          final raw = await _feedRepo.getFeedByIdRepo(feedId);
+          return _postFromDetailResponse(raw);
+        } on NotFoundException {
+          if (passedPost != null) {
+            return _normalizePassedPost(passedPost);
+          }
+          return _findInMyFeeds(feedId);
         }
-        return _findInMyFeeds(feedId);
       }
     }
     if (passedPost != null) {

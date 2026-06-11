@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -708,7 +710,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _SearchScreen(allPosts: _feedPosts, onPostTap: (post) => _showPostDetail(post), buildExploreGridItem: (post) => _buildExploreGridItem(post)),
+        builder: (context) => _SearchScreen(allPosts: _feedPosts, mapFeedDocuments: _mapFeedDocuments, onPostTap: _openFeedReel, buildExploreGridItem: _buildExploreGridItem),
       ),
     );
   }
@@ -717,56 +719,62 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     final isTrainer = post['isTrainer'] ?? false;
     final isCertified = isTrainer; // Show verified/certified icon if trainer
 
-    return GestureDetector(
-      onTap: () => _openVideoReel(post),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Thumbnail image
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: FeedReelStyledThumbnail(post: post),
-          ),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Thumbnail image
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: FeedReelStyledThumbnail(post: post),
+        ),
 
-          // Gradient overlay for better visibility
-          Container(
+        // Gradient overlay for better visibility
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.2)]),
+          ),
+        ),
+
+        // White circular play button in center
+        Center(
+          child: Container(
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.2)]),
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, spreadRadius: 1)],
             ),
+            child: Icon(Icons.play_arrow, color: AppColors.accent, size: 24),
           ),
+        ),
 
-          // White circular play button in center
-          Center(
+        // Verified/Certified icon in top-right corner (only shown if trainer/certified)
+        if (isCertified)
+          Positioned(
+            top: 6,
+            right: 6,
             child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, spreadRadius: 1)],
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: const Color.fromARGB(153, 71, 71, 71), shape: BoxShape.circle),
+              child: Icon(
+                Icons.verified,
+                color: AppColors.completed, // Blue/Green color for verified
+                size: 18,
               ),
-              child: Icon(Icons.play_arrow, color: AppColors.accent, size: 24),
             ),
           ),
-
-          // Verified/Certified icon in top-right corner (only shown if trainer/certified)
-          if (isCertified)
-            Positioned(
-              top: 6,
-              right: 6,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(color: const Color.fromARGB(153, 71, 71, 71), shape: BoxShape.circle),
-                child: Icon(
-                  Icons.verified,
-                  color: AppColors.completed, // Blue/Green color for verified
-                  size: 18,
-                ),
-              ),
-            ),
-        ],
-      ),
+      ],
     );
+  }
+
+  void _openFeedReel(Map<String, dynamic> post) {
+    final id = (post['id'] ?? post['_id'] ?? '').toString().trim();
+    if (id.isEmpty) {
+      Get.snackbar('Feed', 'This post could not be opened.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    Get.toNamed(AppRoutes.feedSingleReel, arguments: <String, dynamic>{'feedId': id});
   }
 
   // ignore: unused_element
@@ -799,63 +807,86 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       onTap: onTap,
     );
   }
-
-  void _showPostDetail(Map<String, dynamic> post) {
-    Get.snackbar('Post Detail', 'Opening ${post['title']}', backgroundColor: AppColors.accent, colorText: AppColors.onAccent, snackPosition: SnackPosition.BOTTOM);
-  }
-
-  void _openVideoReel(Map<String, dynamic> post) {
-    final resolved = playbackUrlForFeedPost(post);
-    if (resolved == null) {
-      Get.snackbar('Video', 'Video URL is unavailable for this post.', snackPosition: SnackPosition.BOTTOM);
-      return;
-    }
-    final copy = Map<String, dynamic>.from(post);
-    copy['videoUrl'] = resolved;
-    Get.toNamed(
-      AppRoutes.videoReel,
-      arguments: {
-        'posts': <Map<String, dynamic>>[copy],
-        'initialIndex': 0,
-      },
-    );
-  }
 }
 
-/// Search Screen - Shows search bar with explore content
+/// Search Screen - `GET /user/feed?search=` with explore grid fallback when query is empty.
 class _SearchScreen extends StatefulWidget {
   final List<Map<String, dynamic>> allPosts;
+  final List<Map<String, dynamic>> Function(List<dynamic> feedsRaw) mapFeedDocuments;
   final ValueChanged<Map<String, dynamic>> onPostTap;
   final Widget Function(Map<String, dynamic>) buildExploreGridItem;
 
-  const _SearchScreen({required this.allPosts, required this.onPostTap, required this.buildExploreGridItem});
+  const _SearchScreen({required this.allPosts, required this.mapFeedDocuments, required this.onPostTap, required this.buildExploreGridItem});
 
   @override
   State<_SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<_SearchScreen> {
+  static const int _searchPerPage = 10;
+
+  final FeedRepository _feedRepo = FeedRepository();
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
   String _searchQuery = '';
+  List<Map<String, dynamic>> _searchResults = <Map<String, dynamic>>[];
+  bool _loading = false;
+  String? _error;
 
-  List<Map<String, dynamic>> get _filteredPosts {
-    if (_searchQuery.isEmpty) {
-      return widget.allPosts;
+  List<Map<String, dynamic>> get _displayPosts {
+    if (_searchQuery.trim().isEmpty) return widget.allPosts;
+    return _searchResults;
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() => _searchQuery = value);
+    _searchDebounce?.cancel();
+
+    final query = value.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = <Map<String, dynamic>>[];
+        _loading = false;
+        _error = null;
+      });
+      return;
     }
-    final query = _searchQuery.toLowerCase();
-    return widget.allPosts.where((post) {
-      final title = (post['title'] ?? '').toString().toLowerCase();
-      final description = (post['description'] ?? '').toString().toLowerCase();
-      final category = (post['category'] ?? '').toString().toLowerCase();
-      final creator = (post['creator'] ?? '').toString().toLowerCase();
-      final tags = (post['tags'] as List<String>?)?.map((t) => t.toLowerCase()).join(' ') ?? '';
 
-      return title.contains(query) || description.contains(query) || category.contains(query) || creator.contains(query) || tags.contains(query);
-    }).toList();
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () => _loadSearch(query));
+  }
+
+  Future<void> _loadSearch(String query) async {
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final raw = await _feedRepo.getFeedsRepo(page: 1, limit: _searchPerPage, search: query);
+      if (!mounted || _searchController.text.trim() != query) return;
+
+      final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data'] as Map) : <String, dynamic>{};
+      final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds'] as List) : const <dynamic>[];
+
+      setState(() {
+        _searchResults = widget.mapFeedDocuments(feedsRaw);
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted || _searchController.text.trim() != query) return;
+      setState(() {
+        _searchResults = <Map<String, dynamic>>[];
+        _loading = false;
+        _error = e.toString();
+      });
+    }
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -883,11 +914,7 @@ class _SearchScreenState extends State<_SearchScreen> {
               child: TextField(
                 controller: _searchController,
                 autofocus: true,
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
+                onChanged: _onSearchChanged,
                 style: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF000000)),
                 decoration: InputDecoration(
                   hintText: 'Search videos, creators, categories...',
@@ -898,9 +925,7 @@ class _SearchScreenState extends State<_SearchScreen> {
                           icon: const Icon(Icons.clear, color: Color(0xFF404040)),
                           onPressed: () {
                             _searchController.clear();
-                            setState(() {
-                              _searchQuery = '';
-                            });
+                            _onSearchChanged('');
                           },
                         )
                       : null,
@@ -913,8 +938,32 @@ class _SearchScreenState extends State<_SearchScreen> {
             ),
           ),
 
-          // Show message if no results found
-          if (_searchQuery.isNotEmpty && _filteredPosts.isEmpty)
+          if (_searchQuery.trim().isNotEmpty && _loading)
+            const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator()))
+          else if (_searchQuery.trim().isNotEmpty && _error != null)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Could not search', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+                      const SizedBox(height: 8),
+                      Text(
+                        _error!,
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(onPressed: () => _loadSearch(_searchQuery.trim()), child: const Text('Retry')),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else if (_searchQuery.trim().isNotEmpty && _displayPosts.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
@@ -931,19 +980,13 @@ class _SearchScreenState extends State<_SearchScreen> {
               ),
             )
           else
-            // Main grid of all posts
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 4,
-                  childAspectRatio: 1.0, // Square grid items
-                ),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisSpacing: 4, crossAxisSpacing: 4, childAspectRatio: 1.0),
                 delegate: SliverChildBuilderDelegate((context, index) {
-                  return GestureDetector(onTap: () => widget.onPostTap(_filteredPosts[index]), child: widget.buildExploreGridItem(_filteredPosts[index]));
-                }, childCount: _filteredPosts.length),
+                  return GestureDetector(onTap: () => widget.onPostTap(_displayPosts[index]), child: widget.buildExploreGridItem(_displayPosts[index]));
+                }, childCount: _displayPosts.length),
               ),
             ),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),

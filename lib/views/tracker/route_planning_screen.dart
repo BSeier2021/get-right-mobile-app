@@ -1,17 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get_right/routes/app_routes.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get_right/models/planned_route_model.dart';
 import 'package:get_right/repo/running_log_repo.dart';
+import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/gps_service.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/widgets/common/custom_text_field.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-/// Route Planning Screen - Allow users to plan routes before running
+enum _RouteEndpoint { start, end }
+
+/// Route Planning Screen - plan a route with searchable or map-tapped start/end points.
 class RoutePlanningScreen extends StatefulWidget {
   const RoutePlanningScreen({super.key});
 
@@ -23,13 +29,24 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
   GoogleMapController? _mapController;
   final GpsService _gpsService = GpsService.getInstance();
 
+  final TextEditingController _startSearchController = TextEditingController();
+  final TextEditingController _endSearchController = TextEditingController();
+
   final List<LatLng> _routePoints = [];
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
+
+  LatLng? _startPoint;
+  LatLng? _endPoint;
+  _RouteEndpoint _activeEndpoint = _RouteEndpoint.start;
+
   double _totalDistance = 0.0;
   Position? _currentPosition;
   bool _isLoading = true;
   bool _isSavingRoute = false;
+  bool _isSearching = false;
+
+  Timer? _searchDebounce;
   final RunningLogRepository _runningLogRepo = RunningLogRepository();
 
   @override
@@ -50,74 +67,193 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _startSearchController.dispose();
+    _endSearchController.dispose();
     _mapController?.dispose();
     super.dispose();
   }
 
-  /// Add point to route
-  void _addRoutePoint(LatLng point) {
+  bool get _hasCompleteRoute => _startPoint != null && _endPoint != null;
+
+  void _syncRoutePoints() {
+    _routePoints
+      ..clear()
+      ..addAll([if (_startPoint != null) _startPoint!, if (_endPoint != null) _endPoint!]);
+    _recalculateDistance();
+    _updateMarkers();
+    _updatePolyline();
+  }
+
+  void _setStartPoint(LatLng point, {String? label}) {
     setState(() {
-      _routePoints.add(point);
-
-      // Update distance calculation
-      if (_routePoints.length > 1) {
-        final lastPoint = _routePoints[_routePoints.length - 2];
-        final distance = _gpsService.calculateDistance(startLat: lastPoint.latitude, startLng: lastPoint.longitude, endLat: point.latitude, endLng: point.longitude);
-        _totalDistance += distance;
+      _startPoint = point;
+      if (label != null && label.trim().isNotEmpty) {
+        _startSearchController.text = label.trim();
       }
-
-      // Update markers
-      _updateMarkers();
-
-      // Update polyline
-      _updatePolyline();
+      _syncRoutePoints();
     });
   }
 
-  /// Update markers
+  void _setEndPoint(LatLng point, {String? label}) {
+    setState(() {
+      _endPoint = point;
+      if (label != null && label.trim().isNotEmpty) {
+        _endSearchController.text = label.trim();
+      }
+      _syncRoutePoints();
+    });
+  }
+
+  void _onMapTap(LatLng point) {
+    FocusScope.of(context).unfocus();
+    if (_activeEndpoint == _RouteEndpoint.start) {
+      _setStartPoint(point);
+      _reverseGeocode(point, isStart: true);
+      if (_endPoint == null) setState(() => _activeEndpoint = _RouteEndpoint.end);
+    } else {
+      _setEndPoint(point);
+      _reverseGeocode(point, isStart: false);
+    }
+    _animateToPoint(point);
+  }
+
+  Future<void> _reverseGeocode(LatLng point, {required bool isStart}) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(point.latitude, point.longitude);
+      if (placemarks.isEmpty || !mounted) return;
+      final p = placemarks.first;
+      final parts = <String>[
+        if ((p.street ?? '').trim().isNotEmpty) p.street!.trim(),
+        if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
+        if ((p.administrativeArea ?? '').trim().isNotEmpty) p.administrativeArea!.trim(),
+      ];
+      final label = parts.isNotEmpty ? parts.join(', ') : '${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)}';
+      if (!mounted) return;
+      setState(() {
+        if (isStart) {
+          _startSearchController.text = label;
+        } else {
+          _endSearchController.text = label;
+        }
+      });
+    } catch (_) {
+      /* keep coordinates-only label from map tap */
+    }
+  }
+
+  void _scheduleSearch(String query, {required bool isStart}) {
+    _searchDebounce?.cancel();
+    if (query.trim().length < 3) return;
+    _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+      _searchLocation(query, isStart: isStart, moveCamera: true);
+    });
+  }
+
+  Future<void> _searchLocation(String query, {required bool isStart, bool moveCamera = true}) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+
+    setState(() => _isSearching = true);
+    try {
+      final locations = await locationFromAddress(trimmed);
+      if (locations.isEmpty) {
+        Get.snackbar(
+          'Location not found',
+          'Try a different address or tap the map to set this point.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.error,
+          colorText: AppColors.white,
+        );
+        return;
+      }
+
+      final loc = locations.first;
+      final point = LatLng(loc.latitude, loc.longitude);
+      if (isStart) {
+        _setStartPoint(point, label: trimmed);
+        if (_endPoint == null) setState(() => _activeEndpoint = _RouteEndpoint.end);
+      } else {
+        _setEndPoint(point, label: trimmed);
+      }
+      if (moveCamera) _animateToPoint(point);
+    } catch (_) {
+      Get.snackbar(
+        'Location not found',
+        'Could not find "$trimmed". Tap the map or try another search.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: AppColors.white,
+      );
+    } finally {
+      if (mounted) setState(() => _isSearching = false);
+    }
+  }
+
+  Future<void> _useCurrentLocationAsStart() async {
+    setState(() => _activeEndpoint = _RouteEndpoint.start);
+    final position = _currentPosition ?? await _gpsService.getCurrentLocation();
+    if (position == null) {
+      Get.snackbar(
+        'Location unavailable',
+        'Enable location services to use your current position.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: AppColors.white,
+      );
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _currentPosition = position);
+    }
+    final point = LatLng(position.latitude, position.longitude);
+    _setStartPoint(point);
+    await _reverseGeocode(point, isStart: true);
+    if (_endPoint == null && mounted) setState(() => _activeEndpoint = _RouteEndpoint.end);
+    _animateToPoint(point);
+  }
+
+  void _animateToPoint(LatLng point) {
+    _mapController?.animateCamera(CameraUpdate.newLatLngZoom(point, 15));
+  }
+
   void _updateMarkers() {
     _markers.clear();
 
-    for (int i = 0; i < _routePoints.length; i++) {
-      final point = _routePoints[i];
-      BitmapDescriptor icon;
-      String label;
-
-      if (i == 0) {
-        icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
-        label = 'Start';
-      } else if (i == _routePoints.length - 1) {
-        icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-        label = 'Finish';
-      } else {
-        icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
-        label = 'Point ${i + 1}';
-      }
-
+    if (_startPoint != null) {
       _markers.add(
         Marker(
-          markerId: MarkerId('point_$i'),
-          position: point,
-          icon: icon,
-          infoWindow: InfoWindow(title: label),
+          markerId: const MarkerId('start'),
+          position: _startPoint!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          infoWindow: const InfoWindow(title: 'Start'),
           draggable: true,
-          onDragEnd: (newPosition) => _updatePointPosition(i, newPosition),
+          onDragEnd: (newPosition) {
+            _setStartPoint(newPosition);
+            _reverseGeocode(newPosition, isStart: true);
+          },
+        ),
+      );
+    }
+
+    if (_endPoint != null) {
+      _markers.add(
+        Marker(
+          markerId: const MarkerId('end'),
+          position: _endPoint!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          infoWindow: const InfoWindow(title: 'Finish'),
+          draggable: true,
+          onDragEnd: (newPosition) {
+            _setEndPoint(newPosition);
+            _reverseGeocode(newPosition, isStart: false);
+          },
         ),
       );
     }
   }
 
-  /// Update point position when dragged
-  void _updatePointPosition(int index, LatLng newPosition) {
-    setState(() {
-      _routePoints[index] = newPosition;
-      _recalculateDistance();
-      _updateMarkers();
-      _updatePolyline();
-    });
-  }
-
-  /// Recalculate total distance
   void _recalculateDistance() {
     _totalDistance = 0.0;
     for (int i = 1; i < _routePoints.length; i++) {
@@ -131,7 +267,6 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
     }
   }
 
-  /// Update polyline
   void _updatePolyline() {
     _polylines.clear();
     if (_routePoints.length > 1) {
@@ -141,14 +276,13 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
     }
   }
 
-  /// Clear route
   void _clearRoute() {
     Get.dialog(
       AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Clear Route?', style: AppTextStyles.titleLarge.copyWith()),
-        content: Text('This will remove all points from your planned route.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+        content: Text('This will remove your start and end locations.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
@@ -157,10 +291,15 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
           TextButton(
             onPressed: () {
               setState(() {
+                _startPoint = null;
+                _endPoint = null;
                 _routePoints.clear();
                 _markers.clear();
                 _polylines.clear();
                 _totalDistance = 0.0;
+                _activeEndpoint = _RouteEndpoint.start;
+                _startSearchController.clear();
+                _endSearchController.clear();
               });
               Get.back();
             },
@@ -171,10 +310,15 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
     );
   }
 
-  /// Save planned route to backend (`POST /customer/planned-routes`) and local storage.
   Future<void> _saveRoute() async {
-    if (_routePoints.isEmpty) {
-      Get.snackbar('No Route', 'Please add at least one point to your route', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: AppColors.white);
+    if (!_hasCompleteRoute) {
+      Get.snackbar(
+        'Incomplete route',
+        'Please set both a start and end location',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: AppColors.white,
+      );
       return;
     }
     if (_isSavingRoute) return;
@@ -209,10 +353,15 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
     }
   }
 
-  /// Start run with this route
   void _startRunWithRoute() {
-    if (_routePoints.isEmpty) {
-      Get.snackbar('No Route', 'Please add at least one point to your route', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: AppColors.white);
+    if (!_hasCompleteRoute) {
+      Get.snackbar(
+        'Incomplete route',
+        'Please set both a start and end location',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: AppColors.white,
+      );
       return;
     }
 
@@ -224,13 +373,17 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
       createdAt: DateTime.now(),
     );
 
-    // Let the user pick Walk / Jog / Run / Bike before live tracking.
     Get.toNamed(AppRoutes.activityTypeSelection, arguments: {'plannedRoute': route});
+  }
+
+  void _selectEndpointForMap({required bool isStart}) {
+    setState(() => _activeEndpoint = isStart ? _RouteEndpoint.start : _RouteEndpoint.end);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
@@ -242,7 +395,7 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
         title: Text('Plan Route', style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent)),
         centerTitle: true,
         actions: [
-          if (_routePoints.isNotEmpty)
+          if (_startPoint != null || _endPoint != null)
             TextButton(
               onPressed: _clearRoute,
               child: Text('Clear', style: AppTextStyles.labelLarge.copyWith(color: AppColors.error)),
@@ -253,30 +406,32 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
           ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
           : Stack(
               children: [
-                // Map
                 _buildMap(),
-
-                // Instructions overlay (top)
-                _buildInstructions(),
-
-                // Bottom sheet card (distance + actions)
+                _buildCompactRouteBar(),
+                // _buildMapHintBanner(),
                 _buildBottomSheetCard(),
+                if (_isSearching)
+                  const Positioned.fill(
+                    child: ColoredBox(
+                      color: Color(0x22000000),
+                      child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                    ),
+                  ),
               ],
             ),
     );
   }
 
-  /// Build map
   Widget _buildMap() {
-    final initialPosition = _currentPosition != null ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude) : const LatLng(37.7749, -122.4194); // Default to SF
+    final initialPosition = _currentPosition != null ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude) : const LatLng(37.7749, -122.4194);
 
     return GoogleMap(
       initialCameraPosition: CameraPosition(target: initialPosition, zoom: 15),
       onMapCreated: (controller) {
         _mapController = controller;
-        _setMapStyle(controller);
+        controller.setMapStyle(null);
       },
-      onTap: _addRoutePoint,
+      onTap: _onMapTap,
       markers: _markers,
       polylines: _polylines,
       myLocationEnabled: true,
@@ -287,153 +442,62 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
     );
   }
 
-  void _setMapStyle(GoogleMapController controller) {
-    // "Light" map - essentially disables custom styling so Google's normal light map shows.
-    // If you want a pure white background, use below (but it will hide features).
-    // To closely resemble Google Maps "default" light mode, just set to null or empty.
-    controller.setMapStyle(null);
-  }
-
-  /// Build instructions overlay
-  Widget _buildInstructions() {
+  Widget _buildCompactRouteBar() {
     return Positioned(
-      top: 16,
-      left: 16,
-      right: 16,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.accent,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.accent.withOpacity(0.9), width: 1.2),
-          boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.25), blurRadius: 12, offset: const Offset(0, 3))],
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.gps_fixed, color: AppColors.white, size: 16),
-
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                _routePoints.isEmpty ? 'Tap to add start point and end point' : 'Tap to add more points • Drag markers to adjust',
-                style: AppTextStyles.labelMedium.copyWith(color: AppColors.white, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
+      top: 8,
+      left: 12,
+      right: 12,
+      child: Material(
+        elevation: 5,
+        shadowColor: Colors.black26,
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [_buildCompactLocationRow(isStart: true), const SizedBox(height: 8), _buildCompactLocationRow(isStart: false)]),
         ),
       ),
     );
   }
 
-  // ignore: unused_element
-  Widget _buildDistanceCard() {
-    return Positioned(
-      bottom: 100,
-      left: 16,
-      right: 16,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.black.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.accent.withOpacity(0.5), width: 2),
-          boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 4))],
-        ),
-        child: Column(
-          children: [
-            Text('Route Distance', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray, letterSpacing: 1.2)),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  (_totalDistance / 1000).toStringAsFixed(2),
-                  style: AppTextStyles.headlineLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 42),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8, left: 6),
-                  child: Text(
-                    'km',
-                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
+  Widget _buildCompactLocationRow({required bool isStart}) {
+    final controller = isStart ? _startSearchController : _endSearchController;
+    final hint = isStart ? 'Search start or tap map' : 'Search end or tap map';
+
+    return CustomTextField(
+      controller: controller,
+      hintText: hint,
+      keyboardType: TextInputType.streetAddress,
+      onTap: () => _selectEndpointForMap(isStart: isStart),
+      onChanged: (value) => _scheduleSearch(value, isStart: isStart),
+      prefixIcon: Icon(isStart ? Icons.trip_origin : Icons.location_on, size: 20),
+      suffixIcon: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Search',
+            onPressed: () {
+              _selectEndpointForMap(isStart: isStart);
+              FocusScope.of(context).unfocus();
+              _searchLocation(controller.text, isStart: isStart);
+            },
+            icon: const Icon(Icons.search_rounded, size: 20),
+          ),
+          if (isStart)
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Use current location',
+              onPressed: _useCurrentLocationAsStart,
+              icon: const Icon(Icons.my_location_rounded, size: 20),
             ),
-            if (_routePoints.length > 1) ...[
-              const SizedBox(height: 8),
-              Text(
-                '${_routePoints.length} points • Est. ${(_totalDistance / 1000 * 6).toStringAsFixed(0)} min',
-                style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
-              ),
-            ],
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  // ignore: unused_element
-  Widget _buildActionButtons() {
-    return Positioned(
-      bottom: 16,
-      left: 16,
-      right: 16,
-      child: SafeArea(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Save Route button
-            Expanded(
-              child: SizedBox(
-                height: 56,
-                child: OutlinedButton.icon(
-                  onPressed: _saveRoute,
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: _routePoints.isEmpty ? AppColors.primaryGray : AppColors.accent, width: 2),
-                    foregroundColor: _routePoints.isEmpty ? AppColors.primaryGray : AppColors.accent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    backgroundColor: AppColors.black.withOpacity(0.7),
-                  ),
-                  icon: const Icon(Icons.save_outlined, size: 24),
-                  label: Text('Save', style: AppTextStyles.buttonLarge.copyWith(color: _routePoints.isEmpty ? AppColors.primaryGray : AppColors.accent)),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: SizedBox(
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _startRunWithRoute,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _routePoints.isEmpty ? AppColors.primaryGray : AppColors.accent,
-                    foregroundColor: AppColors.onAccent,
-                    disabledBackgroundColor: AppColors.primaryGray,
-                    elevation: 4,
-                    shadowColor: AppColors.accent.withOpacity(0.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.play_arrow_rounded, size: 20),
-                      const SizedBox(width: 2),
-                      Text('Start', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onAccent)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Bottom sheet style card (distance + actions)
   Widget _buildBottomSheetCard() {
-    String _formatHmsFromDistance(double meters) {
+    String formatHmsFromDistance(double meters) {
       final seconds = (meters / 1000 * 6 * 60).round();
       final h = (seconds ~/ 3600).toString().padLeft(2, '0');
       final m = ((seconds % 3600) ~/ 60).toString().padLeft(2, '0');
@@ -459,7 +523,7 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
               Container(
                 width: 40,
                 height: 4,
-                decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.4), borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(color: AppColors.background.withOpacity(0.4), borderRadius: BorderRadius.circular(2)),
               ),
               const SizedBox(height: 10),
               Text(
@@ -468,9 +532,13 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                _formatHmsFromDistance(_totalDistance),
+                _hasCompleteRoute ? formatHmsFromDistance(_totalDistance) : '--:--:--',
                 style: AppTextStyles.headlineLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w900, fontSize: 42),
               ),
+              if (_hasCompleteRoute) ...[
+                const SizedBox(height: 4),
+                Text('${(_totalDistance / 1000).toStringAsFixed(2)} km', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+              ],
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -505,7 +573,6 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
                           backgroundColor: Colors.transparent,
                         ),
                         icon: SvgPicture.asset('assets/icons/play.svg', width: 20, height: 20, color: AppColors.onSurface),
-
                         label: Text('Start', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onSurface)),
                       ),
                     ),

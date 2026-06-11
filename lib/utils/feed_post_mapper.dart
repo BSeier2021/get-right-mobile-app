@@ -17,6 +17,12 @@ bool feedPostIsPublished(Map<String, dynamic> post) {
   return status == 'published';
 }
 
+/// True only when list/grid data explicitly marks the post as a draft.
+bool feedPostIsDraft(Map<String, dynamic> post) {
+  final status = (post['status'] ?? '').toString().trim().toLowerCase();
+  return status == 'draft';
+}
+
 /// Finds a feed document in `GET /user/feed/mine` list response.
 Map<String, dynamic>? feedDocumentFromMineListResponse(dynamic raw, String feedId) {
   if (feedId.trim().isEmpty) return null;
@@ -277,6 +283,7 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
 
   return <String, dynamic>{
     'id': (m['_id'] ?? '').toString(),
+    'status': (m['status'] ?? '').toString(),
     'creatorId': (creator['_id'] ?? '').toString(),
     'creatorRole': (creator['role'] ?? '').toString(),
     'isTrainer': (creator['role']?.toString() ?? '').trim() == 'Trainer',

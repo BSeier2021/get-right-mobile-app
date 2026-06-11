@@ -929,7 +929,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             final id = (m['_id'] ?? m['id'])?.toString() ?? '';
             final thumb = _firstUrlFromMap(m, const ['thumbnail', 'cover', 'image', 'poster']);
             final videoHint = m['video'] != null || m['mediaType']?.toString().toLowerCase().contains('video') == true;
-            return <String, dynamic>{'id': id, 'thumbnail': thumb, 'title': m['title'], 'isVideo': videoHint};
+            return <String, dynamic>{'id': id, 'thumbnail': thumb, 'title': m['title'], 'isVideo': videoHint, 'status': (m['status'] ?? '').toString()};
           }
         })
         .where((p) => (p['id'] ?? '').toString().isNotEmpty)
@@ -1671,8 +1671,9 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         final thumbRaw = post['thumbnail']?.toString() ?? '';
 
         void openPost() {
-          if (_mongoUserId != null && id.isNotEmpty) {
-            Get.toNamed(AppRoutes.feedSingleReel, arguments: {'feedId': id, 'post': post});
+          if (id.isEmpty) return;
+          if (_mongoUserId != null) {
+            Get.toNamed(AppRoutes.feedSingleReel, arguments: <String, dynamic>{'feedId': id});
           } else {
             Get.toNamed(AppRoutes.postDetail, arguments: post);
           }

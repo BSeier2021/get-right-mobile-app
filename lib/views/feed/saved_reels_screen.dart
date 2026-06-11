@@ -4,7 +4,6 @@ import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
-import 'package:get_right/utils/feed_media_url.dart';
 import 'package:get_right/utils/feed_post_mapper.dart';
 import 'package:get_right/views/feed/feed_reel_overlay.dart';
 
@@ -72,8 +71,7 @@ class _SavedReelsScreenState extends State<SavedReelsScreen> {
     final direct = data['hasNextPage'] ?? data['has_next_page'] ?? data['hasNext'];
     if (direct != null) {
       if (_coerceBool(direct)) return true;
-      if (direct == false ||
-          (direct is String && ['false', '0', 'no'].contains(direct.toString().trim().toLowerCase()))) {
+      if (direct == false || (direct is String && ['false', '0', 'no'].contains(direct.toString().trim().toLowerCase()))) {
         return false;
       }
     }
@@ -141,36 +139,21 @@ class _SavedReelsScreenState extends State<SavedReelsScreen> {
     }
   }
 
-  void _openVideoReel(int index) {
+  void _openPost(int index) {
     if (index < 0 || index >= _posts.length) return;
-    final post = _posts[index];
-    final resolved = playbackUrlForFeedPost(post);
-    if (resolved == null) {
-      Get.snackbar('Video', 'Video URL is unavailable for this reel.', snackPosition: SnackPosition.BOTTOM);
+    final id = (_posts[index]['id'] ?? '').toString().trim();
+    if (id.isEmpty) {
+      Get.snackbar('Feed', 'This post could not be opened.', snackPosition: SnackPosition.BOTTOM);
       return;
     }
-    final copy = Map<String, dynamic>.from(post);
-    copy['videoUrl'] = resolved;
-    final playable =
-        _posts.map((p) {
-          final c = Map<String, dynamic>.from(p);
-          final url = playbackUrlForFeedPost(c);
-          if (url != null) c['videoUrl'] = url;
-          return c;
-        }).toList();
-    Get.toNamed(
-      AppRoutes.videoReel,
-      arguments: {
-        'posts': playable,
-        'initialIndex': index,
-      },
-    );
+    Get.toNamed(AppRoutes.feedSingleReel, arguments: <String, dynamic>{'feedId': id});
   }
 
   Widget _buildGridItem(Map<String, dynamic> post, int index) {
     final isTrainer = post['isTrainer'] == true;
+    final isVideo = post['isVideo'] == true;
     return GestureDetector(
-      onTap: () => _openVideoReel(index),
+      onTap: () => _openPost(index),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -180,25 +163,22 @@ class _SavedReelsScreenState extends State<SavedReelsScreen> {
           ),
           Container(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black.withOpacity(0.22)],
-              ),
+              gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.22)]),
             ),
           ),
-          Center(
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, spreadRadius: 1)],
+          if (isVideo)
+            Center(
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, spreadRadius: 1)],
+                ),
+                child: Icon(Icons.play_arrow, color: AppColors.accent, size: 24),
               ),
-              child: Icon(Icons.play_arrow, color: AppColors.accent, size: 24),
             ),
-          ),
           if (isTrainer)
             Positioned(
               top: 6,
@@ -248,7 +228,11 @@ class _SavedReelsScreenState extends State<SavedReelsScreen> {
             children: [
               Text('Could not load saved reels', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
               const SizedBox(height: 8),
-              Text(_error!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray), textAlign: TextAlign.center),
+              Text(
+                _error!,
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => _load(reset: true),
@@ -271,7 +255,10 @@ class _SavedReelsScreenState extends State<SavedReelsScreen> {
               child: Icon(Icons.bookmark_border, size: 64, color: AppColors.accent),
             ),
             const SizedBox(height: 24),
-            Text('No saved reels', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold)),
+            Text(
+              'No saved reels',
+              style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Text(
               'Reels you save from the feed appear here',
@@ -303,23 +290,17 @@ class _SavedReelsScreenState extends State<SavedReelsScreen> {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 4,
-                crossAxisSpacing: 4,
-                childAspectRatio: 1,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => _buildGridItem(_posts[index], index),
-                childCount: _posts.length,
-              ),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisSpacing: 4, crossAxisSpacing: 4, childAspectRatio: 1),
+              delegate: SliverChildBuilderDelegate((context, index) => _buildGridItem(_posts[index], index), childCount: _posts.length),
             ),
           ),
           if (_loadingMore)
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.only(bottom: 24),
-                child: Center(child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))),
+                child: Center(
+                  child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+                ),
               ),
             ),
         ],

@@ -1,9 +1,44 @@
 import 'package:get_right/utils/helpers.dart';
 
+/// Extracts `data.comments[]` from `GET /user/feed/:feedId/comments` (and replies list).
+List<dynamic> feedCommentsListFromApiResponse(dynamic raw) {
+  if (raw is! Map) return const <dynamic>[];
+  final data = raw['data'];
+  if (data is! Map) return const <dynamic>[];
+
+  final root = Map<String, dynamic>.from(data);
+  final commentsNode = root['comments'];
+  if (commentsNode is List) return List<dynamic>.from(commentsNode);
+  if (commentsNode is Map) {
+    for (final key in ['docs', 'items', 'list', 'data', 'comments']) {
+      final inner = commentsNode[key];
+      if (inner is List) return List<dynamic>.from(inner);
+    }
+  }
+
+  for (final key in ['docs', 'items', 'list']) {
+    final inner = root[key];
+    if (inner is List) return List<dynamic>.from(inner);
+  }
+  return const <dynamic>[];
+}
+
+/// Top-level comments have no `parentComment` id on the API document.
+bool isTopLevelFeedCommentRaw(Map<String, dynamic> m) {
+  final parentRaw = m['parentComment'] ?? m['parentCommentId'];
+  if (parentRaw == null) return true;
+  if (parentRaw is Map) {
+    return (parentRaw['_id'] ?? '').toString().trim().isEmpty;
+  }
+  final id = parentRaw.toString().trim();
+  return id.isEmpty || id.toLowerCase() == 'null';
+}
+
 /// Maps `data.comments[]` items from `GET /user/feed/:feedId/comments`.
 Map<String, dynamic> mapApiFeedCommentToUi(dynamic raw) {
   final m = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
-  final user = (m['user'] is Map) ? Map<String, dynamic>.from(m['user'] as Map) : <String, dynamic>{};
+  final userNode = m['user'] ?? m['creator'] ?? m['author'];
+  final user = (userNode is Map) ? Map<String, dynamic>.from(userNode) : <String, dynamic>{};
   final profile = (user['profile'] is Map) ? Map<String, dynamic>.from(user['profile'] as Map) : <String, dynamic>{};
   final profilePicture = (profile['profilePicture'] is Map) ? Map<String, dynamic>.from(profile['profilePicture'] as Map) : <String, dynamic>{};
 

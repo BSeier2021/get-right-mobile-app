@@ -75,7 +75,12 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
       _currentUserId = Get.find<StorageService>().getUserId();
     }
     _scrollController.addListener(_onScroll);
-    _loadComments(reset: true);
+    if (widget.feedId.trim().isEmpty) {
+      _loading = false;
+      _error = 'Missing feed id';
+    } else {
+      _loadComments(reset: true);
+    }
   }
 
   @override
@@ -517,13 +522,15 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     final pageToFetch = reset ? 1 : _page;
 
     try {
-      final raw = await _feedRepo.getFeedCommentsRepo(feedId: widget.feedId, page: pageToFetch, limit: _perPage);
+      final raw = await _feedRepo.getFeedCommentsRepo(feedId: widget.feedId.trim(), page: pageToFetch, limit: _perPage);
       final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data'] as Map) : <String, dynamic>{};
-      final commentsRaw = (data['comments'] is List) ? List.from(data['comments'] as List) : const [];
+      final commentsRaw = feedCommentsListFromApiResponse(raw);
       final mapped = commentsRaw
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .where(isTopLevelFeedCommentRaw)
           .map(mapApiFeedCommentToUi)
           .where((c) => (c['id'] ?? '').toString().isNotEmpty)
-          .where((c) => (c['parentCommentId'] ?? '').toString().isEmpty)
           .toList();
 
       final totalDocs = data['totalDocs'];
@@ -574,7 +581,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     try {
       final raw = await _feedRepo.getFeedCommentRepliesRepo(commentId: parentCommentId, page: pageToFetch, limit: _perPage);
       final data = (raw is Map && raw['data'] is Map) ? Map<String, dynamic>.from(raw['data'] as Map) : <String, dynamic>{};
-      final commentsRaw = (data['comments'] is List) ? List.from(data['comments'] as List) : const [];
+      final commentsRaw = feedCommentsListFromApiResponse(raw);
       final mapped = commentsRaw.map(mapApiFeedCommentToUi).where((c) => (c['id'] ?? '').toString().isNotEmpty).toList();
 
       final totalDocs = data['totalDocs'];
@@ -838,88 +845,98 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
   Widget build(BuildContext context) {
     final commentCountLabel = _formatCommentCount(_totalDocs > 0 ? _totalDocs : widget.initialCommentCount);
 
+    final maxSheetHeight = MediaQuery.of(context).size.height * 0.75;
+
     return Padding(
       padding: EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 16 + MediaQuery.of(context).viewInsets.bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.4), borderRadius: BorderRadius.circular(2)),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Text(
-                'Comments',
-                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
-              ),
-              const Spacer(),
-              Text(commentCountLabel, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(height: 280, child: _buildCommentsBody()),
-          const SizedBox(height: 12),
-          if (_replyParentId != null) ...[
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxSheetHeight),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Replying to ${_replyParentAuthorName ?? 'comment'}',
-                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _cancelReply,
-                    child: Icon(Icons.close, size: 18, color: AppColors.primaryGray.withOpacity(0.9)),
-                  ),
-                ],
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.4), borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  'Comments',
+                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                ),
+                const Spacer(),
+                Text(commentCountLabel, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: 220, maxHeight: maxSheetHeight * 0.55),
+                child: _buildCommentsBody(),
               ),
             ),
-            const SizedBox(height: 8),
-          ],
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _commentController,
-                  focusNode: _commentFocusNode,
-                  enabled: !_submittingComment,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _submitComment(),
-                  decoration: InputDecoration(
-                    hintText: _replyParentId != null ? 'Write a reply...' : 'Add a comment...',
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+            const SizedBox(height: 12),
+            if (_replyParentId != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Replying to ${_replyParentAuthorName ?? 'comment'}',
+                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: const BorderSide(color: AppColors.accent),
+                    GestureDetector(
+                      onTap: _cancelReply,
+                      child: Icon(Icons.close, size: 18, color: AppColors.primaryGray.withOpacity(0.9)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    focusNode: _commentFocusNode,
+                    enabled: !_submittingComment,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _submitComment(),
+                    decoration: InputDecoration(
+                      hintText: _replyParentId != null ? 'Write a reply...' : 'Add a comment...',
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: const BorderSide(color: AppColors.accent),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _submittingComment ? null : _submitComment,
-                icon: _submittingComment
-                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
-                    : const Icon(Icons.send, color: AppColors.accent),
-              ),
-            ],
-          ),
-        ],
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _submittingComment ? null : _submitComment,
+                  icon: _submittingComment
+                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
+                      : const Icon(Icons.send, color: AppColors.accent),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

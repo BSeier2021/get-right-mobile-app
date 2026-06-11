@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/utils.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/models/exercise_set_model.dart';
@@ -203,7 +204,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Image.asset('assets/images/sets.png', width: 15.w),
+                        SvgPicture.asset('assets/icons/sets.svg', width: 15.w, height: 15.w),
                         const SizedBox(width: 4),
                         Flexible(
                           child: FittedBox(
@@ -227,7 +228,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Image.asset('assets/images/reps.png', width: 15.w),
+                        SvgPicture.asset(widget.exercise.hasTimedSets ? 'assets/icons/time.svg' : 'assets/icons/reps.svg', width: 15.w, height: 15.w),
                         const SizedBox(width: 4),
                         Flexible(
                           child: FittedBox(
@@ -252,7 +253,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (_showDistanceColumn) Icon(Icons.straighten, size: 14.sp, color: AppColors.black) else Image.asset('assets/images/weight.png', width: 13.w),
+                        SvgPicture.asset(_showDistanceColumn ? 'assets/icons/distance.svg' : 'assets/icons/weight.svg', width: 15.w, height: 15.w),
                         const SizedBox(width: 4),
                         Flexible(
                           child: FittedBox(
@@ -309,7 +310,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.timer_outlined, size: 12, color: AppColors.accent),
+            SvgPicture.asset('assets/icons/time.svg', width: 12, height: 12),
             const SizedBox(width: 4),
             Text(timeText, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 12)),
           ],

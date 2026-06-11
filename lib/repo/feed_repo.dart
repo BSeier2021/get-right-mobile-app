@@ -6,7 +6,7 @@ import 'package:get_right/network/network_services.dart';
 class FeedRepository {
   final NetworkApiService _network = NetworkApiService();
 
-  /// `GET /user/feed` — query: `page`, `limit`, optional `type` (`following`).
+  /// `GET /user/feed` — query: `page`, `limit`, optional `type` (`following`), optional `search`.
   ///
   /// Response shape (backend):
   /// `data.totalDocs`, `data.feeds[]`, `data.currentPage`, `data.totalPages`,
@@ -15,11 +15,13 @@ class FeedRepository {
     required int page,
     required int limit,
     String? type,
+    String? search,
   }) async {
     final params = <String, dynamic>{
       'page': page,
       'limit': limit,
       if (type != null && type.trim().isNotEmpty) 'type': type.trim(),
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
     };
     return _network.get(AppUrl.feedCreate, params: params);
   }

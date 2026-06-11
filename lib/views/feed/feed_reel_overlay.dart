@@ -353,7 +353,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
 
   void _openCommentsSheet(BuildContext dialogContext) {
     if (!dialogContext.mounted) return;
-    final feedId = (_post['id'] ?? '').toString().trim();
+    final feedId = (_post['id'] ?? _post['_id'] ?? _post['feedId'] ?? '').toString().trim();
     if (feedId.isEmpty) return;
 
     final initialCount = (_post['comments'] is num) ? (_post['comments'] as num).toInt() : 0;
