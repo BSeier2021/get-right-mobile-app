@@ -23,6 +23,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/services/chat_socket_service.dart';
 import 'package:get_right/network/network_services.dart';
+import 'package:get_right/utils/bundle_card_mapper.dart';
 import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
@@ -810,46 +811,20 @@ class AuthController extends GetxController {
       inner = Map<String, dynamic>.from(dm);
     }
 
-    final pricing = inner['pricing_summary'];
-    double bundlePrice = (inner['bundlePrice'] as num?)?.toDouble() ?? (inner['price'] as num?)?.toDouble() ?? 0.0;
-    double? originalList;
-    double? savingsPercent;
-    if (pricing is Map) {
-      final pm = Map<String, dynamic>.from(pricing);
-      originalList = (pm['original_list_price'] as num?)?.toDouble();
-      bundlePrice = (pm['bundle_price'] as num?)?.toDouble() ?? bundlePrice;
-      savingsPercent = (pm['savings_percent'] as num?)?.toDouble();
-    }
-
-    final apiDiscountPct = (inner['discount'] as num?)?.toDouble();
+    final pricingResolved = resolveBundlePricingFromApi(inner);
+    final bundlePrice = (pricingResolved['bundlePrice'] as num?)?.toDouble() ?? 0.0;
+    final totalValue = (pricingResolved['totalValue'] as num?)?.toDouble() ?? bundlePrice;
+    final discount = (pricingResolved['discount'] as num?)?.toInt() ?? 0;
 
     final programsRaw = inner['programs'];
-    var sumProgramPrices = 0.0;
     final programs = <Map<String, dynamic>>[];
     if (programsRaw is List) {
       for (final e in programsRaw) {
         if (e is! Map) continue;
         final p = Map<String, dynamic>.from(e);
         final row = p['display'] is Map ? _bundleDetailProgramRowMarketplace(p) : _bundleDetailProgramRowCustomer(p);
-        sumProgramPrices += (row['price'] as num?)?.toDouble() ?? 0.0;
         programs.add(row);
       }
-    }
-
-    var totalValue = originalList ?? 0.0;
-    if (totalValue <= 0 && sumProgramPrices > 0) {
-      totalValue = sumProgramPrices;
-    }
-    if (totalValue <= bundlePrice && bundlePrice > 0) {
-      totalValue = bundlePrice * 1.12;
-    }
-
-    int discount;
-    if (apiDiscountPct != null && apiDiscountPct > 0 && apiDiscountPct < 100 && bundlePrice > 0) {
-      totalValue = bundlePrice / (1 - apiDiscountPct / 100);
-      discount = apiDiscountPct.round().clamp(0, 95);
-    } else {
-      discount = savingsPercent != null ? savingsPercent.round().clamp(0, 95) : (totalValue > 0 ? (((totalValue - bundlePrice) / totalValue) * 100).round().clamp(0, 95) : 0);
     }
 
     var imageUrl = ImageUrlSanitizer.asHttpUrlOrNull(inner['coverImageUrl']?.toString()) ?? '';

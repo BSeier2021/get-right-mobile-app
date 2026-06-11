@@ -1,16 +1,63 @@
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
+/// Bundle-level pricing from API (`price`, `netPrice`, `discount`) — not summed program prices.
+Map<String, dynamic> resolveBundlePricingFromApi(Map<String, dynamic> b) {
+  final pricing = b['pricing_summary'];
+  if (pricing is Map) {
+    final pm = Map<String, dynamic>.from(pricing);
+    final listPrice = (pm['original_list_price'] as num?)?.toDouble();
+    final sellingPrice = (pm['bundle_price'] as num?)?.toDouble();
+    final savingsPercent = (pm['savings_percent'] as num?)?.toDouble();
+    if (sellingPrice != null && sellingPrice > 0) {
+      final totalValue = (listPrice != null && listPrice > sellingPrice) ? listPrice : sellingPrice;
+      final discount = savingsPercent != null
+          ? savingsPercent.round().clamp(0, 95)
+          : (totalValue > sellingPrice ? (((totalValue - sellingPrice) / totalValue) * 100).round().clamp(0, 95) : 0);
+      return {'totalValue': totalValue, 'bundlePrice': sellingPrice, 'discount': discount};
+    }
+  }
+
+  final listPrice = (b['price'] as num?)?.toDouble() ?? 0.0;
+  final discountPct = (b['discount'] as num?)?.toDouble() ?? 0.0;
+  final netPrice = (b['netPrice'] as num?)?.toDouble();
+  final legacyBundlePrice = (b['bundlePrice'] as num?)?.toDouble();
+
+  double sellingPrice;
+  if (netPrice != null && netPrice > 0) {
+    sellingPrice = netPrice;
+  } else if (legacyBundlePrice != null && legacyBundlePrice > 0) {
+    sellingPrice = legacyBundlePrice;
+  } else if (listPrice > 0 && discountPct > 0) {
+    sellingPrice = listPrice * (1 - discountPct / 100);
+  } else {
+    sellingPrice = listPrice > 0 ? listPrice : 0.0;
+  }
+
+  var totalValue = listPrice > 0 ? listPrice : sellingPrice;
+  if (totalValue < sellingPrice) totalValue = sellingPrice;
+
+  var discount = discountPct.round().clamp(0, 95);
+  if (discount == 0 && totalValue > sellingPrice) {
+    discount = (((totalValue - sellingPrice) / totalValue) * 100).round().clamp(0, 95);
+  }
+
+  return {
+    'totalValue': totalValue,
+    'bundlePrice': sellingPrice,
+    'discount': discount,
+  };
+}
+
 /// Normalizes API / trainer-profile bundle maps for marketplace bundle cards.
 Map<String, dynamic> normalizeBundleForCard(Map<String, dynamic> b, {String defaultTrainer = 'Trainer'}) {
   if (b['bundlePrice'] is num && b['programs'] is List) {
     return Map<String, dynamic>.from(b);
   }
 
-  final price = (b['bundlePrice'] as num?)?.toDouble() ?? (b['price'] as num?)?.toDouble() ?? 0.0;
-  var totalValue = (b['totalValue'] as num?)?.toDouble() ?? 0.0;
-  if (totalValue <= price) {
-    totalValue = price > 0 ? price * 1.12 : 0;
-  }
+  final pricing = resolveBundlePricingFromApi(b);
+  final price = (pricing['bundlePrice'] as num?)?.toDouble() ?? 0.0;
+  final totalValue = (pricing['totalValue'] as num?)?.toDouble() ?? price;
+  final discount = (pricing['discount'] as num?)?.toInt() ?? 0;
 
   final programs = b['programs'];
   final List<Map<String, dynamic>> resolvedPrograms;
@@ -43,7 +90,7 @@ Map<String, dynamic> normalizeBundleForCard(Map<String, dynamic> b, {String defa
     'title': (b['title'] ?? b['name'] ?? 'Bundle').toString(),
     'subtitle': b['subtitle'],
     'description': (b['description'] ?? '').toString(),
-    'discount': (b['discount'] as num?)?.toInt() ?? 0,
+    'discount': discount,
     'totalValue': totalValue,
     'bundlePrice': price,
     'imageUrl': imageUrl ?? '',
@@ -161,7 +208,9 @@ List<Map<String, dynamic>> parseProfileBundlesList(dynamic raw, {String trainerN
           'id': id,
           'title': m['title'] ?? m['name'],
           'description': m['description'],
-          'price': m['bundlePrice'] ?? m['price'],
+          'price': m['price'],
+          'netPrice': m['netPrice'],
+          'bundlePrice': m['bundlePrice'],
           'discount': m['discount'],
           'imageUrl': imageUrl,
           'promoMedia': promo,

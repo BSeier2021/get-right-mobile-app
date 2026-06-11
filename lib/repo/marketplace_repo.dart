@@ -7,6 +7,7 @@ import 'package:get_right/models/exercise_library_category.dart';
 import 'package:get_right/models/exercise_library_item.dart';
 import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/network/network_services.dart';
+import 'package:get_right/utils/bundle_card_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// One page from `GET /customer/program/:id/reviews`.
@@ -380,8 +381,6 @@ class MarketplaceRepository {
     return MarketplaceBundlesPage(bundles: bundles, page: page, perPage: perPage, total: total, hasMore: hasMore);
   }
 
-  static double _programCardPrice(Map<String, dynamic> p) => ((p['price'] as num?) ?? 0).toDouble();
-
   static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
 
   /// Trainer display name from API trainer node, optional `display` map, or plain string.
@@ -487,7 +486,6 @@ class MarketplaceRepository {
 
   static Map<String, dynamic> _bundleCardFromApi(Map<String, dynamic> b, List<Map<String, dynamic>> programCatalog) {
     final bundleId = b['_id']?.toString() ?? '';
-    final bundlePrice = (b['bundlePrice'] as num?)?.toDouble() ?? (b['price'] as num?)?.toDouble() ?? 0.0;
     final bundleCertified = b['isCertified'] == true;
     final trainerName = _trainerNameFromBundleApi(b);
     final trainerAvatarUrl = _trainerAvatarUrlFromBundleApi(b);
@@ -526,20 +524,10 @@ class MarketplaceRepository {
       }
     }
 
-    var sumPrices = resolved.fold<double>(0, (s, p) => s + _programCardPrice(p));
-    if (sumPrices <= bundlePrice) {
-      sumPrices = bundlePrice > 0 ? bundlePrice * 1.12 : 1;
-    }
-
-    final apiDiscountPct = (b['discount'] as num?)?.toDouble();
-    double totalValue = sumPrices;
-    int discount;
-    if (apiDiscountPct != null && apiDiscountPct > 0 && apiDiscountPct < 100 && bundlePrice > 0) {
-      totalValue = bundlePrice / (1 - apiDiscountPct / 100);
-      discount = apiDiscountPct.round().clamp(0, 95);
-    } else {
-      discount = totalValue > 0 ? (((totalValue - bundlePrice) / totalValue) * 100).round().clamp(0, 95) : 0;
-    }
+    final pricing = resolveBundlePricingFromApi(b);
+    final totalValue = (pricing['totalValue'] as num?)?.toDouble() ?? 0.0;
+    final bundlePrice = (pricing['bundlePrice'] as num?)?.toDouble() ?? 0.0;
+    final discount = (pricing['discount'] as num?)?.toInt() ?? 0;
 
     return {
       'id': bundleId,

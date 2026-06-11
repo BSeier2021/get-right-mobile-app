@@ -106,12 +106,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
       final id = (p['id'] ?? p['_id'])?.toString().trim();
       final enrolled = id != null ? byId[id] : null;
       if (enrolled != null) {
-        merged.add({
-          ...p,
-          'enrollmentId': enrolled['enrollmentId'],
-          'progress': enrolled['progress'],
-          'isEnrolled': true,
-        });
+        merged.add({...p, 'enrollmentId': enrolled['enrollmentId'], 'progress': enrolled['progress'], 'isEnrolled': true});
       } else {
         merged.add(p);
       }
@@ -396,10 +391,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
                       ],
                       const SizedBox(height: 14),
                       _buildTrainerProfileBar(trainer),
-                      if (!_isEnrolled) ...[
-                        const SizedBox(height: 14),
-                        _buildPricingCard(totalValue: totalValue, bundlePrice: bundlePrice, discount: discount),
-                      ],
+                      if (!_isEnrolled) ...[const SizedBox(height: 14), _buildPricingCard(totalValue: totalValue, bundlePrice: bundlePrice, discount: discount)],
                       const SizedBox(height: 14),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -547,8 +539,6 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
 
   Widget _buildProgramCard(Map<String, dynamic> program) {
     final cover = ImageUrlSanitizer.asHttpUrlOrNull(program['imageUrl']?.toString());
-    final showProgramPrice = !_isEnrolled;
-
     return GestureDetector(
       onTap: () => _isEnrolled ? _openEnrolledProgram(program) : Get.toNamed(AppRoutes.programDetail, arguments: program),
       child: Container(
@@ -619,11 +609,6 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                if (showProgramPrice)
-                  Text(
-                    '\$${((program['price'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
-                    style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
-                  ),
                 if (_isEnrolled && program['progress'] != null)
                   Text(
                     '${program['progress']}%',
@@ -674,7 +659,11 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
                   'You are enrolled in this bundle',
                   style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
                 ),
-                if (progress > 0) Text('$progress% complete', style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600)),
+                if (progress > 0)
+                  Text(
+                    '$progress% complete',
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                  ),
               ],
             ),
           ),
