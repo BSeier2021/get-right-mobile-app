@@ -121,6 +121,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   CustomerProgramsQuery _buildProgramsQuery({required int page, required int perPage}) {
     final range = _durationWeeksRange();
+    final searchTitle = _programSearchTitle.trim();
     return CustomerProgramsQuery(
       page: page,
       limit: perPage,
@@ -131,10 +132,116 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       durationMin: range?.$1,
       durationMax: range?.$2,
       certifiedOnly: _showCertifiedOnly,
+      title: searchTitle.isEmpty ? null : searchTitle,
     );
   }
 
-  bool get _hasActiveFilters => _selectedCategoryIds.isNotEmpty || _selectedDifficulties.isNotEmpty || _selectedDuration != 'All' || _sortBy.isNotEmpty || _showCertifiedOnly;
+  bool get _hasActiveFilters =>
+      _programSearchTitle.trim().isNotEmpty ||
+      _selectedCategoryIds.isNotEmpty ||
+      _selectedDifficulties.isNotEmpty ||
+      _selectedDuration != 'All' ||
+      _sortBy.isNotEmpty ||
+      _showCertifiedOnly;
+
+  void _openProgramSearch() {
+    final controller = TextEditingController(text: _programSearchTitle);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(sheetContext).bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40.w,
+                    height: 4.h,
+                    decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.35), borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  'Search Programs',
+                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                ),
+                SizedBox(height: 16.h),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (value) => _applyProgramSearch(sheetContext, value),
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                  decoration: InputDecoration(
+                    hintText: 'Search by program title...',
+                    hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+                    prefixIcon: const Icon(Icons.search, color: AppColors.primaryGray),
+                    filled: true,
+                    fillColor: AppColors.backgroundColor,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Row(
+                  children: [
+                    if (_programSearchTitle.isNotEmpty)
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => _applyProgramSearch(sheetContext, ''),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.onBackground,
+                            side: BorderSide(color: AppColors.primaryGray.withOpacity(0.4)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: EdgeInsets.symmetric(vertical: 12.h),
+                          ),
+                          child: const Text('Clear'),
+                        ),
+                      ),
+                    if (_programSearchTitle.isNotEmpty) SizedBox(width: 12.w),
+                    Expanded(
+                      flex: _programSearchTitle.isNotEmpty ? 1 : 1,
+                      child: ElevatedButton(
+                        onPressed: () => _applyProgramSearch(sheetContext, controller.text),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: EdgeInsets.symmetric(vertical: 12.h),
+                        ),
+                        child: Text(
+                          'Search',
+                          style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _applyProgramSearch(BuildContext sheetContext, String query) {
+    Navigator.pop(sheetContext);
+    final next = query.trim();
+    if (next == _programSearchTitle) return;
+    setState(() => _programSearchTitle = next);
+    _loadBrowsePrograms(reset: true);
+  }
 
   String _categoryLabel(String id) {
     for (final c in _exerciseCategories) {
@@ -304,6 +411,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   String? _browseProgramsError;
   int _browseProgramsTotal = 0;
   static const int _browseProgramsPerPage = 10;
+  String _programSearchTitle = '';
 
   // Mock weekly free workouts
   final List<Map<String, dynamic>> _weeklyFreeWorkouts = [
@@ -1572,11 +1680,24 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           ),
           centerTitle: true,
           actions: [
-            IconButton(
-              icon: Image.asset('assets/images/search-normal000.png', width: 20.w),
-              onPressed: () {
-                // TODO: Implement search
-              },
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  icon: Image.asset('assets/images/search-normal000.png', width: 20.w),
+                  onPressed: _openProgramSearch,
+                ),
+                if (_programSearchTitle.isNotEmpty)
+                  Positioned(
+                    right: 10,
+                    top: 8,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+                    ),
+                  ),
+              ],
             ),
             Stack(
               children: [
@@ -1690,6 +1811,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           'Active Filters: ',
                           style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                         ),
+                        if (_programSearchTitle.isNotEmpty)
+                          _buildFilterChip('Search: $_programSearchTitle', () {
+                            setState(() => _programSearchTitle = '');
+                            _loadBrowsePrograms(reset: true);
+                          }),
                         if (_sortBy.isNotEmpty)
                           _buildFilterChip(_sortBy, () {
                             setState(() => _sortBy = '');
@@ -1788,6 +1914,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             TextButton(
                               onPressed: () {
                                 setState(() {
+                                  _programSearchTitle = '';
                                   _selectedCategoryIds.clear();
                                   _selectedDifficulties.clear();
                                   _selectedDuration = 'All';

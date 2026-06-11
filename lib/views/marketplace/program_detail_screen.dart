@@ -232,7 +232,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         programTitle: _safeProgram['title']?.toString() ?? 'Program',
         trainerName: _safeProgram['trainer']?.toString() ?? 'Trainer',
         trainerInitials: _safeProgram['trainerImage']?.toString() ?? 'UT',
-        trainerAvatarUrl: ImageUrlSanitizer.asHttpUrlOrNull(_safeProgram['trainerAvatarUrl']?.toString()),
+        trainerAvatarUrl: _trainerAvatarUrl(),
         infoMessage: _reviewBlockReason(),
       ),
       transition: Transition.rightToLeft,
@@ -293,7 +293,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         programTitle: _safeProgram['title']?.toString() ?? 'Program',
         trainerName: _safeProgram['trainer']?.toString() ?? 'Trainer',
         trainerInitials: _safeProgram['trainerImage']?.toString() ?? 'UT',
-        trainerAvatarUrl: ImageUrlSanitizer.asHttpUrlOrNull(_safeProgram['trainerAvatarUrl']?.toString()),
+        trainerAvatarUrl: _trainerAvatarUrl(),
         reviewId: review['id']?.toString(),
         initialRating: (review['rating'] as num?)?.toDouble(),
         initialComment: review['comment']?.toString(),
@@ -423,8 +423,58 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       ...program,
     };
     _safeProgram['imageUrl'] = ImageUrlSanitizer.asHttpUrlOrNull(_safeProgram['imageUrl']?.toString());
+    final trainerAvatar = _resolveTrainerAvatarUrlFromMap(_safeProgram);
+    if (trainerAvatar != null) {
+      _safeProgram['trainerImageUrl'] = trainerAvatar;
+      _safeProgram['trainerAvatarUrl'] = trainerAvatar;
+    }
     _syncEnrollmentFromProgram();
     _hydrateMyReviewFromProgram();
+  }
+
+  String? _resolveTrainerAvatarUrlFromMap(Map<String, dynamic> program) {
+    final imageUrl = ImageUrlSanitizer.asHttpUrlOrNull(program['trainerImageUrl']?.toString());
+    if (imageUrl != null) return imageUrl;
+
+    final avatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(program['trainerAvatarUrl']?.toString());
+    if (avatarUrl != null) return avatarUrl;
+
+    final api = program['_apiProgram'];
+    if (api is Map) {
+      final fromApi = MarketplaceRepository.trainerAvatarUrlFromApiNode(Map<String, dynamic>.from(api)['trainer']);
+      if (fromApi != null) return fromApi;
+
+      final display = Map<String, dynamic>.from(api)['display'];
+      if (display is Map) {
+        final fromDisplay = ImageUrlSanitizer.asHttpUrlOrNull(display['instructor_avatar_url']?.toString());
+        if (fromDisplay != null) return fromDisplay;
+      }
+    }
+
+    final marketplaceDetail = program['marketplace_detail'];
+    if (marketplaceDetail is Map) {
+      final trainer = marketplaceDetail['trainer'];
+      if (trainer is Map) {
+        final fromMd = ImageUrlSanitizer.asHttpUrlOrNull(trainer['avatar_url']?.toString());
+        if (fromMd != null) return fromMd;
+      }
+    }
+
+    return MarketplaceRepository.trainerAvatarUrlFromApiNode(program['trainer']);
+  }
+
+  String? _trainerAvatarUrl() => _resolveTrainerAvatarUrlFromMap(_safeProgram);
+
+  String _trainerInitials() => (_safeProgram['trainerImage'] ?? 'UT').toString();
+
+  Widget _buildTrainerAvatar({double radius = 30, TextStyle? fallbackStyle}) {
+    final style = fallbackStyle ?? AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent);
+    return SafeCircleNetworkAvatar(
+      radius: radius,
+      imageUrl: _trainerAvatarUrl(),
+      backgroundColor: AppColors.accent,
+      fallback: Text(_trainerInitials(), style: style),
+    );
   }
 
   void _syncEnrollmentFromProgram() {
@@ -983,11 +1033,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                         ),
                         child: Row(
                           children: [
-                            CircleAvatar(
-                              radius: 30,
-                              backgroundColor: AppColors.accent,
-                              child: Text(_safeProgram['trainerImage'] ?? 'UT', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent)),
-                            ),
+                            _buildTrainerAvatar(radius: 30),
                             const SizedBox(width: 16),
                             Expanded(
                               child: Column(
@@ -1677,11 +1723,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: AppColors.accent,
-                child: Text(_safeProgram['trainerImage'] ?? 'UT', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onAccent)),
-              ),
+              _buildTrainerAvatar(radius: 22, fallbackStyle: AppTextStyles.labelMedium.copyWith(color: AppColors.onAccent)),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1736,11 +1778,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
           // Trainer Info
           Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: AppColors.accent,
-                child: Text(_safeProgram['trainerImage'] ?? 'UT', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onAccent)),
-              ),
+              _buildTrainerAvatar(radius: 20, fallbackStyle: AppTextStyles.labelMedium.copyWith(color: AppColors.onAccent)),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
