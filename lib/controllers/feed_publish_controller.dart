@@ -19,6 +19,8 @@ List<String> parseFeedTagsInput(String raw) {
       .toList();
 }
 
+void _noopUploadProgress(double _) {}
+
 String guessVideoContentType(String filePath) {
   final lower = filePath.toLowerCase();
   if (lower.endsWith('.mov')) return 'video/quicktime';
@@ -27,7 +29,7 @@ String guessVideoContentType(String filePath) {
   return 'video/mp4';
 }
 
-/// Orchestrates feed creation and optional S3 multipart video upload with progress.
+/// Orchestrates feed creation, draft saves, and optional S3 multipart video upload with progress.
 class FeedPublishController extends GetxController {
   FeedPublishController({
     AuthRepository? authRepository,
@@ -44,6 +46,7 @@ class FeedPublishController extends GetxController {
   final RxnString feedCategoriesError = RxnString();
 
   final isPublishing = false.obs;
+  final isSavingDraft = false.obs;
   final uploadProgress = 0.0.obs;
   final publishPhase = ''.obs;
 
@@ -119,6 +122,93 @@ class FeedPublishController extends GetxController {
         st == 'succeeded' ||
         st == 'success' ||
         st == 'done';
+  }
+
+  void _showSnack(String title, String message, {Color? backgroundColor, int seconds = 3}) {
+    if (Get.isSnackbarOpen) return;
+    Get.snackbar(
+      title,
+      message,
+      backgroundColor: backgroundColor ?? AppColors.error,
+      colorText: Colors.white,
+      snackPosition: SnackPosition.BOTTOM,
+      duration: Duration(seconds: seconds),
+    );
+  }
+
+  String? _validateForm({required String title, required bool requireMedia, required bool hasMedia}) {
+    if (requireMedia && !hasMedia) return 'Please select an image or video';
+    if (title.trim().isEmpty) return 'Please enter a title for your post.';
+    if (feedCategories.isNotEmpty &&
+        (selectedCategoryId.value == null || selectedCategoryId.value!.isEmpty)) {
+      return 'Please select a category.';
+    }
+    if (feedCategories.isEmpty) return 'No categories available. Try again later.';
+    return null;
+  }
+
+  Future<List<File>> _imageFilesFromPaths(List<String> mediaPaths) async {
+    final imageFiles = <File>[];
+    for (final path in mediaPaths) {
+      final imageFile = File(path);
+      if (!await imageFile.exists()) {
+        throw StateError('Image file not found.');
+      }
+      if (await imageFile.length() <= 0) {
+        throw StateError('Image file is empty.');
+      }
+      imageFiles.add(imageFile);
+    }
+    return imageFiles;
+  }
+
+  Future<void> _uploadVideoToFeed({
+    required String feedId,
+    required String mediaPath,
+    void Function(double overallProgress) onOverallProgress = _noopUploadProgress,
+  }) async {
+    final file = File(mediaPath);
+    if (!await file.exists()) {
+      throw StateError('Video file not found.');
+    }
+    final fileSize = await file.length();
+    if (fileSize <= 0) {
+      throw StateError('Video file is empty.');
+    }
+
+    final contentType = guessVideoContentType(mediaPath);
+    publishPhase.value = 'preparing_upload';
+
+    final initRaw = await _feed.initVideoMultipartRepo(
+      feedId: feedId,
+      contentType: contentType,
+      fileSize: fileSize,
+    );
+
+    final init = FeedMultipartInitData.tryParse(initRaw);
+    if (init == null) {
+      throw StateError('Invalid multipart init response.');
+    }
+
+    publishPhase.value = 'uploading';
+
+    final videoUpload = Get.find<FeedVideoUploadController>();
+    final uploaded = await videoUpload.runMultipartUpload(
+      file: file,
+      fileSize: fileSize,
+      init: init,
+      contentType: contentType,
+      onOverallProgress: onOverallProgress,
+    );
+
+    publishPhase.value = 'finishing';
+
+    await _feed.completeVideoMultipartRepo(
+      feedId: feedId,
+      key: init.key,
+      uploadId: init.uploadId,
+      parts: uploaded.map((e) => e.toCompleteApiJson()).toList(),
+    );
   }
 
   /// Returns `true` if the reel is live (`Published`). `false` if we stopped waiting (still draft / processing).
@@ -197,167 +287,241 @@ class FeedPublishController extends GetxController {
     return false;
   }
 
-  /// Full publish: video = JSON create as `Draft`, multipart upload, poll until video is ready, then `PATCH` to `Published`;
-  /// photo = multipart create with one or more image files (required for Published without video).
+  Future<String?> _ensureDraftFeedId({
+    String? existingFeedId,
+    required String title,
+    required String description,
+    required String categoryId,
+    required List<String> tags,
+  }) async {
+    final trimmedExisting = existingFeedId?.trim();
+    if (trimmedExisting != null && trimmedExisting.isNotEmpty) {
+      await _feed.updateFeedRepo(
+        feedId: trimmedExisting,
+        title: title.trim(),
+        description: description.trim(),
+        categoryId: categoryId,
+        tags: tags,
+        status: 'Draft',
+      );
+      return trimmedExisting;
+    }
+
+    final createRes = await _feed.createFeedRepo(
+      title: title.trim(),
+      description: description.trim(),
+      categoryId: categoryId,
+      tags: tags,
+      status: 'Draft',
+    );
+    return _feedIdFromCreate(createRes);
+  }
+
+  /// Saves metadata as `Draft`. Media is optional; attach video/images when provided.
+  Future<String?> saveDraft({
+    String? existingFeedId,
+    required String title,
+    required String description,
+    required String tagsRaw,
+    List<String> mediaPaths = const [],
+    bool isVideo = false,
+  }) async {
+    final err = _validateForm(title: title, requireMedia: false, hasMedia: true);
+    if (err != null) {
+      _showSnack(err.contains('title') ? 'Title Required' : 'Category', err);
+      return null;
+    }
+
+    final categoryId = selectedCategoryId.value!;
+    final tags = parseFeedTagsInput(tagsRaw);
+
+    isSavingDraft.value = true;
+    uploadProgress.value = 0.0;
+    publishPhase.value = 'creating';
+
+    try {
+      final feedId = await _ensureDraftFeedId(
+        existingFeedId: existingFeedId,
+        title: title,
+        description: description,
+        categoryId: categoryId,
+        tags: tags,
+      );
+      if (feedId == null) {
+        throw StateError('Could not read feed id from server response.');
+      }
+
+      uploadProgress.value = 0.2;
+
+      if (!isVideo && mediaPaths.isNotEmpty) {
+        publishPhase.value = 'uploading';
+        final imageFiles = await _imageFilesFromPaths(mediaPaths);
+        await _feed.updateFeedWithImagesMultipartRepo(
+          feedId: feedId,
+          title: title.trim(),
+          description: description.trim(),
+          categoryId: categoryId,
+          tags: tags,
+          imageFiles: imageFiles,
+          status: 'Draft',
+        );
+      } else if (isVideo && mediaPaths.isNotEmpty) {
+        await _uploadVideoToFeed(
+          feedId: feedId,
+          mediaPath: mediaPaths.first,
+          onOverallProgress: (raw) {
+            uploadProgress.value = 0.2 + raw * 0.75;
+          },
+        );
+      }
+
+      uploadProgress.value = 1.0;
+      publishPhase.value = '';
+      Get.back(result: <String, dynamic>{'feedId': feedId, 'savedDraft': true});
+      _showSnack(
+        'Draft saved',
+        mediaPaths.isEmpty
+            ? 'Your post was saved as a draft. Add media and publish from your profile when ready.'
+            : 'Your draft was saved. Finish publishing from your profile when ready.',
+        backgroundColor: AppColors.completed,
+        seconds: 4,
+      );
+      return feedId;
+    } catch (e) {
+      publishPhase.value = '';
+      _showSnack('Could not save draft', e.toString());
+      return null;
+    } finally {
+      isSavingDraft.value = false;
+      uploadProgress.value = 0.0;
+      publishPhase.value = '';
+    }
+  }
+
+  /// Full publish: video = create/update as `Draft`, multipart upload, poll until ready, then `PATCH` `Published`;
+  /// photo = multipart create/update with image files.
   Future<void> publish({
+    String? existingFeedId,
+    bool hasExistingMedia = false,
     required List<String> mediaPaths,
     required bool isVideo,
     required String title,
     required String description,
     required String tagsRaw,
   }) async {
-    if (mediaPaths.isEmpty) {
-      Get.snackbar(
-        'Media Required',
-        'Please select an image or video',
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-    if (title.trim().isEmpty) {
-      Get.snackbar(
-        'Title Required',
-        'Please enter a title for your post.',
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
-    if (feedCategories.isNotEmpty &&
-        (selectedCategoryId.value == null ||
-            selectedCategoryId.value!.isEmpty)) {
-      Get.snackbar(
-        'Category',
-        'Please select a category.',
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
-    if (feedCategories.isEmpty) {
-      Get.snackbar(
-        'Categories',
-        'No categories available. Try again later.',
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+    final hasMedia = mediaPaths.isNotEmpty || hasExistingMedia;
+    final err = _validateForm(title: title, requireMedia: true, hasMedia: hasMedia);
+    if (err != null) {
+      _showSnack(err.contains('Media') ? 'Media Required' : err.contains('title') ? 'Title Required' : 'Category', err);
       return;
     }
 
     final categoryId = selectedCategoryId.value!;
     final tags = parseFeedTagsInput(tagsRaw);
+    final trimmedExisting = existingFeedId?.trim();
 
     isPublishing.value = true;
     uploadProgress.value = 0.0;
     publishPhase.value = 'creating';
 
     try {
-      final dynamic createRes;
-      if (isVideo) {
-        createRes = await _feed.createFeedRepo(
+      late final String feedId;
+
+      if (trimmedExisting != null && trimmedExisting.isNotEmpty) {
+        feedId = trimmedExisting;
+        await _feed.updateFeedRepo(
+          feedId: feedId,
+          title: title.trim(),
+          description: description.trim(),
+          categoryId: categoryId,
+          tags: tags,
+          status: isVideo ? 'Draft' : 'Published',
+        );
+        uploadProgress.value = 0.08;
+      } else if (isVideo) {
+        final createRes = await _feed.createFeedRepo(
           title: title.trim(),
           description: description.trim(),
           categoryId: categoryId,
           tags: tags,
           status: 'Draft',
         );
-      } else {
-        final imageFiles = <File>[];
-        for (final path in mediaPaths) {
-          final imageFile = File(path);
-          if (!await imageFile.exists()) {
-            throw StateError('Image file not found.');
-          }
-          if (await imageFile.length() <= 0) {
-            throw StateError('Image file is empty.');
-          }
-          imageFiles.add(imageFile);
+        final createdId = _feedIdFromCreate(createRes);
+        if (createdId == null) {
+          throw StateError('Could not read feed id from server response.');
         }
-        createRes = await _feed.createFeedWithImagesMultipartRepo(
+        feedId = createdId;
+        uploadProgress.value = 0.08;
+      } else {
+        final imageFiles = await _imageFilesFromPaths(mediaPaths);
+        final createRes = await _feed.createFeedWithImagesMultipartRepo(
           title: title.trim(),
           description: description.trim(),
           categoryId: categoryId,
           tags: tags,
           imageFiles: imageFiles,
+          status: 'Published',
         );
-      }
-
-      final feedId = _feedIdFromCreate(createRes);
-      if (feedId == null) {
-        throw StateError('Could not read feed id from server response.');
-      }
-
-      uploadProgress.value = 0.08;
-
-      if (!isVideo) {
+        final createdId = _feedIdFromCreate(createRes);
+        if (createdId == null) {
+          throw StateError('Could not read feed id from server response.');
+        }
+        feedId = createdId;
         uploadProgress.value = 1.0;
         publishPhase.value = '';
         Get.back();
         final imageCount = mediaPaths.length;
-        Get.snackbar(
+        _showSnack(
           'Post published',
           imageCount > 1 ? 'Your photo post with $imageCount images was published.' : 'Your photo post was published.',
           backgroundColor: AppColors.completed,
-          colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM,
-          duration: const Duration(seconds: 3),
         );
         return;
       }
 
-      final file = File(mediaPaths.first);
-      if (!await file.exists()) {
-        throw StateError('Video file not found.');
+      if (!isVideo) {
+        if (mediaPaths.isNotEmpty) {
+          final imageFiles = await _imageFilesFromPaths(mediaPaths);
+          await _feed.updateFeedWithImagesMultipartRepo(
+            feedId: feedId,
+            title: title.trim(),
+            description: description.trim(),
+            categoryId: categoryId,
+            tags: tags,
+            imageFiles: imageFiles,
+            status: 'Published',
+          );
+        } else if (hasExistingMedia) {
+          await _feed.updateFeedRepo(
+            feedId: feedId,
+            title: title.trim(),
+            description: description.trim(),
+            categoryId: categoryId,
+            tags: tags,
+            status: 'Published',
+          );
+        }
+
+        uploadProgress.value = 1.0;
+        publishPhase.value = '';
+        Get.back();
+        _showSnack('Post published', 'Your photo post was published.', backgroundColor: AppColors.completed);
+        return;
       }
-      final fileSize = await file.length();
-      if (fileSize <= 0) {
-        throw StateError('Video file is empty.');
+
+      if (mediaPaths.isNotEmpty) {
+        await _uploadVideoToFeed(
+          feedId: feedId,
+          mediaPath: mediaPaths.first,
+          onOverallProgress: (raw) {
+            uploadProgress.value = 0.12 + raw * 0.78;
+          },
+        );
+      } else if (!hasExistingMedia) {
+        throw StateError('Please select a video to publish.');
+      } else {
+        uploadProgress.value = 0.92;
       }
-
-      final contentType = guessVideoContentType(mediaPaths.first);
-      publishPhase.value = 'preparing_upload';
-
-      final initRaw = await _feed.initVideoMultipartRepo(
-        feedId: feedId,
-        contentType: contentType,
-        fileSize: fileSize,
-      );
-
-      final init = FeedMultipartInitData.tryParse(initRaw);
-      if (init == null) {
-        throw StateError('Invalid multipart init response.');
-      }
-
-      publishPhase.value = 'uploading';
-      uploadProgress.value = 0.12;
-
-      final videoUpload = Get.find<FeedVideoUploadController>();
-      final uploaded = await videoUpload.runMultipartUpload(
-        file: file,
-        fileSize: fileSize,
-        init: init,
-        contentType: contentType,
-        onOverallProgress: (raw) {
-          uploadProgress.value = 0.12 + raw * 0.78;
-        },
-      );
-
-      publishPhase.value = 'finishing';
-      uploadProgress.value = 0.92;
-
-      await _feed.completeVideoMultipartRepo(
-        feedId: feedId,
-        key: init.key,
-        uploadId: init.uploadId,
-        parts: uploaded.map((e) => e.toCompleteApiJson()).toList(),
-      );
 
       final published = await _waitForVideoReadyThenPublish(
         feedId: feedId,
@@ -370,28 +534,17 @@ class FeedPublishController extends GetxController {
       uploadProgress.value = 1.0;
       publishPhase.value = '';
       Get.back();
-      Get.snackbar(
+      _showSnack(
         published ? 'Post published' : 'Video uploaded',
         published
             ? 'Your reel is live.'
             : 'Encoding is taking longer than usual. The post stays as a draft until the video is ready—open it from your profile and set status to Published when processing finishes.',
         backgroundColor: AppColors.completed,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-        duration: Duration(seconds: published ? 3 : 5),
+        seconds: published ? 3 : 5,
       );
     } catch (e) {
       publishPhase.value = '';
-      if (!Get.isSnackbarOpen) {
-        Get.snackbar(
-          'Publish failed',
-          e.toString(),
-          backgroundColor: AppColors.error,
-          colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM,
-          duration: const Duration(seconds: 4),
-        );
-      }
+      _showSnack('Publish failed', e.toString());
     } finally {
       isPublishing.value = false;
       uploadProgress.value = 0.0;

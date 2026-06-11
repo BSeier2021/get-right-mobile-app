@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -1099,6 +1100,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   // Video play icon (white, mockup)
                   if (post['isVideo'] as bool) Padding(padding: const EdgeInsets.all(40.0), child: Image.asset('assets/images/playbutton.png')),
+                  if ((post['status'] ?? '').toString().toLowerCase() == 'draft')
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: AppColors.upcoming.withOpacity(0.92), borderRadius: BorderRadius.circular(8)),
+                        child: Text('Draft', style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 10)),
+                      ),
+                    ),
                   // Engagement stats overlay
                   Positioned(
                     bottom: 4,
@@ -1243,7 +1254,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _navigateToPostDetail(Map<String, dynamic> post) {
     final id = (post['id'] ?? '').toString().trim();
     if (id.isEmpty) return;
+    final status = (post['status'] ?? '').toString().trim().toLowerCase();
+    if (status == 'draft') {
+      unawaited(_openCreatePost(<String, dynamic>{'post': post}));
+      return;
+    }
     Get.toNamed(AppRoutes.feedSingleReel, arguments: <String, dynamic>{'feedId': id});
+  }
+
+  Future<void> _openCreatePost(Map<String, dynamic>? arguments) async {
+    await Get.toNamed(AppRoutes.createPost, arguments: arguments);
+    if (!mounted) return;
+    await Future.wait([_fetchProfileStats(), _fetchMyFeeds()]);
   }
 
   void _showCreatePostOptions() {
@@ -1301,7 +1323,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 gradient: const LinearGradient(colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)]),
                 onTap: () {
                   Navigator.pop(context);
-                  Get.toNamed(AppRoutes.createPost, arguments: {'type': 'record'});
+                  unawaited(_openCreatePost(<String, dynamic>{'type': 'record'}));
                 },
               ),
               _buildCreatePostOption(
@@ -1311,7 +1333,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 gradient: const LinearGradient(colors: [Color(0xFF667EEA), Color(0xFF764BA2)]),
                 onTap: () {
                   Navigator.pop(context);
-                  Get.toNamed(AppRoutes.createPost, arguments: {'type': 'video'});
+                  unawaited(_openCreatePost(<String, dynamic>{'type': 'video'}));
                 },
               ),
               _buildCreatePostOption(
@@ -1321,7 +1343,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 gradient: const LinearGradient(colors: [Color(0xFF11998E), Color(0xFF38EF7D)]),
                 onTap: () {
                   Navigator.pop(context);
-                  Get.toNamed(AppRoutes.createPost, arguments: {'type': 'image'});
+                  unawaited(_openCreatePost(<String, dynamic>{'type': 'image'}));
                 },
               ),
               const SizedBox(height: 24),

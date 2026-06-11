@@ -7,6 +7,7 @@ import 'package:get_right/controllers/feed_publish_controller.dart';
 import 'package:get_right/models/feed_category_model.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 
@@ -41,12 +42,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final PageController _imagePageController = PageController();
 
   bool get _isVideo => _selectedVideo != null;
-  bool get _hasMedia => _isVideo || _selectedImages.isNotEmpty;
   int get _remainingImageSlots => (_maxImages - _selectedImages.length).clamp(0, _maxImages);
 
   VideoPlayerController? _videoPreviewController;
   String? _videoPreviewPath;
   String? _videoPreviewInitError;
+
+  String? _editingFeedId;
+  String? _draftThumbnailUrl;
+  bool _draftHasRemoteVideo = false;
+  bool _draftIsVideo = false;
+
+  bool get _hasLocalMedia => _isVideo || _selectedImages.isNotEmpty;
+  bool get _hasRemoteMedia => _editingFeedId != null && (_draftThumbnailUrl?.isNotEmpty ?? false);
+  bool get _canPublish => _hasLocalMedia || (_hasRemoteMedia && (!_draftIsVideo || _draftHasRemoteVideo));
+  bool get _isEditingDraft => _editingFeedId != null;
 
   void _videoPreviewListener() {
     if (mounted) setState(() {});
@@ -115,13 +125,45 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() {});
   }
 
+  void _applyDraftPost(Map<String, dynamic> post) {
+    final id = (post['id'] ?? post['_id'] ?? '').toString().trim();
+    if (id.isEmpty) return;
+
+    _editingFeedId = id;
+    _titleController.text = (post['title'] ?? '').toString();
+    _descriptionController.text = (post['description'] ?? '').toString();
+
+    _committedTags
+      ..clear()
+      ..addAll((post['tags'] as List<dynamic>?)?.map((e) => e.toString().replaceFirst(RegExp(r'^#+'), '').trim()).where((t) => t.isNotEmpty).toList() ?? const <String>[]);
+
+    final categoryId = (post['categoryId'] ?? '').toString().trim();
+    if (categoryId.isNotEmpty) {
+      _feed.setCategory(categoryId);
+    }
+
+    _draftIsVideo = post['isVideo'] == true;
+    _draftHasRemoteVideo = _draftIsVideo && (post['videoUrl'] ?? '').toString().trim().isNotEmpty;
+    _draftThumbnailUrl = ImageUrlSanitizer.asHttpUrlOrNull((post['thumbnail'] ?? post['imageUrl'] ?? '').toString());
+  }
+
   @override
   void initState() {
     super.initState();
 
     final args = Get.arguments as Map<String, dynamic>?;
 
-    if (args != null && args['type'] != null) {
+    if (args != null) {
+      final post = args['post'];
+      if (post is Map) {
+        _applyDraftPost(Map<String, dynamic>.from(post));
+      } else {
+        final feedId = (args['feedId'] ?? args['id'])?.toString().trim();
+        if (feedId != null && feedId.isNotEmpty) {
+          _editingFeedId = feedId;
+        }
+      }
+
       final type = args['type'];
       if (type == 'record') {
         _recordVideo();
@@ -394,18 +436,43 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  Future<void> _publishPost() async {
-    if (!_hasMedia) {
-      Get.snackbar('Media Required', 'Please select an image or video', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
+  List<String> _localMediaPaths() {
+    if (_isVideo && _selectedVideo != null) return [_selectedVideo!.path];
+    if (_selectedImages.isNotEmpty) return _selectedImages.map((e) => e.path).toList();
+    return const [];
+  }
 
+  bool get _publishAsVideo => _hasLocalMedia ? _isVideo : _draftIsVideo;
+
+  Future<void> _saveDraft() async {
+    if (_feed.isPublishing.value || _feed.isSavingDraft.value) return;
+
+    final id = await _feed.saveDraft(
+      existingFeedId: _editingFeedId,
+      title: _titleController.text,
+      description: _descriptionController.text,
+      tagsRaw: _combinedTagsRaw(),
+      mediaPaths: _localMediaPaths(),
+      isVideo: _publishAsVideo,
+    );
+    if (id != null && mounted) {
+      setState(() => _editingFeedId = id);
+    }
+  }
+
+  Future<void> _publishPost() async {
+    if (!_canPublish) {
+      Get.snackbar('Media Required', 'Please select an image or video', backgroundColor: AppColors.error, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
-    if (_feed.isPublishing.value) return;
+    if (_feed.isPublishing.value || _feed.isSavingDraft.value) return;
 
     await _feed.publish(
-      mediaPaths: _isVideo ? [_selectedVideo!.path] : _selectedImages.map((e) => e.path).toList(),
-      isVideo: _isVideo,
+      existingFeedId: _editingFeedId,
+      hasExistingMedia: _hasRemoteMedia && !_hasLocalMedia && (!_draftIsVideo || _draftHasRemoteVideo),
+      mediaPaths: _localMediaPaths(),
+      isVideo: _publishAsVideo,
       title: _titleController.text,
       description: _descriptionController.text,
       tagsRaw: _combinedTagsRaw(),
@@ -617,6 +684,62 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
   }
 
+  Widget _buildDraftRemotePreview() {
+    final thumb = _draftThumbnailUrl ?? '';
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          color: Colors.black,
+          child: SizedBox(
+            height: 400,
+            child: thumb.isNotEmpty
+                ? Image.network(
+                    thumb,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Center(child: Icon(_draftIsVideo ? Icons.videocam_outlined : Icons.image_outlined, color: Colors.white54, size: 56)),
+                  )
+                : Center(child: Icon(_draftIsVideo ? Icons.videocam_outlined : Icons.image_outlined, color: Colors.white54, size: 56)),
+          ),
+        ),
+        if (_draftIsVideo)
+          const Positioned.fill(
+            child: Center(child: Icon(Icons.play_circle_fill, color: Colors.white70, size: 56)),
+          ),
+        Positioned(
+          top: 16,
+          left: 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(color: AppColors.upcoming.withOpacity(0.9), borderRadius: BorderRadius.circular(20)),
+            child: Text(
+              'Draft media',
+              style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 16,
+          right: 16,
+          child: Container(
+            decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+            child: IconButton(
+              icon: Icon(_draftIsVideo ? Icons.videocam : Icons.edit, color: Colors.white),
+              tooltip: _draftIsVideo ? 'Replace video' : 'Replace photos',
+              onPressed: () {
+                if (_draftIsVideo) {
+                  _pickVideo();
+                } else {
+                  _pickImage();
+                }
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildMediaPreview() {
     return Stack(
       children: [
@@ -712,35 +835,65 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
           leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Get.back()),
 
-          title: Text('Create Post', style: AppTextStyles.titleLarge.copyWith()),
+          title: Text(_isEditingDraft ? 'Edit draft' : 'Create Post', style: AppTextStyles.titleLarge.copyWith()),
 
           centerTitle: true,
-
-          actions: [
-            Obx(() {
-              final busy = _feed.isPublishing.value;
-
-              return TextButton(
-                onPressed: busy ? null : _publishPost,
-
-                child: busy
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent)))
-                    : Text(
-                        'Publish',
-
-                        style: AppTextStyles.titleSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
-                      ),
-              );
-            }),
-          ],
         ),
+
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+        floatingActionButton: Obx(() {
+          final busy = _feed.isPublishing.value || _feed.isSavingDraft.value;
+          final savingDraft = _feed.isSavingDraft.value;
+          final publishing = _feed.isPublishing.value;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: FloatingActionButton.extended(
+                      heroTag: 'create_post_save_draft',
+                      onPressed: busy ? null : _saveDraft,
+                      backgroundColor: AppColors.surface,
+                      foregroundColor: AppColors.onSurface,
+                      elevation: 3,
+                      icon: savingDraft
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryGray))
+                          : const Icon(Icons.save_outlined),
+                      label: Text('Draft', style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FloatingActionButton.extended(
+                      heroTag: 'create_post_publish',
+                      onPressed: busy ? null : _publishPost,
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      elevation: 3,
+                      icon: publishing
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.publish_rounded),
+                      label: Text(
+                        'Publish',
+                        style: AppTextStyles.titleSmall.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
 
         body: Column(
           children: [
             Obx(() {
-              if (!_feed.isPublishing.value) return const SizedBox.shrink();
+              if (!_feed.isPublishing.value && !_feed.isSavingDraft.value) return const SizedBox.shrink();
 
-              final label = _phaseLabel(_feed);
+              final label = _feed.isSavingDraft.value ? 'Saving draft…' : _phaseLabel(_feed);
 
               return Material(
                 elevation: 1,
@@ -793,8 +946,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
 
                   children: [
-                    if (_hasMedia)
+                    if (_hasLocalMedia)
                       _buildMediaPreview()
+                    else if (_hasRemoteMedia)
+                      _buildDraftRemotePreview()
                     else
                       Container(
                         width: double.infinity,
@@ -1119,7 +1274,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             onEditingComplete: _commitTagsFromField,
                           ),
 
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 96),
                         ],
                       ),
                     ),

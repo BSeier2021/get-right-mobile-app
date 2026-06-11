@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/views/chat/chat_image_viewer_screen.dart';
 import 'package:get_right/views/chat/chat_video_player_screen.dart';
 import 'package:get_right/widgets/chat_audio_message.dart';
 import 'package:intl/intl.dart';
@@ -137,7 +139,14 @@ class ChatMessageBubble extends StatelessWidget {
     if (attachments.isEmpty) return const SizedBox.shrink();
 
     if (attachments.length == 1) {
-      return _buildPendingWrapper(child: _buildImageTile(attachments.first, width: 220, height: 220));
+      return _buildPendingWrapper(
+        child: _buildImageTile(
+          attachments.first,
+          width: 220,
+          height: 220,
+          onTap: message.isPending ? null : () => _openImageViewer(context, attachments, 0),
+        ),
+      );
     }
 
     const tileSize = 104.0;
@@ -156,15 +165,22 @@ class ChatMessageBubble extends StatelessWidget {
             for (var i = 0; i < visible.length; i++)
               Stack(
                 children: [
-                  _buildImageTile(visible[i], width: tileSize, height: tileSize),
+                  _buildImageTile(
+                    visible[i],
+                    width: tileSize,
+                    height: tileSize,
+                    onTap: message.isPending ? null : () => _openImageViewer(context, attachments, i),
+                  ),
                   if (extraCount > 0 && i == visible.length - 1)
                     Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.55), borderRadius: BorderRadius.circular(8)),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '+$extraCount',
-                          style: AppTextStyles.titleMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                      child: IgnorePointer(
+                        child: Container(
+                          decoration: BoxDecoration(color: Colors.black.withOpacity(0.55), borderRadius: BorderRadius.circular(8)),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '+$extraCount',
+                            style: AppTextStyles.titleMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                          ),
                         ),
                       ),
                     ),
@@ -174,6 +190,23 @@ class ChatMessageBubble extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _openImageViewer(BuildContext context, List<ChatAttachment> attachments, int initialIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChatImageViewerScreen(
+          attachments: attachments,
+          initialIndex: initialIndex,
+          title: message.fileName ?? 'Photo',
+        ),
+      ),
+    );
+  }
+
+  String? _resolvedImageUrl(ChatAttachment attachment) {
+    if (attachment.isLocal) return attachment.url;
+    return ImageUrlSanitizer.resolveMediaUrl(attachment.url) ?? ImageUrlSanitizer.asHttpUrlOrNull(attachment.url);
   }
 
   Widget _buildPendingWrapper({required Widget child}) {
@@ -214,30 +247,39 @@ class ChatMessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildImageTile(ChatAttachment attachment, {required double width, required double height}) {
+  Widget _buildImageTile(ChatAttachment attachment, {required double width, required double height, VoidCallback? onTap}) {
     final borderRadius = BorderRadius.circular(8);
 
     Widget imageWidget;
     if (attachment.isLocal) {
       imageWidget = Image.file(File(attachment.url), width: width, height: height, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _brokenImagePlaceholder(width, height));
     } else {
-      imageWidget = CachedNetworkImage(
-        imageUrl: attachment.url,
-        width: width,
-        height: height,
-        fit: BoxFit.cover,
-        placeholder: (_, __) => Container(
+      final imageUrl = _resolvedImageUrl(attachment);
+      if (imageUrl == null || imageUrl.isEmpty) {
+        imageWidget = _brokenImagePlaceholder(width, height);
+      } else {
+        imageWidget = CachedNetworkImage(
+          imageUrl: imageUrl,
           width: width,
           height: height,
-          color: AppColors.primaryGray.withOpacity(0.35),
-          alignment: Alignment.center,
-          child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: isCurrentUser ? AppColors.onAccent : AppColors.accent)),
-        ),
-        errorWidget: (_, __, ___) => _brokenImagePlaceholder(width, height),
-      );
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Container(
+            width: width,
+            height: height,
+            color: AppColors.primaryGray.withOpacity(0.35),
+            alignment: Alignment.center,
+            child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: isCurrentUser ? AppColors.onAccent : AppColors.accent)),
+          ),
+          errorWidget: (_, __, ___) => _brokenImagePlaceholder(width, height),
+        );
+      }
     }
 
-    return ClipRRect(borderRadius: borderRadius, child: imageWidget);
+    final tile = ClipRRect(borderRadius: borderRadius, child: imageWidget);
+
+    if (onTap == null) return tile;
+
+    return GestureDetector(onTap: onTap, child: tile);
   }
 
   Widget _brokenImagePlaceholder(double width, double height) {
