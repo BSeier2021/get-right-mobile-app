@@ -247,6 +247,23 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
     );
   }
 
+  Future<void> _captureImageFromCamera() async {
+    if (_chatController == null) return;
+
+    final status = await Permission.camera.request();
+    if (!status.isGranted) {
+      Get.snackbar('Permission Denied', 'Camera permission is required to take a photo');
+      return;
+    }
+
+    final image = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 85);
+    if (image == null) return;
+
+    await _showMediaComposer(
+      initialMedia: [_PendingMedia(path: image.path, type: 'image', name: image.name)],
+    );
+  }
+
   Future<void> _pickVideo() async {
     if (_chatController == null) return;
     final picker = ImagePicker();
@@ -350,12 +367,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
 
     final fileSize = await file.length();
     if (send && fileSize > 0 && _chatController != null) {
-      await _chatController!.sendFileMessage(
-        filePath: path,
-        type: 'audio',
-        fileName: 'audio_message.aac',
-        durationSeconds: recordedSeconds > 0 ? recordedSeconds : 1,
-      );
+      await _chatController!.sendFileMessage(filePath: path, type: 'audio', fileName: 'audio_message.aac', durationSeconds: recordedSeconds > 0 ? recordedSeconds : 1);
       _scrollToBottom();
     } else {
       try {
@@ -384,6 +396,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
               onTap: () {
                 Navigator.pop(context);
                 _pickImages();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera, color: AppColors.onSurface),
+              title: Text('Camera', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+              subtitle: Text('Take a photo', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark)),
+              onTap: () {
+                Navigator.pop(context);
+                _captureImageFromCamera();
               },
             ),
             ListTile(
