@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/models/chat_message_model.dart';
+import 'package:get_right/network/network_services.dart';
 import 'package:get_right/repo/chat_repo.dart';
 import 'package:get_right/services/api_service.dart';
 import 'package:get_right/services/chat_audio_player_service.dart';
@@ -21,6 +23,7 @@ class ChatController extends GetxController {
   StreamSubscription<Map<String, dynamic>>? _userTypingSub;
   StreamSubscription<Map<String, dynamic>>? _userStatusSub;
   StreamSubscription<Map<String, dynamic>>? _conversationBlockSub;
+  StreamSubscription<Map<String, dynamic>>? _conversationUpdatedSub;
   StreamSubscription<bool>? _connectionSub;
   Timer? _typingIdleTimer;
   Timer? _remoteTypingClearTimer;
@@ -80,6 +83,7 @@ class ChatController extends GetxController {
     _userTypingSub = _chatSocket.onUserTyping.listen(_handleSocketUserTyping);
     _userStatusSub = _chatSocket.onUserStatusChanged.listen(_handleSocketUserStatusChanged);
     _conversationBlockSub = _chatSocket.onConversationBlockChanged.listen(_handleConversationBlockChanged);
+    _conversationUpdatedSub = _chatSocket.onConversationUpdated.listen(_handleConversationUpdated);
     _connectionSub = _chatSocket.onConnectionChanged.listen((connected) {
       if (!connected) return;
       final conversationId = currentConversationId.value;
@@ -95,10 +99,12 @@ class ChatController extends GetxController {
     _userTypingSub?.cancel();
     _userStatusSub?.cancel();
     _conversationBlockSub?.cancel();
+    _conversationUpdatedSub?.cancel();
     _connectionSub?.cancel();
     _userTypingSub = null;
     _userStatusSub = null;
     _conversationBlockSub = null;
+    _conversationUpdatedSub = null;
     _connectionSub = null;
     _socketListenersAttached = false;
   }
@@ -146,9 +152,7 @@ class ChatController extends GetxController {
 
     _updateConversationPreview(message);
 
-    final activeId = currentConversationId.value;
-    if (activeId == null || activeId.isEmpty || !_isSameConversation(activeId, conversationId)) {
-      loadUnreadCount();
+    if (!_isViewingConversation(conversationId)) {
       return;
     }
 
@@ -220,6 +224,30 @@ class ChatController extends GetxController {
     return a.trim().toLowerCase() == b.trim().toLowerCase();
   }
 
+  bool _isViewingConversation(String conversationId) {
+    final activeId = currentConversationId.value;
+    return activeId != null && activeId.isNotEmpty && _isSameConversation(activeId, conversationId);
+  }
+
+  int _conversationIndexFor(String conversationId) {
+    for (var i = 0; i < conversations.length; i++) {
+      if (_isSameConversation(conversations[i].id, conversationId)) return i;
+    }
+    return -1;
+  }
+
+  void _clearLocalUnread(String conversationId) {
+    final index = _conversationIndexFor(conversationId);
+    if (index < 0) return;
+
+    final current = conversations[index];
+    if (current.unreadCount == 0) return;
+
+    conversations[index] = current.copyWith(unreadCount: 0);
+    conversations.refresh();
+    unawaited(loadUnreadCount());
+  }
+
   Map<String, dynamic> _unwrapSocketPayload(Map<String, dynamic> payload) {
     final data = payload['data'];
     if (data is Map) {
@@ -284,6 +312,36 @@ class ChatController extends GetxController {
     _applyConversationBlockStatus(payload);
   }
 
+  void _handleConversationUpdated(Map<String, dynamic> payload) {
+    _applyConversationUnreadFromPayload(payload);
+    onConversationUpdated(payload);
+    unawaited(loadUnreadCount());
+  }
+
+  void _applyConversationUnreadFromPayload(Map<String, dynamic> payload) {
+    final conversationId = _extractConversationId(payload, payload);
+    if (conversationId.isEmpty) return;
+
+    final unreadCount = _extractUnreadCountFromPayload(payload);
+    if (unreadCount == null) return;
+
+    final index = _conversationIndexFor(conversationId);
+    if (index < 0) return;
+
+    conversations[index] = conversations[index].copyWith(unreadCount: unreadCount);
+    conversations.refresh();
+  }
+
+  int? _extractUnreadCountFromPayload(Map<String, dynamic> payload) {
+    for (final source in [payload, if (payload['conversation'] is Map) Map<String, dynamic>.from(payload['conversation'] as Map), if (payload['data'] is Map) Map<String, dynamic>.from(payload['data'] as Map)]) {
+      for (final key in const ['unreadCount', 'unread']) {
+        final value = source[key];
+        if (value is num) return value.toInt();
+      }
+    }
+    return null;
+  }
+
   /// Live updates from socket `conversation-updated` (block status, participants, etc.).
   void onConversationUpdated(Map<String, dynamic> payload) {
     final activeId = currentConversationId.value;
@@ -333,20 +391,33 @@ class ChatController extends GetxController {
   }
 
   void _updateConversationPreview(ChatMessageModel message) {
-    final index = conversations.indexWhere((c) => c.id == message.conversationId);
-    if (index < 0) return;
-
-    final current = conversations[index];
-    final isActiveConversation = currentConversationId.value == message.conversationId;
     final senderId = message.senderId;
     final me = currentUserId;
-    final unreadDelta = (!isActiveConversation && me != null && senderId != me) ? 1 : 0;
+    final isIncoming = me != null && senderId != me;
+    final isViewing = _isViewingConversation(message.conversationId);
+    final index = _conversationIndexFor(message.conversationId);
 
-    conversations[index] = current.copyWith(lastMessage: message, updatedAt: message.timestamp, unreadCount: isActiveConversation ? 0 : current.unreadCount + unreadDelta);
+    if (index >= 0) {
+      final current = conversations[index];
+      final unreadDelta = (!isViewing && isIncoming) ? 1 : 0;
 
-    if (index > 0) {
-      final updated = conversations.removeAt(index);
-      conversations.insert(0, updated);
+      conversations[index] = current.copyWith(
+        lastMessage: message,
+        updatedAt: message.timestamp,
+        unreadCount: isViewing ? 0 : current.unreadCount + unreadDelta,
+      );
+
+      if (index > 0) {
+        final updated = conversations.removeAt(index);
+        conversations.insert(0, updated);
+      }
+      conversations.refresh();
+    } else if (isIncoming) {
+      unawaited(refreshConversations());
+    }
+
+    if (!isViewing && isIncoming) {
+      unawaited(loadUnreadCount());
     }
   }
 
@@ -573,6 +644,8 @@ class ChatController extends GetxController {
       _applyMessagesPage(result);
       await _enterActiveConversation(conversationId);
       await refreshConversationBlockStatus();
+      _clearLocalUnread(conversationId);
+      unawaited(markAsRead(conversationId));
     } catch (e) {
       Get.snackbar('Error', 'Failed to load messages: $e');
     } finally {
@@ -665,6 +738,15 @@ class ChatController extends GetxController {
     }
   }
 
+  static String chatErrorMessage(Object error) {
+    final text = error.toString().trim();
+    if (text.isEmpty) return 'Something went wrong. Please try again.';
+    return text
+        .replaceFirst(RegExp(r'^Exception:\s*'), '')
+        .replaceFirst(RegExp(r'^ArgumentError:\s*'), '')
+        .trim();
+  }
+
   /// Send image/video/audio with optional caption. Supports multiple attachments in one message.
   Future<void> sendMediaMessage({
     required List<String> filePaths,
@@ -676,6 +758,15 @@ class ChatController extends GetxController {
 
     final userId = currentUserId;
     if (userId == null) return;
+
+    if (type == 'image' && filePaths.length > AppConstants.maxChatImageAttachments) {
+      Get.snackbar(
+        'Photo limit',
+        'You can send up to ${AppConstants.maxChatImageAttachments} photos at a time.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
 
     final trimmedCaption = caption?.trim() ?? '';
     final content = trimmedCaption.isNotEmpty
@@ -722,7 +813,8 @@ class ChatController extends GetxController {
       if (message.contains('block') || message.contains('forbidden')) {
         isBlockedByOther.value = true;
       }
-      Get.snackbar('Error', 'Failed to send file: $e');
+      final title = e is BadRequestException ? 'Photo limit' : 'Error';
+      Get.snackbar(title, chatErrorMessage(e), snackPosition: SnackPosition.BOTTOM);
       messages.removeWhere((m) => m.id == tempMessage.id);
     } finally {
       isSending.value = false;
@@ -747,17 +839,28 @@ class ChatController extends GetxController {
   Future<void> markAsRead(String conversationId) async {
     try {
       await _apiService.markMessagesAsRead(conversationId);
-      // Update local messages
-      for (var message in messages) {
-        if (message.conversationId == conversationId && !message.isRead) {
-          messages[messages.indexOf(message)] = message.copyWith(isRead: true);
+      for (var i = 0; i < messages.length; i++) {
+        final message = messages[i];
+        if (_isSameConversation(message.conversationId, conversationId) && !message.isRead) {
+          messages[i] = message.copyWith(isRead: true);
         }
       }
-      // Update conversation unread count
-      await refreshConversations();
+      _clearLocalUnread(conversationId);
+      await loadUnreadCount();
     } catch (e) {
       // Silent fail
     }
+  }
+
+  /// User left the chat room but may still be on the messages list or elsewhere.
+  void leaveChatRoom() {
+    _leaveConversationSocket();
+    currentConversationId.value = null;
+    currentTrainerId.value = null;
+    currentProgramId.value = null;
+    isOtherUserTyping.value = false;
+    isBlockedByMe.value = false;
+    isBlockedByOther.value = false;
   }
 
   /// `DELETE /user/chat/messages/:messageId`

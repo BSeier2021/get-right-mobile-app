@@ -140,12 +140,7 @@ class ChatMessageBubble extends StatelessWidget {
 
     if (attachments.length == 1) {
       return _buildPendingWrapper(
-        child: _buildImageTile(
-          attachments.first,
-          width: 220,
-          height: 220,
-          onTap: message.isPending ? null : () => _openImageViewer(context, attachments, 0),
-        ),
+        child: _buildImageTile(attachments.first, width: 220, height: 220, onTap: message.isPending ? null : () => _openImageViewer(context, attachments, 0)),
       );
     }
 
@@ -165,12 +160,7 @@ class ChatMessageBubble extends StatelessWidget {
             for (var i = 0; i < visible.length; i++)
               Stack(
                 children: [
-                  _buildImageTile(
-                    visible[i],
-                    width: tileSize,
-                    height: tileSize,
-                    onTap: message.isPending ? null : () => _openImageViewer(context, attachments, i),
-                  ),
+                  _buildImageTile(visible[i], width: tileSize, height: tileSize, onTap: message.isPending ? null : () => _openImageViewer(context, attachments, i)),
                   if (extraCount > 0 && i == visible.length - 1)
                     Positioned.fill(
                       child: IgnorePointer(
@@ -195,11 +185,7 @@ class ChatMessageBubble extends StatelessWidget {
   void _openImageViewer(BuildContext context, List<ChatAttachment> attachments, int initialIndex) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ChatImageViewerScreen(
-          attachments: attachments,
-          initialIndex: initialIndex,
-          title: message.fileName ?? 'Photo',
-        ),
+        builder: (_) => ChatImageViewerScreen(attachments: attachments, initialIndex: initialIndex, title: message.fileName ?? 'Photo'),
       ),
     );
   }

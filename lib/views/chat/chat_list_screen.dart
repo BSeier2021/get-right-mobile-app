@@ -74,7 +74,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
         setState(() {
           _isInitializing = false;
         });
-        _chatController?.refreshConversations();
+        _chatController?.leaveChatRoom();
+        await _chatController?.refreshConversations();
       }
     } catch (e) {
       if (mounted) {
@@ -85,8 +86,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
     }
   }
 
-  void _openChatRoom(ConversationModel conversation) {
-    Get.toNamed(
+  Future<void> _openChatRoom(ConversationModel conversation) async {
+    await Get.toNamed(
       AppRoutes.chatRoom,
       preventDuplicates: false,
       arguments: {
@@ -97,6 +98,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
         'programTitle': conversation.programTitle,
       },
     );
+    _chatController?.leaveChatRoom();
+    await _chatController?.refreshConversations();
   }
 
   String _formatTimestamp(DateTime timestamp) {

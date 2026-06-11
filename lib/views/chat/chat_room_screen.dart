@@ -9,6 +9,7 @@ import 'package:flutter_sound/flutter_sound.dart';
 import 'package:get_right/services/chat_audio_player_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/controllers/chat_controller.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/models/report_block_model.dart';
@@ -26,6 +27,21 @@ class _PendingMedia {
   final String path;
   final String type;
   final String name;
+}
+
+void _showChatPhotoLimitSnackbar({int? selectedCount}) {
+  final limit = AppConstants.maxChatImageAttachments;
+  final message = selectedCount != null && selectedCount > limit
+      ? 'You selected $selectedCount photos. You can send up to $limit photos at a time.'
+      : 'You can send up to $limit photos at a time.';
+  Get.snackbar('Photo limit', message, snackPosition: SnackPosition.BOTTOM);
+}
+
+List<XFile> _limitPickedChatImages(List<XFile> images) {
+  final limit = AppConstants.maxChatImageAttachments;
+  if (images.length <= limit) return images;
+  _showChatPhotoLimitSnackbar(selectedCount: images.length);
+  return images.take(limit).toList();
 }
 
 /// Chat Room Screen - Full chat interface with trainer
@@ -191,7 +207,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _detachConversationUpdatedListener();
-    // Keep socket room joined — only stop typing; leaving breaks live incoming messages
+    _chatController?.leaveChatRoom();
     _chatController?.stopTypingInRoom();
     _messageController.dispose();
     _scrollController.dispose();
@@ -225,8 +241,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
     final images = await picker.pickMultiImage();
     if (images.isEmpty) return;
 
+    final limited = _limitPickedChatImages(images);
     await _showMediaComposer(
-      initialMedia: images.map((image) => _PendingMedia(path: image.path, type: 'image', name: image.name)).toList(),
+      initialMedia: limited.map((image) => _PendingMedia(path: image.path, type: 'image', name: image.name)).toList(),
     );
   }
 
@@ -1011,15 +1028,34 @@ class _MediaComposerSheetState extends State<_MediaComposerSheet> {
   }
 
   Future<void> _addMoreImages() async {
+    final limit = AppConstants.maxChatImageAttachments;
+    if (_items.length >= limit) {
+      _showChatPhotoLimitSnackbar();
+      return;
+    }
+
     final images = await ImagePicker().pickMultiImage();
     if (images.isEmpty || !mounted) return;
+
+    final remaining = limit - _items.length;
+    final limited = images.length > remaining ? images.take(remaining).toList() : images;
+    if (images.length > remaining) {
+      _showChatPhotoLimitSnackbar(selectedCount: _items.length + images.length);
+    }
+
     setState(() {
-      _items.addAll(images.map((image) => _PendingMedia(path: image.path, type: 'image', name: image.name)));
+      _items.addAll(limited.map((image) => _PendingMedia(path: image.path, type: 'image', name: image.name)));
     });
   }
 
   Future<void> _sendMedia() async {
     if (_items.isEmpty || widget.chatController.isSending.value) return;
+
+    final limit = AppConstants.maxChatImageAttachments;
+    if (!_isVideoComposer && _items.length > limit) {
+      _showChatPhotoLimitSnackbar(selectedCount: _items.length);
+      return;
+    }
 
     final caption = _captionController.text;
     final paths = _items.map((item) => item.path).toList();
@@ -1105,8 +1141,13 @@ class _MediaComposerSheetState extends State<_MediaComposerSheet> {
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerLeft,
+                  child: Text('${_items.length}/${AppConstants.maxChatImageAttachments} photos', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark)),
+                ),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
                   child: TextButton.icon(
-                    onPressed: _addMoreImages,
+                    onPressed: _items.length >= AppConstants.maxChatImageAttachments ? null : _addMoreImages,
                     icon: const Icon(Icons.add_photo_alternate_outlined, color: AppColors.accent),
                     label: Text('Add more photos', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent)),
                   ),

@@ -1,8 +1,9 @@
 import 'dart:io';
 
 import 'package:get_right/app_url.dart';
-import 'package:get_right/models/chat_message_model.dart';
+import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/network/network_services.dart';
+import 'package:get_right/models/chat_message_model.dart';
 
 class ConversationBlockStatus {
   const ConversationBlockStatus({
@@ -162,6 +163,10 @@ class ChatRepository {
 
     if (trimmedContent.isEmpty && attachmentFiles.isEmpty) {
       throw ArgumentError('content or attachment is required');
+    }
+
+    if (attachmentFiles.length > AppConstants.maxChatImageAttachments) {
+      throw BadRequestException('You can send up to ${AppConstants.maxChatImageAttachments} photos at a time.');
     }
 
     final files = attachmentFiles.isEmpty ? <String, List<File>>{} : <String, List<File>>{'attachments': attachmentFiles};

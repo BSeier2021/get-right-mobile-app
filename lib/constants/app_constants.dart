@@ -127,4 +127,5 @@ class AppConstants {
   // Chat
   static const int maxChatMessageLength = 1000;
   static const int maxChatFileSize = 10 * 1024 * 1024; // 10MB
+  static const int maxChatImageAttachments = 10;
 }

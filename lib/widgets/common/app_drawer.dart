@@ -21,8 +21,6 @@ class AppDrawer extends StatefulWidget {
 }
 
 class _AppDrawerState extends State<AppDrawer> {
-  int _chatUnreadCount = 0;
-
   @override
   void initState() {
     super.initState();
@@ -32,11 +30,11 @@ class _AppDrawerState extends State<AppDrawer> {
       if (auth.customerProfile == null && !auth.customerProfileLoading) {
         auth.fetchCustomerProfile();
       }
-      _initChatUnreadCount();
+      _ensureChatUnreadCountLoaded();
     });
   }
 
-  Future<void> _initChatUnreadCount() async {
+  Future<void> _ensureChatUnreadCountLoaded() async {
     try {
       ChatController controller;
       if (Get.isRegistered<ChatController>()) {
@@ -47,8 +45,6 @@ class _AppDrawerState extends State<AppDrawer> {
         controller = Get.put(ChatController(apiService, storageService));
       }
       await controller.loadUnreadCount();
-      if (!mounted) return;
-      setState(() => _chatUnreadCount = controller.totalUnreadCount.value);
     } catch (_) {}
   }
 
@@ -165,15 +161,18 @@ class _AppDrawerState extends State<AppDrawer> {
                       },
                     ),
                   ),
-                  _drawerItem(
-                    fallbackIcon: Icons.chat_bubble_outline_rounded,
-                    title: 'Chat',
-                    badgeCount: _chatUnreadCount,
-                    onTap: () {
-                      Get.back();
-                      Get.toNamed(AppRoutes.chatList)?.then((_) => _initChatUnreadCount());
-                    },
-                  ),
+                  Obx(() {
+                    final badgeCount = Get.isRegistered<ChatController>() ? Get.find<ChatController>().totalUnreadCount.value : 0;
+                    return _drawerItem(
+                      fallbackIcon: Icons.chat_bubble_outline_rounded,
+                      title: 'Chat',
+                      badgeCount: badgeCount,
+                      onTap: () {
+                        Get.back();
+                        Get.toNamed(AppRoutes.chatList)?.then((_) => _ensureChatUnreadCountLoaded());
+                      },
+                    );
+                  }),
                   _drawerItem(
                     fallbackIcon: Icons.bookmark_added_outlined,
                     title: 'Save Reels',

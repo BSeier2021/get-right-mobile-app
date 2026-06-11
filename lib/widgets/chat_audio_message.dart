@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/services/chat_audio_player_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// WhatsApp-style audio message bubble with play/pause and waveform.
 class ChatAudioMessage extends StatefulWidget {
@@ -38,10 +41,51 @@ class _ChatAudioMessageState extends State<ChatAudioMessage> {
     if (mounted) setState(() {});
   }
 
+  String? _resolveAudioUrl() {
+    for (final attachment in widget.message.displayAttachments) {
+      if (!attachment.isVideo && !attachment.isImage) {
+        final resolved = _resolveAttachmentUrl(attachment.url, isLocal: attachment.isLocal);
+        if (resolved != null) return resolved;
+      }
+    }
+
+    final fileUrl = widget.message.fileUrl?.trim();
+    if (fileUrl != null && fileUrl.isNotEmpty) {
+      return _resolveAttachmentUrl(fileUrl, isLocal: widget.message.isPending);
+    }
+
+    return null;
+  }
+
+  String? _resolveAttachmentUrl(String rawUrl, {required bool isLocal}) {
+    final url = rawUrl.trim();
+    if (url.isEmpty) return null;
+
+    final lower = url.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return ImageUrlSanitizer.resolveMediaUrl(url) ?? ImageUrlSanitizer.asHttpUrlOrNull(url);
+    }
+
+    if (isLocal || !lower.startsWith('http')) {
+      try {
+        if (File(url).existsSync()) return url;
+      } catch (_) {
+        return url;
+      }
+      if (isLocal) return url;
+    }
+
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final url = widget.message.fileUrl;
-    if (url == null || !url.startsWith('http')) {
+    final url = _resolveAudioUrl();
+    if (url == null || url.isEmpty) {
+      if (widget.message.isPending) {
+        return _PendingAudioPlaceholder(isCurrentUser: widget.isCurrentUser);
+      }
+
       return Text(
         'Audio unavailable',
         style: AppTextStyles.bodyMedium.copyWith(
@@ -107,6 +151,49 @@ class _ChatAudioMessageState extends State<ChatAudioMessage> {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
+  }
+}
+
+class _PendingAudioPlaceholder extends StatelessWidget {
+  const _PendingAudioPlaceholder({required this.isCurrentUser});
+
+  final bool isCurrentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = isCurrentUser ? AppColors.onAccent : AppColors.accent;
+
+    return SizedBox(
+      width: 248,
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accent.withOpacity(isCurrentUser ? 0.18 : 0.12),
+            ),
+            child: Icon(Icons.mic_rounded, color: accent, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _AudioWaveform(
+              progress: 0,
+              activeColor: accent,
+              inactiveColor: accent.withOpacity(0.45),
+              seed: 11,
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2, color: accent),
+          ),
+        ],
+      ),
+    );
   }
 }
 
