@@ -10,6 +10,7 @@ import 'package:get_right/services/api_service.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 
 /// Chat List Screen - Shows all conversations and allows starting new chats
 class ChatListScreen extends StatefulWidget {
@@ -265,15 +266,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
             ),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              leading: CircleAvatar(
+              leading: SafeCircleNetworkAvatar(
+                radius: 24,
+                imageUrl: conversation.trainerImage,
                 backgroundColor: AppColors.accent,
-                backgroundImage: conversation.trainerImage != null && conversation.trainerImage!.startsWith('http') ? NetworkImage(conversation.trainerImage!) : null,
-                child: conversation.trainerImage != null && conversation.trainerImage!.startsWith('http')
-                    ? null
-                    : Text(
-                        conversation.trainerName.isNotEmpty ? conversation.trainerName[0].toUpperCase() : 'T',
-                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onAccent),
-                      ),
+                fallback: Text(
+                  conversation.trainerName.isNotEmpty ? conversation.trainerName[0].toUpperCase() : 'T',
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onAccent),
+                ),
               ),
               title: Text(
                 conversation.trainerName,

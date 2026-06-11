@@ -7,6 +7,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/widgets/safe_network_image.dart';
 
 /// Bundle detail — loads `GET /customer/bundle/:id` when opened with a bundle id.
 class BundleDetailScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
   bool _loading = true;
   String? _error;
   String? _bundleId;
+  bool _isEnrolled = false;
 
   @override
   void initState() {
@@ -28,12 +30,17 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     final args = Get.arguments;
     if (args is Map) {
       _bundle = Map<String, dynamic>.from(args);
+      _isEnrolled = _bundle['isEnrolled'] == true;
       _bundleId = (_bundle['id'] ?? _bundle['_id'])?.toString().trim();
     } else if (args is String && args.trim().isNotEmpty) {
       _bundleId = args.trim();
     }
-    if (_bundleId != null && _bundleId!.isNotEmpty) {
+    if (_bundle['prefetchedBundle'] == true) {
+      _loading = false;
+    } else if (_bundleId != null && _bundleId!.isNotEmpty) {
       _loadDetail();
+    } else if (_isEnrolled && _programsList().isNotEmpty) {
+      _loading = false;
     } else {
       _bundle = _getMockBundleData();
       _loading = false;
@@ -52,19 +59,64 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
       _loading = true;
       _error = null;
     });
+    final enrolledPrograms = _programsList();
+    final hidePricing = _bundle['hidePricing'] == true;
+    final enrolledProgress = _bundle['progress'];
+    final enrolledStatus = _bundle['status'];
+    final enrolledStart = _bundle['startDate'];
+    final enrolledEnd = _bundle['endDate'];
+
     final ui = await Get.find<AuthController>().fetchMarketplaceBundleDetail(_bundleId!);
     if (!mounted) return;
     if (ui == null) {
       setState(() {
         _loading = false;
-        _error = 'Could not load bundle details';
+        if (_isEnrolled && _programsList().isNotEmpty) {
+          _error = 'Some bundle details could not be refreshed';
+        } else {
+          _error = 'Could not load bundle details';
+        }
       });
-      return;
+      if (!_isEnrolled || _programsList().isEmpty) return;
     }
     setState(() {
-      _bundle = ui;
+      if (ui != null) _bundle = ui;
+      if (_isEnrolled) {
+        _bundle['isEnrolled'] = true;
+        if (hidePricing) _bundle['hidePricing'] = true;
+        if (enrolledProgress != null) _bundle['progress'] = enrolledProgress;
+        if (enrolledStatus != null) _bundle['status'] = enrolledStatus;
+        if (enrolledStart != null) _bundle['startDate'] = enrolledStart;
+        if (enrolledEnd != null) _bundle['endDate'] = enrolledEnd;
+        _mergeEnrolledPrograms(enrolledPrograms);
+      }
       _loading = false;
     });
+  }
+
+  void _mergeEnrolledPrograms(List<Map<String, dynamic>> enrolledPrograms) {
+    if (enrolledPrograms.isEmpty) return;
+    final byId = <String, Map<String, dynamic>>{};
+    for (final p in enrolledPrograms) {
+      final id = (p['id'] ?? p['_id'])?.toString().trim();
+      if (id != null && id.isNotEmpty) byId[id] = p;
+    }
+    final merged = <Map<String, dynamic>>[];
+    for (final p in _programsList()) {
+      final id = (p['id'] ?? p['_id'])?.toString().trim();
+      final enrolled = id != null ? byId[id] : null;
+      if (enrolled != null) {
+        merged.add({
+          ...p,
+          'enrollmentId': enrolled['enrollmentId'],
+          'progress': enrolled['progress'],
+          'isEnrolled': true,
+        });
+      } else {
+        merged.add(p);
+      }
+    }
+    if (merged.isNotEmpty) _bundle['programs'] = merged;
   }
 
   List<Map<String, dynamic>> _programsList() {
@@ -201,12 +253,12 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
             if (avatarUrl != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(30),
-                child: Image.network(
-                  avatarUrl,
+                child: SafeNetworkImage(
+                  url: avatarUrl,
                   width: 56,
                   height: 56,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => CircleAvatar(
+                  fallback: CircleAvatar(
                     radius: 28,
                     backgroundColor: AppColors.accent,
                     child: Text(initials, style: AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent)),
@@ -344,8 +396,10 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
                       ],
                       const SizedBox(height: 14),
                       _buildTrainerProfileBar(trainer),
-                      const SizedBox(height: 14),
-                      _buildPricingCard(totalValue: totalValue, bundlePrice: bundlePrice, discount: discount),
+                      if (!_isEnrolled) ...[
+                        const SizedBox(height: 14),
+                        _buildPricingCard(totalValue: totalValue, bundlePrice: bundlePrice, discount: discount),
+                      ],
                       const SizedBox(height: 14),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -369,7 +423,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
                       const SizedBox(height: 10),
                       _buildWhatsIncludedSection(programs.length, discount),
                       const SizedBox(height: 10),
-                      _buildBottomPriceRow(totalValue: totalValue, bundlePrice: bundlePrice),
+                      if (_isEnrolled) _buildEnrolledBottomBar() else _buildBottomPriceRow(totalValue: totalValue, bundlePrice: bundlePrice),
                       const SizedBox(height: 12),
                     ],
                   ),
@@ -380,22 +434,15 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
   }
 
   Widget _buildHeroImage(String url) {
-    final safe = ImageUrlSanitizer.asHttpUrlOrNull(url);
-    if (safe != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          safe,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: 200,
-          errorBuilder: (_, __, ___) => Image.asset('assets/images/demo.png', fit: BoxFit.cover, width: double.infinity, height: 200),
-        ),
-      );
-    }
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: Image.asset('assets/images/demo.png', fit: BoxFit.cover, width: double.infinity, height: 200),
+      child: SafeNetworkImage(
+        url: url,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: 200,
+        fallback: Image.asset('assets/images/demo.png', fit: BoxFit.cover, width: double.infinity, height: 200),
+      ),
     );
   }
 
@@ -482,11 +529,28 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     );
   }
 
+  void _openEnrolledProgram(Map<String, dynamic> program) {
+    final enrollmentId = program['enrollmentId']?.toString().trim();
+    final programId = (program['id'] ?? program['_id'])?.toString().trim();
+    final args = <String, dynamic>{
+      if (programId != null && programId.isNotEmpty) ...{'id': programId, '_id': programId},
+      'title': program['title'],
+      'trainer': program['trainer'],
+      'duration': program['duration'],
+      'isEnrolled': true,
+      'hidePricing': true,
+      'purchased': true,
+      if (enrollmentId != null && enrollmentId.isNotEmpty) 'enrollmentId': enrollmentId,
+    };
+    Get.toNamed(AppRoutes.programDetail, arguments: args);
+  }
+
   Widget _buildProgramCard(Map<String, dynamic> program) {
     final cover = ImageUrlSanitizer.asHttpUrlOrNull(program['imageUrl']?.toString());
+    final showProgramPrice = !_isEnrolled;
 
     return GestureDetector(
-      onTap: () => Get.toNamed(AppRoutes.programDetail, arguments: program),
+      onTap: () => _isEnrolled ? _openEnrolledProgram(program) : Get.toNamed(AppRoutes.programDetail, arguments: program),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(10),
@@ -500,12 +564,12 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
             if (cover != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  cover,
+                child: SafeNetworkImage(
+                  url: cover,
                   width: 36,
                   height: 36,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => CircleAvatar(
+                  fallback: CircleAvatar(
                     radius: 18,
                     backgroundColor: const Color(0xFFE2E9DC),
                     child: Text(
@@ -555,10 +619,16 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  '\$${((program['price'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
-                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
-                ),
+                if (showProgramPrice)
+                  Text(
+                    '\$${((program['price'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
+                    style: AppTextStyles.titleSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
+                  ),
+                if (_isEnrolled && program['progress'] != null)
+                  Text(
+                    '${program['progress']}%',
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
+                  ),
                 const Icon(Icons.chevron_right, color: AppColors.primaryGrayDark),
               ],
             ),
@@ -577,6 +647,36 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(text, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.85))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEnrolledBottomBar() {
+    final progress = (_bundle['progress'] as num?)?.toInt() ?? 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5FCEB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE1EDCF)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle, color: AppColors.completed, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'You are enrolled in this bundle',
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
+                ),
+                if (progress > 0) Text('$progress% complete', style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600)),
+              ],
+            ),
           ),
         ],
       ),

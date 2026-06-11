@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -20,6 +19,7 @@ import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/chat_message_bubble.dart';
+import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 
 class _PendingMedia {
   const _PendingMedia({required this.path, required this.type, required this.name});
@@ -331,6 +331,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
       return;
     }
 
+    final recordedSeconds = _recordingDuration;
+
     if (!mounted) return;
     setState(() {
       _isRecording = false;
@@ -348,7 +350,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
 
     final fileSize = await file.length();
     if (send && fileSize > 0 && _chatController != null) {
-      await _chatController!.sendFileMessage(filePath: path, type: 'audio', fileName: 'audio_message.aac');
+      await _chatController!.sendFileMessage(
+        filePath: path,
+        type: 'audio',
+        fileName: 'audio_message.aac',
+        durationSeconds: recordedSeconds > 0 ? recordedSeconds : 1,
+      );
       _scrollToBottom();
     } else {
       try {
@@ -836,16 +843,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircleAvatar(
+          SafeCircleNetworkAvatar(
             radius: 20,
+            imageUrl: imageUrl,
             backgroundColor: AppColors.accent.withOpacity(0.15),
-            backgroundImage: imageUrl != null && imageUrl.startsWith('http') ? CachedNetworkImageProvider(imageUrl) : null,
-            child: imageUrl != null && imageUrl.startsWith('http')
-                ? null
-                : Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
-                  ),
+            fallback: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
+            ),
           ),
           const SizedBox(width: 10),
           Flexible(

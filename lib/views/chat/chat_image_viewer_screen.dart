@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:get_right/widgets/safe_network_image.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -100,11 +100,10 @@ class _ImagePage extends StatelessWidget {
       return _errorPlaceholder('Invalid image URL');
     }
 
-    return CachedNetworkImage(
-      imageUrl: url,
+    return SafeNetworkImage(
+      url: url,
       fit: BoxFit.contain,
-      placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: AppColors.accent)),
-      errorWidget: (_, __, ___) => _errorPlaceholder('Failed to load image'),
+      fallback: _errorPlaceholder('Failed to load image'),
     );
   }
 

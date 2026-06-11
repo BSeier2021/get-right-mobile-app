@@ -77,8 +77,10 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   String? _loadError;
 
   bool _isFollowedByMe = false;
+  bool _isBlockedByMe = false;
   bool _followActionLoading = false;
   bool _blockInFlight = false;
+  bool _activatedOnce = false;
   bool _messageLoading = false;
   bool _bioExpanded = false;
 
@@ -139,6 +141,16 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       _mongoUserId ??= _extractMongoUserId(Get.arguments);
       _loadProfileFromApi();
     });
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    if (!_activatedOnce) {
+      _activatedOnce = true;
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshAfterExternalAction());
   }
 
   void _onProgramsTabShow() {
@@ -358,7 +370,9 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       ...contactFields,
     };
 
-    _isFollowedByMe = user['isFollowedByMe'] == true || user['isFollowing'] == true || data['isFollowing'] == true;
+    _isBlockedByMe = user['isBlockedByMe'] == true || user['blockedByMe'] == true || data['isBlockedByMe'] == true || data['blockedByMe'] == true;
+    _syncBlockStateFromControllers();
+    _isFollowedByMe = !_isBlockedByMe && (user['isFollowedByMe'] == true || user['isFollowing'] == true || data['isFollowing'] == true);
 
     final recordsRaw = user['personalRecords'];
     _personalRecords = recordsRaw is List
@@ -1026,9 +1040,29 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     return list.whereType<Map>().map((e) => _mapBundleItemToCard(Map<String, dynamic>.from(e))).where((e) => (e['id'] ?? '').toString().isNotEmpty).toList();
   }
 
+  void _syncBlockStateFromControllers() {
+    final id = _mongoUserId;
+    if (id == null) return;
+
+    if (Get.isRegistered<ChatController>() && Get.find<ChatController>().isUserBlocked(id)) {
+      _isBlockedByMe = true;
+      _isFollowedByMe = false;
+    }
+  }
+
+  Future<void> _refreshAfterExternalAction() async {
+    if (!mounted || _mongoUserId == null) return;
+    setState(_syncBlockStateFromControllers);
+    await _refreshProfileDetails();
+  }
+
   Future<void> _onFollowPressed() async {
     final id = _mongoUserId;
     if (id == null || _followActionLoading) return;
+    if (_isBlockedByMe) {
+      Get.snackbar('Blocked', 'Unblock this user before following them.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
     setState(() => _followActionLoading = true);
     final was = _isFollowedByMe;
     try {
@@ -1091,6 +1125,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
           if (initialMessage != null && initialMessage.trim().isNotEmpty) 'initialMessage': initialMessage.trim(),
         },
       );
+      await _refreshAfterExternalAction();
     } catch (e) {
       if (mounted) {
         Get.snackbar('Chat', e.toString().replaceFirst('Exception: ', ''), snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: AppColors.onError);
@@ -1117,6 +1152,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
           _showReportUserDialog();
         } else if (value == 'block') {
           _showBlockUserDialog();
+        } else if (value == 'unblock') {
+          _unblockUser();
         }
       },
       itemBuilder: (context) => [
@@ -1133,19 +1170,34 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             ],
           ),
         ),
-        PopupMenuItem<String>(
-          value: 'block',
-          child: Row(
-            children: [
-              Icon(Icons.block_flipped, size: 20, color: AppColors.error),
-              const SizedBox(width: 12),
-              Text(
-                'Block',
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error, fontWeight: FontWeight.w600),
-              ),
-            ],
+        if (_isBlockedByMe)
+          PopupMenuItem<String>(
+            value: 'unblock',
+            child: Row(
+              children: [
+                Icon(Icons.lock_open_outlined, size: 20, color: AppColors.accent),
+                const SizedBox(width: 12),
+                Text(
+                  'Unblock',
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          )
+        else
+          PopupMenuItem<String>(
+            value: 'block',
+            child: Row(
+              children: [
+                Icon(Icons.block_flipped, size: 20, color: AppColors.error),
+                const SizedBox(width: 12),
+                Text(
+                  'Block',
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
@@ -1269,6 +1321,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   Future<void> _showBlockUserDialog() async {
     final blockedId = _mongoUserId;
     if (blockedId == null || _currentUserIdOrNull() == null) return;
+    if (_isBlockedByMe) return;
 
     final confirmed = await Get.dialog<bool>(
       Dialog(
@@ -1315,6 +1368,15 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         throw Exception(msg ?? 'Could not block user');
       }
       final message = raw is Map ? (raw['message']?.toString() ?? 'User blocked successfully') : 'User blocked successfully';
+      if (Get.isRegistered<ChatController>()) {
+        Get.find<ChatController>().rememberBlockedUser(blockedId);
+      }
+      if (mounted) {
+        setState(() {
+          _isBlockedByMe = true;
+          _isFollowedByMe = false;
+        });
+      }
       Get.snackbar('Blocked', message, snackPosition: SnackPosition.BOTTOM);
       _navigateAfterBlock();
     } catch (e) {
@@ -1324,9 +1386,60 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     }
   }
 
+  Future<void> _unblockUser() async {
+    final blockedId = _mongoUserId;
+    if (blockedId == null || _currentUserIdOrNull() == null || _blockInFlight) return;
+
+    setState(() => _blockInFlight = true);
+    try {
+      final raw = await _blocksRepo.unblockUserRepo(blockedId);
+      if (!_blockApiSucceeded(raw)) {
+        final msg = raw is Map ? raw['message']?.toString() : null;
+        throw Exception(msg ?? 'Could not unblock user');
+      }
+
+      if (Get.isRegistered<ChatController>()) {
+        Get.find<ChatController>().forgetBlockedUser(blockedId);
+      }
+
+      if (mounted) {
+        setState(() => _isBlockedByMe = false);
+      }
+      await _refreshProfileDetails();
+
+      final message = raw is Map ? (raw['message']?.toString() ?? 'User unblocked successfully') : 'User unblocked successfully';
+      Get.snackbar('Unblocked', message, snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      Get.snackbar('Could not unblock', e.toString(), snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      if (mounted) setState(() => _blockInFlight = false);
+    }
+  }
+
   Widget _buildFollowButton({bool compact = false}) {
     // Set a fixed width for both buttons
     final buttonWidth = 110.0;
+    if (_isBlockedByMe) {
+      return SizedBox(
+        width: buttonWidth,
+        child: TextButton(
+          onPressed: null,
+          style: TextButton.styleFrom(
+            backgroundColor: AppColors.primaryGray.withOpacity(0.25),
+            foregroundColor: AppColors.primaryGrayDark,
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 5),
+            minimumSize: Size(buttonWidth, 36),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          ),
+          child: Text(
+            'Blocked',
+            style: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w700, color: AppColors.primaryGrayDark),
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       width: buttonWidth,
       child: TextButton(

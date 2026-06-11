@@ -15,6 +15,7 @@ import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/widgets/safe_network_image.dart';
 import 'package:get_right/views/marketplace/program_hls_player_screen.dart';
 import 'package:get_right/views/marketplace/program_send_review_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -119,6 +120,36 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   }
 
   bool get _userHasAlreadyReviewed => _hasSubmittedRating;
+
+  bool get _isBundleEnrollment {
+    final bp = _safeProgram['bundlePrograms'];
+    if (bp is List && bp.isNotEmpty) return true;
+    final enc = _safeProgram['enrollment'];
+    if (enc is Map) {
+      final ebp = enc['bundlePrograms'];
+      if (ebp is List && ebp.isNotEmpty) return true;
+    }
+    return false;
+  }
+
+  String? get _enrolledBundleTitle {
+    final direct = _safeProgram['bundleTitle']?.toString().trim();
+    if (direct != null && direct.isNotEmpty) return direct;
+    final bundle = _safeProgram['enrolledBundle'];
+    if (bundle is Map) {
+      final title = bundle['title']?.toString().trim();
+      if (title != null && title.isNotEmpty) return title;
+    }
+    final enc = _safeProgram['enrollment'];
+    if (enc is Map) {
+      final b = enc['bundle'];
+      if (b is Map) {
+        final title = b['title']?.toString().trim();
+        if (title != null && title.isNotEmpty) return title;
+      }
+    }
+    return null;
+  }
 
   void _syncMyReviewFromReviewsList() {
     final uid = _currentUserId();
@@ -453,6 +484,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       _loadingDetail = false;
       if (detail != null) {
         final wasEnrolled = _isEnrolled || _safeProgram['isEnrolled'] == true || _safeProgram['purchased'] == true;
+        final hidePricing = _safeProgram['hidePricing'] == true;
         final previousStatus = _safeProgram['status']?.toString();
         final keepReviewText = _reviewCommentController.text;
         final keepRatingVal = _rating;
@@ -467,6 +499,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         if (wasEnrolled) {
           _safeProgram['isEnrolled'] = true;
           _safeProgram['purchased'] = true;
+          if (hidePricing) _safeProgram['hidePricing'] = true;
           _safeProgram['status'] ??= previousStatus ?? 'active';
           _syncEnrollmentFromProgram();
         }
@@ -848,10 +881,10 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                         children: [
                           AspectRatio(
                             aspectRatio: 16 / 9,
-                            child: Image.network(
-                              _heroImageUrl(),
+                            child: SafeNetworkImage(
+                              url: _heroImageUrl(),
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Container(
+                              fallback: Container(
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [AppColors.accent.withOpacity(0.8), AppColors.accentVariant],
@@ -912,42 +945,13 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                       const SizedBox(height: 6),
                       Text(_safeProgram['subtitle'].toString(), style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
                     ],
-                    if (_isEnrolled) ...[
-                      Builder(
-                        builder: (context) {
-                          final price = (_safeProgram['price'] as num?)?.toDouble() ?? 0;
-                          final discount = (_safeProgram['discount'] as num?)?.toDouble();
-                          if (price <= 0 && discount == null) return const SizedBox.shrink();
-                          final hasPct = discount != null && discount > 0;
-                          final payable = hasPct ? price * (1 - discount / 100) : price;
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 10),
-                            child: Row(
-                              children: [
-                                Text(
-                                  payable > 0 ? '\$${payable.toStringAsFixed(2)}' : '',
-                                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
-                                ),
-                                if (hasPct && price > 0) ...[
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '\$${price.toStringAsFixed(2)}',
-                                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, decoration: TextDecoration.lineThrough),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-                                    child: Text(
-                                      '${discount.toStringAsFixed(0)}% off',
-                                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          );
-                        },
+                    if (_isEnrolled && _isBundleEnrollment) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Text(
+                          'Part of bundle: ${_enrolledBundleTitle ?? 'Bundle'}',
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ],
                     const SizedBox(height: 16),

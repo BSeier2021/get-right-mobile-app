@@ -12,6 +12,7 @@ import 'package:get_right/services/api_service.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/views/library/library_screen.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
+import 'package:get_right/widgets/safe_network_image.dart';
 
 class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
@@ -21,16 +22,40 @@ class AppDrawer extends StatefulWidget {
 }
 
 class _AppDrawerState extends State<AppDrawer> {
+  int _chatUnreadCount = 0;
+  Worker? _chatUnreadWorker;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!Get.isRegistered<AuthController>()) return;
       final auth = Get.find<AuthController>();
       if (auth.customerProfile == null && !auth.customerProfileLoading) {
         auth.fetchCustomerProfile();
       }
-      _ensureChatUnreadCountLoaded();
+      await _ensureChatUnreadCountLoaded();
+      _attachChatUnreadListener();
+    });
+  }
+
+  @override
+  void dispose() {
+    _chatUnreadWorker?.dispose();
+    super.dispose();
+  }
+
+  void _attachChatUnreadListener() {
+    if (!Get.isRegistered<ChatController>()) return;
+
+    final controller = Get.find<ChatController>();
+    if (mounted) {
+      setState(() => _chatUnreadCount = controller.totalUnreadCount.value);
+    }
+
+    _chatUnreadWorker?.dispose();
+    _chatUnreadWorker = ever<int>(controller.totalUnreadCount, (count) {
+      if (mounted) setState(() => _chatUnreadCount = count);
     });
   }
 
@@ -45,6 +70,9 @@ class _AppDrawerState extends State<AppDrawer> {
         controller = Get.put(ChatController(apiService, storageService));
       }
       await controller.loadUnreadCount();
+      if (mounted) {
+        setState(() => _chatUnreadCount = controller.totalUnreadCount.value);
+      }
     } catch (_) {}
   }
 
@@ -161,18 +189,18 @@ class _AppDrawerState extends State<AppDrawer> {
                       },
                     ),
                   ),
-                  Obx(() {
-                    final badgeCount = Get.isRegistered<ChatController>() ? Get.find<ChatController>().totalUnreadCount.value : 0;
-                    return _drawerItem(
-                      fallbackIcon: Icons.chat_bubble_outline_rounded,
-                      title: 'Chat',
-                      badgeCount: badgeCount,
-                      onTap: () {
-                        Get.back();
-                        Get.toNamed(AppRoutes.chatList)?.then((_) => _ensureChatUnreadCountLoaded());
-                      },
-                    );
-                  }),
+                  _drawerItem(
+                    fallbackIcon: Icons.chat_bubble_outline_rounded,
+                    title: 'Chat',
+                    badgeCount: _chatUnreadCount,
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed(AppRoutes.chatList)?.then((_) async {
+                        await _ensureChatUnreadCountLoaded();
+                        _attachChatUnreadListener();
+                      });
+                    },
+                  ),
                   _drawerItem(
                     fallbackIcon: Icons.bookmark_added_outlined,
                     title: 'Save Reels',
@@ -248,15 +276,13 @@ class _AppDrawerState extends State<AppDrawer> {
                   alignment: Alignment.center,
                   children: [
                     ClipOval(
-                      child: photoUrl != null
-                          ? Image.network(
-                              photoUrl,
-                              width: 70.w,
-                              height: 70.w,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Image.asset('assets/images/Ellipse 8.png', width: 70.w, fit: BoxFit.cover),
-                            )
-                          : Image.asset('assets/images/Ellipse 8.png', width: 70.w, fit: BoxFit.cover),
+                      child: SafeNetworkImage(
+                        url: photoUrl,
+                        width: 70.w,
+                        height: 70.w,
+                        fit: BoxFit.cover,
+                        fallback: Image.asset('assets/images/Ellipse 8.png', width: 70.w, fit: BoxFit.cover),
+                      ),
                     ),
                     if (loadingProfile)
                       Positioned.fill(

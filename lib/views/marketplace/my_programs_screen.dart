@@ -8,6 +8,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/widgets/safe_network_image.dart';
 
 /// Tabs match API enrollment `status`: active | scheduled | completed | cancelled.
 enum EnrollmentListTab {
@@ -69,6 +70,11 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
   }
 
   static String? _coverFromProgram(Map<String, dynamic> prog) {
+    final cover = prog['coverImageUrl']?.toString();
+    if (cover != null && cover.trim().isNotEmpty) {
+      final resolved = _resolveMediaUrl(cover);
+      if (resolved != null) return resolved;
+    }
     final pm = prog['promoMedia'];
     if (pm is Map && pm['url'] != null) {
       return _resolveMediaUrl(pm['url']?.toString());
@@ -161,24 +167,60 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     return 'Bundle Deal';
   }
 
+  static String? _coverFromBundle(Map<String, dynamic> bundle) {
+    final cover = bundle['coverImageUrl']?.toString();
+    if (cover != null && cover.trim().isNotEmpty) return _resolveMediaUrl(cover);
+    final th = bundle['thumbnail'];
+    if (th is Map) return _resolveMediaUrl(th['url']?.toString());
+    final pm = bundle['promoMedia'];
+    if (pm is Map) return _resolveMediaUrl(pm['url']?.toString());
+    return null;
+  }
+
+  static Map<String, dynamic>? _bundleMetaFromCards(List<Map<String, dynamic>> programCards) {
+    for (final card in programCards) {
+      final raw = card['rawEnrollment'];
+      if (raw is! Map) continue;
+      final bundle = raw['bundle'];
+      if (bundle is! Map) continue;
+      final bm = Map<String, dynamic>.from(bundle);
+      final id = (bm['_id'] ?? bm['id'])?.toString().trim();
+      final price = (bm['bundlePrice'] as num?)?.toDouble() ?? (bm['price'] as num?)?.toDouble();
+      return {
+        'id': id,
+        'bundlePrice': price,
+        'subtitle': bm['subtitle']?.toString(),
+        'description': bm['description']?.toString(),
+        'image': _coverFromBundle(bm) ?? card['image'],
+        'raw': bm,
+      };
+    }
+    return null;
+  }
+
   static Map<String, dynamic> _bundleCardFromGroup(List<Map<String, dynamic>> programCards) {
     final sorted = List<Map<String, dynamic>>.from(programCards)..sort((a, b) => (a['title']?.toString() ?? '').compareTo(b['title']?.toString() ?? ''));
 
     final totalProgress = sorted.fold<int>(0, (sum, c) => sum + _progressPct(c['progress']));
     final avgProgress = sorted.isEmpty ? 0 : (totalProgress / sorted.length).round();
     final first = sorted.first;
+    final bundleMeta = _bundleMetaFromCards(sorted);
 
     return <String, dynamic>{
       'isBundle': true,
       'title': _bundleTitleFromEnrollments(sorted),
-      'subtitle': '${sorted.length} programs included',
+      'subtitle': bundleMeta?['subtitle']?.toString().trim().isNotEmpty == true ? bundleMeta!['subtitle'] : '${sorted.length} programs included',
       'programs': sorted,
       'trainer': first['trainer']?.toString() ?? 'Trainer',
       'startDate': first['startDate'],
       'endDate': first['endDate'],
       'progress': avgProgress,
       'status': first['status'],
-      'image': first['image'],
+      'image': bundleMeta?['image'] ?? first['image'],
+      if (bundleMeta?['id'] != null) 'bundleId': bundleMeta!['id'],
+      if (bundleMeta?['bundlePrice'] != null) 'bundlePrice': bundleMeta!['bundlePrice'],
+      if (bundleMeta?['description'] != null) 'description': bundleMeta!['description'],
+      if (bundleMeta?['raw'] != null) 'rawBundle': bundleMeta!['raw'],
     };
   }
 
@@ -290,6 +332,114 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     });
   }
 
+  Map<String, dynamic> _enrolledBundleNavPayload(Map<String, dynamic> bundle) {
+    final programs = bundle['programs'] is List ? (bundle['programs'] as List).whereType<Map<String, dynamic>>().toList() : <Map<String, dynamic>>[];
+    final enrolledPrograms = <Map<String, dynamic>>[];
+    for (final card in programs) {
+      final raw = card['rawEnrollment'];
+      final enrollment = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+      final prog = enrollment['program'] is Map ? Map<String, dynamic>.from(enrollment['program'] as Map) : <String, dynamic>{};
+      final weeks = MarketplaceRepository.durationWeeksFrom(prog['durationWeeks'] ?? prog['duration']);
+      enrolledPrograms.add({
+        'id': prog['_id'] ?? prog['id'] ?? card['programId'],
+        '_id': prog['_id'] ?? prog['id'] ?? card['programId'],
+        'title': card['title'] ?? prog['title'] ?? 'Program',
+        'trainer': card['trainer'] ?? _trainerNameFromEnrollment(enrollment, prog),
+        'duration': weeks > 0 ? '$weeks weeks' : (prog['duration']?.toString() ?? ''),
+        'progress': card['progress'],
+        'enrollmentId': enrollment['_id']?.toString(),
+        'isEnrolled': true,
+      });
+    }
+
+    final bundleId = bundle['bundleId']?.toString().trim();
+    return <String, dynamic>{
+      if (bundleId != null && bundleId.isNotEmpty) ...{'id': bundleId, '_id': bundleId},
+      'title': bundle['title']?.toString() ?? 'Bundle Deal',
+      'subtitle': bundle['subtitle']?.toString(),
+      'description': bundle['description']?.toString() ?? '',
+      'bundlePrice': (bundle['bundlePrice'] as num?)?.toDouble() ?? 0.0,
+      'imageUrl': bundle['image']?.toString() ?? '',
+      'trainer': bundle['trainer']?.toString() ?? 'Trainer',
+      'programs': enrolledPrograms,
+      'isEnrolled': true,
+      'hidePricing': true,
+      'progress': bundle['progress'],
+      'status': bundle['status'],
+      'startDate': bundle['startDate'],
+      'endDate': bundle['endDate'],
+      if (bundle['rawBundle'] is Map) '_apiBundle': bundle['rawBundle'],
+    };
+  }
+
+  Map<String, dynamic> _mergeEnrolledBundleWithApi(Map<String, dynamic> payload, Map<String, dynamic> apiBundle) {
+    final merged = Map<String, dynamic>.from(apiBundle);
+    merged['isEnrolled'] = true;
+    merged['hidePricing'] = true;
+    merged['prefetchedBundle'] = true;
+    merged['progress'] = payload['progress'];
+    merged['status'] = payload['status'];
+    merged['startDate'] = payload['startDate'];
+    merged['endDate'] = payload['endDate'];
+
+    final enrolledPrice = (payload['bundlePrice'] as num?)?.toDouble();
+    if (enrolledPrice != null && enrolledPrice > 0) {
+      merged['bundlePrice'] = enrolledPrice;
+    }
+
+    final enrolledPrograms = payload['programs'] is List ? (payload['programs'] as List).whereType<Map<String, dynamic>>().toList() : <Map<String, dynamic>>[];
+    if (enrolledPrograms.isEmpty) return merged;
+
+    final byId = <String, Map<String, dynamic>>{};
+    for (final p in enrolledPrograms) {
+      final id = (p['id'] ?? p['_id'])?.toString().trim();
+      if (id != null && id.isNotEmpty) byId[id] = p;
+    }
+
+    final apiPrograms = merged['programs'];
+    if (apiPrograms is! List || apiPrograms.isEmpty) {
+      merged['programs'] = enrolledPrograms;
+      return merged;
+    }
+
+    final out = <Map<String, dynamic>>[];
+    for (final raw in apiPrograms) {
+      if (raw is! Map) continue;
+      final p = Map<String, dynamic>.from(raw);
+      final id = (p['id'] ?? p['_id'])?.toString().trim();
+      final enrolled = id != null ? byId[id] : null;
+      if (enrolled != null) {
+        out.add({...p, 'enrollmentId': enrolled['enrollmentId'], 'progress': enrolled['progress'], 'isEnrolled': true});
+      } else {
+        out.add(p);
+      }
+    }
+    merged['programs'] = out;
+    return merged;
+  }
+
+  Future<void> _viewBundleDetails(Map<String, dynamic> bundle) async {
+    final payload = _enrolledBundleNavPayload(bundle);
+    final bundleId = (payload['id'] ?? payload['_id'])?.toString().trim();
+
+    if (bundleId == null || bundleId.isEmpty || !Get.isRegistered<AuthController>()) {
+      Get.toNamed(AppRoutes.bundleDetail, arguments: payload);
+      return;
+    }
+
+    Get.dialog(const Center(child: CircularProgressIndicator(color: AppColors.accentVariant)), barrierDismissible: false);
+
+    Map<String, dynamic>? apiBundle;
+    try {
+      apiBundle = await Get.find<AuthController>().fetchMarketplaceBundleDetail(bundleId);
+    } finally {
+      if (Get.isDialogOpen == true) Get.back();
+    }
+
+    final navArgs = apiBundle != null ? _mergeEnrolledBundleWithApi(payload, apiBundle) : payload;
+    Get.toNamed(AppRoutes.bundleDetail, arguments: navArgs);
+  }
+
   void _viewProgramDetails(Map<String, dynamic> program) {
     final raw = program['rawEnrollment'];
     if (raw is! Map) {
@@ -303,6 +453,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     p['_id'] ??= p['id'] ?? program['programId'];
     p['id'] ??= p['_id'];
     p['isEnrolled'] = true;
+    p['hidePricing'] = true;
     p['progress'] = enrollment['progress'];
     p['startDate'] = enrollment['startDate'];
     p['endDate'] = enrollment['endDate'];
@@ -521,10 +672,13 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: Stack(
               children: [
-                if (imageUrl != null)
-                  Image.network(imageUrl, height: 160, width: double.infinity, fit: BoxFit.cover, errorBuilder: (c, e, s) => _imagePlaceholder())
-                else
-                  _imagePlaceholder(),
+                SafeNetworkImage(
+                  url: imageUrl,
+                  height: 160,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  fallback: _imagePlaceholder(),
+                ),
                 Positioned(
                   top: 12,
                   left: 12,
@@ -620,7 +774,13 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
                   }),
                 ],
                 if (isScheduledTab || isCompletedTab || isCancelledTab) ...[const SizedBox(height: 14), _progressSection(progress)],
-                if (isScheduledTab && programs.isNotEmpty) ...[const SizedBox(height: 16), _cancelButton(programs.first)],
+                const SizedBox(height: 16),
+                if (isActiveTab || isCancelledTab)
+                  _viewBundleDetailsButton(bundle)
+                else if (isScheduledTab)
+                  _cancelButton(programs.isNotEmpty ? programs.first : bundle)
+                else if (isCompletedTab)
+                  _completedBundleButtons(bundle),
               ],
             ),
           ),
@@ -653,9 +813,13 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
         children: [
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: imageUrl != null
-                ? Image.network(imageUrl, height: 160, width: double.infinity, fit: BoxFit.cover, errorBuilder: (c, e, s) => _imagePlaceholder())
-                : _imagePlaceholder(),
+            child: SafeNetworkImage(
+              url: imageUrl,
+              height: 160,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              fallback: _imagePlaceholder(),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(16),
@@ -724,6 +888,64 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
             minHeight: 8,
             backgroundColor: AppColors.primaryGray.withOpacity(0.15),
             valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentVariant),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _viewBundleDetailsButton(Map<String, dynamic> bundle) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () => _viewBundleDetails(bundle),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.accentVariant,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          elevation: 0,
+        ),
+        child: Text(
+          'View Details',
+          style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
+  Widget _completedBundleButtons(Map<String, dynamic> bundle) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => _cancelProgram(bundle),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.onSurface,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 1.2),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+            ),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: () => _viewBundleDetails(bundle),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accentVariant,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+              elevation: 0,
+            ),
+            child: Text(
+              'Review',
+              style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
           ),
         ),
       ],

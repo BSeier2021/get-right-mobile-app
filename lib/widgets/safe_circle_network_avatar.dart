@@ -1,8 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/widgets/safe_network_image.dart';
 
-/// Circular avatar that loads a network URL without throwing on 404 / decode errors.
-/// Prefer this over [CircleAvatar] + [NetworkImage], which still reports failures to the image service.
+/// Circular avatar that loads a network URL without retrying known-bad URLs.
 class SafeCircleNetworkAvatar extends StatelessWidget {
   const SafeCircleNetworkAvatar({
     super.key,
@@ -19,11 +20,11 @@ class SafeCircleNetworkAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = ImageUrlSanitizer.asHttpUrlOrNull(imageUrl);
+    final url = ImageUrlSanitizer.resolveMediaUrl(imageUrl);
     final bg = backgroundColor ?? Colors.grey.shade300;
     final d = radius * 2;
 
-    if (url == null || url.isEmpty) {
+    if (url == null || url.isEmpty || FailedNetworkImageUrls.contains(url)) {
       return CircleAvatar(radius: radius, backgroundColor: bg, child: fallback);
     }
 
@@ -34,13 +35,18 @@ class SafeCircleNetworkAvatar extends StatelessWidget {
         child: SizedBox(
           width: d,
           height: d,
-          child: Image.network(
-            url,
+          child: CachedNetworkImage(
+            imageUrl: url,
             width: d,
             height: d,
             fit: BoxFit.cover,
-            gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => fallback,
+            fadeInDuration: Duration.zero,
+            fadeOutDuration: Duration.zero,
+            placeholder: (_, __) => fallback,
+            errorWidget: (_, __, ___) {
+              FailedNetworkImageUrls.markFailed(url);
+              return fallback;
+            },
           ),
         ),
       ),

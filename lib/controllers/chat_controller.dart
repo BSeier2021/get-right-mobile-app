@@ -162,6 +162,13 @@ class ChatController extends GetxController {
     if (me != null && message.senderId == me) {
       final tempIndex = messages.indexWhere((m) => m.id.startsWith('temp_') && m.senderId == me);
       if (tempIndex != -1) {
+        final tempId = messages[tempIndex].id;
+        final audioUrl = message.fileUrl ?? (message.displayAttachments.isNotEmpty ? message.displayAttachments.first.url : null);
+        ChatAudioPlayerService.instance.migrateDuration(
+          fromMessageId: tempId,
+          toMessageId: message.id,
+          url: audioUrl,
+        );
         messages[tempIndex] = message;
         messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         debugPrint('[Chat] socket replaced temp message: ${message.id}');
@@ -181,6 +188,12 @@ class ChatController extends GetxController {
 
   void _upsertMessage(ChatMessageModel message, {String? removeTempId}) {
     if (removeTempId != null) {
+      final audioUrl = message.fileUrl ?? (message.displayAttachments.isNotEmpty ? message.displayAttachments.first.url : null);
+      ChatAudioPlayerService.instance.migrateDuration(
+        fromMessageId: removeTempId,
+        toMessageId: message.id,
+        url: audioUrl,
+      );
       messages.removeWhere((m) => m.id == removeTempId);
     }
 
@@ -752,6 +765,7 @@ class ChatController extends GetxController {
     required List<String> filePaths,
     required String type,
     String? caption,
+    int? durationSeconds,
   }) async {
     final conversationId = currentConversationId.value;
     if (conversationId == null || filePaths.isEmpty || !canSendMessages) return;
@@ -780,8 +794,9 @@ class ChatController extends GetxController {
 
     final profile = _participantProfiles[userId];
     final localAttachments = filePaths.map((path) => ChatAttachment.local(path: path, type: type)).toList();
+    final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
     final tempMessage = ChatMessageModel(
-      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      id: tempMessageId,
       conversationId: conversationId,
       senderId: userId,
       receiverId: currentTrainerId.value ?? '',
@@ -794,6 +809,14 @@ class ChatController extends GetxController {
       senderImage: profile?.imageUrl,
       timestamp: DateTime.now(),
     );
+
+    if (type == 'audio' && durationSeconds != null && durationSeconds > 0) {
+      ChatAudioPlayerService.instance.cacheDuration(
+        tempMessageId,
+        Duration(seconds: durationSeconds),
+        url: filePaths.first,
+      );
+    }
 
     try {
       isSending.value = true;
@@ -827,11 +850,13 @@ class ChatController extends GetxController {
     required String type,
     String? fileName,
     String? caption,
+    int? durationSeconds,
   }) async {
     await sendMediaMessage(
       filePaths: [filePath],
       type: type,
       caption: caption,
+      durationSeconds: durationSeconds,
     );
   }
 
@@ -907,7 +932,7 @@ class ChatController extends GetxController {
 
       await _apiService.blockUser(blockerId: userId, blockedUserId: trainerId, reason: reason);
 
-      blockedUsers.add(trainerId);
+      rememberBlockedUser(trainerId);
       isBlockedByMe.value = true;
       Get.snackbar('Success', 'Trainer blocked successfully.');
     } catch (e) {
@@ -926,7 +951,7 @@ class ChatController extends GetxController {
 
       await _apiService.unblockUser(blockerId: userId, blockedUserId: trainerId);
 
-      blockedUsers.remove(trainerId);
+      forgetBlockedUser(trainerId);
       isBlockedByMe.value = false;
       Get.snackbar('Success', 'User unblocked successfully.');
     } catch (e) {
@@ -936,10 +961,26 @@ class ChatController extends GetxController {
     }
   }
 
-  /// Check if a user is blocked
-  bool isBlocked(String userId) {
-    return blockedUsers.contains(userId);
+  void rememberBlockedUser(String userId) {
+    final id = userId.trim();
+    if (id.isEmpty || isUserBlocked(id)) return;
+    blockedUsers.add(id);
   }
+
+  void forgetBlockedUser(String userId) {
+    final target = userId.trim().toLowerCase();
+    blockedUsers.removeWhere((id) => id.trim().toLowerCase() == target);
+  }
+
+  /// Check if a user is blocked (session-wide, survives leaving a chat room).
+  bool isUserBlocked(String userId) {
+    final target = userId.trim().toLowerCase();
+    if (target.isEmpty) return false;
+    return blockedUsers.any((id) => id.trim().toLowerCase() == target);
+  }
+
+  @Deprecated('Use isUserBlocked')
+  bool isBlocked(String userId) => isUserBlocked(userId);
 
   /// Clear current conversation
   void clearConversation() {

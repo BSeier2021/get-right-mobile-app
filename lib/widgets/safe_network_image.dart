@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
@@ -10,7 +11,7 @@ abstract final class FailedNetworkImageUrls {
   static void markFailed(String url) => _failed.add(url);
 }
 
-/// Network image with sanitized URLs and a session-scoped failure cache.
+/// Network image with sanitized URLs, a session-scoped failure cache, and a safe fallback.
 class SafeNetworkImage extends StatelessWidget {
   const SafeNetworkImage({
     super.key,
@@ -31,19 +32,28 @@ class SafeNetworkImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolved = ImageUrlSanitizer.resolveMediaUrl(url);
     if (resolved == null || FailedNetworkImageUrls.contains(resolved)) {
-      return fallback;
+      return _sizedFallback();
     }
 
-    return Image.network(
-      resolved,
+    return CachedNetworkImage(
+      imageUrl: resolved,
       width: width,
       height: height,
       fit: fit,
-      gaplessPlayback: true,
-      errorBuilder: (_, __, ___) {
+      fadeInDuration: Duration.zero,
+      fadeOutDuration: Duration.zero,
+      placeholder: (_, __) => _sizedFallback(),
+      errorWidget: (_, __, ___) {
         FailedNetworkImageUrls.markFailed(resolved);
-        return fallback;
+        return _sizedFallback();
       },
     );
+  }
+
+  Widget _sizedFallback() {
+    if (width != null || height != null) {
+      return SizedBox(width: width, height: height, child: fallback);
+    }
+    return fallback;
   }
 }

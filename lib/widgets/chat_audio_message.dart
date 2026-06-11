@@ -9,11 +9,7 @@ import 'package:get_right/utils/image_url_sanitizer.dart';
 
 /// WhatsApp-style audio message bubble with play/pause and waveform.
 class ChatAudioMessage extends StatefulWidget {
-  const ChatAudioMessage({
-    super.key,
-    required this.message,
-    required this.isCurrentUser,
-  });
+  const ChatAudioMessage({super.key, required this.message, required this.isCurrentUser});
 
   final ChatMessageModel message;
   final bool isCurrentUser;
@@ -29,12 +25,34 @@ class _ChatAudioMessageState extends State<ChatAudioMessage> {
   void initState() {
     super.initState();
     _playerService.addListener(_onPlayerUpdate);
+    _scheduleDurationResolve();
+  }
+
+  @override
+  void didUpdateWidget(ChatAudioMessage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.message.id != widget.message.id || oldWidget.message.fileUrl != widget.message.fileUrl) {
+      _scheduleDurationResolve();
+    }
   }
 
   @override
   void dispose() {
     _playerService.removeListener(_onPlayerUpdate);
     super.dispose();
+  }
+
+  void _scheduleDurationResolve() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final url = _resolveAudioUrl();
+      if (url == null || url.isEmpty) return;
+      try {
+        await _playerService.ensureDurationCached(widget.message.id, url);
+      } catch (_) {
+        // Best-effort duration resolve; playback still works without it.
+      }
+    });
   }
 
   void _onPlayerUpdate() {
@@ -86,12 +104,7 @@ class _ChatAudioMessageState extends State<ChatAudioMessage> {
         return _PendingAudioPlaceholder(isCurrentUser: widget.isCurrentUser);
       }
 
-      return Text(
-        'Audio unavailable',
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: widget.isCurrentUser ? AppColors.onAccent : AppColors.onSurface,
-        ),
-      );
+      return Text('Audio unavailable', style: AppTextStyles.bodyMedium.copyWith(color: widget.isCurrentUser ? AppColors.onAccent : AppColors.onSurface));
     }
 
     final accent = widget.isCurrentUser ? AppColors.onAccent : AppColors.accent;
@@ -113,34 +126,19 @@ class _ChatAudioMessageState extends State<ChatAudioMessage> {
               child: Container(
                 width: 36,
                 height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accent.withOpacity(widget.isCurrentUser ? 0.18 : 0.12),
-                ),
-                child: Icon(
-                  isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  color: accent,
-                  size: 22,
-                ),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: accent.withOpacity(widget.isCurrentUser ? 0.18 : 0.12)),
+                child: Icon(isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: accent, size: 22),
               ),
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: _AudioWaveform(
-              progress: progress,
-              activeColor: accent,
-              inactiveColor: mutedAccent,
-              seed: widget.message.id.hashCode,
-            ),
+            child: _AudioWaveform(progress: progress, activeColor: accent, inactiveColor: mutedAccent, seed: widget.message.id.hashCode),
           ),
           const SizedBox(width: 8),
           Text(
             _formatDuration(displayDuration),
-            style: AppTextStyles.labelSmall.copyWith(
-              color: accent.withOpacity(0.85),
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+            style: AppTextStyles.labelSmall.copyWith(color: accent.withOpacity(0.85), fontFeatures: const [FontFeature.tabularFigures()]),
           ),
         ],
       ),
@@ -170,27 +168,15 @@ class _PendingAudioPlaceholder extends StatelessWidget {
           Container(
             width: 36,
             height: 36,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: accent.withOpacity(isCurrentUser ? 0.18 : 0.12),
-            ),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: accent.withOpacity(isCurrentUser ? 0.18 : 0.12)),
             child: Icon(Icons.mic_rounded, color: accent, size: 20),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: _AudioWaveform(
-              progress: 0,
-              activeColor: accent,
-              inactiveColor: accent.withOpacity(0.45),
-              seed: 11,
-            ),
+            child: _AudioWaveform(progress: 0, activeColor: accent, inactiveColor: accent.withOpacity(0.45), seed: 11),
           ),
           const SizedBox(width: 8),
-          SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2, color: accent),
-          ),
+          SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: accent)),
         ],
       ),
     );
@@ -198,12 +184,7 @@ class _PendingAudioPlaceholder extends StatelessWidget {
 }
 
 class _AudioWaveform extends StatelessWidget {
-  const _AudioWaveform({
-    required this.progress,
-    required this.activeColor,
-    required this.inactiveColor,
-    required this.seed,
-  });
+  const _AudioWaveform({required this.progress, required this.activeColor, required this.inactiveColor, required this.seed});
 
   final double progress;
   final Color activeColor;
@@ -211,9 +192,34 @@ class _AudioWaveform extends StatelessWidget {
   final int seed;
 
   static const List<double> _pattern = [
-    0.35, 0.55, 0.85, 0.45, 0.95, 0.5, 0.75, 0.4, 0.9, 0.55,
-    0.7, 0.35, 0.8, 0.5, 0.65, 0.9, 0.4, 0.75, 0.55, 0.85,
-    0.45, 0.7, 0.6, 0.95, 0.5, 0.8, 0.4, 0.65,
+    0.35,
+    0.55,
+    0.85,
+    0.45,
+    0.95,
+    0.5,
+    0.75,
+    0.4,
+    0.9,
+    0.55,
+    0.7,
+    0.35,
+    0.8,
+    0.5,
+    0.65,
+    0.9,
+    0.4,
+    0.75,
+    0.55,
+    0.85,
+    0.45,
+    0.7,
+    0.6,
+    0.95,
+    0.5,
+    0.8,
+    0.4,
+    0.65,
   ];
 
   @override
@@ -233,10 +239,7 @@ class _AudioWaveform extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
                 height: 6 + (heightFactor * 18),
-                decoration: BoxDecoration(
-                  color: isPlayed ? activeColor : inactiveColor,
-                  borderRadius: BorderRadius.circular(999),
-                ),
+                decoration: BoxDecoration(color: isPlayed ? activeColor : inactiveColor, borderRadius: BorderRadius.circular(999)),
               ),
             ),
           );

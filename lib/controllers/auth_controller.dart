@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -752,6 +754,13 @@ class AuthController extends GetxController {
     try {
       _syncNetworkBearerFromStorage();
       final response = await _authRepo.getMarketplaceBundleDetailRepo(id);
+      debugPrint('========== [BundleDetail API] GET /customer/bundle/$id ==========');
+      try {
+        debugPrint(const JsonEncoder.withIndent('  ').convert(response));
+      } catch (_) {
+        debugPrint(response.toString());
+      }
+      debugPrint('================================================================');
       if (response is! Map<String, dynamic>) {
         _snackError('Bundle', 'Unexpected response from server');
         return null;
@@ -1086,6 +1095,7 @@ class AuthController extends GetxController {
     final resourcesUrl = resources is Map ? resources['url']?.toString() : null;
 
     final bundlePrograms = enrollment['bundlePrograms'];
+    final bundleRaw = enrollment['bundle'];
     final exercisesRaw = inner['exercise'];
     List<Map<String, dynamic>> exercises = [];
     if (exercisesRaw is List) {
@@ -1143,6 +1153,12 @@ class AuthController extends GetxController {
       'enrollmentEndDate': enrollment['endDate'],
       'exercises': exercises,
       if (bundlePrograms is List) 'bundlePrograms': bundlePrograms,
+      if (bundleRaw is Map) ...{
+        'enrolledBundle': Map<String, dynamic>.from(bundleRaw),
+        'bundleId': (bundleRaw['_id'] ?? bundleRaw['id'])?.toString(),
+        'bundleTitle': bundleRaw['title']?.toString(),
+        'bundlePrice': (bundleRaw['bundlePrice'] as num?)?.toDouble() ?? (bundleRaw['price'] as num?)?.toDouble(),
+      },
     };
   }
 
