@@ -141,6 +141,14 @@ class WorkoutRepository {
     }
   }
 
+  static JournalExerciseType? _workoutItemTypeFromMap(Map<String, dynamic> map) {
+    for (final key in ['type', 'workoutType', 'exerciseType']) {
+      final parsed = JournalExerciseType.fromApi(map[key]?.toString());
+      if (parsed != null) return parsed;
+    }
+    return null;
+  }
+
   /// Maps one journal list item from `GET /customer/workout-journal`.
   static WorkoutJournalModel journalFromApiEntry(Map<String, dynamic> entry) {
     final id = entry['_id']?.toString() ?? '';
@@ -157,9 +165,13 @@ class WorkoutRepository {
       for (final item in workoutItems) {
         if (item is! Map) continue;
         final map = Map<String, dynamic>.from(item);
-        final exercise = workoutExerciseFromApi(map);
-        final type = map['type']?.toString() ?? journalType;
-        if (JournalExerciseType.fromApi(type)?.isWarmup == true) {
+        final itemType = _workoutItemTypeFromMap(map);
+        final exercise = workoutExerciseFromApi(map, exerciseType: itemType);
+        if (itemType?.isWarmup == true) {
+          warmupExercises.add(exercise);
+        } else if (itemType == JournalExerciseType.workout) {
+          workoutExercises.add(exercise);
+        } else if (JournalExerciseType.fromApi(journalType)?.isWarmup == true) {
           warmupExercises.add(exercise);
         } else {
           workoutExercises.add(exercise);
@@ -224,7 +236,7 @@ class WorkoutRepository {
     return (videoUrl: _refExerciseVideoUrl(refExercise), thumbnailUrl: _refExerciseVideoThumbnailUrl(refExercise));
   }
 
-  static WorkoutExerciseModel workoutExerciseFromApi(Map<String, dynamic> json) {
+  static WorkoutExerciseModel workoutExerciseFromApi(Map<String, dynamic> json, {JournalExerciseType? exerciseType}) {
     final id = json['_id']?.toString() ?? '';
     final refRaw = json['refExercise'];
     final refExercise = _refExerciseId(refRaw);
@@ -261,6 +273,7 @@ class WorkoutRepository {
       createdAt: createdAt,
       updatedAt: updatedAt,
       notes: _workoutNotesFromApi(json['notes']),
+      exerciseType: exerciseType ?? _workoutItemTypeFromMap(json),
     );
   }
 

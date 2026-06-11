@@ -101,12 +101,15 @@ String? firstFeedImageUrlFromApiList(dynamic images) {
 /// All image URLs from `images[]` on photo posts (multi-image carousel).
 List<String> allFeedImageUrlsFromApiList(dynamic images) {
   if (images is! List) return const [];
+  final seen = <String>{};
   final out = <String>[];
   for (final item in images) {
     final u = feedMediaUrlFromApiNode(item);
-    if (u != null && u.trim().isNotEmpty) {
-      out.add(u.trim());
-    }
+    if (u == null) continue;
+    final normalized = u.trim();
+    if (normalized.isEmpty || seen.contains(normalized)) continue;
+    seen.add(normalized);
+    out.add(normalized);
   }
   return out;
 }

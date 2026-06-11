@@ -80,11 +80,15 @@ List<_EditFeedImage> _editFeedImagesFromPost(Map<String, dynamic> post) {
 
 List<Map<String, String>> _feedImagesMetaFromApi(dynamic images) {
   if (images is! List) return const [];
+  final seenUrls = <String>{};
   final out = <Map<String, String>>[];
   for (final item in images) {
     final url = feedMediaUrlFromApiNode(item);
     if (url == null) continue;
-    final entry = <String, String>{'url': url};
+    final normalized = url.trim();
+    if (normalized.isEmpty || seenUrls.contains(normalized)) continue;
+    seenUrls.add(normalized);
+    final entry = <String, String>{'url': normalized};
     if (item is Map) {
       final id = (item['_id'] ?? item['id'] ?? '').toString().trim();
       if (id.isNotEmpty) entry['id'] = id;
@@ -1107,7 +1111,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(color: AppColors.upcoming.withOpacity(0.92), borderRadius: BorderRadius.circular(8)),
-                        child: Text('Draft', style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 10)),
+                        child: Text(
+                          'Draft',
+                          style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 10),
+                        ),
                       ),
                     ),
                   // Engagement stats overlay
@@ -2206,6 +2213,45 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
     return file;
   }
 
+  List<String> _keptServerImageIds() {
+    return _editImages.map((e) => e.serverId?.trim()).whereType<String>().where((id) => id.isNotEmpty).toList();
+  }
+
+  List<String> _deletedServerImageIds() {
+    final currentIds = _keptServerImageIds().toSet();
+    return _editFeedImagesFromPost(widget.post).map((e) => e.serverId?.trim()).whereType<String>().where((id) => id.isNotEmpty && !currentIds.contains(id)).toList();
+  }
+
+  Future<List<File>> _collectNewLocalImageFiles() async {
+    final files = <File>[];
+    for (var i = 0; i < _editImages.length; i++) {
+      final localPath = _editImages[i].localPath;
+      if (localPath == null || localPath.isEmpty) continue;
+      final file = File(localPath);
+      if (!await file.exists() || await file.length() <= 0) {
+        throw StateError('Image file ${i + 1} is missing or empty.');
+      }
+      files.add(file);
+    }
+    return files;
+  }
+
+  Future<List<File>> _collectOrphanNetworkImageFiles() async {
+    final files = <File>[];
+    for (var i = 0; i < _editImages.length; i++) {
+      final img = _editImages[i];
+      if (img.localPath != null && img.localPath!.isNotEmpty) continue;
+      final serverId = img.serverId?.trim();
+      if (serverId != null && serverId.isNotEmpty) continue;
+      final url = img.networkUrl;
+      if (url == null || url.isEmpty) continue;
+      final file = await _downloadNetworkImageToTemp(url);
+      if (file == null) throw StateError('Could not download image ${i + 1}.');
+      files.add(file);
+    }
+    return files;
+  }
+
   Future<void> _uploadEditedImages({required String feedId}) async {
     if (_editImages.isEmpty) {
       throw StateError('At least one image is required.');
@@ -2218,28 +2264,15 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
       });
     }
 
-    final files = <File>[];
-    for (var i = 0; i < _editImages.length; i++) {
-      final img = _editImages[i];
-      if (img.localPath != null) {
-        final file = File(img.localPath!);
-        if (!await file.exists() || await file.length() <= 0) {
-          throw StateError('Image file ${i + 1} is missing or empty.');
-        }
-        files.add(file);
-      } else if (img.networkUrl != null) {
-        final file = await _downloadNetworkImageToTemp(img.networkUrl!);
-        if (file == null) throw StateError('Could not download image ${i + 1}.');
-        files.add(file);
-      }
-      if (mounted) {
-        setState(() => _saveUploadProgress = 0.15 + ((i + 1) / _editImages.length) * 0.35);
-      }
-    }
+    final keptImageIds = _keptServerImageIds();
+    final deletedImageIds = _deletedServerImageIds();
+    final newFiles = await _collectNewLocalImageFiles();
+    final orphanFiles = await _collectOrphanNetworkImageFiles();
+    final uploadFiles = <File>[...newFiles, ...orphanFiles];
 
     if (mounted) {
       setState(() {
-        _saveBusyLabel = 'Uploading images…';
+        _saveBusyLabel = uploadFiles.isEmpty ? 'Updating images…' : 'Uploading images…';
         _saveUploadProgress = 0.55;
       });
     }
@@ -2251,7 +2284,9 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
       categoryId: (_categoryId ?? '').trim(),
       tags: _tagsForSave(),
       status: _status,
-      imageFiles: files,
+      imageFiles: uploadFiles,
+      keptImageIds: keptImageIds,
+      deletedImageIds: deletedImageIds,
     );
 
     if (mounted) setState(() => _saveUploadProgress = 1);
@@ -2277,13 +2312,13 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
       itemBuilder: (context, index) {
         final img = _editImages[index];
         if (img.localPath != null) {
-          return Image.file(File(img.localPath!), fit: BoxFit.cover, width: double.infinity, height: 200);
+          return Image.file(File(img.localPath!), fit: BoxFit.cover, width: double.infinity, height: double.infinity);
         }
         return Image.network(
           img.networkUrl!,
           fit: BoxFit.cover,
           width: double.infinity,
-          height: 200,
+          height: double.infinity,
           errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image_outlined, color: AppColors.primaryGray, size: 48)),
         );
       },
@@ -2631,10 +2666,236 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
     }
   }
 
+  TextStyle get _sectionLabelStyle => AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700);
+
+  ButtonStyle get _mediaActionButtonStyle => OutlinedButton.styleFrom(
+    foregroundColor: _kProfileForestGreen,
+    backgroundColor: AppColors.surface,
+    side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.35)),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+    visualDensity: VisualDensity.compact,
+  );
+
+  Widget _buildEditPostHeader() {
+    return Column(
+      children: [
+        Container(
+          width: 40,
+          height: 4,
+          decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(2)),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Edit post',
+                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: AppColors.primaryGray),
+              onPressed: _saving ? null : () => Navigator.pop(context),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMediaStatusChip(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(color: _kProfileForestGreen.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(20)),
+      child: Text(
+        label,
+        style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _buildMediaActionBar({
+    required VoidCallback onGallery,
+    required VoidCallback onCamera,
+    required IconData galleryIcon,
+    required IconData cameraIcon,
+    VoidCallback? onReset,
+    String? resetTooltip,
+  }) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundColor,
+        border: Border(top: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.18))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(onPressed: onGallery, icon: Icon(galleryIcon, size: 18), label: const Text('Gallery'), style: _mediaActionButtonStyle),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton.icon(onPressed: onCamera, icon: Icon(cameraIcon, size: 18), label: const Text('Camera'), style: _mediaActionButtonStyle),
+          ),
+          if (onReset != null) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: resetTooltip,
+              onPressed: onReset,
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.undo_rounded, color: AppColors.primaryGray.withValues(alpha: 0.9)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVideoMediaCard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Media', style: _sectionLabelStyle),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.22)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 180,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(
+                      color: Colors.black,
+                      child: _replacementVideo != null
+                          ? _buildReplacementVideoPreview()
+                          : Image.network(
+                              (widget.post['thumbnail'] ?? '').toString(),
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: 180,
+                              errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.videocam, color: Colors.white54, size: 48)),
+                            ),
+                    ),
+                    if (_replacementVideo != null)
+                      Positioned(top: 10, left: 10, child: _buildMediaStatusChip('New video selected'))
+                    else
+                      const Positioned.fill(
+                        child: Center(child: Icon(Icons.play_circle_fill, color: Colors.white54, size: 44)),
+                      ),
+                  ],
+                ),
+              ),
+              if (!_saving)
+                _buildMediaActionBar(
+                  onGallery: _pickReplacementVideoGallery,
+                  onCamera: _pickReplacementVideoCamera,
+                  galleryIcon: Icons.video_library_outlined,
+                  cameraIcon: Icons.videocam_outlined,
+                  onReset: _replacementVideo != null ? _clearReplacementVideo : null,
+                  resetTooltip: 'Keep original video',
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageMediaCard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Media', style: _sectionLabelStyle),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.22)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 180,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildEditImagePreview(),
+                    if (_editImages.length > 1)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(20)),
+                          child: Text(
+                            '${_previewImageIndex + 1}/${_editImages.length}',
+                            style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    if (_imagesDirty) Positioned(top: 10, left: 10, child: _buildMediaStatusChip('Unsaved changes')),
+                  ],
+                ),
+              ),
+              if (_editImages.length > 1) ...[
+                Container(width: double.infinity, padding: const EdgeInsets.fromLTRB(12, 10, 12, 0), color: AppColors.backgroundColor, child: _buildEditImageThumbnails()),
+                const SizedBox(height: 10),
+              ],
+              if (!_saving)
+                _buildMediaActionBar(
+                  onGallery: _pickEditImagesFromGallery,
+                  onCamera: _pickEditImageFromCamera,
+                  galleryIcon: Icons.photo_library_outlined,
+                  cameraIcon: Icons.photo_camera_outlined,
+                  onReset: _imagesDirty ? _restoreOriginalEditImages : null,
+                  resetTooltip: 'Keep original images',
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  InputDecoration _fieldDecoration(String label, {String? hint, String? helper}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      helperText: helper,
+      filled: true,
+      fillColor: AppColors.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderSide: BorderSide(color: _kProfileForestGreen, width: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final border = OutlineInputBorder(borderRadius: BorderRadius.circular(12));
-
     final categoryDropdownStyle = AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 15, fontWeight: FontWeight.w400, height: 1.2);
 
     final categoryItems = <DropdownMenuItem<String>>[];
@@ -2664,159 +2925,23 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(2)),
-            ),
-          ),
+          _buildEditPostHeader(),
           const SizedBox(height: 16),
-          Text(
-            'Edit post',
-            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontSize: 15, fontWeight: FontWeight.w700),
-          ),
+          if (_isVideoPost) _buildVideoMediaCard() else _buildImageMediaCard(),
           const SizedBox(height: 16),
-          if (_isVideoPost) ...[
-            Text('Video', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                height: 200,
-                width: double.infinity,
-                child: ColoredBox(
-                  color: Colors.black,
-                  child: _replacementVideo != null
-                      ? _buildReplacementVideoPreview()
-                      : Image.network(
-                          (widget.post['thumbnail'] ?? '').toString(),
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: 200,
-                          errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.videocam, color: Colors.white54, size: 48)),
-                        ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (!_saving) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickReplacementVideoGallery,
-                      icon: const Icon(Icons.video_library, size: 18),
-                      label: const Text('Gallery'),
-                      style: OutlinedButton.styleFrom(foregroundColor: _kProfileForestGreen),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickReplacementVideoCamera,
-                      icon: const Icon(Icons.videocam, size: 18),
-                      label: const Text('Camera'),
-                      style: OutlinedButton.styleFrom(foregroundColor: _kProfileForestGreen),
-                    ),
-                  ),
-                  if (_replacementVideo != null)
-                    IconButton(
-                      tooltip: 'Keep original video',
-                      onPressed: _clearReplacementVideo,
-                      icon: Icon(Icons.undo, color: AppColors.primaryGray.withValues(alpha: 0.95)),
-                    ),
-                ],
-              ),
-              Text(
-                _replacementVideo != null ? 'New video selected. Tap Save to upload.' : 'Replace video from gallery or camera.',
-                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 12, fontWeight: FontWeight.w400),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ] else ...[
-            Text('Images', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                _editImages.length > 1
-                    ? 'Tap Gallery or Camera to add images. Tap × to remove one (at least one required).'
-                    : 'Tap Gallery or Camera to add an image. Tap Save to upload.',
-                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 12, fontWeight: FontWeight.w400),
-              ),
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(height: 200, width: double.infinity, child: _buildEditImagePreview()),
-            ),
-            if (_editImages.length > 1) ...[
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_editImages.length, (index) {
-                  final active = index == _previewImageIndex;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: active ? 10 : 8,
-                    height: active ? 10 : 8,
-                    decoration: BoxDecoration(color: active ? _kProfileForestGreen : AppColors.primaryGray.withValues(alpha: 0.4), shape: BoxShape.circle),
-                  );
-                }),
-              ),
-            ],
-            const SizedBox(height: 10),
-            _buildEditImageThumbnails(),
-            const SizedBox(height: 8),
-            if (!_saving) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickEditImagesFromGallery,
-                      icon: const Icon(Icons.photo_library_outlined, size: 18),
-                      label: const Text('Gallery'),
-                      style: OutlinedButton.styleFrom(foregroundColor: _kProfileForestGreen),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickEditImageFromCamera,
-                      icon: const Icon(Icons.photo_camera_outlined, size: 18),
-                      label: const Text('Camera'),
-                      style: OutlinedButton.styleFrom(foregroundColor: _kProfileForestGreen),
-                    ),
-                  ),
-                  if (_imagesDirty)
-                    IconButton(
-                      tooltip: 'Keep original images',
-                      onPressed: _restoreOriginalEditImages,
-                      icon: Icon(Icons.undo, color: AppColors.primaryGray.withValues(alpha: 0.95)),
-                    ),
-                ],
-              ),
-              Text(
-                _imagesDirty ? 'Unsaved image changes. Tap Save to upload.' : 'Add images from gallery or camera.',
-                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 12, fontWeight: FontWeight.w400),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ],
-          TextField(
-            controller: _titleController,
-            decoration: InputDecoration(labelText: 'Title', border: border),
-            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-          ),
+          Text('Details', style: _sectionLabelStyle),
+          const SizedBox(height: 8),
+          TextField(controller: _titleController, decoration: _fieldDecoration('Title'), onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus()),
           const SizedBox(height: 12),
           TextField(
             controller: _descriptionController,
             maxLines: 4,
-            decoration: InputDecoration(labelText: 'Description', alignLabelWithHint: true, border: border),
+            decoration: _fieldDecoration('Description'),
             onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          Text('Tags', style: _sectionLabelStyle),
+          const SizedBox(height: 8),
           if (_committedTags.isNotEmpty) ...[
             Wrap(
               spacing: 8,
@@ -2846,12 +2971,7 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
             },
             child: TextField(
               controller: _tagsController,
-              decoration: InputDecoration(
-                labelText: 'Tags',
-                hintText: 'Type a tag, then tap Done or Enter',
-                helperText: 'Multiple words add multiple tags. # prefix is optional.',
-                border: border,
-              ),
+              decoration: _fieldDecoration('Add tags', hint: 'Type a tag, then tap Done or Enter', helper: 'Multiple words add multiple tags. # prefix is optional.'),
               textCapitalization: TextCapitalization.none,
               keyboardType: TextInputType.text,
               textInputAction: TextInputAction.done,
@@ -2861,19 +2981,23 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
               onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
           ),
-          const SizedBox(height: 12),
-          Text('Visibility', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
+          const SizedBox(height: 16),
+          Text('Visibility', style: _sectionLabelStyle),
           const SizedBox(height: 8),
           SegmentedButton<String>(
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              side: WidgetStatePropertyAll(BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.35))),
+            ),
             segments: const [
               ButtonSegment(value: 'Draft', label: Text('Draft')),
               ButtonSegment(value: 'Published', label: Text('Published')),
             ],
             selected: {_status},
-            onSelectionChanged: (next) => setState(() => _status = next.first),
+            onSelectionChanged: _saving ? null : (next) => setState(() => _status = next.first),
           ),
           const SizedBox(height: 16),
-          Text('Category', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
+          Text('Category', style: _sectionLabelStyle),
           const SizedBox(height: 8),
           if (_loadingCategories)
             const Padding(
@@ -2906,10 +3030,10 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
             DropdownButtonFormField<String>(
               value: validCategoryValue,
               style: categoryDropdownStyle,
-              decoration: InputDecoration(border: border, isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+              decoration: _fieldDecoration('Category').copyWith(isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
               hint: Text('Select category', style: categoryDropdownStyle.copyWith(color: AppColors.primaryGray)),
               items: categoryItems,
-              onChanged: (v) => setState(() => _categoryId = v),
+              onChanged: _saving ? null : (v) => setState(() => _categoryId = v),
             ),
 
           if (_saving && _saveBusyLabel.isNotEmpty) ...[
@@ -2932,36 +3056,42 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
 
           const SizedBox(height: 20),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SizedBox(
-                height: 44.h,
-                width: 160.w,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(88, 44),
-                    side: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+              Expanded(
+                child: SizedBox(
+                  height: 50,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.onBackground,
+                      backgroundColor: AppColors.surface,
+                      side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.4)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _saving ? null : () => Navigator.pop(context),
+                    child: Text('Cancel', style: AppTextStyles.buttonMedium.copyWith(fontWeight: FontWeight.w600)),
                   ),
-                  onPressed: _saving ? null : () => Navigator.pop(context),
-                  child: const Text('Cancel'),
                 ),
               ),
-              SizedBox(width: 12),
-              SizedBox(
-                height: 44.h,
-                width: 160.w,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(88, 44),
-                    backgroundColor: _kProfileForestGreen,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 50,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _kProfileForestGreen,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: _kProfileForestGreen.withValues(alpha: 0.5),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    onPressed: _saving ? null : _save,
+                    child: _saving
+                        ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Text(
+                            'Save',
+                            style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
                   ),
-                  onPressed: _saving ? null : _save,
-                  child: _saving
-                      ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Save', style: TextStyle(color: Colors.white)),
                 ),
               ),
             ],

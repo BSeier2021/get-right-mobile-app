@@ -1,4 +1,5 @@
 import 'package:get_right/models/exercise_set_model.dart';
+import 'package:get_right/models/journal_exercise_type.dart';
 
 /// Workout Exercise Model
 /// Represents a single exercise in a workout (can be part of a superset)
@@ -17,6 +18,7 @@ class WorkoutExerciseModel {
   final DateTime date;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final JournalExerciseType? exerciseType;
 
   /// Parses API/local identifiers like `A1`, `A2` → group `A` with order 0, 1.
   static ({String groupId, int order})? parseSupersetIdentifier(String? raw) {
@@ -46,6 +48,7 @@ class WorkoutExerciseModel {
     required this.date,
     required this.createdAt,
     this.updatedAt,
+    this.exerciseType,
   });
 
   factory WorkoutExerciseModel.fromJson(Map<String, dynamic> json) {
@@ -67,6 +70,7 @@ class WorkoutExerciseModel {
       date: json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
+      exerciseType: JournalExerciseType.fromApi(json['exerciseType']?.toString()) ?? JournalExerciseType.fromApi(json['type']?.toString()),
     );
   }
 
@@ -86,6 +90,7 @@ class WorkoutExerciseModel {
       'date': date.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      if (exerciseType != null) 'exerciseType': exerciseType!.apiValue,
     };
   }
 
@@ -104,6 +109,7 @@ class WorkoutExerciseModel {
     DateTime? date,
     DateTime? createdAt,
     DateTime? updatedAt,
+    JournalExerciseType? exerciseType,
   }) {
     return WorkoutExerciseModel(
       id: id ?? this.id,
@@ -120,6 +126,7 @@ class WorkoutExerciseModel {
       date: date ?? this.date,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      exerciseType: exerciseType ?? this.exerciseType,
     );
   }
 

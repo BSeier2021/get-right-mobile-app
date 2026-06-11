@@ -413,6 +413,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           supersetOrder: _isSuperset ? i : null,
           date: now,
           createdAt: now,
+          exerciseType: _exerciseType,
         ),
       );
     }

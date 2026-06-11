@@ -72,29 +72,52 @@ class FeedRepository {
     return _network.patch(AppUrl.feedById(feedId), body);
   }
 
-  /// `PATCH /user/feed/:feedId` — multipart with `images` to replace photo post media.
+  /// `PATCH /user/feed/:feedId` — update photo post media.
+  ///
+  /// Sends [keptImageIds] for unchanged server images (avoids re-upload duplicates),
+  /// [deletedImageIds] for removed images, and [imageFiles] only for new local uploads.
+  /// Falls back to JSON `PATCH` when there are no new files but image ids changed.
   Future<dynamic> updateFeedWithImagesMultipartRepo({
     required String feedId,
     required String title,
     required String description,
     required String categoryId,
     required List<String> tags,
-    required List<File> imageFiles,
+    List<File> imageFiles = const [],
+    List<String> keptImageIds = const [],
+    List<String> deletedImageIds = const [],
     String? status,
   }) async {
-    if (imageFiles.isEmpty) {
+    if (imageFiles.isEmpty && keptImageIds.isEmpty) {
       throw ArgumentError('At least one image is required.');
     }
+
+    final st = status?.trim();
+    final commonFields = <String, dynamic>{
+      'title': title.trim(),
+      'description': description.trim(),
+      'category': categoryId.trim(),
+      'tags': tags,
+      'replaceImages': true,
+      if (keptImageIds.isNotEmpty) 'existingImages': keptImageIds,
+      if (deletedImageIds.isNotEmpty) 'deletedImages': deletedImageIds,
+      if (st != null && st.isNotEmpty) 'status': st,
+    };
+
+    if (imageFiles.isEmpty) {
+      return _network.patch(AppUrl.feedById(feedId), commonFields);
+    }
+
     final fields = <String, dynamic>{
       'title': title.trim(),
       'description': description.trim(),
       'category': categoryId.trim(),
       'tags[]': tags,
+      'replaceImages': 'true',
+      if (keptImageIds.isNotEmpty) 'existingImages[]': keptImageIds,
+      if (deletedImageIds.isNotEmpty) 'deletedImages[]': deletedImageIds,
+      if (st != null && st.isNotEmpty) 'status': st,
     };
-    final st = status?.trim();
-    if (st != null && st.isNotEmpty) {
-      fields['status'] = st;
-    }
     return _network.patchMultipart(
       url: AppUrl.feedById(feedId),
       fields: fields,

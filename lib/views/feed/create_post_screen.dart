@@ -840,45 +840,65 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           centerTitle: true,
         ),
 
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-        floatingActionButton: Obx(() {
+        bottomNavigationBar: Obx(() {
           final busy = _feed.isPublishing.value || _feed.isSavingDraft.value;
           final savingDraft = _feed.isSavingDraft.value;
           final publishing = _feed.isPublishing.value;
 
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SizedBox(
-              width: double.infinity,
+          return SafeArea(
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundColor,
+                border: Border(top: BorderSide(color: AppColors.primaryGray.withOpacity(0.2))),
+                boxShadow: [BoxShadow(color: AppColors.secondary.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, -2))],
+              ),
               child: Row(
                 children: [
                   Expanded(
-                    child: FloatingActionButton.extended(
-                      heroTag: 'create_post_save_draft',
-                      onPressed: busy ? null : _saveDraft,
-                      backgroundColor: AppColors.surface,
-                      foregroundColor: AppColors.onSurface,
-                      elevation: 3,
-                      icon: savingDraft
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryGray))
-                          : const Icon(Icons.save_outlined),
-                      label: Text('Draft', style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600)),
+                    child: SizedBox(
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        onPressed: busy ? null : _saveDraft,
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: AppColors.surface,
+                          foregroundColor: AppColors.onBackground,
+                          side: BorderSide(color: AppColors.primaryGray.withOpacity(0.45), width: 1.5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                        icon: savingDraft
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryGray))
+                            : const Icon(Icons.save_outlined, size: 20),
+                        label: Text(
+                          'Draft',
+                          style: AppTextStyles.buttonMedium.copyWith(fontWeight: FontWeight.w600, color: AppColors.onBackground),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: FloatingActionButton.extended(
-                      heroTag: 'create_post_publish',
-                      onPressed: busy ? null : _publishPost,
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.white,
-                      elevation: 3,
-                      icon: publishing
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.publish_rounded),
-                      label: Text(
-                        'Publish',
-                        style: AppTextStyles.titleSmall.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                    child: SizedBox(
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: busy ? null : _publishPost,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: AppColors.accent.withOpacity(0.5),
+                          disabledForegroundColor: Colors.white70,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                        icon: publishing
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.publish_rounded, size: 20),
+                        label: Text(
+                          'Publish',
+                          style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   ),
@@ -1274,7 +1294,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             onEditingComplete: _commitTagsFromField,
                           ),
 
-                          const SizedBox(height: 96),
+                          const SizedBox(height: 24),
                         ],
                       ),
                     ),

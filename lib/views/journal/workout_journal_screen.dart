@@ -65,6 +65,42 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     return WorkoutJournalModel(id: '', userId: 'user_1', date: DateTime.now(), warmupExercises: [], workoutExercises: [], createdAt: DateTime.now());
   }
 
+  WorkoutJournalModel _reconcileExerciseSections(WorkoutJournalModel? previous, WorkoutJournalModel fromApi) {
+    if (previous == null) return fromApi;
+
+    final prevWarmupIds = previous.warmupExercises.map((e) => e.id).toSet();
+    final prevWorkoutIds = previous.workoutExercises.map((e) => e.id).toSet();
+    final apiWarmupIds = fromApi.warmupExercises.map((e) => e.id).toSet();
+    final seen = <String>{};
+    final warmup = <WorkoutExerciseModel>[];
+    final workout = <WorkoutExerciseModel>[];
+
+    void bucket(WorkoutExerciseModel ex) {
+      if (!seen.add(ex.id)) return;
+      if (ex.exerciseType?.isWarmup == true || prevWarmupIds.contains(ex.id) || apiWarmupIds.contains(ex.id)) {
+        warmup.add(ex);
+      } else {
+        workout.add(ex);
+      }
+    }
+
+    for (final ex in fromApi.warmupExercises) {
+      bucket(ex);
+    }
+    for (final ex in fromApi.workoutExercises) {
+      bucket(ex);
+    }
+
+    for (final ex in previous.warmupExercises) {
+      if (!seen.contains(ex.id)) warmup.add(ex);
+    }
+    for (final ex in previous.workoutExercises) {
+      if (!seen.contains(ex.id) && prevWorkoutIds.contains(ex.id)) workout.add(ex);
+    }
+
+    return fromApi.copyWith(warmupExercises: warmup, workoutExercises: workout);
+  }
+
   void _mergeExercisesFromSaveResult(Map<String, dynamic> result) {
     final rawExercises = result['exercises'];
     if (rawExercises is! List || rawExercises.isEmpty) return;
@@ -76,12 +112,16 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         ? result['exerciseType'] as JournalExerciseType
         : (result['isWarmup'] == true ? JournalExerciseType.warmup : JournalExerciseType.workout);
 
+    final typed = exercises
+        .map((e) => e.exerciseType == null ? e.copyWith(exerciseType: type) : e)
+        .toList();
+
     setState(() {
       _workout ??= _emptyWorkoutShell();
       if (type.isWarmup) {
-        _workout = _workout!.copyWith(warmupExercises: [..._workout!.warmupExercises, ...exercises]);
+        _workout = _workout!.copyWith(warmupExercises: [..._workout!.warmupExercises, ...typed]);
       } else {
-        _workout = _workout!.copyWith(workoutExercises: [..._workout!.workoutExercises, ...exercises]);
+        _workout = _workout!.copyWith(workoutExercises: [..._workout!.workoutExercises, ...typed]);
       }
     });
   }
@@ -100,17 +140,22 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       final today = WorkoutRepository.todayEntryFrom(page);
       if (!mounted) return;
 
+      final previousWorkout = _workout;
       setState(() {
         _journalEntries = rawEntries;
         _workoutJournalByExerciseId = WorkoutRepository.exerciseJournalMapFrom(rawEntries);
         _workoutJournalId = WorkoutRepository.primaryJournalIdForDay(rawEntries) ?? _workoutJournalId;
         if (today != null && today.id.isNotEmpty) {
-          _workout = today.copyWith(
-            startedAt: _workout?.startedAt,
-            completedAt: _workout?.completedAt,
-            durationSeconds: _workout?.durationSeconds ?? today.durationSeconds,
-            caloriesBurned: _workout?.caloriesBurned,
+          final merged = _reconcileExerciseSections(
+            previousWorkout,
+            today.copyWith(
+              startedAt: previousWorkout?.startedAt,
+              completedAt: previousWorkout?.completedAt,
+              durationSeconds: previousWorkout?.durationSeconds ?? today.durationSeconds,
+              caloriesBurned: previousWorkout?.caloriesBurned,
+            ),
           );
+          _workout = merged;
         } else if (_workout == null) {
           _workoutJournalId = null;
           _workout = _emptyWorkoutShell();
