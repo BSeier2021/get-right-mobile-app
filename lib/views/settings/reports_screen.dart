@@ -249,6 +249,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     r.title,
                     style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600, fontSize: 15),
                   ),
+                  if (r.creatorName != null && r.creatorName!.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      r.creatorName!,
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontSize: 12.5, fontWeight: FontWeight.w500),
+                    ),
+                  ],
                   const SizedBox(height: 3),
                   Text(
                     r.subtitle,

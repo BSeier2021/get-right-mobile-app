@@ -35,6 +35,7 @@ class ReportItem {
   final DateTime createdAt;
   final String status; // e.g. Pending/Resolved
   final String? avatarUrl;
+  final String? creatorName;
   final bool hasAdditionalDetails;
 
   const ReportItem({
@@ -47,6 +48,7 @@ class ReportItem {
     required this.status,
     this.hasAdditionalDetails = false,
     this.avatarUrl,
+    this.creatorName,
   });
 }
 
@@ -160,6 +162,7 @@ class SafetyCenterController extends GetxController {
           (r) =>
               r.title.toLowerCase().contains(q) ||
               r.subtitle.toLowerCase().contains(q) ||
+              (r.creatorName?.toLowerCase().contains(q) ?? false) ||
               r.reason.toLowerCase().contains(q) ||
               r.status.toLowerCase().contains(q),
         )

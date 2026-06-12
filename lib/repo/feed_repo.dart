@@ -75,7 +75,7 @@ class FeedRepository {
   /// `PATCH /user/feed/:feedId` — update photo post media.
   ///
   /// Sends [keptImageIds] for unchanged server images (avoids re-upload duplicates),
-  /// [deletedImageIds] for removed images, and [imageFiles] only for new local uploads.
+  /// [deletedImageIds] as `removeImageIds` for removed images, and [imageFiles] only for new local uploads.
   /// Falls back to JSON `PATCH` when there are no new files but image ids changed.
   Future<dynamic> updateFeedWithImagesMultipartRepo({
     required String feedId,
@@ -100,7 +100,7 @@ class FeedRepository {
       'tags': tags,
       'replaceImages': true,
       if (keptImageIds.isNotEmpty) 'existingImages': keptImageIds,
-      if (deletedImageIds.isNotEmpty) 'deletedImages': deletedImageIds,
+      if (deletedImageIds.isNotEmpty) 'removeImageIds': deletedImageIds,
       if (st != null && st.isNotEmpty) 'status': st,
     };
 
@@ -115,7 +115,7 @@ class FeedRepository {
       'tags[]': tags,
       'replaceImages': 'true',
       if (keptImageIds.isNotEmpty) 'existingImages[]': keptImageIds,
-      if (deletedImageIds.isNotEmpty) 'deletedImages[]': deletedImageIds,
+      if (deletedImageIds.isNotEmpty) 'removeImageIds[]': deletedImageIds,
       if (st != null && st.isNotEmpty) 'status': st,
     };
     return _network.patchMultipart(

@@ -1305,6 +1305,21 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return fromCard;
   }
 
+  double _programRatingValue(Map<String, dynamic> program) {
+    final fromCard = (program['rating'] as num?)?.toDouble();
+    final p = _programRaw(program);
+    if (p != null) {
+      final fromApi = (p['ratingAvg'] as num?)?.toDouble();
+      if (fromApi != null) return fromApi;
+      final d = p['display'];
+      if (d is Map) {
+        final fromDisplay = (d['average_rating'] as num?)?.toDouble();
+        if (fromDisplay != null) return fromDisplay;
+      }
+    }
+    return fromCard ?? 0.0;
+  }
+
   static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
 
   String? _programMongoId(Map<String, dynamic> program) {
@@ -1397,7 +1412,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final exercisePreview = _programExercisePreview(program);
     final trainerAvatar = _programTrainerAvatarUrl(program);
     final initials = (program['trainerImage'] ?? 'T').toString();
-    final ratingVal = ((program['rating'] as num?) ?? 0).toDouble();
+    final ratingVal = _programRatingValue(program);
 
     final chipRows = <Widget>[
       _buildInfoChip(Icons.schedule, '${program['duration']}'),
@@ -2237,7 +2252,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 7.w),
                           Icon(Icons.star, color: AppColors.accent, size: 13.sp),
                           Text(
-                            ((program['rating'] as num?) ?? 0).toDouble().toStringAsFixed(1),
+                            _programRatingValue(program).toStringAsFixed(1),
                             style: TextStyle(color: Colors.black, fontSize: 13.sp, fontWeight: FontWeight.w600),
                           ),
                           SizedBox(width: 5.w),
@@ -2245,7 +2260,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 3.w),
                           Flexible(
                             child: Text(
-                              '${_formatNumber((program['students'] as num?)?.toInt() ?? 0)}',
+                              '${_formatNumber(_programReviewCount(program) ?? (program['students'] as num?)?.toInt() ?? 0)}',
                               style: TextStyle(color: Colors.black, fontSize: 13.sp),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -2537,7 +2552,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 7.w),
                           Icon(Icons.star, color: AppColors.accent, size: 13.sp),
                           Text(
-                            ((program['rating'] as num?) ?? 0).toDouble().toStringAsFixed(1),
+                            _programRatingValue(program).toStringAsFixed(1),
                             style: TextStyle(color: Colors.black, fontSize: 13.sp, fontWeight: FontWeight.w600),
                           ),
                           SizedBox(width: 5.w),
@@ -2545,7 +2560,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 3.w),
                           Flexible(
                             child: Text(
-                              '${_formatNumber((program['students'] as num?)?.toInt() ?? 0)}',
+                              '${_formatNumber(_programReviewCount(program) ?? (program['students'] as num?)?.toInt() ?? 0)}',
                               style: TextStyle(color: Colors.black, fontSize: 13.sp),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -2751,13 +2766,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               _bundleProgramCountLabel(bundle),
                               style: TextStyle(color: Colors.black, fontSize: 13.sp),
                             ),
-                            SizedBox(width: 10.w),
-                            Icon(Icons.star, color: AppColors.upcoming, size: 13.sp),
-                            SizedBox(width: 3.w),
-                            Text(
-                              avgRating.toStringAsFixed(1),
-                              style: TextStyle(color: Colors.black, fontSize: 13.sp, fontWeight: FontWeight.w600),
-                            ),
+
                             SizedBox(width: 10.w),
                             Icon(Icons.people, color: Colors.black, size: 13.sp),
                             SizedBox(width: 3.w),
@@ -2980,7 +2989,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         SizedBox(width: 7.w),
                         Icon(Icons.star, color: AppColors.accent, size: 13.sp),
                         Text(
-                          ((program['rating'] as num?) ?? 0).toDouble().toStringAsFixed(1),
+                          _programRatingValue(program).toStringAsFixed(1),
                           style: TextStyle(color: Colors.black, fontSize: 13.sp, fontWeight: FontWeight.w600),
                         ),
                         SizedBox(width: 5.w),
@@ -2988,7 +2997,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         SizedBox(width: 3.w),
                         Flexible(
                           child: Text(
-                            '${_formatNumber((program['students'] as num?)?.toInt() ?? 0)}',
+                            '${_formatNumber(_programReviewCount(program) ?? (program['students'] as num?)?.toInt() ?? 0)}',
                             style: TextStyle(color: Colors.black, fontSize: 13.sp),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -3104,7 +3113,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       'certified': program['certified'],
       'certifications': program['certified'] ? ['NASM Certified Personal Trainer', 'Precision Nutrition Level 1'] : null,
       'hourlyRate': 75.0,
-      'rating': program['rating'],
+      'rating': _programRatingValue(program),
       'totalReviews': 127,
       'students': program['students'],
       'activePrograms': 5,

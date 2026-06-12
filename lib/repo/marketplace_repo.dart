@@ -607,8 +607,15 @@ class MarketplaceRepository {
 
   static Map<String, dynamic> _cardFromApiProgram(Map<String, dynamic> p) {
     final display = p['display'] is Map ? Map<String, dynamic>.from(p['display'] as Map) : <String, dynamic>{};
-    final rating = (display['average_rating'] as num?)?.toDouble() ?? 0.0;
-    final students = (display['enrollment_count'] as num?)?.toInt() ?? 0;
+    final rating = (p['ratingAvg'] as num?)?.toDouble() ??
+        (display['average_rating'] as num?)?.toDouble() ??
+        (p['rating'] as num?)?.toDouble() ??
+        0.0;
+    final reviews = (p['ratingCount'] as num?)?.toInt() ??
+        (display['review_count'] as num?)?.toInt() ??
+        (p['reviews'] as num?)?.toInt() ??
+        0;
+    final students = (display['enrollment_count'] as num?)?.toInt() ?? (p['students'] as num?)?.toInt() ?? 0;
     final price = (p['price'] as num?)?.toDouble() ?? 0.0;
     final weeks = durationWeeksFrom(p['durationWeeks'] ?? p['duration']);
     final duration = weeks > 0 ? '$weeks weeks' : (p['duration']?.toString().trim().isNotEmpty == true ? p['duration'].toString() : '—');
@@ -661,6 +668,7 @@ class MarketplaceRepository {
       'goal': (p['subtitle']?.toString().trim().isNotEmpty == true) ? p['subtitle'].toString() : (focus.isNotEmpty ? _titleCaseSlug(focus) : 'Fitness'),
       'certified': false,
       'rating': rating,
+      'reviews': reviews,
       'students': students,
       'difficulty': level.isNotEmpty ? _titleCaseSlug(level) : 'All',
       '_apiProgram': p,

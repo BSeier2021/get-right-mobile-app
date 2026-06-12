@@ -104,7 +104,7 @@ class FeedReelStyledThumbnail extends StatelessWidget {
       children: [
         Image.network(
           imageUrl,
-          fit: BoxFit.cover,
+          fit: isFullScreen ? BoxFit.contain : BoxFit.cover,
           filterQuality: FilterQuality.high,
           frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
             if (wasSynchronouslyLoaded) return child;

@@ -89,32 +89,34 @@ ReportItem? _mapReportItem(Map<String, dynamic> json) {
   final type = _reportTypeFromRefType(refType);
 
   final reportedUser = json['reportedUser'];
-  var title = 'Report';
+  final reportRef = json['reportRef'];
   final additionalDetails = _reportDetailsText(json['details']);
   String? avatarUrl;
+  String? creatorName;
+  var title = 'Report';
 
   if (reportedUser is Map) {
     final ru = Map<String, dynamic>.from(reportedUser);
     final profile = ru['profile'];
     if (profile is Map) {
       final prof = Map<String, dynamic>.from(profile);
-      final name = prof['fullName']?.toString().trim();
-      if (name != null && name.isNotEmpty) {
-        title = type == ReportType.user ? name : '${_labelPrefixForType(type)} · $name';
-      } else {
-        title = ru['email']?.toString() ?? title;
-      }
+      creatorName = _nonEmptyText(prof['fullName']);
       final pic = prof['profilePicture'];
       if (pic is Map) {
         avatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
       }
-    } else {
-      title = ru['email']?.toString() ?? title;
     }
+    creatorName ??= _nonEmptyText(ru['email']);
   }
 
-  if (type != ReportType.user && title == 'Report') {
-    title = _postTitleFromRefType(refType);
+  switch (type) {
+    case ReportType.user:
+      title = creatorName ?? 'Report';
+    case ReportType.post:
+    case ReportType.programs:
+    case ReportType.feedComment:
+      final refTitle = reportRef is Map ? _contentTitleFromReportRef(Map<String, dynamic>.from(reportRef)) : null;
+      title = refTitle ?? _postTitleFromRefType(refType);
   }
 
   final apiReason = json['reason']?.toString() ?? '';
@@ -136,6 +138,7 @@ ReportItem? _mapReportItem(Map<String, dynamic> json) {
     status: json['status']?.toString() ?? 'Pending',
     hasAdditionalDetails: additionalDetails != null,
     avatarUrl: avatarUrl,
+    creatorName: type == ReportType.user ? null : creatorName,
   );
 }
 
@@ -159,17 +162,19 @@ ReportType _reportTypeFromRefType(String refType) {
   }
 }
 
-String _labelPrefixForType(ReportType type) {
-  switch (type) {
-    case ReportType.user:
-      return '';
-    case ReportType.post:
-      return 'Post';
-    case ReportType.programs:
-      return 'Program';
-    case ReportType.feedComment:
-      return 'Comment';
+String? _nonEmptyText(dynamic raw) {
+  if (raw == null) return null;
+  final text = raw.toString().trim();
+  return text.isEmpty ? null : text;
+}
+
+String? _contentTitleFromReportRef(Map<String, dynamic> ref) {
+  const fields = ['title', 'description', 'content', 'text', 'comment'];
+  for (final field in fields) {
+    final value = _nonEmptyText(ref[field]);
+    if (value != null) return value;
   }
+  return null;
 }
 
 String _postTitleFromRefType(String refType) {

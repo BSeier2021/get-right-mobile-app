@@ -51,6 +51,25 @@ class _EditFeedImage {
 }
 
 List<_EditFeedImage> _editFeedImagesFromPost(Map<String, dynamic> post) {
+  List<_EditFeedImage> parseImageNodes(List<dynamic> raw) {
+    final out = <_EditFeedImage>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final m = Map<String, dynamic>.from(item);
+      final url = ImageUrlSanitizer.asHttpUrlOrNull(feedMediaUrlFromApiNode(m) ?? (m['url'] ?? '').toString());
+      if (url == null) continue;
+      final id = (m['_id'] ?? m['id'] ?? '').toString().trim();
+      out.add(_EditFeedImage(serverId: id.isEmpty ? null : id, networkUrl: url));
+    }
+    return out;
+  }
+
+  final apiImages = post['images'];
+  if (apiImages is List) {
+    final parsed = parseImageNodes(apiImages);
+    if (parsed.isNotEmpty) return parsed;
+  }
+
   final raw = post['feedImages'];
   if (raw is List) {
     final out = <_EditFeedImage>[];
@@ -59,7 +78,7 @@ List<_EditFeedImage> _editFeedImagesFromPost(Map<String, dynamic> post) {
       final m = Map<String, dynamic>.from(item);
       final url = ImageUrlSanitizer.asHttpUrlOrNull((m['url'] ?? '').toString());
       if (url == null) continue;
-      final id = (m['id'] ?? '').toString().trim();
+      final id = (m['_id'] ?? m['id'] ?? '').toString().trim();
       out.add(_EditFeedImage(serverId: id.isEmpty ? null : id, networkUrl: url));
     }
     if (out.isNotEmpty) return out;
@@ -999,6 +1018,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'thumbnail': thumb,
       'imageUrls': imageUrls,
       'feedImages': feedImages,
+      if (m['images'] is List) 'images': m['images'],
       if (!isVideo && imageUrls.isNotEmpty) 'imageUrl': imageUrls.first,
       if (!isVideo && imageUrls.isEmpty && thumb.isNotEmpty) 'imageUrl': thumb,
       'videoUrl': videoUrl,
@@ -1996,6 +2016,7 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
   XFile? _replacementVideo;
   final List<_EditFeedImage> _editImages = [];
   late final List<String> _initialImageSnapshot;
+  final Set<String> _removedServerImageIds = {};
   int _previewImageIndex = 0;
   final PageController _imagePageController = PageController();
   VideoPlayerController? _videoPreviewController;
@@ -2014,6 +2035,7 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
 
   void _restoreOriginalEditImages() {
     setState(() {
+      _removedServerImageIds.clear();
       _editImages
         ..clear()
         ..addAll(_editFeedImagesFromPost(widget.post));
@@ -2223,6 +2245,11 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
       Get.snackbar('Cannot remove', 'A post must have at least one image.', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.upcoming, colorText: Colors.white);
       return;
     }
+    final removed = _editImages[index];
+    final removedId = removed.serverId?.trim();
+    if (removedId != null && removedId.isNotEmpty) {
+      _removedServerImageIds.add(removedId);
+    }
     setState(() {
       _editImages.removeAt(index);
       if (_previewImageIndex >= _editImages.length) {
@@ -2252,7 +2279,8 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
 
   List<String> _deletedServerImageIds() {
     final currentIds = _keptServerImageIds().toSet();
-    return _editFeedImagesFromPost(widget.post).map((e) => e.serverId?.trim()).whereType<String>().where((id) => id.isNotEmpty && !currentIds.contains(id)).toList();
+    final fromInitial = _editFeedImagesFromPost(widget.post).map((e) => e.serverId?.trim()).whereType<String>().where((id) => id.isNotEmpty && !currentIds.contains(id));
+    return {...fromInitial, ..._removedServerImageIds}.toList();
   }
 
   Future<List<File>> _collectNewLocalImageFiles() async {
