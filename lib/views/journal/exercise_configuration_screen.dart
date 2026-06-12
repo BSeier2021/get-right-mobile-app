@@ -349,7 +349,8 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     } else if (!_isEditing) {
       setState(() => _isSaving = true);
       try {
-        var journalId = WorkoutRepository.isValidMongoId(_workoutJournalId) ? _workoutJournalId : null;
+        // One journal id per day — always attach warmups and workouts to the same entry.
+        var journalId = WorkoutRepository.isValidMongoId(_workoutJournalId) ? _workoutJournalId!.trim() : null;
         journalId ??= await _workoutRepo.findWorkoutJournalIdForToday();
 
         for (var i = 0; i < _configs.length; i++) {
@@ -369,11 +370,13 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           if (apiId != null && apiId.isNotEmpty) createdApiIds.add(apiId);
         }
 
-        if (createdApiIds.isNotEmpty) {
-          journalId ??= await _workoutRepo.findWorkoutJournalIdForToday();
-          journalId = await _workoutRepo.ensureWorkoutJournalLinked(workoutIds: createdApiIds, existingJournalId: journalId, existingJournalWorkoutIds: _journalWorkoutIds);
-          _workoutJournalId = journalId;
+        if (createdApiIds.isEmpty) {
+          final discovered = await _workoutRepo.findNewWorkoutIdsAfterCreate(beforeIds: _journalWorkoutIds);
+          createdApiIds.addAll(discovered);
         }
+
+        journalId = await _workoutRepo.consolidateDayJournal(newWorkoutIds: createdApiIds, existingJournalWorkoutIds: _journalWorkoutIds, preferredJournalId: journalId);
+        _workoutJournalId = journalId;
       } catch (e) {
         if (mounted) setState(() => _isSaving = false);
         Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
@@ -626,158 +629,158 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
       ),
       child: _focusedFieldType == 'reps'
-                      ? Row(
-                          children: [
-                            // AMRAP button
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  if (_focusedConfigIdx != null && _focusedSetIdx != null) {
-                                    final cfg = _configs[_focusedConfigIdx!];
-                                    final setData = cfg.sets[_focusedSetIdx!];
-                                    setState(() {
-                                      setData.repsType = 'AMRAP';
-                                      setData.reps = 0;
-                                      _focusedFieldType = null;
-                                      _focusedConfigIdx = null;
-                                      _focusedSetIdx = null;
-                                    });
-                                    FocusScope.of(context).unfocus();
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accent,
-                                  foregroundColor: AppColors.onAccent,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  elevation: 4,
-                                  shadowColor: AppColors.accent.withOpacity(0.3),
-                                ),
-                                child: Text(
-                                  'AMRAP',
-                                  style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            // FAILURE button
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  if (_focusedConfigIdx != null && _focusedSetIdx != null) {
-                                    final cfg = _configs[_focusedConfigIdx!];
-                                    final setData = cfg.sets[_focusedSetIdx!];
-                                    setState(() {
-                                      setData.repsType = 'FAILURE';
-                                      setData.reps = 0;
-                                      _focusedFieldType = null;
-                                      _focusedConfigIdx = null;
-                                      _focusedSetIdx = null;
-                                    });
-                                    FocusScope.of(context).unfocus();
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accent,
-                                  foregroundColor: AppColors.onAccent,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  elevation: 4,
-                                  shadowColor: AppColors.accent.withOpacity(0.3),
-                                ),
-                                child: Text(
-                                  'FAILURE',
-                                  style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            // Done button
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  FocusScope.of(context).unfocus();
-                                  setState(() {
-                                    _focusedFieldType = null;
-                                    _focusedConfigIdx = null;
-                                    _focusedSetIdx = null;
-                                  });
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accent,
-                                  foregroundColor: AppColors.onAccent,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  elevation: 4,
-                                  shadowColor: AppColors.accent.withOpacity(0.3),
-                                ),
-                                child: Text(
-                                  'Done',
-                                  style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // BW button for weight field
-                            _focusedFieldType == 'weight'
-                                ? ElevatedButton(
-                                    onPressed: () {
-                                      if (_focusedConfigIdx != null && _focusedSetIdx != null) {
-                                        final cfg = _configs[_focusedConfigIdx!];
-                                        final setData = cfg.sets[_focusedSetIdx!];
-                                        setState(() {
-                                          setData.weight = 0; // 0 represents Bodyweight
-                                          setData.isBodyweight = true; // Mark as explicitly set to BW
-                                          _focusedFieldType = null;
-                                          _focusedConfigIdx = null;
-                                          _focusedSetIdx = null;
-                                        });
-                                        FocusScope.of(context).unfocus();
-                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.accent,
-                                      foregroundColor: AppColors.onAccent,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      elevation: 4,
-                                      shadowColor: AppColors.accent.withOpacity(0.3),
-                                    ),
-                                    child: Text(
-                                      'BW',
-                                      style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
-                                    ),
-                                  )
-                                : const SizedBox.shrink(),
-                            // Done button
-                            ElevatedButton(
-                              onPressed: () {
-                                FocusScope.of(context).unfocus();
-                                setState(() {
-                                  _focusedFieldType = null;
-                                  _focusedConfigIdx = null;
-                                  _focusedSetIdx = null;
-                                });
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.accent,
-                                foregroundColor: AppColors.onAccent,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                elevation: 4,
-                                shadowColor: AppColors.accent.withOpacity(0.3),
-                              ),
-                              child: Text(
-                                'Done',
-                                style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
-                              ),
-                            ),
-                          ],
+          ? Row(
+              children: [
+                // AMRAP button
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (_focusedConfigIdx != null && _focusedSetIdx != null) {
+                        final cfg = _configs[_focusedConfigIdx!];
+                        final setData = cfg.sets[_focusedSetIdx!];
+                        setState(() {
+                          setData.repsType = 'AMRAP';
+                          setData.reps = 0;
+                          _focusedFieldType = null;
+                          _focusedConfigIdx = null;
+                          _focusedSetIdx = null;
+                        });
+                        FocusScope.of(context).unfocus();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 4,
+                      shadowColor: AppColors.accent.withOpacity(0.3),
+                    ),
+                    child: Text(
+                      'AMRAP',
+                      style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // FAILURE button
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (_focusedConfigIdx != null && _focusedSetIdx != null) {
+                        final cfg = _configs[_focusedConfigIdx!];
+                        final setData = cfg.sets[_focusedSetIdx!];
+                        setState(() {
+                          setData.repsType = 'FAILURE';
+                          setData.reps = 0;
+                          _focusedFieldType = null;
+                          _focusedConfigIdx = null;
+                          _focusedSetIdx = null;
+                        });
+                        FocusScope.of(context).unfocus();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 4,
+                      shadowColor: AppColors.accent.withOpacity(0.3),
+                    ),
+                    child: Text(
+                      'FAILURE',
+                      style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Done button
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      FocusScope.of(context).unfocus();
+                      setState(() {
+                        _focusedFieldType = null;
+                        _focusedConfigIdx = null;
+                        _focusedSetIdx = null;
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 4,
+                      shadowColor: AppColors.accent.withOpacity(0.3),
+                    ),
+                    child: Text(
+                      'Done',
+                      style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // BW button for weight field
+                _focusedFieldType == 'weight'
+                    ? ElevatedButton(
+                        onPressed: () {
+                          if (_focusedConfigIdx != null && _focusedSetIdx != null) {
+                            final cfg = _configs[_focusedConfigIdx!];
+                            final setData = cfg.sets[_focusedSetIdx!];
+                            setState(() {
+                              setData.weight = 0; // 0 represents Bodyweight
+                              setData.isBodyweight = true; // Mark as explicitly set to BW
+                              _focusedFieldType = null;
+                              _focusedConfigIdx = null;
+                              _focusedSetIdx = null;
+                            });
+                            FocusScope.of(context).unfocus();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          foregroundColor: AppColors.onAccent,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 4,
+                          shadowColor: AppColors.accent.withOpacity(0.3),
                         ),
+                        child: Text(
+                          'BW',
+                          style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+                // Done button
+                ElevatedButton(
+                  onPressed: () {
+                    FocusScope.of(context).unfocus();
+                    setState(() {
+                      _focusedFieldType = null;
+                      _focusedConfigIdx = null;
+                      _focusedSetIdx = null;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.onAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 4,
+                    shadowColor: AppColors.accent.withOpacity(0.3),
+                  ),
+                  child: Text(
+                    'Done',
+                    style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
@@ -864,10 +867,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                               _isSuperset = value ?? false;
                               if (_isSuperset && _configs.length < 2) {
                                 final firstConfig = _configs[0];
-                                final secondConfig = _Config(
-                                  name: '',
-                                  id: 'manual_${DateTime.now().millisecondsSinceEpoch}',
-                                );
+                                final secondConfig = _Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}');
                                 secondConfig.mainType = firstConfig.mainType;
                                 secondConfig.extraType = firstConfig.extraType;
                                 secondConfig.sets.clear();
@@ -917,8 +917,8 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
               child: showKeyboardToolbar
                   ? _buildKeyboardToolbar()
                   : showSaveButton
-                      ? _buildSaveButton()
-                      : const SizedBox.shrink(),
+                  ? _buildSaveButton()
+                  : const SizedBox.shrink(),
             ),
           ],
         ),

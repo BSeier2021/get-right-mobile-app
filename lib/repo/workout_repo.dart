@@ -429,15 +429,79 @@ class WorkoutRepository {
     final latest = sorted.last;
 
     return WorkoutJournalModel(
-      id: latest.id,
-      userId: latest.userId,
-      date: latest.date,
+      id: earliest.id,
+      userId: earliest.userId,
+      date: earliest.date,
       warmupExercises: warmupExercises,
       workoutExercises: workoutExercises,
       createdAt: earliest.createdAt,
       updatedAt: latest.updatedAt,
       durationSeconds: totalDuration > 0 ? totalDuration : latest.durationSeconds,
     );
+  }
+
+  /// Workout ids present in today's journal list but not in [beforeIds] (after POST /customer/workout).
+  Future<List<String>> findNewWorkoutIdsAfterCreate({required List<String> beforeIds, DateTime? date}) async {
+    final day = date ?? DateTime.now();
+    final before = beforeIds.where(isValidMongoId).map((id) => id.trim()).toSet();
+    final page = await fetchWorkoutJournalEntries(dateFrom: day);
+    final entries = entriesForDay(page, day: day);
+    final found = <String>[];
+    for (final entry in entries) {
+      for (final id in workoutIdsFrom(entry)) {
+        if (!before.contains(id)) found.add(id);
+      }
+    }
+    return found;
+  }
+
+  /// One journal per calendar day — merge every workout id into the earliest journal entry.
+  Future<String> consolidateDayJournal({
+    List<String> newWorkoutIds = const [],
+    List<String> existingJournalWorkoutIds = const [],
+    String? preferredJournalId,
+    DateTime? date,
+    int duration = 0,
+    String notes = '',
+  }) async {
+    final day = date ?? DateTime.now();
+    final page = await fetchWorkoutJournalEntries(dateFrom: day);
+    final entries = entriesForDay(page, day: day);
+
+    var canonicalId = isValidMongoId(preferredJournalId) ? preferredJournalId!.trim() : null;
+    canonicalId ??= primaryJournalIdForDay(entries, day: day);
+
+    final allIds = <String>{};
+    for (final entry in entries) {
+      for (final id in workoutIdsFrom(entry)) {
+        allIds.add(id);
+      }
+    }
+    for (final id in existingJournalWorkoutIds) {
+      if (isValidMongoId(id)) allIds.add(id.trim());
+    }
+    for (final id in newWorkoutIds) {
+      if (isValidMongoId(id)) allIds.add(id.trim());
+    }
+
+    final deduped = allIds.toList();
+    if (deduped.isEmpty) {
+      if (canonicalId != null) return canonicalId;
+      throw Exception('At least one workout is required');
+    }
+
+    if (canonicalId != null) {
+      await updateWorkoutJournal(journalId: canonicalId, workoutIds: deduped, duration: duration, notes: notes);
+      return canonicalId;
+    }
+
+    canonicalId = await findWorkoutJournalIdForToday(date: day);
+    if (canonicalId != null) {
+      await updateWorkoutJournal(journalId: canonicalId, workoutIds: deduped, duration: duration, notes: notes);
+      return canonicalId;
+    }
+
+    return createWorkoutJournalEntry(date: _dateKey(day), workoutIds: deduped, duration: duration, notes: notes);
   }
 
   /// Builds `PUT /customer/workout-journal/:id` body.
@@ -488,7 +552,7 @@ class WorkoutRepository {
     throw Exception('Workout journal id missing from server response');
   }
 
-  /// Links [workoutIds] to today's journal — creates the journal when missing, otherwise appends via PUT.
+  /// Links [workoutIds] to today's single canonical journal entry.
   Future<String> ensureWorkoutJournalLinked({
     required List<String> workoutIds,
     DateTime? date,
@@ -497,44 +561,14 @@ class WorkoutRepository {
     int duration = 0,
     String notes = '',
   }) async {
-    if (workoutIds.isEmpty) {
-      throw Exception('At least one workout is required');
-    }
-
-    final day = date ?? DateTime.now();
-    final dateKey = _dateKey(day);
-
-    var journalId = isValidMongoId(existingJournalId) ? existingJournalId!.trim() : null;
-    journalId ??= await findWorkoutJournalIdForToday(date: day);
-
-    var knownIds = List<String>.from(existingJournalWorkoutIds.where(isValidMongoId));
-    if (journalId != null && knownIds.isEmpty) {
-      try {
-        final page = await fetchWorkoutJournalEntries(dateFrom: day);
-        final entry = journalEntryById(page.entries, journalId);
-        if (entry != null) knownIds = workoutIdsFrom(entry);
-      } catch (_) {
-        /* merge with new ids only */
-      }
-    }
-
-    final merged = <String>[...knownIds, ...workoutIds.where(isValidMongoId)];
-    final seen = <String>{};
-    final deduped = merged.where((id) => seen.add(id)).toList();
-
-    if (journalId != null) {
-      await updateWorkoutJournal(journalId: journalId, workoutIds: deduped, duration: duration, notes: notes);
-      return journalId;
-    }
-
-    // A workout POST may have created today's journal before we link explicitly.
-    journalId = await findWorkoutJournalIdForToday(date: day);
-    if (journalId != null) {
-      await updateWorkoutJournal(journalId: journalId, workoutIds: deduped, duration: duration, notes: notes);
-      return journalId;
-    }
-
-    return createWorkoutJournalEntry(date: dateKey, workoutIds: deduped, duration: duration, notes: notes);
+    return consolidateDayJournal(
+      newWorkoutIds: workoutIds,
+      existingJournalWorkoutIds: existingJournalWorkoutIds,
+      preferredJournalId: existingJournalId,
+      date: date,
+      duration: duration,
+      notes: notes,
+    );
   }
 
   /// Saves/completes a workout journal session (`POST /customer/workout-journal`).
@@ -605,15 +639,24 @@ class WorkoutRepository {
 
   static String? createdWorkoutId(dynamic response) {
     if (response is! Map) return null;
-    final data = Map<String, dynamic>.from(response)['data'];
-    if (data is! Map) return null;
-    final m = Map<String, dynamic>.from(data);
-    final workout = m['workout'];
-    if (workout is Map) {
-      final wm = Map<String, dynamic>.from(workout);
-      return wm['_id']?.toString() ?? wm['id']?.toString();
+    final root = Map<String, dynamic>.from(response);
+    final data = root['data'];
+    if (data is Map) {
+      final m = Map<String, dynamic>.from(data);
+      for (final key in ['workout', 'createdWorkout', 'result']) {
+        final nested = m[key];
+        if (nested is Map) {
+          final wm = Map<String, dynamic>.from(nested);
+          final id = wm['_id']?.toString() ?? wm['id']?.toString();
+          if (id != null && isValidMongoId(id)) return id;
+        }
+      }
+      final direct = m['_id']?.toString() ?? m['id']?.toString();
+      if (direct != null && isValidMongoId(direct)) return direct;
     }
-    return m['_id']?.toString() ?? m['id']?.toString();
+    final top = root['_id']?.toString() ?? root['id']?.toString();
+    if (top != null && isValidMongoId(top)) return top;
+    return null;
   }
 
   static bool _isOk(dynamic response) {

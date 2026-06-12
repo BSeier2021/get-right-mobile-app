@@ -164,8 +164,22 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     }
 
     try {
-      final page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: DateTime.now());
-      final rawEntries = WorkoutRepository.entriesForDay(page);
+      var page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: DateTime.now());
+      var rawEntries = WorkoutRepository.entriesForDay(page);
+
+      if (rawEntries.length > 1) {
+        final canonicalId = WorkoutRepository.primaryJournalIdForDay(rawEntries);
+        if (canonicalId != null) {
+          try {
+            await _workoutRepo.consolidateDayJournal(preferredJournalId: canonicalId);
+            page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: DateTime.now());
+            rawEntries = WorkoutRepository.entriesForDay(page);
+          } catch (_) {
+            /* keep merged UI view if consolidate fails */
+          }
+        }
+      }
+
       final today = WorkoutRepository.todayEntryFrom(page);
       if (!mounted) return;
 
@@ -389,15 +403,13 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       return;
     }
 
-    final now = DateTime.now();
-    final dateKey = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-
     try {
-      if (WorkoutRepository.isValidMongoId(_workoutJournalId)) {
-        await _workoutRepo.updateWorkoutJournal(journalId: _workoutJournalId!, workoutIds: workoutIds, duration: _seconds, notes: '');
-      } else {
-        await _workoutRepo.submitWorkoutJournal(date: dateKey, workoutIds: workoutIds, duration: _seconds, notes: '');
-      }
+      _workoutJournalId = await _workoutRepo.consolidateDayJournal(
+        existingJournalWorkoutIds: workoutIds,
+        preferredJournalId: _workoutJournalId,
+        duration: _seconds,
+        notes: '',
+      );
       await _refreshWorkoutJournalFromApi();
     } catch (e) {
       if (!mounted) return;
@@ -439,8 +451,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   String _formatTime(int s) => '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
   Future<void> _ensureWorkoutJournalId() async {
-    if (WorkoutRepository.isValidMongoId(_workoutJournalId)) return;
-    _workoutJournalId = await _workoutRepo.findWorkoutJournalIdForToday();
+    _workoutJournalId = await _workoutRepo.findWorkoutJournalIdForToday() ?? _workoutJournalId;
   }
 
   List<String> _currentJournalWorkoutIds() {
