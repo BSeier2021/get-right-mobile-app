@@ -2961,187 +2961,217 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
 
     final validCategoryValue = _categoryId != null && categoryItems.any((i) => i.value == _categoryId) ? _categoryId : null;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
-          _buildEditPostHeader(),
-          const SizedBox(height: 10),
-          if (_isVideoPost) _buildVideoMediaCard() else _buildImageMediaCard(),
-          const SizedBox(height: 10),
-          Text('Details', style: _sectionLabelStyle),
-          const SizedBox(height: 8),
-          TextField(controller: _titleController, decoration: _fieldDecoration('Title'), onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus()),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _descriptionController,
-            maxLines: 2,
-            decoration: _fieldDecoration('Description'),
-            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-          ),
-          const SizedBox(height: 10),
-          Text('Tags', style: _sectionLabelStyle),
-          const SizedBox(height: 8),
-          if (_committedTags.isNotEmpty) ...[
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _committedTags
-                  .map(
-                    (t) => InputChip(
-                      label: Text('#$t', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 15)),
-                      deleteIconColor: AppColors.primaryGray,
-                      backgroundColor: _kProfileForestGreen.withValues(alpha: 0.12),
-                      side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.25)),
-                      onDeleted: () => setState(() => _committedTags.remove(t)),
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 8),
-          ],
-          Focus(
-            onKeyEvent: (node, event) {
-              if (event is! KeyDownEvent) return KeyEventResult.ignored;
-              if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
-                _commitTagsFromField();
-                return KeyEventResult.handled;
-              }
-              return KeyEventResult.ignored;
-            },
-            child: TextField(
-              controller: _tagsController,
-              decoration: _fieldDecoration('Add tags', hint: 'Type a tag, then tap Done or Enter', helper: 'Multiple words add multiple tags. # prefix is optional.'),
-              textCapitalization: TextCapitalization.none,
-              keyboardType: TextInputType.text,
-              textInputAction: TextInputAction.done,
-              maxLines: 1,
-              onSubmitted: (_) => _commitTagsFromField(),
-              onEditingComplete: _commitTagsFromField,
-              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text('Visibility', style: _sectionLabelStyle),
-          const SizedBox(height: 8),
-          SegmentedButton<String>(
-            style: ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              side: WidgetStatePropertyAll(BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.35))),
-            ),
-            segments: const [
-              ButtonSegment(value: 'Draft', label: Text('Draft')),
-              ButtonSegment(value: 'Published', label: Text('Published')),
-            ],
-            selected: {_status},
-            onSelectionChanged: _saving ? null : (next) => setState(() => _status = next.first),
-          ),
-          const SizedBox(height: 10),
-          Text('Category', style: _sectionLabelStyle),
-          const SizedBox(height: 8),
-          if (_loadingCategories)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(child: CircularProgressIndicator(color: _kProfileForestGreen)),
-            )
-          else if (_categoriesError != null)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  _categoriesError!,
-                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w400),
-                ),
-                TextButton(
-                  onPressed: _loadCategories,
-                  child: const Text('Retry', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w400)),
-                ),
-              ],
-            )
-          else if (categoryItems.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'No categories available.',
-                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 13, fontWeight: FontWeight.w400),
+          Material(
+            color: AppColors.surface,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.18))),
               ),
-            )
-          else
-            DropdownButtonFormField<String>(
-              value: validCategoryValue,
-              style: categoryDropdownStyle,
-              decoration: _fieldDecoration('Category').copyWith(isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
-              hint: Text('Select category', style: categoryDropdownStyle.copyWith(color: AppColors.primaryGray)),
-              items: categoryItems,
-              onChanged: _saving ? null : (v) => setState(() => _categoryId = v),
+              padding: const EdgeInsets.fromLTRB(30, 12, 12, 12),
+              child: _buildEditPostHeader(),
             ),
-
-          if (_saving && _saveBusyLabel.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              _saveBusyLabel,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 15, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: _saveUploadProgress <= 0 ? null : _saveUploadProgress.clamp(0.0, 1.0),
-                minHeight: 5,
-                backgroundColor: AppColors.primaryGray.withValues(alpha: 0.22),
-                color: _kProfileForestGreen,
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 50,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.onBackground,
-                      backgroundColor: AppColors.surface,
-                      side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.4)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_isVideoPost) _buildVideoMediaCard() else _buildImageMediaCard(),
+                  const SizedBox(height: 10),
+                  Text('Details', style: _sectionLabelStyle),
+                  const SizedBox(height: 8),
+                  TextField(controller: _titleController, decoration: _fieldDecoration('Title'), onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus()),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _descriptionController,
+                    maxLines: 2,
+                    decoration: _fieldDecoration('Description'),
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                  ),
+                  const SizedBox(height: 10),
+                  Text('Tags', style: _sectionLabelStyle),
+                  const SizedBox(height: 8),
+                  if (_committedTags.isNotEmpty) ...[
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _committedTags
+                          .map(
+                            (t) => InputChip(
+                              label: Text('#$t', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 15)),
+                              deleteIconColor: AppColors.primaryGray,
+                              backgroundColor: _kProfileForestGreen.withValues(alpha: 0.12),
+                              side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.25)),
+                              onDeleted: () => setState(() => _committedTags.remove(t)),
+                            ),
+                          )
+                          .toList(),
                     ),
-                    onPressed: _saving ? null : () => Navigator.pop(context),
-                    child: Text(
-                      'Cancel',
-                      style: AppTextStyles.buttonMedium.copyWith(fontWeight: FontWeight.w600, color: AppColors.black),
+                    const SizedBox(height: 8),
+                  ],
+                  Focus(
+                    onKeyEvent: (node, event) {
+                      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                      if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+                        _commitTagsFromField();
+                        return KeyEventResult.handled;
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: TextField(
+                      controller: _tagsController,
+                      decoration: _fieldDecoration('Add tags', hint: 'Type a tag, then tap Done or Enter', helper: 'Multiple words add multiple tags. # prefix is optional.'),
+                      textCapitalization: TextCapitalization.none,
+                      keyboardType: TextInputType.text,
+                      textInputAction: TextInputAction.done,
+                      maxLines: 1,
+                      onSubmitted: (_) => _commitTagsFromField(),
+                      onEditingComplete: _commitTagsFromField,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: SizedBox(
-                  height: 50,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _kProfileForestGreen,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: _kProfileForestGreen.withValues(alpha: 0.5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
+                  const SizedBox(height: 10),
+                  Text('Visibility', style: _sectionLabelStyle),
+                  const SizedBox(height: 8),
+                  SegmentedButton<String>(
+                    style: ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      side: WidgetStatePropertyAll(BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.35))),
                     ),
-                    onPressed: _saving ? null : _save,
-                    child: _saving
-                        ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text(
-                            'Save',
-                            style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                    segments: const [
+                      ButtonSegment(value: 'Draft', label: Text('Draft')),
+                      ButtonSegment(value: 'Published', label: Text('Published')),
+                    ],
+                    selected: {_status},
+                    onSelectionChanged: _saving ? null : (next) => setState(() => _status = next.first),
+                  ),
+                  const SizedBox(height: 10),
+                  Text('Category', style: _sectionLabelStyle),
+                  const SizedBox(height: 8),
+                  if (_loadingCategories)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(child: CircularProgressIndicator(color: _kProfileForestGreen)),
+                    )
+                  else if (_categoriesError != null)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          _categoriesError!,
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w400),
+                        ),
+                        TextButton(
+                          onPressed: _loadCategories,
+                          child: const Text('Retry', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w400)),
+                        ),
+                      ],
+                    )
+                  else if (categoryItems.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'No categories available.',
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontSize: 13, fontWeight: FontWeight.w400),
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      value: validCategoryValue,
+                      style: categoryDropdownStyle,
+                      decoration: _fieldDecoration('Category').copyWith(isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                      hint: Text('Select category', style: categoryDropdownStyle.copyWith(color: AppColors.primaryGray)),
+                      items: categoryItems,
+                      onChanged: _saving ? null : (v) => setState(() => _categoryId = v),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          Material(
+            color: AppColors.surface,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.2))),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, -2))],
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_saving && _saveBusyLabel.isNotEmpty) ...[
+                    Text(
+                      _saveBusyLabel,
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 15, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: _saveUploadProgress <= 0 ? null : _saveUploadProgress.clamp(0.0, 1.0),
+                        minHeight: 5,
+                        backgroundColor: AppColors.primaryGray.withValues(alpha: 0.22),
+                        color: _kProfileForestGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 50,
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.onBackground,
+                              backgroundColor: AppColors.surface,
+                              side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.4)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: _saving ? null : () => Navigator.pop(context),
+                            child: Text(
+                              'Cancel',
+                              style: AppTextStyles.buttonMedium.copyWith(fontWeight: FontWeight.w600, color: AppColors.black),
+                            ),
                           ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SizedBox(
+                          height: 50,
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _kProfileForestGreen,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: _kProfileForestGreen.withValues(alpha: 0.5),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            onPressed: _saving ? null : _save,
+                            child: _saving
+                                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : Text(
+                                    'Save',
+                                    style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),

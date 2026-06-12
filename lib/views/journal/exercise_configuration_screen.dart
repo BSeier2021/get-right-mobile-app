@@ -267,6 +267,14 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
 
   static final _decimalInputFormatter = FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'));
 
+  void _setMainTypeForConfig(_Config cfg, String mainType) {
+    cfg.mainType = mainType;
+    cfg.extraType = mainType == 'Time' ? 'Distance' : 'Weight';
+    for (final set in cfg.sets) {
+      set.updateControllerText(cfg.mainType);
+    }
+  }
+
   String? _validateConfig(_Config cfg, int exerciseNumber) {
     final name = (cfg.name.isNotEmpty ? cfg.name : _nameController.text).trim();
     if (name.isEmpty) {
@@ -1012,7 +1020,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                       final icons = {'Reps': Icons.repeat_rounded, 'Time': Icons.timer_outlined};
                       return Expanded(
                         child: GestureDetector(
-                          onTap: () => setState(() => cfg.mainType = t),
+                          onTap: () => setState(() => _setMainTypeForConfig(cfg, t)),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             curve: Curves.easeInOut,

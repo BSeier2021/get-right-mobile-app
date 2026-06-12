@@ -999,13 +999,17 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   }
 
   Map<String, dynamic> _mapBundleItemToCard(Map<String, dynamic> m) {
-    final promo = m['promoMedia'];
     String? imageUrl;
-    if (promo is Map<String, dynamic>) {
-      imageUrl = promo['url']?.toString();
+    final promo = m['promoMedia'];
+    if (promo is Map) {
+      imageUrl = ImageUrlSanitizer.resolveMediaUrl(Map<String, dynamic>.from(promo)['url']?.toString());
     }
+    final thumbRaw = _firstUrlFromMap(m, const ['thumbnail', 'cover', 'image', 'poster']);
+    imageUrl ??= ImageUrlSanitizer.resolveMediaUrl(thumbRaw.isEmpty ? null : thumbRaw);
+    imageUrl ??= ImageUrlSanitizer.asHttpUrlOrNull(m['imageUrl']?.toString());
+
     final id = (m['_id'] ?? m['id'])?.toString() ?? '';
-    return {'_id': id, 'id': id, 'title': (m['title'] ?? m['name'] ?? 'Bundle').toString(), 'price': _effectivePrice(m), 'imageUrl': imageUrl ?? m['imageUrl']?.toString()};
+    return {'_id': id, 'id': id, 'title': (m['title'] ?? m['name'] ?? 'Bundle').toString(), 'price': _effectivePrice(m), 'imageUrl': imageUrl};
   }
 
   List<Map<String, dynamic>> _parseProgramsList(dynamic raw, {required String trainerName}) {
@@ -1920,6 +1924,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   }
 
   Widget _buildBundleCard(Map<String, dynamic> bundle) {
+    final imageUrl = ImageUrlSanitizer.asHttpUrlOrNull(bundle['imageUrl']?.toString());
+
     return GestureDetector(
       onTap: () => Get.toNamed(AppRoutes.bundleDetail, arguments: bundle),
       child: Container(
@@ -1936,18 +1942,15 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             Expanded(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: Image.network(
-                  ImageUrlSanitizer.asHttpUrlOrFallback(bundle['imageUrl']?.toString()),
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.accent, AppColors.accentVariant])),
-                    child: const Center(child: Icon(Icons.fitness_center, size: 40, color: Colors.white)),
-                  ),
-                ),
+                child: imageUrl != null
+                    ? Image.network(
+                        imageUrl,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => _bundleImagePlaceholder(),
+                      )
+                    : _bundleImagePlaceholder(),
               ),
             ),
             Padding(
@@ -1972,6 +1975,15 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
           ],
         ),
       ),
+    );
+  }
+
+  Widget _bundleImagePlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.accent, AppColors.accentVariant])),
+      child: const Center(child: Icon(Icons.fitness_center, size: 40, color: Colors.white)),
     );
   }
 
