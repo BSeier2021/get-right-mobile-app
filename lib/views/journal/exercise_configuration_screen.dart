@@ -370,6 +370,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         }
 
         if (createdApiIds.isNotEmpty) {
+          journalId ??= await _workoutRepo.findWorkoutJournalIdForToday();
           journalId = await _workoutRepo.ensureWorkoutJournalLinked(workoutIds: createdApiIds, existingJournalId: journalId, existingJournalWorkoutIds: _journalWorkoutIds);
           _workoutJournalId = journalId;
         }

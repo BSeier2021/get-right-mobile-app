@@ -23,6 +23,8 @@ import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/utils/profile_contact_fields.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
+import 'package:get_right/views/marketplace/program_hls_player_screen.dart';
+import 'package:get_right/widgets/safe_network_image.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -2184,6 +2186,37 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
     }
   }
 
+  void _openEditImagesFullScreen() {
+    if (_editImages.isEmpty || _saving) return;
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => _EditPostImageViewerScreen(images: List<_EditFeedImage>.from(_editImages), initialIndex: _previewImageIndex),
+      ),
+    );
+  }
+
+  Future<void> _openEditVideoFullScreen() async {
+    if (_saving) return;
+
+    if (_replacementVideo != null) {
+      await Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => _EditPostLocalVideoViewerScreen(path: _replacementVideo!.path)));
+      return;
+    }
+
+    final rawUrl = (widget.post['videoUrl'] ?? '').toString().trim();
+    final videoUrl = ImageUrlSanitizer.asHttpUrlOrNull(rawUrl) ?? rawUrl;
+    final uri = Uri.tryParse(videoUrl);
+    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+      await Get.to<void>(() => ProgramHlsPlayerScreen(videoUri: uri, title: (widget.post['title'] ?? 'Video').toString()));
+      return;
+    }
+
+    final feedId = (widget.post['id'] ?? '').toString().trim();
+    if (feedId.isNotEmpty) {
+      await Get.toNamed(AppRoutes.feedSingleReel, arguments: <String, dynamic>{'feedId': feedId});
+    }
+  }
+
   void _removeEditImageAt(int index) {
     if (index < 0 || index >= _editImages.length) return;
     if (_editImages.length <= 1) {
@@ -2479,30 +2512,19 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
       core = AspectRatio(aspectRatio: ar > 0 && !ar.isNaN ? ar : 16 / 9, child: VideoPlayer(c));
     }
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        if (c.value.isPlaying) {
-          c.pause();
-        } else {
-          c.play();
-        }
-        setState(() {});
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Center(child: core),
-          if (!v.isPlaying)
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), shape: BoxShape.circle),
-                child: const Icon(Icons.play_arrow, color: Colors.white, size: 40),
-              ),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Center(child: core),
+        if (!v.isPlaying)
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), shape: BoxShape.circle),
+              child: const Icon(Icons.play_arrow, color: Colors.white, size: 40),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
@@ -2718,6 +2740,16 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
     );
   }
 
+  Widget _buildMediaOpenHint() {
+    return IgnorePointer(
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(8)),
+        child: const Icon(Icons.fullscreen, color: Colors.white, size: 18),
+      ),
+    );
+  }
+
   Widget _buildMediaActionBar({
     required VoidCallback onGallery,
     required VoidCallback onCamera,
@@ -2760,7 +2792,7 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('Media', style: _sectionLabelStyle),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
@@ -2770,31 +2802,36 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              SizedBox(
-                height: 180,
-                width: double.infinity,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ColoredBox(
-                      color: Colors.black,
-                      child: _replacementVideo != null
-                          ? _buildReplacementVideoPreview()
-                          : Image.network(
-                              (widget.post['thumbnail'] ?? '').toString(),
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: 180,
-                              errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.videocam, color: Colors.white54, size: 48)),
-                            ),
-                    ),
-                    if (_replacementVideo != null)
-                      Positioned(top: 10, left: 10, child: _buildMediaStatusChip('New video selected'))
-                    else
-                      const Positioned.fill(
-                        child: Center(child: Icon(Icons.play_circle_fill, color: Colors.white54, size: 44)),
+              GestureDetector(
+                onTap: _openEditVideoFullScreen,
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  height: 120,
+                  width: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ColoredBox(
+                        color: Colors.black,
+                        child: _replacementVideo != null
+                            ? _buildReplacementVideoPreview()
+                            : Image.network(
+                                (widget.post['thumbnail'] ?? '').toString(),
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: 180,
+                                errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.videocam, color: Colors.white54, size: 48)),
+                              ),
                       ),
-                  ],
+                      if (_replacementVideo != null)
+                        Positioned(top: 10, left: 10, child: _buildMediaStatusChip('New video selected'))
+                      else
+                        const Positioned.fill(
+                          child: Center(child: Icon(Icons.play_circle_fill, color: Colors.white54, size: 44)),
+                        ),
+                      Positioned(bottom: 8, right: 8, child: _buildMediaOpenHint()),
+                    ],
+                  ),
                 ),
               ),
               if (!_saving)
@@ -2818,7 +2855,7 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('Media', style: _sectionLabelStyle),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
@@ -2828,28 +2865,33 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              SizedBox(
-                height: 180,
-                width: double.infinity,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _buildEditImagePreview(),
-                    if (_editImages.length > 1)
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(20)),
-                          child: Text(
-                            '${_previewImageIndex + 1}/${_editImages.length}',
-                            style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+              GestureDetector(
+                onTap: _openEditImagesFullScreen,
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  height: 120,
+                  width: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _buildEditImagePreview(),
+                      if (_editImages.length > 1)
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(20)),
+                            child: Text(
+                              '${_previewImageIndex + 1}/${_editImages.length}',
+                              style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                            ),
                           ),
                         ),
-                      ),
-                    if (_imagesDirty) Positioned(top: 10, left: 10, child: _buildMediaStatusChip('Unsaved changes')),
-                  ],
+                      if (_imagesDirty) Positioned(top: 10, left: 10, child: _buildMediaStatusChip('Unsaved changes')),
+                      if (_editImages.isNotEmpty) Positioned(bottom: 8, right: 8, child: _buildMediaOpenHint()),
+                    ],
+                  ),
                 ),
               ),
               if (_editImages.length > 1) ...[
@@ -2925,21 +2967,23 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const SizedBox(height: 20),
+
           _buildEditPostHeader(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           if (_isVideoPost) _buildVideoMediaCard() else _buildImageMediaCard(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Text('Details', style: _sectionLabelStyle),
           const SizedBox(height: 8),
           TextField(controller: _titleController, decoration: _fieldDecoration('Title'), onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus()),
           const SizedBox(height: 12),
           TextField(
             controller: _descriptionController,
-            maxLines: 4,
+            maxLines: 2,
             decoration: _fieldDecoration('Description'),
             onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Text('Tags', style: _sectionLabelStyle),
           const SizedBox(height: 8),
           if (_committedTags.isNotEmpty) ...[
@@ -2981,7 +3025,7 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
               onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Text('Visibility', style: _sectionLabelStyle),
           const SizedBox(height: 8),
           SegmentedButton<String>(
@@ -2996,7 +3040,7 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
             selected: {_status},
             onSelectionChanged: _saving ? null : (next) => setState(() => _status = next.first),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Text('Category', style: _sectionLabelStyle),
           const SizedBox(height: 8),
           if (_loadingCategories)
@@ -3068,7 +3112,10 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: _saving ? null : () => Navigator.pop(context),
-                    child: Text('Cancel', style: AppTextStyles.buttonMedium.copyWith(fontWeight: FontWeight.w600)),
+                    child: Text(
+                      'Cancel',
+                      style: AppTextStyles.buttonMedium.copyWith(fontWeight: FontWeight.w600, color: AppColors.black),
+                    ),
                   ),
                 ),
               ),
@@ -3097,6 +3144,196 @@ class _ProfileEditPostSheetState extends State<_ProfileEditPostSheet> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _EditPostImageViewerScreen extends StatefulWidget {
+  const _EditPostImageViewerScreen({required this.images, this.initialIndex = 0});
+
+  final List<_EditFeedImage> images;
+  final int initialIndex;
+
+  @override
+  State<_EditPostImageViewerScreen> createState() => _EditPostImageViewerScreenState();
+}
+
+class _EditPostImageViewerScreenState extends State<_EditPostImageViewerScreen> {
+  late final PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, widget.images.length - 1);
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = widget.images.length;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(count > 1 ? '${_currentIndex + 1} / $count' : 'Photo', style: AppTextStyles.titleMedium.copyWith(color: Colors.white)),
+      ),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: count,
+        onPageChanged: (index) => setState(() => _currentIndex = index),
+        itemBuilder: (context, index) {
+          final img = widget.images[index];
+          return Center(child: InteractiveViewer(minScale: 0.5, maxScale: 4, child: _buildImage(img)));
+        },
+      ),
+    );
+  }
+
+  Widget _buildImage(_EditFeedImage img) {
+    final localPath = img.localPath;
+    if (localPath != null && localPath.isNotEmpty) {
+      final file = File(localPath);
+      if (!file.existsSync()) {
+        return _imageError('Image file not found');
+      }
+      return Image.file(file, fit: BoxFit.contain);
+    }
+
+    final url = ImageUrlSanitizer.asHttpUrlOrNull(img.networkUrl ?? '');
+    if (url == null) {
+      return _imageError('Invalid image URL');
+    }
+
+    return SafeNetworkImage(url: url, fit: BoxFit.contain, fallback: _imageError('Failed to load image'));
+  }
+
+  Widget _imageError(String message) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.broken_image, color: Colors.white54, size: 64),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditPostLocalVideoViewerScreen extends StatefulWidget {
+  const _EditPostLocalVideoViewerScreen({required this.path});
+
+  final String path;
+
+  @override
+  State<_EditPostLocalVideoViewerScreen> createState() => _EditPostLocalVideoViewerScreenState();
+}
+
+class _EditPostLocalVideoViewerScreenState extends State<_EditPostLocalVideoViewerScreen> {
+  VideoPlayerController? _controller;
+  String? _initError;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final controller = VideoPlayerController.file(File(widget.path));
+    _controller = controller;
+    controller.addListener(() {
+      if (mounted) setState(() {});
+    });
+
+    try {
+      await controller.initialize();
+      await controller.setLooping(true);
+      await controller.play();
+      if (mounted) setState(() {});
+    } catch (e) {
+      await controller.dispose();
+      if (!mounted) return;
+      setState(() {
+        _controller = null;
+        _initError = e.toString();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _togglePlayback() {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    if (c.value.isPlaying) {
+      c.pause();
+    } else {
+      c.play();
+    }
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final err = _initError;
+    final c = _controller;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text('Video preview', style: AppTextStyles.titleMedium.copyWith(color: Colors.white)),
+      ),
+      body: GestureDetector(
+        onTap: _togglePlayback,
+        behavior: HitTestBehavior.opaque,
+        child: Center(
+          child: err != null
+              ? Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    err,
+                    style: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              : c == null || !c.value.isInitialized
+              ? const CircularProgressIndicator(color: Colors.white54)
+              : Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    AspectRatio(aspectRatio: c.value.aspectRatio > 0 ? c.value.aspectRatio : 16 / 9, child: VideoPlayer(c)),
+                    if (!c.value.isPlaying)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), shape: BoxShape.circle),
+                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 50),
+                      ),
+                  ],
+                ),
+        ),
       ),
     );
   }

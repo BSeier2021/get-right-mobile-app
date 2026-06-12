@@ -412,11 +412,16 @@ class WorkoutRepository {
 
     final warmupExercises = <WorkoutExerciseModel>[];
     final workoutExercises = <WorkoutExerciseModel>[];
+    final seenExerciseIds = <String>{};
     var totalDuration = 0;
 
     for (final entry in sorted) {
-      warmupExercises.addAll(entry.warmupExercises);
-      workoutExercises.addAll(entry.workoutExercises);
+      for (final ex in entry.warmupExercises) {
+        if (seenExerciseIds.add(ex.id)) warmupExercises.add(ex);
+      }
+      for (final ex in entry.workoutExercises) {
+        if (seenExerciseIds.add(ex.id)) workoutExercises.add(ex);
+      }
       totalDuration += entry.durationSeconds ?? 0;
     }
 
@@ -517,6 +522,13 @@ class WorkoutRepository {
     final seen = <String>{};
     final deduped = merged.where((id) => seen.add(id)).toList();
 
+    if (journalId != null) {
+      await updateWorkoutJournal(journalId: journalId, workoutIds: deduped, duration: duration, notes: notes);
+      return journalId;
+    }
+
+    // A workout POST may have created today's journal before we link explicitly.
+    journalId = await findWorkoutJournalIdForToday(date: day);
     if (journalId != null) {
       await updateWorkoutJournal(journalId: journalId, workoutIds: deduped, duration: duration, notes: notes);
       return journalId;

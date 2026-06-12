@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -10,6 +12,7 @@ import 'package:get_right/models/exercise_set_model.dart';
 import 'package:get_right/models/journal_exercise_type.dart';
 import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/journal/exercise_card.dart';
@@ -25,9 +28,12 @@ class WorkoutJournalScreen extends StatefulWidget {
 }
 
 class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
+  static const _exerciseSectionPrefsPrefix = 'workout_journal_exercise_sections_v1';
+
   WorkoutJournalModel? _workout;
   List<WorkoutJournalModel> _journalEntries = [];
   Map<String, String> _workoutJournalByExerciseId = {};
+  Map<String, JournalExerciseType> _exerciseSectionById = {};
   String? _workoutJournalId;
   bool _isLoading = true;
   bool _isSavingJournal = false;
@@ -58,72 +64,95 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   }
 
   Future<void> _loadWorkoutJournal() async {
+    await _loadExerciseSections();
     await _refreshWorkoutJournalFromApi(showLoading: true);
+  }
+
+  Future<String> _exerciseSectionPrefsKey() async {
+    final storage = await StorageService.getInstance();
+    final userId = storage.getUserId()?.trim();
+    if (userId != null && userId.isNotEmpty) {
+      return '${_exerciseSectionPrefsPrefix}_$userId';
+    }
+    return _exerciseSectionPrefsPrefix;
+  }
+
+  Future<void> _loadExerciseSections() async {
+    final storage = await StorageService.getInstance();
+    final raw = storage.getString(await _exerciseSectionPrefsKey());
+    if (raw == null || raw.isEmpty) return;
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final next = <String, JournalExerciseType>{};
+      decoded.forEach((key, value) {
+        final id = key.toString();
+        if (!WorkoutRepository.isValidMongoId(id)) return;
+        next[id] = JournalExerciseType.fromApi(value?.toString()) ?? JournalExerciseType.workout;
+      });
+      _exerciseSectionById = next;
+    } catch (_) {
+      /* ignore corrupt prefs */
+    }
+  }
+
+  Future<void> _persistExerciseSections() async {
+    final storage = await StorageService.getInstance();
+    final payload = _exerciseSectionById.map((id, type) => MapEntry(id, type.apiValue));
+    await storage.saveString(await _exerciseSectionPrefsKey(), jsonEncode(payload));
+  }
+
+  Future<void> _rememberExerciseSections(Iterable<WorkoutExerciseModel> exercises, JournalExerciseType type) async {
+    var changed = false;
+    for (final ex in exercises) {
+      if (!WorkoutRepository.isValidMongoId(ex.id)) continue;
+      _exerciseSectionById[ex.id] = type;
+      changed = true;
+    }
+    if (changed) await _persistExerciseSections();
+  }
+
+  Future<void> _forgetExerciseSection(String exerciseId) async {
+    if (_exerciseSectionById.remove(exerciseId) != null) {
+      await _persistExerciseSections();
+    }
   }
 
   WorkoutJournalModel _emptyWorkoutShell() {
     return WorkoutJournalModel(id: '', userId: 'user_1', date: DateTime.now(), warmupExercises: [], workoutExercises: [], createdAt: DateTime.now());
   }
 
-  WorkoutJournalModel _reconcileExerciseSections(WorkoutJournalModel? previous, WorkoutJournalModel fromApi) {
-    if (previous == null) return fromApi;
-
-    final prevWarmupIds = previous.warmupExercises.map((e) => e.id).toSet();
-    final prevWorkoutIds = previous.workoutExercises.map((e) => e.id).toSet();
-    final apiWarmupIds = fromApi.warmupExercises.map((e) => e.id).toSet();
-    final seen = <String>{};
+  WorkoutJournalModel _applyStoredExerciseSections(WorkoutJournalModel fromApi) {
     final warmup = <WorkoutExerciseModel>[];
     final workout = <WorkoutExerciseModel>[];
+    final seen = <String>{};
+    var sectionsChanged = false;
 
-    void bucket(WorkoutExerciseModel ex) {
-      if (!seen.add(ex.id)) return;
-      if (ex.exerciseType?.isWarmup == true || prevWarmupIds.contains(ex.id) || apiWarmupIds.contains(ex.id)) {
-        warmup.add(ex);
+    for (final ex in fromApi.allExercises) {
+      if (!seen.add(ex.id)) continue;
+
+      final type = ex.exerciseType ?? _exerciseSectionById[ex.id] ?? JournalExerciseType.workout;
+      if (ex.exerciseType != null && WorkoutRepository.isValidMongoId(ex.id)) {
+        if (_exerciseSectionById[ex.id] != ex.exerciseType) {
+          _exerciseSectionById[ex.id] = ex.exerciseType!;
+          sectionsChanged = true;
+        }
+      }
+
+      final typed = ex.exerciseType == null ? ex.copyWith(exerciseType: type) : ex;
+      if (type.isWarmup) {
+        warmup.add(typed);
       } else {
-        workout.add(ex);
+        workout.add(typed);
       }
     }
 
-    for (final ex in fromApi.warmupExercises) {
-      bucket(ex);
-    }
-    for (final ex in fromApi.workoutExercises) {
-      bucket(ex);
-    }
-
-    for (final ex in previous.warmupExercises) {
-      if (!seen.contains(ex.id)) warmup.add(ex);
-    }
-    for (final ex in previous.workoutExercises) {
-      if (!seen.contains(ex.id) && prevWorkoutIds.contains(ex.id)) workout.add(ex);
+    if (sectionsChanged) {
+      unawaited(_persistExerciseSections());
     }
 
     return fromApi.copyWith(warmupExercises: warmup, workoutExercises: workout);
-  }
-
-  void _mergeExercisesFromSaveResult(Map<String, dynamic> result) {
-    final rawExercises = result['exercises'];
-    if (rawExercises is! List || rawExercises.isEmpty) return;
-
-    final exercises = rawExercises.whereType<WorkoutExerciseModel>().toList();
-    if (exercises.isEmpty) return;
-
-    final type = result['exerciseType'] is JournalExerciseType
-        ? result['exerciseType'] as JournalExerciseType
-        : (result['isWarmup'] == true ? JournalExerciseType.warmup : JournalExerciseType.workout);
-
-    final typed = exercises
-        .map((e) => e.exerciseType == null ? e.copyWith(exerciseType: type) : e)
-        .toList();
-
-    setState(() {
-      _workout ??= _emptyWorkoutShell();
-      if (type.isWarmup) {
-        _workout = _workout!.copyWith(warmupExercises: [..._workout!.warmupExercises, ...typed]);
-      } else {
-        _workout = _workout!.copyWith(workoutExercises: [..._workout!.workoutExercises, ...typed]);
-      }
-    });
   }
 
   Future<void> _refreshWorkoutJournalFromApi({bool showLoading = false}) async {
@@ -146,8 +175,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         _workoutJournalByExerciseId = WorkoutRepository.exerciseJournalMapFrom(rawEntries);
         _workoutJournalId = WorkoutRepository.primaryJournalIdForDay(rawEntries) ?? _workoutJournalId;
         if (today != null && today.id.isNotEmpty) {
-          final merged = _reconcileExerciseSections(
-            previousWorkout,
+          _workout = _applyStoredExerciseSections(
             today.copyWith(
               startedAt: previousWorkout?.startedAt,
               completedAt: previousWorkout?.completedAt,
@@ -155,7 +183,6 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               caloriesBurned: previousWorkout?.caloriesBurned,
             ),
           );
-          _workout = merged;
         } else if (_workout == null) {
           _workoutJournalId = null;
           _workout = _emptyWorkoutShell();
@@ -226,6 +253,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     if (entry == null) return;
 
     final remainingIds = WorkoutRepository.workoutIdsFrom(entry).where((id) => id != ex.id).toList();
+    await _forgetExerciseSection(ex.id);
     await _persistJournalEntry(journalId: journalId, workoutIds: remainingIds);
   }
 
@@ -445,7 +473,9 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       },
     )?.then((r) async {
       if (r is! Map || r['exercises'] == null) return;
-      _mergeExercisesFromSaveResult(Map<String, dynamic>.from(r));
+      final type = r['exerciseType'] is JournalExerciseType ? r['exerciseType'] as JournalExerciseType : JournalExerciseType.fromIsWarmup(r['isWarmup'] == true);
+      final exercises = (r['exercises'] as List).whereType<WorkoutExerciseModel>();
+      await _rememberExerciseSections(exercises, type);
       await _refreshWorkoutJournalFromApi();
     });
   }
