@@ -484,6 +484,10 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       },
     )?.then((r) async {
       if (r is! Map || r['exercises'] == null) return;
+      final returnedJournalId = r['workoutJournalId']?.toString();
+      if (WorkoutRepository.isValidMongoId(returnedJournalId)) {
+        _workoutJournalId = returnedJournalId;
+      }
       final type = r['exerciseType'] is JournalExerciseType ? r['exerciseType'] as JournalExerciseType : JournalExerciseType.fromIsWarmup(r['isWarmup'] == true);
       final exercises = (r['exercises'] as List).whereType<WorkoutExerciseModel>();
       await _rememberExerciseSections(exercises, type);

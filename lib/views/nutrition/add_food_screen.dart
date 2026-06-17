@@ -25,7 +25,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
   late TabController _tabController;
   final controller = Get.find<NutritionController>();
 
-  /// Custom foods from `GET /nutrition/foods/custom` when [meal id] is known.
+  /// Custom foods from `GET /customer/food-saves`.
   final List<FoodItem> _apiSavedItems = [];
   bool _apiLoading = false;
   bool _apiLoadingMore = false;
@@ -58,43 +58,27 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
           await auth.fetchNutritionMealTypes();
         }
       }
-      if (mounted) _ensureApiCustomFoodsLoaded();
+      if (mounted) _ensureFoodSavesLoaded();
     });
   }
 
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
     if (_tabController.index == 0) {
-      _ensureApiCustomFoodsLoaded();
+      _ensureFoodSavesLoaded();
     }
   }
 
-  String? _resolvedMealId() {
-    if (widget.mealTypeApiId != null && widget.mealTypeApiId!.trim().isNotEmpty) {
-      return widget.mealTypeApiId!.trim();
-    }
-    if (!Get.isRegistered<AuthController>()) return null;
-    for (final o in Get.find<AuthController>().nutritionMealTypes) {
-      if (o.mealTypeEnum == widget.mealType && o.id.isNotEmpty) return o.id;
-    }
-    return null;
-  }
-
-  /// `POST /nutrition/foods/custom` body field `mealType` — API expects slug only: `breakfast` | `lunch` | `dinner` | `snacks`.
-  String _mealTypeForApiBody() => widget.mealType.name;
-
-  void _ensureApiCustomFoodsLoaded() {
-    final mid = _resolvedMealId();
-    if (mid == null) return;
+  void _ensureFoodSavesLoaded() {
+    if (!Get.isRegistered<AuthController>()) return;
     if (_apiLoading) return;
     if (_apiInitialFetchDone) return;
     _apiInitialFetchDone = true;
-    _fetchApiCustomFoods(append: false);
+    _fetchFoodSaves(append: false);
   }
 
-  Future<void> _fetchApiCustomFoods({required bool append}) async {
-    final mid = _resolvedMealId();
-    if (mid == null || !Get.isRegistered<AuthController>()) return;
+  Future<void> _fetchFoodSaves({required bool append}) async {
+    if (!Get.isRegistered<AuthController>()) return;
 
     if (append) {
       if (_apiLoadingMore || !_apiHasMore || _apiLoading) return;
@@ -108,7 +92,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
     }
 
     final page = append ? _apiPage + 1 : 1;
-    final result = await Get.find<AuthController>().fetchNutritionCustomFoods(mealId: mid, page: page, perPage: 20);
+    final result = await Get.find<AuthController>().fetchFoodSaves(page: page, limit: 10);
     if (!mounted) return;
 
     setState(() {
@@ -133,6 +117,20 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
       _apiHasMore = result.hasMore;
     });
   }
+
+  String? _resolvedMealId() {
+    if (widget.mealTypeApiId != null && widget.mealTypeApiId!.trim().isNotEmpty) {
+      return widget.mealTypeApiId!.trim();
+    }
+    if (!Get.isRegistered<AuthController>()) return null;
+    for (final o in Get.find<AuthController>().nutritionMealTypes) {
+      if (o.mealTypeEnum == widget.mealType && o.id.isNotEmpty) return o.id;
+    }
+    return null;
+  }
+
+  /// `POST /nutrition/foods/custom` body field `mealType` — API expects slug only: `breakfast` | `lunch` | `dinner` | `snacks`.
+  String _mealTypeForApiBody() => widget.mealType.name;
 
   @override
   void dispose() {
@@ -206,10 +204,13 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
   }
 
   Widget _buildSavedItemsTab() {
-    final mealId = _resolvedMealId();
-    if (mealId != null) {
+    if (Get.isRegistered<AuthController>()) {
       return RefreshIndicator(
-        onRefresh: () => _fetchApiCustomFoods(append: false),
+        onRefresh: () async {
+          _apiInitialFetchDone = false;
+          await _fetchFoodSaves(append: false);
+          _apiInitialFetchDone = true;
+        },
         child: _apiLoading && _apiSavedItems.isEmpty
             ? ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -223,7 +224,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                   if (n.metrics.axis != Axis.vertical) return false;
                   if (n.metrics.pixels >= n.metrics.maxScrollExtent - 280) {
                     if (_apiHasMore && !_apiLoadingMore && !_apiLoading) {
-                      _fetchApiCustomFoods(append: true);
+                      _fetchFoodSaves(append: true);
                     }
                   }
                   return false;
@@ -249,7 +250,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                             ),
                             const SizedBox(height: 24),
                             Text(
-                              'No saved foods for this meal',
+                              'No saved foods yet',
                               style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                               textAlign: TextAlign.center,
                             ),
@@ -263,7 +264,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                         ),
                       )
                     else
-                      ..._apiSavedItems.map((item) => _buildSavedFoodCard(item)),
+                      ..._apiSavedItems.map((item) => KeyedSubtree(key: ValueKey(item.id), child: _buildSavedFoodCard(item))),
                     if (_apiLoadingMore)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16),
@@ -906,19 +907,26 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                   // Food Name
                   _buildTextField(controller: editNameController, label: 'Food Name', hint: 'e.g., Chicken Breast'),
                   const SizedBox(height: 16),
-                  // Serving Size and Unit
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(controller: editServingSizeController, label: 'Serving Size', hint: '1', keyboardType: TextInputType.number),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildTextField(controller: editServingUnitController, label: 'Unit', hint: 'serving'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                  if (!item.isNutritionApiCustom) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTextField(controller: editServingSizeController, label: 'Serving Size', hint: '1', keyboardType: TextInputType.number),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildTextField(controller: editServingUnitController, label: 'Unit', hint: 'serving'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ] else ...[
+                    Text(
+                      'Serving: ${item.servingUnit ?? '${item.nutritionApiServingSize ?? item.defaultServingSize} ${item.nutritionApiServingUnit ?? 'serving'}'}',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   // Calories
                   _buildTextField(controller: editCaloriesController, label: 'Calories', hint: 'e.g., 200', keyboardType: TextInputType.number),
                   const SizedBox(height: 16),
@@ -978,27 +986,32 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                             Get.snackbar('Error', 'Sign in to edit foods', snackPosition: SnackPosition.BOTTOM);
                             return;
                           }
-                          final updated = await Get.find<AuthController>().updateNutritionCustomFood(
+                          final updated = await Get.find<AuthController>().updateFoodSave(
                             id: item.id,
                             name: editNameController.text.trim(),
-                            servingSize: servingSize,
-                            servingUnit: servingUnit,
                             calories: double.tryParse(editCaloriesController.text) ?? item.calories,
-                            proteinG: double.tryParse(editProteinController.text) ?? item.protein,
-                            carbsG: double.tryParse(editCarbsController.text) ?? item.carbs,
-                            fatG: double.tryParse(editFatsController.text) ?? item.fats,
-                            mealId: _resolvedMealId(),
+                            protein: double.tryParse(editProteinController.text) ?? item.protein,
+                            carbs: double.tryParse(editCarbsController.text) ?? item.carbs,
+                            fats: double.tryParse(editFatsController.text) ?? item.fats,
                           );
                           if (!context.mounted) return;
                           if (updated == null) return;
+                          final merged = item.mergeFoodSaveUpdate(
+                            name: editNameController.text.trim(),
+                            calories: double.tryParse(editCaloriesController.text) ?? item.calories,
+                            protein: double.tryParse(editProteinController.text) ?? item.protein,
+                            carbs: double.tryParse(editCarbsController.text) ?? item.carbs,
+                            fats: double.tryParse(editFatsController.text) ?? item.fats,
+                            fromApi: updated,
+                          );
                           setState(() {
                             final i = _apiSavedItems.indexWhere((e) => e.id == item.id);
-                            if (i >= 0) _apiSavedItems[i] = updated;
+                            if (i >= 0) _apiSavedItems[i] = merged;
                           });
                           Navigator.pop(context);
                           Get.snackbar(
                             'Success',
-                            '${updated.name} updated successfully',
+                            '${merged.name} updated successfully',
                             snackPosition: SnackPosition.BOTTOM,
                             backgroundColor: AppColors.accent,
                             colorText: Colors.white,
@@ -1095,7 +1108,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
         Get.snackbar('Error', 'Sign in to delete foods', snackPosition: SnackPosition.BOTTOM);
         return;
       }
-      final ok = await Get.find<AuthController>().deleteNutritionCustomFood(item.id, mealId: _resolvedMealId());
+      final ok = await Get.find<AuthController>().deleteFoodSave(item.id);
       if (!mounted) return;
       if (ok) {
         setState(() => _apiSavedItems.removeWhere((e) => e.id == item.id));

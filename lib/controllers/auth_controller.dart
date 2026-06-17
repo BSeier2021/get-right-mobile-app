@@ -2838,6 +2838,171 @@ class AuthController extends GetxController {
       return false;
     }
   }
+
+  /// `GET /customer/food-saves` — returns parsed page or null on failure.
+  Future<NutritionCustomFoodsPage?> fetchFoodSaves({int page = 1, int limit = 10}) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getFoodSavesRepo(page: page, limit: limit);
+      if (response is! Map<String, dynamic>) return null;
+      if (response['success'] != true) return null;
+
+      final data = response['data'];
+      final list = <FoodItem>[];
+      List<dynamic>? rawRows;
+      var totalDocs = 0;
+      var currentPage = page;
+      var hasNextPage = false;
+
+      if (data is Map) {
+        final dm = Map<String, dynamic>.from(data);
+        totalDocs = int.tryParse(dm['totalDocs']?.toString() ?? '') ?? 0;
+        currentPage = int.tryParse(dm['currentPage']?.toString() ?? '') ?? page;
+        hasNextPage = dm['hasNextPage'] == true;
+        for (final key in ['foods', 'items', 'results', 'rows', 'list', 'data']) {
+          final v = dm[key];
+          if (v is List) {
+            rawRows = v;
+            break;
+          }
+        }
+      } else if (data is List) {
+        rawRows = data;
+        totalDocs = data.length;
+      }
+
+      if (rawRows != null) {
+        for (final e in rawRows) {
+          if (e is Map<String, dynamic>) {
+            list.add(FoodItem.fromFoodSaveApi(e));
+          } else if (e is Map) {
+            list.add(FoodItem.fromFoodSaveApi(Map<String, dynamic>.from(e)));
+          }
+        }
+      }
+
+      if (totalDocs == 0 && list.isNotEmpty) totalDocs = list.length;
+
+      return NutritionCustomFoodsPage(
+        items: list,
+        total: totalDocs,
+        page: currentPage,
+        perPage: limit,
+        hasNextPage: hasNextPage,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// `PUT /customer/food-saves/:id` — body: name, calories, macronutrients.
+  Future<FoodItem?> updateFoodSave({
+    required String id,
+    required String name,
+    required double calories,
+    required double protein,
+    required double carbs,
+    required double fats,
+  }) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.updateFoodSaveRepo(id.trim(), {
+        'name': name.trim(),
+        'calories': calories,
+        'macronutrients': {'protein': protein, 'carbs': carbs, 'fats': fats},
+      });
+
+      if (response is! Map<String, dynamic>) {
+        _snackError('Saved food', 'Unexpected response from server');
+        return null;
+      }
+      if (response['success'] != true) {
+        _snackError('Saved food', response['message']?.toString() ?? 'Could not update food');
+        return null;
+      }
+
+      final data = response['data'];
+      FoodItem? parsed;
+      if (data is Map<String, dynamic>) {
+        parsed = FoodItem.fromFoodSaveApi(data);
+      } else if (data is Map) {
+        parsed = FoodItem.fromFoodSaveApi(Map<String, dynamic>.from(data));
+      }
+
+      return FoodItem(
+        id: id.trim(),
+        name: name.trim(),
+        calories: calories,
+        protein: protein,
+        carbs: carbs,
+        fats: fats,
+        isNutritionApiCustom: true,
+        isSaved: true,
+      ).mergeFoodSaveUpdate(name: name, calories: calories, protein: protein, carbs: carbs, fats: fats, fromApi: parsed);
+    } on BadRequestException catch (e) {
+      _snackError('Saved food', e.message);
+      return null;
+    } on UnauthorizedException catch (e) {
+      _snackError('Saved food', e.message);
+      return null;
+    } on ForbiddenException catch (e) {
+      _snackError('Saved food', e.message);
+      return null;
+    } on NoInternetException catch (e) {
+      _snackError('Saved food', e.message);
+      return null;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Saved food', e.message);
+      return null;
+    } on ServerException catch (e) {
+      _snackError('Saved food', e.message);
+      return null;
+    } catch (e) {
+      _snackError('Saved food', e);
+      return null;
+    }
+  }
+
+  /// `DELETE /customer/food-saves/:id`.
+  Future<bool> deleteFoodSave(String id) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.deleteFoodSaveRepo(id.trim());
+      if (response is! Map<String, dynamic>) {
+        _snackError('Saved food', 'Unexpected response from server');
+        return false;
+      }
+      if (response['success'] != true) {
+        _snackError('Saved food', response['message']?.toString() ?? 'Could not delete food');
+        return false;
+      }
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Saved food', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Saved food', e.message);
+      return false;
+    } on ForbiddenException catch (e) {
+      _snackError('Saved food', e.message);
+      return false;
+    } on NotFoundException catch (e) {
+      _snackError('Saved food', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('Saved food', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Saved food', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Saved food', e.message);
+      return false;
+    } catch (e) {
+      _snackError('Saved food', e);
+      return false;
+    }
+  }
 }
 
 /// One page from `GET /customer/program/enrolled`.

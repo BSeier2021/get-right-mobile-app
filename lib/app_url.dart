@@ -273,6 +273,15 @@ class AppUrl {
   /// `POST /customer/running-logs` — body: `runningType`, `distance`, `duration`, `startTime`, `endTime`, `route`, `elevationGain`, `routePoints`, `caloriesBurned`.
   static String get customerRunningLogs => '$baseUrl/customer/running-logs';
 
+  /// `GET /customer/food-saves` — query: `page`, `limit` → `data.foods[]`.
+  static String customerFoodSaves({int page = 1, int limit = 10}) {
+    final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;
+    return '$baseUrl/customer/food-saves?$q';
+  }
+
+  /// `PUT` / `DELETE /customer/food-saves/:foodSaveId`.
+  static String customerFoodSaveById(String foodSaveId) => '$baseUrl/customer/food-saves/${Uri.encodeComponent(foodSaveId.trim())}';
+
   /// `GET /customer/running-logs` — query: `page`, `limit` → `data.logs[]`.
   static String customerRunningLogsList({int page = 1, int limit = 10}) {
     final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;

@@ -376,6 +376,13 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           final response = await _workoutRepo.createWorkout(body);
           final apiId = WorkoutRepository.createdWorkoutId(response);
           if (apiId != null && apiId.isNotEmpty) createdApiIds.add(apiId);
+
+          if (!WorkoutRepository.isValidMongoId(journalId)) {
+            final createdJournalId = WorkoutRepository.journalIdFromCreateWorkout(response);
+            if (WorkoutRepository.isValidMongoId(createdJournalId)) {
+              journalId = createdJournalId;
+            }
+          }
         }
 
         if (createdApiIds.isEmpty) {
@@ -383,7 +390,9 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           createdApiIds.addAll(discovered);
         }
 
-        journalId = await _workoutRepo.consolidateDayJournal(newWorkoutIds: createdApiIds, existingJournalWorkoutIds: _journalWorkoutIds, preferredJournalId: journalId);
+        if (createdApiIds.isNotEmpty) {
+          journalId = await _workoutRepo.consolidateDayJournal(newWorkoutIds: createdApiIds, existingJournalWorkoutIds: _journalWorkoutIds, preferredJournalId: journalId);
+        }
         _workoutJournalId = journalId;
       } catch (e) {
         if (mounted) setState(() => _isSaving = false);
@@ -429,7 +438,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         ),
       );
     }
-    Get.back(result: {'exercises': exercises, 'isWarmup': _isWarmup, 'exerciseType': _exerciseType});
+    Get.back(result: {'exercises': exercises, 'isWarmup': _isWarmup, 'exerciseType': _exerciseType, if (_workoutJournalId != null) 'workoutJournalId': _workoutJournalId});
   }
 
   List<Map<String, dynamic>> _buildApiExerciseSets(_Config cfg) {

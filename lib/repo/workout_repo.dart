@@ -82,7 +82,7 @@ class WorkoutRepository {
         if (fromString != null) return fromString;
       }
 
-      for (final key in ['workoutJournal', 'journal', 'workout', 'result']) {
+      for (final key in ['workoutJournalDoc', 'workoutJournal', 'journal', 'workout', 'result']) {
         final nested = dm[key];
         if (nested is Map) {
           final nm = Map<String, dynamic>.from(nested);
@@ -116,7 +116,9 @@ class WorkoutRepository {
   /// Returns an empty page with [WorkoutJournalListPage.syncFailed] when the server
   /// responds with 5xx (e.g. invalid Mongoose populate on `workout.refExercise.thumbnail`).
   Future<WorkoutJournalListPage> fetchWorkoutJournalEntries({int page = 1, int limit = 10, DateTime? dateFrom}) async {
-    final fromKey = _dateKey(dateFrom ?? DateTime.now());
+    final anchor = dateFrom ?? DateTime.now();
+    // Include yesterday so UTC-stored journals still match the user's local "today".
+    final fromKey = _dateKey(anchor.subtract(const Duration(days: 1)));
     try {
       final raw = await _network.get(AppUrl.customerWorkoutJournalList(page: page, limit: limit, dateFrom: fromKey));
       if (!_isOk(raw)) {
@@ -637,12 +639,27 @@ class WorkoutRepository {
     return Map<String, dynamic>.from(raw as Map);
   }
 
+  /// Journal id returned when `POST /customer/workout` auto-creates today's journal.
+  static String? journalIdFromCreateWorkout(dynamic response) => journalIdFrom(response);
+
+  /// Workout id from `POST /customer/workout` (`data.workoutJournalDoc.workout[]` or nested workout doc).
   static String? createdWorkoutId(dynamic response) {
     if (response is! Map) return null;
     final root = Map<String, dynamic>.from(response);
     final data = root['data'];
     if (data is Map) {
       final m = Map<String, dynamic>.from(data);
+      final journalDoc = m['workoutJournalDoc'];
+      if (journalDoc is Map) {
+        final doc = Map<String, dynamic>.from(journalDoc);
+        final workoutRefs = doc['workout'];
+        if (workoutRefs is List) {
+          for (final ref in workoutRefs.reversed) {
+            final id = _mongoId(ref);
+            if (id != null) return id;
+          }
+        }
+      }
       for (final key in ['workout', 'createdWorkout', 'result']) {
         final nested = m[key];
         if (nested is Map) {

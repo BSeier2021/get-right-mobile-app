@@ -275,4 +275,19 @@ class AuthRepository {
   Future<dynamic> deleteNutritionCustomFoodRepo(String id, {String? mealId}) async {
     return _network.patch(AppUrl.nutritionFoodsCustomById(id, mealId: mealId), {});
   }
+
+  /// `GET /customer/food-saves` — paginated saved foods.
+  Future<dynamic> getFoodSavesRepo({int page = 1, int limit = 10}) async {
+    return _network.get(AppUrl.customerFoodSaves(page: page, limit: limit));
+  }
+
+  /// `PUT /customer/food-saves/:id` — JSON: name, calories, macronutrients.
+  Future<dynamic> updateFoodSaveRepo(String id, Map<String, dynamic> body) async {
+    return _network.put(AppUrl.customerFoodSaveById(id), body);
+  }
+
+  /// `DELETE /customer/food-saves/:id`.
+  Future<dynamic> deleteFoodSaveRepo(String id) async {
+    return _network.delete(AppUrl.customerFoodSaveById(id));
+  }
 }

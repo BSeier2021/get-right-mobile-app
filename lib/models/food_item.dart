@@ -113,6 +113,66 @@ class FoodItem {
     return _nutritionApiIdToString(merged['_id']) ?? _nutritionApiIdToString(merged['id']) ?? '';
   }
 
+  /// `GET /customer/food-saves` row (`_id`, `macronutrients`, `servingSize`, `unit`, …).
+  factory FoodItem.fromFoodSaveApi(Map<String, dynamic> json) {
+    final food = json['food'];
+    final merged = food is Map ? {...json, ...Map<String, dynamic>.from(food)} : json;
+
+    final id = _nutritionApiIdToString(merged['_id']) ?? _nutritionApiIdToString(merged['id']) ?? '';
+    final servingSize = _toD(merged['servingSize'] == null ? 1.0 : merged['servingSize']);
+    final unit = merged['unit']?.toString() ?? 'serving';
+    final macros = merged['macronutrients'];
+    var protein = 0.0;
+    var carbs = 0.0;
+    var fats = 0.0;
+    if (macros is Map) {
+      protein = _toD(macros['protein']);
+      carbs = _toD(macros['carbs']);
+      fats = _toD(macros['fats']);
+    }
+    return FoodItem(
+      id: id,
+      name: merged['name']?.toString() ?? '',
+      calories: _toD(merged['calories']),
+      protein: protein,
+      carbs: carbs,
+      fats: fats,
+      defaultServingSize: 1.0,
+      servingUnit: '$servingSize $unit'.trim(),
+      isSaved: true,
+      createdAt: merged['createdAt'] != null ? DateTime.tryParse(merged['createdAt'].toString()) : null,
+      isNutritionApiCustom: true,
+      nutritionApiServingSize: servingSize,
+      nutritionApiServingUnit: unit,
+    );
+  }
+
+  /// Merge PUT response with submitted values when API omits fields like `name`.
+  FoodItem mergeFoodSaveUpdate({
+    required String name,
+    required double calories,
+    required double protein,
+    required double carbs,
+    required double fats,
+    FoodItem? fromApi,
+  }) {
+    final hasFullApiRow = fromApi != null && fromApi.name.isNotEmpty;
+    final api = fromApi;
+    return copyWith(
+      id: (api?.id.isNotEmpty == true) ? api!.id : id,
+      name: hasFullApiRow ? api!.name : name.trim(),
+      calories: hasFullApiRow ? api!.calories : calories,
+      protein: hasFullApiRow ? api!.protein : protein,
+      carbs: hasFullApiRow ? api!.carbs : carbs,
+      fats: hasFullApiRow ? api!.fats : fats,
+      nutritionApiServingSize: fromApi?.nutritionApiServingSize ?? nutritionApiServingSize,
+      nutritionApiServingUnit: fromApi?.nutritionApiServingUnit ?? nutritionApiServingUnit,
+      servingUnit: (fromApi?.servingUnit?.isNotEmpty == true) ? fromApi!.servingUnit : servingUnit,
+      isNutritionApiCustom: true,
+      isSaved: true,
+    );
+  }
+
   /// Nutrition API food row (`_id`, `proteinG`, `servingLabel`, …).
   factory FoodItem.fromNutritionCustomFoodApi(Map<String, dynamic> json) {
     final merged = _flattenNutritionCustomFoodJson(json);
