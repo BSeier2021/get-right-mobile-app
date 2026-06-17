@@ -12,7 +12,7 @@ import 'package:get_right/theme/text_styles.dart';
 class AddFoodScreen extends StatefulWidget {
   final MealType mealType;
 
-  /// Meal document `_id` from `GET /nutrition/meal-types` (used for `GET /nutrition/foods/custom`).
+  /// Optional meal-type document id (legacy; food-saves API is not meal-scoped).
   final String? mealTypeApiId;
 
   const AddFoodScreen({super.key, required this.mealType, this.mealTypeApiId});
@@ -50,15 +50,9 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_onTabChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (Get.isRegistered<AuthController>()) {
-        final auth = Get.find<AuthController>();
-        if (auth.nutritionMealTypes.isEmpty && !auth.nutritionMealTypesLoading) {
-          await auth.fetchNutritionMealTypes();
-        }
-      }
-      if (mounted) _ensureFoodSavesLoaded();
+      _ensureFoodSavesLoaded();
     });
   }
 
@@ -117,20 +111,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
       _apiHasMore = result.hasMore;
     });
   }
-
-  String? _resolvedMealId() {
-    if (widget.mealTypeApiId != null && widget.mealTypeApiId!.trim().isNotEmpty) {
-      return widget.mealTypeApiId!.trim();
-    }
-    if (!Get.isRegistered<AuthController>()) return null;
-    for (final o in Get.find<AuthController>().nutritionMealTypes) {
-      if (o.mealTypeEnum == widget.mealType && o.id.isNotEmpty) return o.id;
-    }
-    return null;
-  }
-
-  /// `POST /nutrition/foods/custom` body field `mealType` — API expects slug only: `breakfast` | `lunch` | `dinner` | `snacks`.
-  String _mealTypeForApiBody() => widget.mealType.name;
 
   @override
   void dispose() {
@@ -774,30 +754,33 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
     setState(() => _customSubmitting = true);
     try {
       final auth = Get.find<AuthController>();
-      final item = await auth.createNutritionCustomFood(
+      final servingSize = double.tryParse(servingSizeController.text) ?? 1.0;
+      final unit = servingUnitController.text.trim();
+      final item = await auth.createFoodSave(
         name: nameController.text.trim(),
-        mealType: _mealTypeForApiBody(),
-        servingSize: double.tryParse(servingSizeController.text) ?? 1.0,
-        servingUnit: servingUnitController.text.trim(),
+        servingSize: servingSize,
+        unit: unit,
         calories: double.tryParse(caloriesController.text) ?? 0,
-        proteinG: double.tryParse(proteinController.text) ?? 0,
-        carbsG: double.tryParse(carbsController.text) ?? 0,
-        fatG: double.tryParse(fatsController.text) ?? 0,
+        protein: double.tryParse(proteinController.text) ?? 0,
+        carbs: double.tryParse(carbsController.text) ?? 0,
+        fats: double.tryParse(fatsController.text) ?? 0,
       );
       if (!mounted) return;
       if (item == null) return;
 
+      setState(() {
+        final existingIndex = _apiSavedItems.indexWhere((e) => e.id == item.id);
+        if (existingIndex >= 0) {
+          _apiSavedItems[existingIndex] = item;
+        } else {
+          _apiSavedItems.insert(0, item);
+        }
+      });
+
       if (addToTracker) {
         _addFoodToTracker(item, 1.0);
-        // Close this screen only after API response and tracker update have finished.
         Future.microtask(() => Get.back());
       } else {
-        final mid = _resolvedMealId();
-        if (mid != null) {
-          setState(() => _apiSavedItems.insert(0, item));
-        } else {
-          controller.saveFoodItem(item.copyWith(isNutritionApiCustom: false));
-        }
         Get.snackbar('Success', '${item.name} saved', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.accent, colorText: Colors.white);
         _clearForm();
       }

@@ -279,6 +279,9 @@ class AppUrl {
     return '$baseUrl/customer/food-saves?$q';
   }
 
+  /// `POST /customer/food-saves` — create saved food.
+  static String get customerFoodSavesCreate => '$baseUrl/customer/food-saves';
+
   /// `PUT` / `DELETE /customer/food-saves/:foodSaveId`.
   static String customerFoodSaveById(String foodSaveId) => '$baseUrl/customer/food-saves/${Uri.encodeComponent(foodSaveId.trim())}';
 

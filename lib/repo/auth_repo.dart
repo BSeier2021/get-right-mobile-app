@@ -281,6 +281,11 @@ class AuthRepository {
     return _network.get(AppUrl.customerFoodSaves(page: page, limit: limit));
   }
 
+  /// `POST /customer/food-saves` — JSON: name, servingSize, unit, calories, macronutrients.
+  Future<dynamic> createFoodSaveRepo(Map<String, dynamic> body) async {
+    return _network.post(AppUrl.customerFoodSavesCreate, body);
+  }
+
   /// `PUT /customer/food-saves/:id` — JSON: name, calories, macronutrients.
   Future<dynamic> updateFoodSaveRepo(String id, Map<String, dynamic> body) async {
     return _network.put(AppUrl.customerFoodSaveById(id), body);

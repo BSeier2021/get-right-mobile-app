@@ -2895,6 +2895,84 @@ class AuthController extends GetxController {
     }
   }
 
+  /// `POST /customer/food-saves` — body: name, servingSize, unit, calories, macronutrients.
+  Future<FoodItem?> createFoodSave({
+    required String name,
+    required double servingSize,
+    required String unit,
+    required double calories,
+    required double protein,
+    required double carbs,
+    required double fats,
+  }) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final trimmedName = name.trim();
+      final trimmedUnit = unit.trim();
+      final response = await _authRepo.createFoodSaveRepo({
+        'name': trimmedName,
+        'servingSize': servingSize,
+        'unit': trimmedUnit,
+        'calories': calories,
+        'macronutrients': {'protein': protein, 'carbs': carbs, 'fats': fats},
+      });
+
+      if (response is! Map<String, dynamic>) {
+        _snackError('Saved food', 'Unexpected response from server');
+        return null;
+      }
+      if (response['success'] != true) {
+        _snackError('Saved food', response['message']?.toString() ?? 'Could not create food');
+        return null;
+      }
+
+      FoodItem? parsed;
+      final data = response['data'];
+      if (data is Map<String, dynamic>) {
+        parsed = FoodItem.fromFoodSaveApi(data);
+      } else if (data is Map) {
+        parsed = FoodItem.fromFoodSaveApi(Map<String, dynamic>.from(data));
+      }
+
+      final draft = FoodItem(
+        id: '',
+        name: trimmedName,
+        calories: calories,
+        protein: protein,
+        carbs: carbs,
+        fats: fats,
+        servingUnit: '$servingSize $trimmedUnit'.trim(),
+        nutritionApiServingSize: servingSize,
+        nutritionApiServingUnit: trimmedUnit,
+        isNutritionApiCustom: true,
+        isSaved: true,
+      );
+
+      return draft.mergeFoodSaveUpdate(name: trimmedName, calories: calories, protein: protein, carbs: carbs, fats: fats, fromApi: parsed);
+    } on BadRequestException catch (e) {
+      _snackError('Saved food', e.message);
+      return null;
+    } on UnauthorizedException catch (e) {
+      _snackError('Saved food', e.message);
+      return null;
+    } on ForbiddenException catch (e) {
+      _snackError('Saved food', e.message);
+      return null;
+    } on NoInternetException catch (e) {
+      _snackError('Saved food', e.message);
+      return null;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Saved food', e.message);
+      return null;
+    } on ServerException catch (e) {
+      _snackError('Saved food', e.message);
+      return null;
+    } catch (e) {
+      _snackError('Saved food', e);
+      return null;
+    }
+  }
+
   /// `PUT /customer/food-saves/:id` — body: name, calories, macronutrients.
   Future<FoodItem?> updateFoodSave({
     required String id,
