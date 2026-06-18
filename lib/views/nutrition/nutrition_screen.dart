@@ -25,10 +25,19 @@ class _NutritionScreenState extends State<NutritionScreen> with SingleTickerProv
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    if (_tabController.index == 0 && nutritionController.hasSubscription.value) {
+      nutritionController.fetchNutritionTracker();
+    }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
@@ -82,7 +91,12 @@ class _NutritionScreenState extends State<NutritionScreen> with SingleTickerProv
               mainAxisSize: MainAxisSize.min,
               children: [
                 GestureDetector(
-                  onTap: () => _tabController.animateTo(0),
+                  onTap: () {
+                    _tabController.animateTo(0);
+                    if (nutritionController.hasSubscription.value) {
+                      nutritionController.fetchNutritionTracker();
+                    }
+                  },
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

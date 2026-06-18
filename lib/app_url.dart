@@ -285,6 +285,18 @@ class AppUrl {
   /// `PUT` / `DELETE /customer/food-saves/:foodSaveId`.
   static String customerFoodSaveById(String foodSaveId) => '$baseUrl/customer/food-saves/${Uri.encodeComponent(foodSaveId.trim())}';
 
+  /// `GET /customer/food-logs/analytics` — query: `date` (`YYYY-MM-DD`), `dailyGoal`.
+  static String customerFoodLogAnalytics({required String date, int dailyGoal = 2000}) {
+    final q = Uri(queryParameters: {'date': date.trim(), 'dailyGoal': '$dailyGoal'}).query;
+    return '$baseUrl/customer/food-logs/analytics?$q';
+  }
+
+  /// `POST /customer/food-logs` — create food log entry.
+  static String get customerFoodLogsCreate => '$baseUrl/customer/food-logs';
+
+  /// `GET` / `PUT` / `DELETE /customer/food-logs/:foodLogId`.
+  static String customerFoodLogById(String foodLogId) => '$baseUrl/customer/food-logs/${Uri.encodeComponent(foodLogId.trim())}';
+
   /// `GET /customer/running-logs` — query: `page`, `limit` → `data.logs[]`.
   static String customerRunningLogsList({int page = 1, int limit = 10}) {
     final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;

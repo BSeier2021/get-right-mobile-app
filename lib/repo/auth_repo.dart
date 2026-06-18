@@ -177,6 +177,11 @@ class AuthRepository {
     return _network.post(AppUrl.updateProfile, fields);
   }
 
+  /// `POST /customer/profile/update` — JSON: `dailyCalorieGoal`.
+  Future<dynamic> updateDailyCalorieGoalRepo(num dailyCalorieGoal) async {
+    return _network.post(AppUrl.updateProfile, {'dailyCalorieGoal': dailyCalorieGoal});
+  }
+
   /// `GET /customer/profile` — Bearer; returns `data.user` with nested `profile`.
   Future<dynamic> getProfileRepo() async {
     return _network.get(AppUrl.getProfile);
@@ -294,5 +299,30 @@ class AuthRepository {
   /// `DELETE /customer/food-saves/:id`.
   Future<dynamic> deleteFoodSaveRepo(String id) async {
     return _network.delete(AppUrl.customerFoodSaveById(id));
+  }
+
+  /// `GET /customer/food-logs/analytics` — query: `date`, `dailyGoal`.
+  Future<dynamic> getFoodLogAnalyticsRepo({required String date, int dailyGoal = 2000}) async {
+    return _network.get(AppUrl.customerFoodLogAnalytics(date: date, dailyGoal: dailyGoal));
+  }
+
+  /// `POST /customer/food-logs` — JSON: mealType, meal (foodSaveId), loggedAt, servings, notes.
+  Future<dynamic> createFoodLogRepo(Map<String, dynamic> body) async {
+    return _network.post(AppUrl.customerFoodLogsCreate, body);
+  }
+
+  /// `GET /customer/food-logs/:foodLogId` → `data.log`.
+  Future<dynamic> getFoodLogDetailRepo(String foodLogId) async {
+    return _network.get(AppUrl.customerFoodLogById(foodLogId));
+  }
+
+  /// `PUT /customer/food-logs/:foodLogId` — JSON: mealType, servings, notes.
+  Future<dynamic> updateFoodLogRepo(String foodLogId, Map<String, dynamic> body) async {
+    return _network.put(AppUrl.customerFoodLogById(foodLogId), body);
+  }
+
+  /// `DELETE /customer/food-logs/:foodLogId`.
+  Future<dynamic> deleteFoodLogRepo(String foodLogId) async {
+    return _network.delete(AppUrl.customerFoodLogById(foodLogId));
   }
 }

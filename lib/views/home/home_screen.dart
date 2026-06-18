@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/notification_controller.dart';
+import 'package:get_right/controllers/nutrition_controller.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/views/journal/combined_journal_screen.dart';
 import 'package:get_right/views/feed/feed_screen.dart';
@@ -55,6 +56,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final journalTabIndex = args?['journalTabIndex'] as int?;
       if (navigateToTab != null) {
         _navController.changeTab(navigateToTab, journalTab: journalTabIndex);
+        if (navigateToTab == 3) {
+          _refreshNutritionAnalytics();
+        }
         return;
       }
 
@@ -94,6 +98,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     } catch (e) {
       debugPrint('Error refreshing subscription status: $e');
+    }
+  }
+
+  void _refreshNutritionAnalytics() {
+    try {
+      final nutritionController = Get.isRegistered<NutritionController>() ? Get.find<NutritionController>() : Get.put(NutritionController());
+      nutritionController.refreshSubscription();
+      if (nutritionController.hasSubscription.value) {
+        nutritionController.fetchNutritionTracker();
+      }
+    } catch (e) {
+      debugPrint('Error refreshing nutrition analytics: $e');
     }
   }
 
@@ -286,6 +302,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _showSubscriptionRequiredDialog();
           } else {
             _navController.changeTab(index);
+            if (index == 3) {
+              _refreshNutritionAnalytics();
+            }
           }
         },
         behavior: HitTestBehavior.opaque,

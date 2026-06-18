@@ -14,6 +14,7 @@ import 'package:get_right/models/fitness_level_option.dart';
 import 'package:get_right/models/user_goal_option.dart';
 import 'package:get_right/models/user_preference_option.dart';
 import 'package:get_right/models/food_item.dart';
+import 'package:get_right/models/food_log_detail.dart';
 import 'package:get_right/models/nutrition_custom_foods_page.dart';
 import 'package:get_right/models/nutrition_meal_type_option.dart';
 import 'package:get_right/constants/app_constants.dart';
@@ -2229,6 +2230,44 @@ class AuthController extends GetxController {
     }
   }
 
+  /// `POST /customer/profile/update` — body: `dailyCalorieGoal`.
+  Future<bool> updateDailyCalorieGoal(num dailyCalorieGoal) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.updateDailyCalorieGoalRepo(dailyCalorieGoal);
+      if (response is! Map<String, dynamic>) {
+        _snackError('Calorie goal', 'Unexpected response from server');
+        return false;
+      }
+      if (!_apiEnvelopeSuccess(response)) {
+        _snackError('Calorie goal', response['message']?.toString() ?? 'Could not update calorie goal');
+        return false;
+      }
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Calorie goal', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Calorie goal', e.message);
+      return false;
+    } on ForbiddenException catch (e) {
+      _snackError('Calorie goal', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('Calorie goal', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Calorie goal', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Calorie goal', e.message);
+      return false;
+    } catch (e) {
+      _snackError('Calorie goal', e);
+      return false;
+    }
+  }
+
   /// Forgot password — `POST /user/auth/forget` with `{ "email": "..." }`. Stores user id for reset when present.
   Future<bool> forgotPassword(String email) async {
     final trimmed = email.trim();
@@ -2539,6 +2578,22 @@ class AuthController extends GetxController {
       final response = await _authRepo.getNutritionTrackerRepo(date: date);
       if (response is! Map<String, dynamic>) return null;
       if (response['success'] != true) return null;
+      final data = response['data'];
+      if (data is Map<String, dynamic>) return data;
+      if (data is Map) return Map<String, dynamic>.from(data);
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// `GET /customer/food-logs/analytics` — returns inner `data` on success.
+  Future<Map<String, dynamic>?> fetchFoodLogAnalytics({required String date, int dailyGoal = 2000}) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getFoodLogAnalyticsRepo(date: date, dailyGoal: dailyGoal);
+      if (response is! Map<String, dynamic>) return null;
+      if (!_apiEnvelopeSuccess(response)) return null;
       final data = response['data'];
       if (data is Map<String, dynamic>) return data;
       if (data is Map) return Map<String, dynamic>.from(data);
@@ -2970,6 +3025,196 @@ class AuthController extends GetxController {
     } catch (e) {
       _snackError('Saved food', e);
       return null;
+    }
+  }
+
+  /// `POST /customer/food-logs` — body: mealType, meal (foodSaveId), loggedAt, servings, optional notes.
+  Future<bool> createFoodLog({
+    required String mealType,
+    required String foodSaveId,
+    required DateTime loggedAt,
+    required double servings,
+    String? notes,
+  }) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final body = <String, dynamic>{
+        'mealType': mealType.trim(),
+        'meal': foodSaveId.trim(),
+        'loggedAt': loggedAt.toUtc().toIso8601String(),
+        'servings': servings,
+      };
+      final trimmedNotes = notes?.trim();
+      if (trimmedNotes != null && trimmedNotes.isNotEmpty) {
+        body['notes'] = trimmedNotes;
+      }
+
+      final response = await _authRepo.createFoodLogRepo(body);
+      if (response is! Map<String, dynamic>) {
+        _snackError('Food log', 'Unexpected response from server');
+        return false;
+      }
+      if (!_apiEnvelopeSuccess(response)) {
+        _snackError('Food log', response['message']?.toString() ?? 'Could not log food');
+        return false;
+      }
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on ForbiddenException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } catch (e) {
+      _snackError('Food log', e);
+      return false;
+    }
+  }
+
+  /// `PUT /customer/food-logs/:foodLogId` — body: mealType, servings, notes.
+  Future<bool> updateFoodLog({
+    required String id,
+    required String mealType,
+    required double servings,
+    String? notes,
+  }) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final body = <String, dynamic>{
+        'mealType': mealType.trim(),
+        'servings': servings,
+        'notes': notes?.trim() ?? '',
+      };
+      final response = await _authRepo.updateFoodLogRepo(id.trim(), body);
+      if (response is! Map<String, dynamic>) {
+        _snackError('Food log', 'Unexpected response from server');
+        return false;
+      }
+      if (!_apiEnvelopeSuccess(response)) {
+        _snackError('Food log', response['message']?.toString() ?? 'Could not update food log');
+        return false;
+      }
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on ForbiddenException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } catch (e) {
+      _snackError('Food log', e);
+      return false;
+    }
+  }
+
+  /// `GET /customer/food-logs/:foodLogId` — returns parsed [FoodLogDetail] on success.
+  Future<FoodLogDetail?> fetchFoodLogDetail(String foodLogId) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.getFoodLogDetailRepo(foodLogId.trim());
+      if (response is! Map<String, dynamic>) {
+        _snackError('Food log', 'Unexpected response from server');
+        return null;
+      }
+      if (!_apiEnvelopeSuccess(response)) {
+        _snackError('Food log', response['message']?.toString() ?? 'Could not load food log');
+        return null;
+      }
+      final data = response['data'];
+      if (data is! Map) return null;
+      final log = data['log'];
+      if (log is Map<String, dynamic>) return FoodLogDetail.fromApi(log);
+      if (log is Map) return FoodLogDetail.fromApi(Map<String, dynamic>.from(log));
+      return null;
+    } on BadRequestException catch (e) {
+      _snackError('Food log', e.message);
+      return null;
+    } on UnauthorizedException catch (e) {
+      _snackError('Food log', e.message);
+      return null;
+    } on ForbiddenException catch (e) {
+      _snackError('Food log', e.message);
+      return null;
+    } on NotFoundException catch (e) {
+      _snackError('Food log', e.message);
+      return null;
+    } on NoInternetException catch (e) {
+      _snackError('Food log', e.message);
+      return null;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Food log', e.message);
+      return null;
+    } on ServerException catch (e) {
+      _snackError('Food log', e.message);
+      return null;
+    } catch (e) {
+      _snackError('Food log', e);
+      return null;
+    }
+  }
+
+  /// `DELETE /customer/food-logs/:foodLogId`.
+  Future<bool> deleteFoodLog(String id) async {
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.deleteFoodLogRepo(id.trim());
+      if (response is! Map<String, dynamic>) {
+        _snackError('Food log', 'Unexpected response from server');
+        return false;
+      }
+      if (!_apiEnvelopeSuccess(response)) {
+        _snackError('Food log', response['message']?.toString() ?? 'Could not delete food log');
+        return false;
+      }
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on ForbiddenException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on NotFoundException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Food log', e.message);
+      return false;
+    } catch (e) {
+      _snackError('Food log', e);
+      return false;
     }
   }
 

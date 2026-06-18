@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/nutrition_controller.dart';
 import 'package:get_right/models/meal_entry.dart';
 import 'package:get_right/models/nutrition_day.dart';
@@ -8,6 +9,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/nutrition/add_food_screen.dart';
 import 'package:get_right/views/nutrition/add_food_gateway_screen.dart';
+import 'package:get_right/views/nutrition/food_log_detail_screen.dart';
 
 /// Nutrition Tracker Tab - Shows daily calorie and macro tracking
 /// Requires subscription for full access
@@ -36,8 +38,14 @@ class NutritionTrackerTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (controller.trackerFetchError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(controller.trackerFetchError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+                      ),
+
                     // Calories Overview Card
-                    _buildCaloriesCard(currentDay.totalCalories, currentDay.calorieGoal, currentDay.calorieProgress),
+                    _buildCaloriesCard(context, controller, currentDay.totalCalories, currentDay.calorieGoal, currentDay.calorieProgress),
 
                     // Macros Overview
                     const SizedBox(height: 24),
@@ -52,22 +60,22 @@ class NutritionTrackerTab extends StatelessWidget {
 
                     const SizedBox(height: 24),
 
-                  // Food Log Section Header
-                  Text(
-                    'Food Log',
-                    style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
-                  ),
+                    // Food Log Section Header
+                    Text(
+                      'Food Log',
+                      style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                    ),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  // Meal Sections
-                  _buildMealSection(context, controller, MealType.breakfast),
-                  const SizedBox(height: 12),
-                  _buildMealSection(context, controller, MealType.lunch),
-                  const SizedBox(height: 12),
-                  _buildMealSection(context, controller, MealType.dinner),
-                  const SizedBox(height: 12),
-                  _buildMealSection(context, controller, MealType.snacks),
+                    // Meal Sections
+                    _buildMealSection(context, controller, MealType.breakfast),
+                    const SizedBox(height: 12),
+                    _buildMealSection(context, controller, MealType.lunch),
+                    const SizedBox(height: 12),
+                    _buildMealSection(context, controller, MealType.dinner),
+                    const SizedBox(height: 12),
+                    _buildMealSection(context, controller, MealType.snacks),
 
                     const SizedBox(height: 80), // Extra padding for FAB
                   ],
@@ -81,8 +89,9 @@ class NutritionTrackerTab extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(right: 16, bottom: 16),
                 child: FloatingActionButton.extended(
-                  onPressed: () {
-                    Get.to(() => const AddFoodGatewayScreen());
+                  onPressed: () async {
+                    await Get.to(() => const AddFoodGatewayScreen());
+                    await controller.fetchNutritionTracker();
                   },
                   backgroundColor: AppColors.accent,
                   elevation: 6,
@@ -644,7 +653,7 @@ class NutritionTrackerTab extends StatelessWidget {
     );
   }
 
-  Widget _buildCaloriesCard(double consumed, double goal, double progress, {bool isLimited = false}) {
+  Widget _buildCaloriesCard(BuildContext context, NutritionController controller, double consumed, double goal, double progress, {bool isLimited = false}) {
     final remaining = goal - consumed;
     return Container(
       padding: const EdgeInsets.all(20),
@@ -661,9 +670,26 @@ class NutritionTrackerTab extends StatelessWidget {
             children: [
               Image.asset("assets/images/Container (1).png"),
               const SizedBox(width: 12),
-              Text(
-                'Calories',
-                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'Calories',
+                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: isLimited ? null : () => _showUpdateCalorieGoalDialog(context, controller, goal),
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: Text('Update', style: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w700)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.accent,
+                  backgroundColor: Colors.white,
+                  disabledForegroundColor: AppColors.mediumGray,
+                  side: const BorderSide(color: AppColors.accent, width: 1.5),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
               ),
             ],
           ),
@@ -724,6 +750,95 @@ class NutritionTrackerTab extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showUpdateCalorieGoalDialog(BuildContext context, NutritionController controller, double currentGoal) {
+    final goalController = TextEditingController(text: currentGoal.toStringAsFixed(0));
+    var isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: AppColors.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(
+              'Update Calorie Goal',
+              style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Set your daily calorie target', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: goalController,
+                  enabled: !isSaving,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    hintText: 'e.g., 2000',
+                    suffixText: 'kcal',
+                    filled: true,
+                    fillColor: AppColors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppColors.primaryGrayLight),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.of(context).pop(),
+                child: Text('Cancel', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.mediumGray)),
+              ),
+              ElevatedButton(
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final newGoal = double.tryParse(goalController.text.trim());
+                        if (newGoal == null || newGoal <= 0) {
+                          Get.snackbar('Error', 'Enter a valid calorie goal', snackPosition: SnackPosition.BOTTOM);
+                          return;
+                        }
+                        setDialogState(() => isSaving = true);
+                        final saved = await controller.updateCalorieGoal(newGoal);
+                        if (!context.mounted) return;
+                        if (!saved) {
+                          setDialogState(() => isSaving = false);
+                          return;
+                        }
+                        Navigator.of(context).pop();
+                        Get.snackbar(
+                          'Updated',
+                          'Daily goal set to ${newGoal.toStringAsFixed(0)} kcal',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: AppColors.accent,
+                          colorText: Colors.white,
+                        );
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: isSaving
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text('Save', style: AppTextStyles.buttonMedium.copyWith(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    ).then((_) => goalController.dispose());
   }
 
   Widget _buildProgressBar(String label, double value, double goal, Color color) {
@@ -807,7 +922,7 @@ class NutritionTrackerTab extends StatelessWidget {
                         _showSubscriptionRequiredDialog(context);
                         return;
                       }
-                      Get.to(() => AddFoodScreen(mealType: mealType));
+                      Get.to(() => AddFoodScreen(mealType: mealType))?.then((_) => controller.fetchNutritionTracker());
                     },
                   )
                 else
@@ -817,13 +932,13 @@ class NutritionTrackerTab extends StatelessWidget {
                         _showSubscriptionRequiredDialog(context);
                         return;
                       }
-                      Get.to(() => AddFoodScreen(mealType: mealType));
+                      Get.to(() => AddFoodScreen(mealType: mealType))?.then((_) => controller.fetchNutritionTracker());
                     },
                   ),
               ],
             ),
           ),
-          if (meals.isNotEmpty) ...[const Divider(height: 1, color: AppColors.lightGray, thickness: 1), ...meals.map((meal) => _buildMealItem(controller, meal))],
+          if (meals.isNotEmpty) ...[const Divider(height: 1, color: AppColors.lightGray, thickness: 1), ...meals.map((meal) => _buildMealItem(context, controller, meal))],
         ],
       ),
     );
@@ -871,75 +986,21 @@ class NutritionTrackerTab extends StatelessWidget {
     );
   }
 
-  Widget _buildMealItem(NutritionController controller, MealEntry meal) {
-    return Dismissible(
-      key: Key(meal.id),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (direction) async {
-        return await Get.dialog<bool>(
-              AlertDialog(
-                backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                title: Text(
-                  'Delete Food Item',
-                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                ),
-                content: Text('Are you sure you want to remove "${meal.foodItem.name}" from your log?', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray)),
-                actions: [
-                  TextButton(
-                    onPressed: () => Get.back(result: false),
-                    child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray)),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => Get.back(result: true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.error,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text('Delete'),
-                  ),
-                ],
-              ),
-            ) ??
-            false;
-      },
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(colors: [Colors.transparent, AppColors.error], begin: Alignment.centerLeft, end: Alignment.centerRight),
-        ),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.delete_outline, color: Colors.white, size: 28),
-            SizedBox(height: 4),
-            Text(
-              'Delete',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      ),
-      onDismissed: (direction) {
-        controller.removeMealEntry(meal.id);
-        Get.snackbar(
-          'Removed',
-          '${meal.foodItem.name} removed from log',
-          backgroundColor: AppColors.accent,
-          colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM,
-          duration: const Duration(seconds: 2),
-        );
-      },
+  Widget _buildMealItem(BuildContext context, NutritionController controller, MealEntry meal) {
+    return _MealLogSwipeTile(
+      key: ValueKey(meal.id),
+      meal: meal,
+      onTap: meal.id.isNotEmpty ? () => Get.to(() => FoodLogDetailScreen(foodLogId: meal.id)) : null,
+      onEdit: () => _showEditFoodLogDialog(context, controller, meal),
+      onDelete: () => _confirmDeleteFoodLog(controller, meal),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: const BoxDecoration(
+          color: AppColors.surface,
           border: Border(bottom: BorderSide(color: AppColors.lightGray, width: 0.5)),
         ),
         child: Row(
           children: [
-            // Compact item like screenshot: just names and kcal pill
             const SizedBox(width: 4),
             Expanded(
               child: Column(
@@ -951,6 +1012,22 @@ class NutritionTrackerTab extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (meal.quantity != 1.0) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '${meal.quantity % 1 == 0 ? meal.quantity.toStringAsFixed(0) : meal.quantity.toStringAsFixed(1)} servings',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray),
+                    ),
+                  ],
+                  if (meal.notes != null && meal.notes!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      meal.notes!.trim(),
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -968,6 +1045,279 @@ class NutritionTrackerTab extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteFoodLog(NutritionController controller, MealEntry meal) async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Delete Food Item',
+          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+        ),
+        content: Text('Are you sure you want to remove "${meal.foodItem.name}" from your log?', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray)),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray)),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!Get.isRegistered<AuthController>()) return;
+
+    final ok = await Get.find<AuthController>().deleteFoodLog(meal.id);
+    if (!ok) return;
+
+    await controller.fetchNutritionTracker();
+    Get.snackbar(
+      'Removed',
+      '${meal.foodItem.name} removed from log',
+      backgroundColor: AppColors.accent,
+      colorText: Colors.white,
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 2),
+    );
+  }
+
+  void _showEditFoodLogDialog(BuildContext context, NutritionController controller, MealEntry meal) {
+    var selectedMealType = meal.mealType;
+    double servings = meal.quantity;
+    final servingsController = TextEditingController(text: servings % 1 == 0 ? servings.toStringAsFixed(0) : servings.toStringAsFixed(1));
+    final notesController = TextEditingController(text: meal.notes ?? '');
+    var isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: AppColors.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(
+              'Edit Food Log',
+              style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(meal.foodItem.name, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray)),
+                  const SizedBox(height: 16),
+                  Text('Meal', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<MealType>(
+                    value: selectedMealType,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: AppColors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: MealType.values.map((type) => DropdownMenuItem(value: type, child: Text(type.displayName))).toList(),
+                    onChanged: isSaving ? null : (value) => setDialogState(() => selectedMealType = value ?? selectedMealType),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: servingsController,
+                    enabled: !isSaving,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Servings',
+                      filled: true,
+                      fillColor: AppColors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: notesController,
+                    enabled: !isSaving,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'Notes (optional)',
+                      filled: true,
+                      fillColor: AppColors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.of(context).pop(),
+                child: Text('Cancel', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.mediumGray)),
+              ),
+              ElevatedButton(
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final parsedServings = double.tryParse(servingsController.text.trim());
+                        if (parsedServings == null || parsedServings <= 0) {
+                          Get.snackbar('Error', 'Enter valid servings', snackPosition: SnackPosition.BOTTOM);
+                          return;
+                        }
+                        if (!Get.isRegistered<AuthController>()) {
+                          Get.snackbar('Error', 'Sign in to edit food log', snackPosition: SnackPosition.BOTTOM);
+                          return;
+                        }
+                        setDialogState(() => isSaving = true);
+                        final ok = await Get.find<AuthController>().updateFoodLog(
+                          id: meal.id,
+                          mealType: selectedMealType.displayName,
+                          servings: parsedServings,
+                          notes: notesController.text.trim(),
+                        );
+                        if (!context.mounted) return;
+                        if (!ok) {
+                          setDialogState(() => isSaving = false);
+                          return;
+                        }
+                        await controller.fetchNutritionTracker();
+                        if (!context.mounted) return;
+                        Navigator.of(context).pop();
+                        Get.snackbar('Updated', '${meal.foodItem.name} updated', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.accent, colorText: Colors.white);
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: isSaving
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text('Save', style: AppTextStyles.buttonMedium.copyWith(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    ).then((_) {
+      servingsController.dispose();
+      notesController.dispose();
+    });
+  }
+}
+
+class _MealLogSwipeTile extends StatefulWidget {
+  final MealEntry meal;
+  final Widget child;
+  final VoidCallback? onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _MealLogSwipeTile({super.key, required this.meal, required this.child, this.onTap, required this.onEdit, required this.onDelete});
+
+  @override
+  State<_MealLogSwipeTile> createState() => _MealLogSwipeTileState();
+}
+
+class _MealLogSwipeTileState extends State<_MealLogSwipeTile> {
+  static const _actionsWidth = 152.0;
+  double _offset = 0;
+
+  void _close() => setState(() => _offset = 0);
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    setState(() {
+      _offset = (_offset + details.delta.dx).clamp(-_actionsWidth, 0.0);
+    });
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    setState(() {
+      _offset = _offset <= -_actionsWidth / 2 ? -_actionsWidth : 0.0;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _SwipeActionButton(
+                  label: 'Edit',
+                  icon: Icons.edit_outlined,
+                  color: AppColors.accent,
+                  onTap: () {
+                    _close();
+                    widget.onEdit();
+                  },
+                ),
+                _SwipeActionButton(
+                  label: 'Delete',
+                  icon: Icons.delete_outline,
+                  color: AppColors.error,
+                  onTap: () {
+                    _close();
+                    widget.onDelete();
+                  },
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onHorizontalDragUpdate: _onDragUpdate,
+            onHorizontalDragEnd: _onDragEnd,
+            onTap: () {
+              if (_offset != 0) {
+                _close();
+              } else {
+                widget.onTap?.call();
+              }
+            },
+            child: AnimatedContainer(duration: const Duration(milliseconds: 180), curve: Curves.easeOut, transform: Matrix4.translationValues(_offset, 0, 0), child: widget.child),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SwipeActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _SwipeActionButton({required this.label, required this.icon, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: 76,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 22),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
         ),
       ),
     );

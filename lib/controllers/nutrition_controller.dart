@@ -39,11 +39,14 @@ class NutritionController extends GetxController {
   /// Donut segment colors from tracker `dailyProgress.legend` (carbs, fat, protein).
   List<Color> trackerDonutColors = const [Color(0xFFFFA726), Color(0xFF9C27B0), Color(0xFF4A90E2)];
 
-  /// Center label calories from `dailyProgress.centerCalories` when the last tracker fetch applied to [selectedDate].
+  /// Center label calories from analytics API when the last fetch applied to [selectedDate].
   double? trackerCenterCalories;
 
   /// Macro ring percents from API `[carbs, fat, protein]` when any percent is non-zero.
   List<double>? trackerMacroPercentsFromApi;
+
+  /// Last analytics fetch error for the tracker tab.
+  String? trackerFetchError;
 
   // Recipe filters
   final Rx<RecipeCategory?> selectedCategory = Rx<RecipeCategory?>(null);
@@ -56,7 +59,7 @@ class NutritionController extends GetxController {
     _initializeDemoData();
   }
 
-  /// Re-read subscription from storage. Call after payment success so nutrition unlocks immediately.
+  /// Re-read subscription from storage. Does not fetch analytics — call [fetchNutritionTracker] when the nutrition screen opens.
   void refreshSubscription() {
     try {
       final storage = Get.find<StorageService>();
@@ -65,9 +68,6 @@ class NutritionController extends GetxController {
       hasSubscription.value = false;
     }
     update();
-    if (hasSubscription.value) {
-      fetchNutritionTracker();
-    }
   }
 
   // Get or create nutrition day for a specific date
@@ -115,6 +115,7 @@ class NutritionController extends GetxController {
   void _clearTrackerDisplayFields() {
     trackerCenterCalories = null;
     trackerMacroPercentsFromApi = null;
+    trackerFetchError = null;
   }
 
   // Add food item to saved items
@@ -166,6 +167,21 @@ class NutritionController extends GetxController {
     addMealEntry(entry);
   }
 
+  Future<bool> updateCalorieGoal(double goal) async {
+    if (goal <= 0) return false;
+    if (!Get.isRegistered<AuthController>()) return false;
+
+    final saved = await Get.find<AuthController>().updateDailyCalorieGoal(goal.round());
+    if (!saved) return false;
+
+    calorieGoal.value = goal;
+    final dateKey = _getDateKey(selectedDate.value);
+    nutritionDays[dateKey] = getNutritionDay(selectedDate.value).copyWith(calorieGoal: goal);
+    update();
+    await fetchNutritionTracker();
+    return true;
+  }
+
   // Update goals
   void updateGoals({double? calories, double? protein, double? carbs, double? fats}) {
     if (calories != null) calorieGoal.value = calories;
@@ -184,21 +200,31 @@ class NutritionController extends GetxController {
     }
   }
 
-  /// Loads `GET /nutrition/tracker` for [selectedDate] via [AuthController].
+  /// Select today's local date (used after logging food for the current day).
+  void selectToday() {
+    final now = DateTime.now();
+    selectedDate.value = DateTime(now.year, now.month, now.day);
+    update();
+  }
+
+  /// Loads `GET /customer/food-logs/analytics` for [selectedDate] via [AuthController].
   Future<void> fetchNutritionTracker() async {
     if (!hasSubscription.value) return;
     if (!Get.isRegistered<AuthController>()) return;
 
     isLoading.value = true;
+    trackerFetchError = null;
     update();
 
     try {
       final dateKey = _getDateKey(selectedDate.value);
-      final data = await Get.find<AuthController>().fetchNutritionTracker(date: dateKey);
+      final dailyGoal = calorieGoal.value.round();
+      final data = await Get.find<AuthController>().fetchFoodLogAnalytics(date: dateKey, dailyGoal: dailyGoal);
       if (data == null) {
+        trackerFetchError = 'Could not load nutrition data';
         return;
       }
-      _applyNutritionTrackerData(data, dateKey);
+      _applyFoodLogAnalyticsData(data, dateKey);
     } finally {
       isLoading.value = false;
       update();
@@ -220,6 +246,117 @@ class NutritionController extends GetxController {
     } catch (_) {
       return fallback;
     }
+  }
+
+  MealType _mealTypeFromApiLabel(String? label) {
+    final normalized = label?.trim().toLowerCase() ?? '';
+    for (final type in MealType.values) {
+      if (type.displayName.toLowerCase() == normalized || type.name == normalized) {
+        return type;
+      }
+    }
+    return MealType.snacks;
+  }
+
+  MealEntry _mealEntryFromFoodLogItem(Map<String, dynamic> raw, MealType mealType, DateTime dayDate) {
+    final id = raw['_id']?.toString() ?? raw['id']?.toString() ?? raw['foodLogId']?.toString() ?? '';
+    final servings = _toD(raw['servings'] == null ? 1.0 : raw['servings']);
+    final quantity = servings > 0 ? servings : 1.0;
+    final totalCalories = _toD(raw['calories']);
+    final macros = raw['macronutrients'];
+    var protein = 0.0;
+    var carbs = 0.0;
+    var fats = 0.0;
+    if (macros is Map) {
+      protein = _toD(macros['protein']);
+      carbs = _toD(macros['carbs']);
+      fats = _toD(macros['fats']);
+    }
+    final loggedAt = raw['loggedAt'] != null ? DateTime.tryParse(raw['loggedAt'].toString()) : null;
+    final food = FoodItem(
+      id: id,
+      name: raw['name']?.toString() ?? '',
+      calories: totalCalories / quantity,
+      protein: protein / quantity,
+      carbs: carbs / quantity,
+      fats: fats / quantity,
+      defaultServingSize: 1,
+      servingUnit: 'serving',
+    );
+    return MealEntry(
+      id: id.isNotEmpty ? id : '${mealType.name}_${food.name.hashCode}',
+      foodItem: food,
+      quantity: quantity,
+      mealType: mealType,
+      timestamp: loggedAt ?? dayDate,
+      notes: raw['notes']?.toString(),
+    );
+  }
+
+  void _applyFoodLogAnalyticsData(Map<String, dynamic> data, String dateKey) {
+    final dateStr = data['date']?.toString();
+    final dayDate = dateStr != null && dateStr.isNotEmpty ? DateTime.tryParse(dateStr) ?? selectedDate.value : selectedDate.value;
+
+    final calories = data['calories'];
+    final goalCal = calories is Map ? _toD(calories['goal']) : calorieGoal.value;
+    final consumedCal = calories is Map ? _toD(calories['consumed']) : 0.0;
+
+    final macros = data['macronutrients'];
+    var pG = 0.0;
+    var cG = 0.0;
+    var fG = 0.0;
+    trackerCenterCalories = consumedCal;
+    trackerMacroPercentsFromApi = null;
+    if (macros is Map) {
+      final carb = macros['carbs'];
+      final fat = macros['fats'] ?? macros['fat'];
+      final prot = macros['protein'];
+      if (carb is Map) cG = _toD(carb['grams']);
+      if (fat is Map) fG = _toD(fat['grams']);
+      if (prot is Map) pG = _toD(prot['grams']);
+
+      final pc = carb is Map ? _toD(carb['percent']) : 0.0;
+      final pf = fat is Map ? _toD(fat['percent']) : 0.0;
+      final pp = prot is Map ? _toD(prot['percent']) : 0.0;
+      if (pc + pf + pp > 0) {
+        trackerMacroPercentsFromApi = [pc, pf, pp];
+      }
+    }
+
+    final meals = <MealEntry>[];
+    final foodLog = data['foodLog'];
+    if (foodLog is List) {
+      for (final section in foodLog) {
+        if (section is! Map) continue;
+        final sectionMap = Map<String, dynamic>.from(section);
+        final mealType = _mealTypeFromApiLabel(sectionMap['mealType']?.toString());
+        final items = sectionMap['items'];
+        if (items is! List) continue;
+        for (final item in items) {
+          if (item is Map<String, dynamic>) {
+            meals.add(_mealEntryFromFoodLogItem(item, mealType, dayDate));
+          } else if (item is Map) {
+            meals.add(_mealEntryFromFoodLogItem(Map<String, dynamic>.from(item), mealType, dayDate));
+          }
+        }
+      }
+    }
+
+    nutritionDays[dateKey] = NutritionDay(
+      date: dayDate,
+      meals: meals,
+      calorieGoal: goalCal > 0 ? goalCal : calorieGoal.value,
+      proteinGoal: proteinGoal.value,
+      carbsGoal: carbsGoal.value,
+      fatsGoal: fatsGoal.value,
+      consumedCaloriesOverride: consumedCal,
+      consumedProteinOverride: pG,
+      consumedCarbsOverride: cG,
+      consumedFatsOverride: fG,
+    );
+
+    calorieGoal.value = nutritionDays[dateKey]!.calorieGoal;
+    trackerFetchError = null;
   }
 
   MealEntry _mealEntryFromCatalogMap(Map<String, dynamic> raw, MealType mealType, DateTime dayDate) {

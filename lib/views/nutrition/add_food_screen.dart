@@ -597,11 +597,12 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
   void _showQuantityDialog(FoodItem item) {
     double quantity = item.isNutritionApiCustom ? 1.0 : item.defaultServingSize;
     final quantityController = TextEditingController(text: quantity.toString());
+    var isSubmitting = false;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: AppColors.surface,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -631,19 +632,22 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                   children: [
                     IconButton(
                       icon: const Icon(Icons.remove_circle, color: AppColors.accent, size: 32),
-                      onPressed: () {
-                        if (quantity > 0.5) {
-                          setState(() {
-                            quantity -= 0.5;
-                            quantityController.text = quantity.toString();
-                          });
-                        }
-                      },
+                      onPressed: isSubmitting
+                          ? null
+                          : () {
+                              if (quantity > 0.5) {
+                                setDialogState(() {
+                                  quantity -= 0.5;
+                                  quantityController.text = quantity.toString();
+                                });
+                              }
+                            },
                     ),
                     SizedBox(
                       width: 80,
                       child: TextField(
                         controller: quantityController,
+                        enabled: !isSubmitting,
                         textAlign: TextAlign.center,
                         keyboardType: TextInputType.number,
                         style: AppTextStyles.headlineMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
@@ -655,12 +659,14 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                     ),
                     IconButton(
                       icon: const Icon(Icons.add_circle, color: AppColors.accent, size: 32),
-                      onPressed: () {
-                        setState(() {
-                          quantity += 0.5;
-                          quantityController.text = quantity.toString();
-                        });
-                      },
+                      onPressed: isSubmitting
+                          ? null
+                          : () {
+                              setDialogState(() {
+                                quantity += 0.5;
+                                quantityController.text = quantity.toString();
+                              });
+                            },
                     ),
                   ],
                 ),
@@ -685,27 +691,47 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
             ),
             actions: [
               TextButton(
-                onPressed: () => Get.back(),
+                onPressed: isSubmitting ? null : () => Navigator.of(context).pop(),
                 child: Text('Cancel', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.mediumGray)),
               ),
               ElevatedButton(
-                onPressed: () {
-                  _addFoodToTracker(item, quantity);
-                  Get.back(); // Close dialog
-                  Get.back(); // Go back to nutrition screen
-                },
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        final servings = double.tryParse(quantityController.text) ?? quantity;
+                        setDialogState(() => isSubmitting = true);
+                        final logged = await _logFoodToTracker(item: item, servings: servings);
+                        if (!context.mounted) return;
+                        if (!logged) {
+                          setDialogState(() => isSubmitting = false);
+                          return;
+                        }
+                        Navigator.of(context).pop();
+                        Get.back();
+                        Future.microtask(() {
+                          Get.snackbar(
+                            'Success',
+                            '${item.name} added to ${widget.mealType.displayName}',
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: AppColors.accent,
+                            colorText: Colors.white,
+                          );
+                        });
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: Text('Add', style: AppTextStyles.buttonMedium.copyWith(color: Colors.white)),
+                child: isSubmitting
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text('Add', style: AppTextStyles.buttonMedium.copyWith(color: Colors.white)),
               ),
             ],
           );
         },
       ),
-    );
+    ).then((_) => quantityController.dispose());
   }
 
   Widget _buildNutritionRow(String label, String value) {
@@ -724,24 +750,38 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
     );
   }
 
-  void _addFoodToTracker(FoodItem item, double quantity) {
-    final entry = MealEntry(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      foodItem: item,
-      quantity: quantity,
-      mealType: widget.mealType,
-      timestamp: controller.selectedDate.value,
-    );
+  /// Today's local calendar date at 08:30 UTC — keeps the API date aligned with the device "today".
+  DateTime _loggedAtForToday() {
+    final now = DateTime.now();
+    return DateTime.utc(now.year, now.month, now.day, 8, 30, 0);
+  }
 
-    controller.addMealEntry(entry);
+  Future<bool> _logFoodToTracker({required FoodItem item, required double servings, String? notes}) async {
+    if (!Get.isRegistered<AuthController>()) {
+      Get.snackbar('Error', 'Sign in to log food', snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+    if (item.id.trim().isEmpty) {
+      Get.snackbar('Error', 'Invalid food item', snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+    if (servings <= 0) {
+      Get.snackbar('Error', 'Servings must be greater than 0', snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
 
-    Get.snackbar(
-      'Success',
-      '${item.name} added to ${widget.mealType.displayName}',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: AppColors.accent,
-      colorText: Colors.white,
+    final ok = await Get.find<AuthController>().createFoodLog(
+      mealType: widget.mealType.displayName,
+      foodSaveId: item.id,
+      loggedAt: _loggedAtForToday(),
+      servings: servings,
+      notes: notes,
     );
+    if (ok) {
+      controller.selectToday();
+      await controller.fetchNutritionTracker();
+    }
+    return ok;
   }
 
   Future<void> _submitCreateCustomFood({required bool addToTracker}) async {
@@ -778,8 +818,19 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
       });
 
       if (addToTracker) {
-        _addFoodToTracker(item, 1.0);
-        Future.microtask(() => Get.back());
+        final logged = await _logFoodToTracker(item: item, servings: 1.0);
+        if (!mounted) return;
+        if (!logged) return;
+        Future.microtask(() {
+          Get.back();
+          Get.snackbar(
+            'Success',
+            '${item.name} added to ${widget.mealType.displayName}',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: AppColors.accent,
+            colorText: Colors.white,
+          );
+        });
       } else {
         Get.snackbar('Success', '${item.name} saved', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.accent, colorText: Colors.white);
         _clearForm();
