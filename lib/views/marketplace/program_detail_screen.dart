@@ -598,6 +598,54 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     return out;
   }
 
+  List<Map<String, dynamic>> _workoutDaysList() {
+    dynamic raw = _safeProgram['workoutDays'];
+    if (raw is! List || raw.isEmpty) {
+      final api = _safeProgram['_apiProgram'];
+      if (api is Map) raw = api['workoutDays'];
+    }
+    if (raw is! List || raw.isEmpty) {
+      final enc = _safeProgram['enrollment'];
+      if (enc is Map) {
+        final prog = enc['program'];
+        if (prog is Map) raw = prog['workoutDays'];
+      }
+    }
+    if (raw is! List) return [];
+
+    final days = <Map<String, dynamic>>[];
+    for (final day in raw) {
+      if (day is Map) days.add(Map<String, dynamic>.from(day));
+    }
+    days.sort((a, b) {
+      final da = (a['dayNumber'] as num?)?.toInt() ?? 0;
+      final db = (b['dayNumber'] as num?)?.toInt() ?? 0;
+      return da.compareTo(db);
+    });
+    return days;
+  }
+
+  List<Map<String, dynamic>> _exercisesForWorkoutDay(Map<String, dynamic> day) {
+    final raw = day['exercises'];
+    if (raw is! List) return [];
+    final out = <Map<String, dynamic>>[];
+    for (final e in raw) {
+      if (e is Map) out.add(Map<String, dynamic>.from(e));
+    }
+    return out;
+  }
+
+  String _formatRestDuration(dynamic seconds) {
+    final value = seconds is num ? seconds.toInt() : int.tryParse(seconds?.toString() ?? '');
+    if (value == null || value <= 0) return '';
+    if (value >= 60) {
+      final mins = value ~/ 60;
+      final secs = value % 60;
+      return secs == 0 ? '${mins}m rest' : '${mins}m ${secs}s rest';
+    }
+    return '${value}s rest';
+  }
+
   String _heroImageUrl() {
     return _safeProgram['imageUrl']?.toString().isNotEmpty == true
         ? _safeProgram['imageUrl'].toString()
@@ -1103,7 +1151,13 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                     _buildWhatsIncludedBlock(),
                     const SizedBox(height: 24),
 
-                    if (_exercisesList().isNotEmpty) ...[_buildExercisesSection(), const SizedBox(height: 24)],
+                    if (_workoutDaysList().isNotEmpty) ...[
+                      _buildWorkoutScheduleSection(),
+                      const SizedBox(height: 24),
+                    ] else if (_exercisesList().isNotEmpty) ...[
+                      _buildExercisesSection(),
+                      const SizedBox(height: 24),
+                    ],
 
                     // Enrolled Content Section (only visible if enrolled)
                     if (_isEnrolled && (_hasEnrolledProgramVideo || _hasProgramResourcesPdf)) ...[
@@ -1408,16 +1462,198 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     );
   }
 
+  Widget _buildWorkoutScheduleSection() {
+    final days = _workoutDaysList();
+    if (days.isEmpty) return const SizedBox.shrink();
+
+    final totalExercises = days.fold<int>(0, (sum, day) => sum + _exercisesForWorkoutDay(day).length);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Workout Schedule',
+                    style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text('Follow your trainer\'s day-by-day exercise plan', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+              child: Text(
+                '${days.length} days · $totalExercises exercises',
+                style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ...days.map(_buildWorkoutDayCard),
+      ],
+    );
+  }
+
+  Widget _buildWorkoutDayCard(Map<String, dynamic> day) {
+    final dayNumber = (day['dayNumber'] as num?)?.toInt() ?? 0;
+    final exercises = _exercisesForWorkoutDay(day);
+    final label = dayNumber > 0 ? 'Day $dayNumber' : 'Workout Day';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE8EFE0)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: dayNumber == 1,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: Text(
+              dayNumber > 0 ? '$dayNumber' : '•',
+              style: AppTextStyles.titleSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+            ),
+          ),
+          title: Text(
+            label,
+            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
+            exercises.isEmpty ? 'No exercises listed' : '${exercises.length} exercise${exercises.length == 1 ? '' : 's'}',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+          ),
+          iconColor: AppColors.accent,
+          collapsedIconColor: AppColors.primaryGray,
+          children: exercises.isEmpty
+              ? [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text('Exercises for this day will appear here.', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                  ),
+                ]
+              : exercises.asMap().entries.map((entry) => _buildWorkoutExerciseTile(entry.value, entry.key + 1)).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWorkoutExerciseTile(Map<String, dynamic> ex, int order) {
+    final name = (ex['exerciseName'] ?? ex['name'])?.toString().trim();
+    final displayName = name != null && name.isNotEmpty ? name : 'Exercise $order';
+    final sets = ex['numberOfSets'] ?? ex['sets'];
+    final reps = ex['numberOfReps'] ?? ex['reps'];
+    final rest = _formatRestDuration(ex['restSeconds'] ?? ex['restTime']);
+    final weight = ex['weight'];
+    final description = (ex['exerciseDescription'] ?? ex['description'] ?? ex['notes'])?.toString().trim();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                alignment: Alignment.center,
+                child: Text(
+                  '$order',
+                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  displayName,
+                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          if (sets != null || reps != null || weight != null || rest.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (sets != null) _buildWorkoutMetricChip(Icons.repeat, '$sets sets'),
+                if (reps != null) _buildWorkoutMetricChip(Icons.fitness_center, '$reps reps'),
+                if (weight != null && (weight is num ? weight > 0 : double.tryParse(weight.toString()) != null && double.parse(weight.toString()) > 0))
+                  _buildWorkoutMetricChip(Icons.scale, '${weight is num ? (weight % 1 == 0 ? weight.toInt() : weight) : weight} kg'),
+                if (rest.isNotEmpty) _buildWorkoutMetricChip(Icons.timer_outlined, rest),
+              ],
+            ),
+          ],
+          if (description != null && description.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, height: 1.4)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWorkoutMetricChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.accent),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildExerciseTile(Map<String, dynamic> ex) {
-    final name = ex['name']?.toString().trim().isNotEmpty == true ? ex['name'].toString() : 'Exercise';
-    final sets = ex['sets'];
-    final reps = ex['reps'];
-    final rest = ex['restTime'];
+    final nameRaw = (ex['exerciseName'] ?? ex['name'])?.toString().trim();
+    final name = nameRaw != null && nameRaw.isNotEmpty ? nameRaw : 'Exercise';
+    final sets = ex['numberOfSets'] ?? ex['sets'];
+    final reps = ex['numberOfReps'] ?? ex['reps'];
+    final rest = _formatRestDuration(ex['restSeconds'] ?? ex['restTime']);
+    final weight = ex['weight'];
     final detailParts = <String>[];
     if (sets != null) detailParts.add('$sets sets');
     if (reps != null) detailParts.add('$reps reps');
-    if (rest != null) detailParts.add('${rest}s rest');
+    if (weight != null && (weight is num ? weight > 0 : double.tryParse(weight.toString()) != null && double.parse(weight.toString()) > 0)) {
+      detailParts.add('${weight is num ? (weight % 1 == 0 ? weight.toInt() : weight) : weight} kg');
+    }
+    if (rest.isNotEmpty) detailParts.add(rest);
     final detail = detailParts.join(' · ');
+    final description = (ex['exerciseDescription'] ?? ex['description'] ?? ex['notes'])?.toString().trim();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1441,6 +1677,10 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                   style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
                 ),
                 if (detail.isNotEmpty) ...[const SizedBox(height: 4), Text(detail, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray))],
+                if (description != null && description.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, height: 1.4)),
+                ],
               ],
             ),
           ),

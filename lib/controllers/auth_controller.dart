@@ -1080,6 +1080,14 @@ class AuthController extends GetxController {
       }
     }
 
+    final workoutDaysRaw = inner['workoutDays'];
+    final workoutDays = <Map<String, dynamic>>[];
+    if (workoutDaysRaw is List) {
+      for (final day in workoutDaysRaw) {
+        if (day is Map) workoutDays.add(Map<String, dynamic>.from(day));
+      }
+    }
+
     final price = (inner['price'] as num?)?.toDouble() ?? 0.0;
     final discount = (inner['discount'] as num?)?.toDouble();
     final progressPct = (enrollment['progress'] as num?)?.toDouble();
@@ -1128,6 +1136,7 @@ class AuthController extends GetxController {
       'enrollmentStartDate': enrollment['startDate'],
       'enrollmentEndDate': enrollment['endDate'],
       'exercises': exercises,
+      'workoutDays': workoutDays,
       if (bundlePrograms is List) 'bundlePrograms': bundlePrograms,
       if (bundleRaw is Map) ...{
         'enrolledBundle': Map<String, dynamic>.from(bundleRaw),

@@ -801,6 +801,47 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
+  void _viewProgram(Map<String, dynamic> program) {
+    _showProgramDetail(program);
+  }
+
+  void _viewBundle(Map<String, dynamic> bundle) {
+    Get.toNamed(AppRoutes.bundleDetail, arguments: bundle);
+  }
+
+  ButtonStyle _compactViewButtonStyle({required Color backgroundColor, required Color foregroundColor, required BorderRadius borderRadius, EdgeInsetsGeometry? padding}) {
+    return ElevatedButton.styleFrom(
+      backgroundColor: backgroundColor,
+      foregroundColor: foregroundColor,
+      elevation: 0,
+      padding: padding ?? EdgeInsets.symmetric(horizontal: 12.w, vertical: 0),
+      minimumSize: Size.zero,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      shape: RoundedRectangleBorder(borderRadius: borderRadius),
+    );
+  }
+
+  Widget _buildCompactViewButton({
+    required VoidCallback onPressed,
+    Color backgroundColor = AppColors.accent,
+    Color foregroundColor = AppColors.onAccent,
+    double height = 25,
+    BorderRadius? borderRadius,
+    TextStyle? textStyle,
+  }) {
+    return SizedBox(
+      height: height.h,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: _compactViewButtonStyle(backgroundColor: backgroundColor, foregroundColor: foregroundColor, borderRadius: borderRadius ?? BorderRadius.circular(50)),
+        child: Text(
+          'View',
+          style: textStyle ?? AppTextStyles.labelSmall.copyWith(color: foregroundColor, fontSize: 10.sp, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+
   void _showAddToCalendarModal(Map<String, dynamic> item, {bool isBundle = false}) {
     DateTime selectedDate = DateTime.now();
 
@@ -1608,24 +1649,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(sheetContext);
-                      _showAddToCalendarModal(program, isBundle: false);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.accent, width: 2),
-                      foregroundColor: AppColors.accent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                    ),
-                    icon: const Icon(Icons.calendar_today, size: 20),
-                    label: Text('Add to Calendar', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.accent)),
-                  ),
-                ),
               ],
             ),
           ),
@@ -2274,26 +2297,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Flexible(
-                            child: SizedBox(
-                              height: 25.h,
-                              child: ElevatedButton.icon(
-                                onPressed: () => _showAddToCalendarModal(program, isBundle: false),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accent,
-                                  foregroundColor: AppColors.onAccent,
-                                  elevation: 0,
-                                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.h),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                                ),
-                                label: Text(
-                                  'Add to Calendar',
-                                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontSize: 10.sp, fontWeight: FontWeight.w700),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                          ),
+                          _buildCompactViewButton(onPressed: () => _viewProgram(program)),
                           SizedBox(width: 4.w),
                           Text(
                             '\$${((program['price'] as num?) ?? 0).toDouble().toStringAsFixed(2)}',
@@ -2574,26 +2578,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Flexible(
-                            child: SizedBox(
-                              height: 25.h,
-                              child: ElevatedButton.icon(
-                                onPressed: () => _showAddToCalendarModal(program, isBundle: false),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accent,
-                                  foregroundColor: AppColors.onAccent,
-                                  elevation: 0,
-                                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.h),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                                label: Text(
-                                  'Add to Calendar',
-                                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontSize: 10.sp, fontWeight: FontWeight.w700),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                          ),
+                          _buildCompactViewButton(onPressed: () => _viewProgram(program), borderRadius: BorderRadius.circular(10)),
                           SizedBox(width: 4.w),
                           Text(
                             '\$${((program['price'] as num?) ?? 0).toDouble().toStringAsFixed(2)}',
@@ -2790,23 +2775,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             ),
                           ],
                         ),
-                        SizedBox(
-                          width: 130.w,
-                          height: 30.h,
-                          child: ElevatedButton(
-                            onPressed: () => _showAddToCalendarModal(bundle, isBundle: true),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1A1A1A), // Dark almost black
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: EdgeInsets.zero,
-                            ),
-                            child: Text(
-                              'Add to Calender',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.sp),
-                            ),
-                          ),
+                        _buildCompactViewButton(
+                          onPressed: () => _viewBundle(bundle),
+                          height: 30,
+                          backgroundColor: const Color(0xFF1A1A1A),
+                          foregroundColor: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          textStyle: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.sp),
                         ),
                       ],
                     ).paddingOnly(left: 16.w),
@@ -3013,26 +2988,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Flexible(
-                          child: SizedBox(
-                            height: 25.h,
-                            child: ElevatedButton.icon(
-                              onPressed: () => _showAddToCalendarModal(program, isBundle: false),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.accent,
-                                foregroundColor: AppColors.onAccent,
-                                elevation: 0,
-                                padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 0.h),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                              label: Text(
-                                'Add to Calendar',
-                                style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w700, fontSize: 10.sp),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                        ),
+                        _buildCompactViewButton(onPressed: () => _viewProgram(program), borderRadius: BorderRadius.circular(10)),
                         SizedBox(width: 4.w),
                         Text(
                           '\$${((program['price'] as num?) ?? 0).toDouble().toStringAsFixed(2)}',
@@ -3041,7 +2997,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       ],
                     ),
 
-                    // Add to Calendar Button
+                    // View Button
                   ],
                 ),
               ),
