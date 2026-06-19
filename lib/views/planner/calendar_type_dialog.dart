@@ -146,6 +146,157 @@ Future<void> showCalendarErrorDialog(BuildContext context, Object error) {
   );
 }
 
+/// Success bottom sheet after mapping an enrolled program to the calendar.
+Future<void> showProgramCalendarSuccessSheet(
+  BuildContext context, {
+  required String startDateLabel,
+  int workoutDayCount = 0,
+  VoidCallback? onGoToPlanner,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (sheetContext) => Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [BoxShadow(color: AppColors.blackOverlay, blurRadius: 20, offset: Offset(0, -4))],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(color: Color(0xFFDFF1D3), shape: BoxShape.circle),
+                child: const Icon(Icons.check_circle, color: Color(0xFF6FCF97), size: 36),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Added to Calendar!',
+                style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your program workout days are now scheduled on your planner.',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FFE9),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE8EFE0)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                          child: const Icon(Icons.event, color: AppColors.accent, size: 18),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Starts', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                              Text(
+                                startDateLabel,
+                                style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (workoutDayCount > 0) ...[
+                      const SizedBox(height: 12),
+                      Divider(color: AppColors.primaryGray.withOpacity(0.2), height: 1),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                            child: const Icon(Icons.fitness_center, color: AppColors.accent, size: 18),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Workout days', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                                Text(
+                                  '$workoutDayCount day${workoutDayCount == 1 ? '' : 's'} mapped',
+                                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    onGoToPlanner?.call();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.onAccent,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                  ),
+                  icon: const Icon(Icons.calendar_month, size: 20),
+                  label: Text('Go to Planner', style: AppTextStyles.buttonLarge),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(sheetContext),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: AppColors.primaryGray.withOpacity(0.6), width: 1.5),
+                    foregroundColor: AppColors.onBackground,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                  ),
+                  child: Text('Stay Here', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onBackground)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class _StatusOptionTile extends StatelessWidget {
   const _StatusOptionTile({required this.icon, required this.iconBg, required this.iconColor, required this.title, required this.subtitle, required this.onTap});
 

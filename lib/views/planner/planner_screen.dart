@@ -36,8 +36,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
   String? _dayDetailError;
   bool _isDeletingEntry = false;
   bool _isMarkingComplete = false;
+  bool _isMovingProgramWorkout = false;
 
   bool get _hasDeletableEntry => _calendarEntryIdForSelectedDate() != null;
+
+  bool get _canMoveProgramWorkout {
+    final data = _getDataForDate(_selectedDate);
+    return data?['program'] != null && _calendarEntryIdForSelectedDate() != null;
+  }
 
   bool get _canMarkAsComplete {
     final status = _getDataForDate(_selectedDate)?['workoutStatus']?.toString();
@@ -134,6 +140,28 @@ class _PlannerScreenState extends State<PlannerScreen> {
   Map<String, dynamic>? _getDataForDate(DateTime date) {
     final key = DateTime(date.year, date.month, date.day);
     return _dayData[key];
+  }
+
+  bool _dayHasVisibleContent(Map<String, dynamic>? data) {
+    if (data == null) return false;
+    if (data['hasProgressPhoto'] == true) return true;
+    if (data['workout'] != null) return true;
+    if (data['program'] != null) return true;
+    if (data['run'] != null) return true;
+    if (data['nutrition'] != null) return true;
+    final notes = data['notes']?.toString().trim();
+    return notes != null && notes.isNotEmpty;
+  }
+
+  String _formatProgramRest(dynamic seconds) {
+    final value = seconds is num ? seconds.toInt() : int.tryParse(seconds?.toString() ?? '');
+    if (value == null || value <= 0) return '';
+    if (value >= 60) {
+      final mins = value ~/ 60;
+      final secs = value % 60;
+      return secs == 0 ? '${mins}m rest' : '${mins}m ${secs}s rest';
+    }
+    return '${value}s rest';
   }
 
   Color _getDateColor(DateTime date) {
@@ -354,7 +382,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               : const Icon(Icons.check_circle_outline, size: 20),
           label: Text(_isMarkingComplete ? 'Marking...' : 'Mark as Complete'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF6FCF97),
+            backgroundColor: AppColors.accent,
             foregroundColor: AppColors.onError,
             elevation: 0,
             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -384,6 +412,200 @@ class _PlannerScreenState extends State<PlannerScreen> {
       await showCalendarErrorDialog(context, e);
     } finally {
       if (mounted) setState(() => _isMarkingComplete = false);
+    }
+  }
+
+  Future<void> _showMoveProgramWorkoutSheet() async {
+    final entryId = _calendarEntryIdForSelectedDate();
+    if (entryId == null || !_canMoveProgramWorkout) return;
+
+    final program = _getDataForDate(_selectedDate)?['program'];
+    final title = program is Map ? program['title']?.toString() ?? 'Program Workout' : 'Program Workout';
+    DateTime targetDate = _selectedDate.add(const Duration(days: 1));
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Container(
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: EdgeInsets.only(top: 12, left: 20, right: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                        child: const Icon(Icons.event_repeat, color: AppColors.accent, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Move Workout', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            Text('Reschedule this program workout to another day', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        icon: const Icon(Icons.close, color: AppColors.primaryGray),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FFE9),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE8EFE0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Currently on ${DateFormat.yMMMd().format(_selectedDate)}',
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text('Move To', style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 10),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: targetDate,
+                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                        );
+                        if (picked != null) {
+                          setModalState(() => targetDate = DateTime(picked.year, picked.month, picked.day));
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.accent.withOpacity(0.35)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.event, color: AppColors.accent),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                DateFormat.yMMMd().format(targetDate),
+                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right, color: AppColors.primaryGray),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: _isMovingProgramWorkout
+                          ? null
+                          : () async {
+                              Navigator.pop(sheetContext);
+                              await _moveProgramWorkout(targetDate);
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.onAccent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                      ),
+                      icon: _isMovingProgramWorkout
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
+                          : const Icon(Icons.swap_horiz),
+                      label: Text(_isMovingProgramWorkout ? 'Moving...' : 'Move Workout', style: AppTextStyles.buttonMedium),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _moveProgramWorkout(DateTime targetDate) async {
+    final entryId = _calendarEntryIdForSelectedDate();
+    if (entryId == null) return;
+
+    final normalizedTarget = DateTime(targetDate.year, targetDate.month, targetDate.day);
+    final normalizedSelected = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    if (normalizedTarget == normalizedSelected) {
+      Get.snackbar('Move Workout', 'Choose a different date', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    setState(() => _isMovingProgramWorkout = true);
+    try {
+      await _calendarRepo.moveProgramWorkout(calendarEntryId: entryId, targetDate: normalizedTarget);
+      if (!mounted) return;
+
+      setState(() {
+        _selectedDate = normalizedTarget;
+        _isCalendarCollapsed = true;
+        _dayDetailError = null;
+        if (_focusedMonth.year != normalizedTarget.year || _focusedMonth.month != normalizedTarget.month) {
+          _focusedMonth = DateTime(normalizedTarget.year, normalizedTarget.month);
+        }
+      });
+
+      await _loadCalendarMonth();
+      if (!mounted) return;
+      Get.snackbar(
+        'Moved',
+        'Workout moved to ${DateFormat.yMMMd().format(normalizedTarget)}',
+        backgroundColor: AppColors.completed,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      await showCalendarErrorDialog(context, e);
+    } finally {
+      if (mounted) setState(() => _isMovingProgramWorkout = false);
     }
   }
 
@@ -1545,8 +1767,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
     final data = _getDataForDate(_selectedDate);
 
-    if (data == null ||
-        (data['workout'] == null && data['run'] == null && data['nutrition'] == null && (data['notes'] == null || data['notes'].toString().isEmpty) && !data['hasProgressPhoto'])) {
+    if (data == null || !_dayHasVisibleContent(data)) {
       return Padding(
         padding: const EdgeInsets.all(40),
         child: Center(
@@ -1616,6 +1837,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
             _buildProgressPhotosSection(),
             const SizedBox(height: 12),
           ],
+
+          // Program Workout (mapped from enrolled program)
+          if (data['program'] != null) _buildProgramWorkoutSection(data['program']),
 
           // Workout Summary
           if (data['workout'] != null) _buildWorkoutSummarySection(data['workout']),
@@ -1760,6 +1984,194 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgramWorkoutSection(Map<String, dynamic> program) {
+    final title = program['title']?.toString() ?? 'Program Workout';
+    final status = program['status']?.toString().toLowerCase() ?? '';
+    final difficulty = program['difficulty']?.toString() ?? '';
+    final exerciseCount = (program['exerciseCount'] as num?)?.toInt() ?? 0;
+    final totalSets = (program['totalSets'] as num?)?.toInt() ?? 0;
+    final exercises = program['exercises'] is List ? (program['exercises'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : <Map<String, dynamic>>[];
+
+    Color statusColor;
+    String statusLabel;
+    switch (status) {
+      case 'completed':
+        statusColor = const Color(0xFF6FCF97);
+        statusLabel = 'Completed';
+        break;
+      case 'incomplete':
+        statusColor = const Color(0xFFE74C3C);
+        statusLabel = 'Incomplete';
+        break;
+      default:
+        statusColor = AppColors.accent;
+        statusLabel = status.isNotEmpty ? status[0].toUpperCase() + status.substring(1) : 'Scheduled';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FFE9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8EFE0)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.fitness_center, color: AppColors.accent, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                    ),
+                    if (difficulty.isNotEmpty) ...[const SizedBox(height: 4), Text(difficulty, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray))],
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: statusColor.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                child: Text(
+                  statusLabel,
+                  style: AppTextStyles.labelSmall.copyWith(color: statusColor, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: _buildWorkoutStatBox('assets/images/Vector.png', '$exerciseCount', 'Exercises')),
+              const SizedBox(width: 10),
+              Expanded(child: _buildWorkoutStatBox('assets/images/sets111.png', '$totalSets', 'Sets')),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Today\'s Exercises',
+            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 10),
+          ...exercises.asMap().entries.map((entry) => _buildProgramExerciseTile(entry.value, entry.key + 1)),
+          if (_canMoveProgramWorkout) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: OutlinedButton.icon(
+                onPressed: _isMovingProgramWorkout ? null : _showMoveProgramWorkoutSheet,
+                icon: _isMovingProgramWorkout
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
+                    : const Icon(Icons.event_repeat, size: 18),
+                label: Text(_isMovingProgramWorkout ? 'Moving...' : 'Move to Another Date'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.accent,
+                  side: BorderSide(color: AppColors.accent.withOpacity(0.7)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgramExerciseTile(Map<String, dynamic> ex, int order) {
+    final name = (ex['exerciseName'] ?? ex['name'])?.toString().trim();
+    final displayName = name != null && name.isNotEmpty ? name : 'Exercise $order';
+    final sets = ex['numberOfSets'] ?? ex['sets'];
+    final reps = ex['numberOfReps'] ?? ex['reps'];
+    final rest = _formatProgramRest(ex['restSeconds'] ?? ex['restTime']);
+    final weight = ex['weight'];
+    final description = (ex['exerciseDescription'] ?? ex['description'])?.toString().trim();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                alignment: Alignment.center,
+                child: Text(
+                  '$order',
+                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  displayName,
+                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          if (sets != null || reps != null || weight != null || rest.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (sets != null) _buildProgramMetricChip(Icons.repeat, '$sets sets'),
+                if (reps != null) _buildProgramMetricChip(Icons.fitness_center, '$reps reps'),
+                if (weight != null && (weight is num ? weight > 0 : double.tryParse(weight.toString()) != null && double.parse(weight.toString()) > 0))
+                  _buildProgramMetricChip(Icons.scale, '${weight is num ? (weight % 1 == 0 ? weight.toInt() : weight) : weight} kg'),
+                if (rest.isNotEmpty) _buildProgramMetricChip(Icons.timer_outlined, rest),
+              ],
+            ),
+          ],
+          if (description != null && description.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, height: 1.4)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgramMetricChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.accent),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
           ),
         ],
       ),

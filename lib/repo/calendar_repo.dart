@@ -134,9 +134,58 @@ class CalendarRepository {
     return photos.whereType<Map>().map((photo) => Map<String, dynamic>.from(photo)).toList();
   }
 
+  static List<Map<String, dynamic>> programExercisesFrom(dynamic exercisesRaw) {
+    if (exercisesRaw is! List) return const [];
+    return exercisesRaw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  static Map<String, dynamic>? programDayFromEntry(Map<String, dynamic> entry) {
+    final programRaw = entry['program'];
+    if (programRaw is! Map) return null;
+    final program = Map<String, dynamic>.from(programRaw);
+    final exercises = programExercisesFrom(program['exercises']);
+    if (exercises.isEmpty) return null;
+
+    var totalSets = 0;
+    for (final ex in exercises) {
+      totalSets += _intFrom(ex['numberOfSets']) ?? 0;
+    }
+
+    String? title;
+    String? difficulty;
+    int? durationWeeks;
+    String? enrollmentId;
+    final enrollment = program['enrollmentId'];
+    if (enrollment is Map) {
+      enrollmentId = enrollment['_id']?.toString();
+      final nestedProgram = enrollment['program'];
+      if (nestedProgram is Map) {
+        final nested = Map<String, dynamic>.from(nestedProgram);
+        title = nested['title']?.toString();
+        difficulty = nested['difficultyLevel']?.toString();
+        durationWeeks = _intFrom(nested['duration']);
+      }
+    }
+
+    final status = program['status']?.toString().trim().isNotEmpty == true ? program['status']?.toString() : entry['type']?.toString();
+
+    return {
+      'title': title ?? 'Program Workout',
+      'status': status ?? '',
+      'difficulty': difficulty ?? '',
+      'durationWeeks': durationWeeks ?? 0,
+      'exercises': exercises,
+      'exerciseCount': exercises.length,
+      'totalSets': totalSets,
+      'programId': program['programId']?.toString(),
+      'enrollmentId': enrollmentId,
+    };
+  }
+
   static Map<String, dynamic> dayDataFromEntry(Map<String, dynamic> entry, {Map<String, dynamic>? nutrition}) {
     final photos = progressPhotosFromEntry(entry);
     final journal = entry['workoutJournal'];
+    final programDay = programDayFromEntry(entry);
 
     return {
       'calendarEntryId': entry['_id']?.toString(),
@@ -147,6 +196,7 @@ class CalendarRepository {
       'run': null,
       'nutrition': nutrition,
       'notes': entry['notes']?.toString().trim() ?? '',
+      if (programDay != null) 'program': programDay,
     };
   }
 
@@ -299,6 +349,75 @@ class CalendarRepository {
     final raw = await _network.delete(AppUrl.customerCalendarById(id));
     if (!_isOk(raw)) {
       throw Exception(_messageFrom(raw) ?? 'Could not delete calendar entry');
+    }
+    return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+  }
+
+  static Map<String, dynamic> mapProgramBody({
+    required String enrollmentId,
+    required String programId,
+    required DateTime startDate,
+  }) {
+    return {
+      'enrollmentId': enrollmentId.trim(),
+      'programId': programId.trim(),
+      'startDate': dateToApiIso(startDate),
+    };
+  }
+
+  /// `POST /customer/calendar/program/map` — map enrolled program workout days to calendar.
+  Future<Map<String, dynamic>> mapProgramToCalendar({
+    required String enrollmentId,
+    required String programId,
+    required DateTime startDate,
+  }) async {
+    final enrollment = enrollmentId.trim();
+    final program = programId.trim();
+    if (!WorkoutRepository.isValidMongoId(enrollment)) {
+      throw Exception('Invalid enrollment id');
+    }
+    if (!WorkoutRepository.isValidMongoId(program)) {
+      throw Exception('Invalid program id');
+    }
+
+    final raw = await _network.post(
+      AppUrl.customerCalendarProgramMap,
+      mapProgramBody(enrollmentId: enrollment, programId: program, startDate: startDate),
+    );
+
+    if (!_isOk(raw)) {
+      throw Exception(_messageFrom(raw) ?? 'Could not add program to calendar');
+    }
+    return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+  }
+
+  static Map<String, dynamic> moveProgramBody({
+    required String calendarEntryId,
+    required DateTime targetDate,
+  }) {
+    return {
+      'calendarEntryId': calendarEntryId.trim(),
+      'targetDate': dateToApiIso(targetDate),
+    };
+  }
+
+  /// `POST /customer/calendar/program/move` — move a mapped program workout to another date.
+  Future<Map<String, dynamic>> moveProgramWorkout({
+    required String calendarEntryId,
+    required DateTime targetDate,
+  }) async {
+    final id = calendarEntryId.trim();
+    if (!WorkoutRepository.isValidMongoId(id)) {
+      throw Exception('Invalid calendar entry id');
+    }
+
+    final raw = await _network.post(
+      AppUrl.customerCalendarProgramMove,
+      moveProgramBody(calendarEntryId: id, targetDate: targetDate),
+    );
+
+    if (!_isOk(raw)) {
+      throw Exception(_messageFrom(raw) ?? 'Could not move program workout');
     }
     return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
   }

@@ -7,9 +7,11 @@ import 'package:get_right/app_url.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/favorites_controller.dart';
 import 'package:get_right/models/report_block_model.dart';
+import 'package:get_right/repo/calendar_repo.dart';
 import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/views/planner/calendar_type_dialog.dart';
 import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -32,10 +34,12 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   final FavoritesController _favoritesController = Get.put(FavoritesController());
   final FeedRepository _feedRepo = FeedRepository();
   final MarketplaceRepository _marketplaceRepo = MarketplaceRepository();
+  final CalendarRepository _calendarRepo = CalendarRepository();
   final _reviewCommentController = TextEditingController();
   bool _isEnrolled = false;
   Map<String, dynamic> _safeProgram = {};
   String? _apiProgramId;
+  bool _mappingProgramToCalendar = false;
 
   /// When set (e.g. from My Programs), loads `GET /customer/program/enrolled/:id` instead of program catalog detail.
   String? _enrollmentDetailId;
@@ -661,6 +665,231 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     return null;
   }
 
+  String? _programIdForCalendar() => _programEnrollMongoId();
+
+  String? _enrollmentIdForCalendar() {
+    final fromDetail = _enrollmentDetailId?.trim();
+    if (fromDetail != null && _mongoIdRe.hasMatch(fromDetail)) return fromDetail;
+
+    final direct = _safeProgram['enrollmentId']?.toString().trim();
+    if (direct != null && _mongoIdRe.hasMatch(direct)) return direct;
+
+    final enc = _safeProgram['enrollment'];
+    if (enc is Map) {
+      final id = enc['_id']?.toString().trim();
+      if (id != null && _mongoIdRe.hasMatch(id)) return id;
+    }
+    return null;
+  }
+
+  bool get _canAddProgramToCalendar {
+    if (!_isEnrolled) return false;
+    final status = _safeProgram['status']?.toString().toLowerCase().trim() ?? '';
+    return status != 'cancelled';
+  }
+
+  DateTime _defaultProgramCalendarStartDate() {
+    final raw = _safeProgram['enrollmentStartDate'] ?? _safeProgram['startDate'];
+    if (raw != null) {
+      final parsed = DateTime.tryParse(raw.toString());
+      if (parsed != null) {
+        return DateTime(parsed.year, parsed.month, parsed.day);
+      }
+    }
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  int get _programWorkoutDayCount => _workoutDaysList().length;
+
+  Future<void> _showAddProgramToCalendarSheet() async {
+    final programId = _programIdForCalendar();
+    final enrollmentId = _enrollmentIdForCalendar();
+    if (programId == null || enrollmentId == null) {
+      Get.snackbar('Calendar', 'Enrollment information is missing.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    DateTime selectedDate = _defaultProgramCalendarStartDate();
+    final title = _safeProgram['title']?.toString() ?? 'Program';
+    final dayCount = _programWorkoutDayCount;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Container(
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: EdgeInsets.only(top: 12, left: 20, right: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                        child: const Icon(Icons.calendar_month, color: AppColors.accent, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Add to Calendar',
+                              style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Text('Schedule this program on your planner', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        icon: const Icon(Icons.close, color: AppColors.primaryGray),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FFE9),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE8EFE0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          dayCount > 0 ? '$dayCount workout days will be mapped to your calendar' : 'Program workouts will be mapped to your calendar',
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Start Date',
+                    style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 10),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                        );
+                        if (picked != null) {
+                          setModalState(() => selectedDate = DateTime(picked.year, picked.month, picked.day));
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.accent.withOpacity(0.35)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.event, color: AppColors.accent),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                DateFormat.yMMMd().format(selectedDate),
+                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right, color: AppColors.primaryGray),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: _mappingProgramToCalendar
+                          ? null
+                          : () async {
+                              Navigator.pop(sheetContext);
+                              await _addProgramToCalendar(selectedDate);
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.onAccent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                      ),
+                      icon: _mappingProgramToCalendar
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
+                          : const Icon(Icons.check_circle_outline),
+                      label: Text(_mappingProgramToCalendar ? 'Adding...' : 'Add to Calendar', style: AppTextStyles.buttonMedium),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _addProgramToCalendar(DateTime startDate) async {
+    final programId = _programIdForCalendar();
+    final enrollmentId = _enrollmentIdForCalendar();
+    if (programId == null || enrollmentId == null) {
+      Get.snackbar('Calendar', 'Enrollment information is missing.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    setState(() => _mappingProgramToCalendar = true);
+    try {
+      await _calendarRepo.mapProgramToCalendar(enrollmentId: enrollmentId, programId: programId, startDate: startDate);
+      if (!mounted) return;
+
+      final formattedDate = DateFormat.yMMMd().format(startDate);
+      await showProgramCalendarSuccessSheet(context, startDateLabel: formattedDate, workoutDayCount: _programWorkoutDayCount, onGoToPlanner: () => Get.toNamed(AppRoutes.planner));
+    } catch (e) {
+      if (!mounted) return;
+      await showCalendarErrorDialog(context, e);
+    } finally {
+      if (mounted) setState(() => _mappingProgramToCalendar = false);
+    }
+  }
+
   String? _programTrainerUserId() {
     var tid = (_safeProgram['trainerId'] ?? '').toString().trim();
     if (tid.isEmpty && _safeProgram['_apiProgram'] is Map) {
@@ -1263,16 +1492,40 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
       ),
       child: SafeArea(
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(Icons.check_circle, color: AppColors.completed, size: 24),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'This program is already enrolled.',
-                style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
+            // Row(
+            //   children: [
+            //     Icon(Icons.check_circle, color: AppColors.completed, size: 22),
+            //     const SizedBox(width: 10),
+            //     Expanded(
+            //       child: Text(
+            //         'You are enrolled in this program',
+            //         style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w600),
+            //       ),
+            //     ),
+            //   ],
+            // ),
+            if (_canAddProgramToCalendar) ...[
+              SizedBox(
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _mappingProgramToCalendar ? null : _showAddProgramToCalendarSheet,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.onAccent,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                  ),
+                  icon: _mappingProgramToCalendar
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
+                      : const Icon(Icons.calendar_month, size: 20),
+                  label: Text(_mappingProgramToCalendar ? 'Adding to Calendar...' : 'Add to Calendar', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent)),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

@@ -346,4 +346,10 @@ class AppUrl {
   /// `PUT /customer/calendar/:calendarEntryId` — body: `notes`, `type`, optional `progressPhotos` (multipart file).
   /// `DELETE /customer/calendar/:calendarEntryId` — remove calendar entry.
   static String customerCalendarById(String calendarEntryId) => '$baseUrl/customer/calendar/${Uri.encodeComponent(calendarEntryId.trim())}';
+
+  /// `POST /customer/calendar/program/map` — body: `enrollmentId`, `programId`, `startDate`.
+  static String get customerCalendarProgramMap => '$baseUrl/customer/calendar/program/map';
+
+  /// `POST /customer/calendar/program/move` — body: `calendarEntryId`, `targetDate`.
+  static String get customerCalendarProgramMove => '$baseUrl/customer/calendar/program/move';
 }
