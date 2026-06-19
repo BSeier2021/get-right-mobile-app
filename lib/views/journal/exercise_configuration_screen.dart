@@ -638,6 +638,16 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     );
   }
 
+  void _applyRepsTypeToSet(_SetData setData, _Config cfg, String type) {
+    setData.repsTimeFocusNode.unfocus();
+    setData.repsType = type;
+    setData.reps = 0;
+    setData.updateControllerText(cfg.mainType, force: true);
+    _focusedFieldType = null;
+    _focusedConfigIdx = null;
+    _focusedSetIdx = null;
+  }
+
   Widget _buildKeyboardToolbar() {
     return Container(
       padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 16),
@@ -655,13 +665,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                       if (_focusedConfigIdx != null && _focusedSetIdx != null) {
                         final cfg = _configs[_focusedConfigIdx!];
                         final setData = cfg.sets[_focusedSetIdx!];
-                        setState(() {
-                          setData.repsType = 'AMRAP';
-                          setData.reps = 0;
-                          _focusedFieldType = null;
-                          _focusedConfigIdx = null;
-                          _focusedSetIdx = null;
-                        });
+                        setState(() => _applyRepsTypeToSet(setData, cfg, 'AMRAP'));
                         FocusScope.of(context).unfocus();
                       }
                     },
@@ -687,13 +691,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                       if (_focusedConfigIdx != null && _focusedSetIdx != null) {
                         final cfg = _configs[_focusedConfigIdx!];
                         final setData = cfg.sets[_focusedSetIdx!];
-                        setState(() {
-                          setData.repsType = 'FAILURE';
-                          setData.reps = 0;
-                          _focusedFieldType = null;
-                          _focusedConfigIdx = null;
-                          _focusedSetIdx = null;
-                        });
+                        setState(() => _applyRepsTypeToSet(setData, cfg, 'FAILURE'));
                         FocusScope.of(context).unfocus();
                       }
                     },
@@ -1198,6 +1196,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   }
 
   Widget _buildSetRow(_Config cfg, int cfgIdx, int setIdx, _SetData data) {
+    final isAmrapOrFailure = cfg.mainType != 'Time' && (data.repsType == 'AMRAP' || data.repsType == 'FAILURE');
     // Create unique key for this set row to maintain TextField state
     final rowKey = ValueKey('set_${cfgIdx}_$setIdx');
     return Padding(
@@ -1240,8 +1239,11 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                           textAlign: TextAlign.center,
                           keyboardType: TextInputType.number,
                           textInputAction: TextInputAction.done,
-                          inputFormatters: cfg.mainType == 'Time' || (data.repsType != 'AMRAP' && data.repsType != 'FAILURE') ? [FilteringTextInputFormatter.digitsOnly] : null,
-                          readOnly: cfg.mainType != 'Time' && (data.repsType == 'AMRAP' || data.repsType == 'FAILURE'),
+                          inputFormatters: cfg.mainType == 'Time' || !isAmrapOrFailure ? [FilteringTextInputFormatter.digitsOnly] : null,
+                          readOnly: isAmrapOrFailure,
+                          showCursor: !isAmrapOrFailure,
+                          enableInteractiveSelection: !isAmrapOrFailure,
+                          canRequestFocus: !isAmrapOrFailure,
                           decoration: InputDecoration(
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(50),
@@ -1258,12 +1260,17 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                             hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontSize: 14),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                           ),
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: cfg.mainType != 'Time' && (data.repsType == 'AMRAP' || data.repsType == 'FAILURE') ? AppColors.accent : AppColors.black,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                          ),
+                          style: AppTextStyles.bodyMedium.copyWith(color: isAmrapOrFailure ? AppColors.accent : AppColors.black, fontWeight: FontWeight.w600, fontSize: 15),
                           onTap: () {
+                            if (isAmrapOrFailure) {
+                              setState(() {
+                                data.clearRepsType();
+                                _focusedFieldType = null;
+                                _focusedConfigIdx = null;
+                                _focusedSetIdx = null;
+                              });
+                              return;
+                            }
                             setState(() {
                               _focusedFieldType = cfg.mainType == 'Time' ? null : 'reps';
                               _focusedConfigIdx = cfgIdx;
@@ -1537,19 +1544,24 @@ class _SetData {
     repsTimeController.dispose();
   }
 
-  void updateControllerText(String mainType) {
-    // Only update if the field is not currently focused (user is not typing)
-    if (!repsTimeFocusNode.hasFocus) {
-      final text = mainType == 'Time'
-          ? (time > 0 ? (timeUnit == 'M' ? (time / 60).round().toString() : time.toString()) : '')
-          : (repsType == 'AMRAP'
-                ? 'AMRAP'
-                : repsType == 'FAILURE'
-                ? 'FAILURE'
-                : (reps > 0 ? reps.toString() : ''));
-      if (repsTimeController.text != text) {
-        repsTimeController.text = text;
-      }
+  void updateControllerText(String mainType, {bool force = false}) {
+    if (!force && repsTimeFocusNode.hasFocus) return;
+
+    final text = mainType == 'Time'
+        ? (time > 0 ? (timeUnit == 'M' ? (time / 60).round().toString() : time.toString()) : '')
+        : (repsType == 'AMRAP'
+              ? 'AMRAP'
+              : repsType == 'FAILURE'
+              ? 'FAILURE'
+              : (reps > 0 ? reps.toString() : ''));
+    if (repsTimeController.text != text) {
+      repsTimeController.text = text;
     }
+  }
+
+  void clearRepsType() {
+    repsType = null;
+    reps = 0;
+    repsTimeController.text = '';
   }
 }
