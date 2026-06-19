@@ -57,33 +57,6 @@ class _AddFoodGatewayScreenState extends State<AddFoodGatewayScreen> {
           }
 
           final children = <Widget>[];
-          if (auth.nutritionMealTypesError != null && useFallback) {
-            children.add(
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.error.withOpacity(0.25)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(auth.nutritionMealTypesError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: () => auth.fetchNutritionMealTypes(),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }
 
           if (useFallback) {
             for (final t in MealType.values) {
@@ -100,10 +73,7 @@ class _AddFoodGatewayScreenState extends State<AddFoodGatewayScreen> {
             children.removeLast();
           }
 
-          return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            children: children,
-          );
+          return ListView(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), children: children);
         },
       ),
     );
@@ -150,10 +120,7 @@ class _AddFoodGatewayScreenState extends State<AddFoodGatewayScreen> {
                   ),
                   if (option.description.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      option.description,
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-                    ),
+                    Text(option.description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                   ],
                 ],
               ),
