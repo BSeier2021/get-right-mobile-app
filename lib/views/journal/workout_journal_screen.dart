@@ -237,7 +237,12 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     setState(() => _isSavingJournal = true);
     try {
-      await _workoutRepo.updateWorkoutJournal(journalId: journalId, workoutIds: workoutIds, duration: duration ?? entry.durationSeconds ?? 0, notes: notes ?? '');
+      await _workoutRepo.updateWorkoutJournal(
+        journalId: journalId,
+        workoutIds: workoutIds,
+        duration: duration ?? entry.durationSeconds ?? 0,
+        notes: notes ?? '',
+      );
       await _refreshWorkoutJournalFromApi();
       return true;
     } catch (e) {
@@ -381,7 +386,12 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     if (!mounted) return;
 
     Get.to(
-      () => WorkoutCelebrationScreen(duration: _formatTime(_seconds), calories: _calories, workoutName: _getWorkoutName()),
+      () => WorkoutCelebrationScreen(
+        duration: _formatTime(_seconds),
+        calories: _calories,
+        workoutName: _getWorkoutName(),
+        workoutJournalId: _workoutJournalId,
+      ),
       transition: Transition.zoom,
       duration: const Duration(milliseconds: 500),
     )?.then((_) {
@@ -488,7 +498,9 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       if (WorkoutRepository.isValidMongoId(returnedJournalId)) {
         _workoutJournalId = returnedJournalId;
       }
-      final type = r['exerciseType'] is JournalExerciseType ? r['exerciseType'] as JournalExerciseType : JournalExerciseType.fromIsWarmup(r['isWarmup'] == true);
+      final type = r['exerciseType'] is JournalExerciseType
+          ? r['exerciseType'] as JournalExerciseType
+          : JournalExerciseType.fromIsWarmup(r['isWarmup'] == true);
       final exercises = (r['exercises'] as List).whereType<WorkoutExerciseModel>();
       await _rememberExerciseSections(exercises, type);
       await _refreshWorkoutJournalFromApi();
@@ -1038,7 +1050,10 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
                 if (_workout!.warmupExercises.isNotEmpty) ...[_buildHeader('Warmup', isWarmup: true), ..._buildExercisesList(_workout!.warmupExercises, true)],
 
-                if (_workout!.workoutExercises.isNotEmpty) ...[_buildHeader('Workout', isWarmup: false), ..._buildExercisesList(_workout!.workoutExercises, false)],
+                if (_workout!.workoutExercises.isNotEmpty) ...[
+                  _buildHeader('Workout', isWarmup: false),
+                  ..._buildExercisesList(_workout!.workoutExercises, false),
+                ],
 
                 const SizedBox(height: 20),
               ],
@@ -1061,7 +1076,11 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                       borderRadius: BorderRadius.circular(50),
                       border: Border.all(color: AppColors.accentVariant.withOpacity(0.25), width: 2),
                     ),
-                    child: SvgPicture.asset('assets/icons/share.svg', width: 22, colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn)).paddingAll(5),
+                    child: SvgPicture.asset(
+                      'assets/icons/share.svg',
+                      width: 22,
+                      colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
+                    ).paddingAll(5),
                   ),
                   onPressed: _showShareDialog,
                 ),
@@ -1345,7 +1364,10 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                     ? null
                     : () {
                         Get.back();
-                        Get.toNamed(AppRoutes.reorderExercises, arguments: {'exercises': isWarmup ? _workout!.warmupExercises : _workout!.workoutExercises})?.then((r) {
+                        Get.toNamed(
+                          AppRoutes.reorderExercises,
+                          arguments: {'exercises': isWarmup ? _workout!.warmupExercises : _workout!.workoutExercises},
+                        )?.then((r) {
                           if (r != null && r['exercises'] != null) {
                             _reorderExercises(r['exercises'] as List<WorkoutExerciseModel>, isWarmup);
                           }

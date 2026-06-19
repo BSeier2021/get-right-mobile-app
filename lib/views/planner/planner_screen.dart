@@ -321,7 +321,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
       await _loadCalendarMonth();
       if (!mounted) return;
       await _loadSelectedDayDetail();
-      Get.snackbar('Success', '$type photo added successfully', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Success',
+        '$type photo added successfully',
+        backgroundColor: AppColors.completed,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } catch (e) {
       if (!mounted) return;
       await showCalendarErrorDialog(context, e);
@@ -338,7 +344,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: Text('Delete entry?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-        content: Text('Remove this calendar entry for $dateLabel? This cannot be undone.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+        content: Text(
+          'Remove this calendar entry for $dateLabel? This cannot be undone.',
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -374,7 +383,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
       await _loadCalendarMonth();
       if (!mounted) return;
-      Get.snackbar('Deleted', 'Calendar entry removed', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Deleted',
+        'Calendar entry removed',
+        backgroundColor: AppColors.completed,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } catch (e) {
       if (!mounted) return;
       await showCalendarErrorDialog(context, e);
@@ -421,7 +436,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
       if (!mounted) return;
       await _loadCalendarMonth();
       if (!mounted) return;
-      Get.snackbar('Success', 'Day marked as complete', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Success',
+        'Day marked as complete',
+        backgroundColor: AppColors.completed,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } catch (e) {
       if (!mounted) return;
       await showCalendarErrorDialog(context, e);
@@ -595,7 +616,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final normalizedTarget = DateTime(targetDate.year, targetDate.month, targetDate.day);
     final normalizedSelected = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
     if (normalizedTarget == normalizedSelected) {
-      Get.snackbar('Move Workout', 'Choose a different date', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Move Workout',
+        'Choose a different date',
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 
@@ -644,7 +671,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   void _showAddWorkoutDialog() {
     Get.to(
-      () => AddDateScreen(selectedDate: _selectedDate, calendarEntryId: _calendarEntryIdForSelectedDate(), onAddProgressPhoto: _addProgressPhoto, onAddNotes: _showNotesDialog),
+      () => AddDateScreen(
+        selectedDate: _selectedDate,
+        calendarEntryId: _calendarEntryIdForSelectedDate(),
+        onAddProgressPhoto: _addProgressPhoto,
+        onAddNotes: _showNotesDialog,
+      ),
     )?.then((result) async {
       if (!mounted || result == 'workout_journal') return;
       await _loadCalendarMonth();
@@ -723,10 +755,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
   void _markAsRestDay() {
     setState(() {
       final key = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      _dayData[key] = {'workoutStatus': 'rest', 'hasProgressPhoto': false, 'workout': null, 'run': null, 'nutrition': null, 'notes': _dayData[key]?['notes'] ?? ''};
+      _dayData[key] = {
+        'workoutStatus': 'rest',
+        'hasProgressPhoto': false,
+        'workout': null,
+        'run': null,
+        'nutrition': null,
+        'notes': _dayData[key]?['notes'] ?? '',
+      };
     });
 
-    Get.snackbar('Success', 'Day marked as rest day', backgroundColor: const Color(0xFF4A90E2), colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar(
+      'Success',
+      'Day marked as rest day',
+      backgroundColor: const Color(0xFF4A90E2),
+      colorText: AppColors.onError,
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
   void _showPhotoHistory() {
@@ -734,7 +779,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final photoDates = _dayData.entries.where((entry) => entry.value['hasProgressPhoto'] == true).map((entry) => entry.key).toList();
 
     if (photoDates.isEmpty) {
-      Get.snackbar('No Photos', 'You haven\'t added any progress photos yet', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'No Photos',
+        'You haven\'t added any progress photos yet',
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 
@@ -1376,7 +1427,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 Icon(Icons.info_outline, color: AppColors.primaryGray, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('Recipients can import this workout into their calendar', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11)),
+                  child: Text(
+                    'Recipients can import this workout into their calendar',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11),
+                  ),
                 ),
               ],
             ),
@@ -2016,7 +2070,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final difficulty = program['difficulty']?.toString() ?? '';
     final exerciseCount = (program['exerciseCount'] as num?)?.toInt() ?? 0;
     final totalSets = (program['totalSets'] as num?)?.toInt() ?? 0;
-    final exercises = program['exercises'] is List ? (program['exercises'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : <Map<String, dynamic>>[];
+    final exercises = program['exercises'] is List
+        ? (program['exercises'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+        : <Map<String, dynamic>>[];
 
     Color statusColor;
     String statusLabel;
@@ -2063,7 +2119,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       title,
                       style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                     ),
-                    if (difficulty.isNotEmpty) ...[const SizedBox(height: 4), Text(difficulty, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray))],
+                    if (difficulty.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(difficulty, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                    ],
                   ],
                 ),
               ),
@@ -2199,6 +2258,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Widget _buildWorkoutSummarySection(Map<String, dynamic> workout) {
+    final notes = workout['notes']?.toString().trim() ?? '';
+    final journalDateRaw = workout['journalDate']?.toString();
+    final journalDate = journalDateRaw != null ? DateTime.tryParse(journalDateRaw) : null;
+    final workouts = workout['workouts'] is List
+        ? (workout['workouts'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+        : <Map<String, dynamic>>[];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(20),
@@ -2210,13 +2276,30 @@ class _PlannerScreenState extends State<PlannerScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title row
           Row(
             children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.fitness_center, color: AppColors.accent, size: 22),
+              ),
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'Workout Summary',
-                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 17),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Workout Journal',
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 17),
+                    ),
+                    if (journalDate != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('MMM d, yyyy · h:mm a').format(journalDate.toLocal()),
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               GestureDetector(
@@ -2226,7 +2309,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // Duration row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -2238,7 +2320,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          // Stat boxes row
           Row(
             children: [
               Expanded(child: _buildWorkoutStatBox('assets/icons/nutrition.svg', workout['exercises'].toString(), 'Exercises')),
@@ -2247,6 +2328,145 @@ class _PlannerScreenState extends State<PlannerScreen> {
               const SizedBox(width: 10),
               Expanded(child: _buildWorkoutStatBox('assets/icons/nutrition.svg', workout['calories'].toString(), 'Calories')),
             ],
+          ),
+          if (notes.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              'Notes',
+              style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(notes, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, height: 1.4)),
+          ],
+          if (workouts.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              'Exercises',
+              style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            ...workouts.asMap().entries.map((entry) => _buildJournalExerciseTile(entry.value, entry.key + 1)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJournalExerciseTile(Map<String, dynamic> workout, int order) {
+    final name = workout['name']?.toString().trim().isNotEmpty == true ? workout['name'].toString() : 'Exercise $order';
+    final iconUrl = workout['iconUrl']?.toString();
+    final sets = workout['sets'] is List
+        ? (workout['sets'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+        : <Map<String, dynamic>>[];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                clipBehavior: Clip.antiAlias,
+                child: iconUrl != null && iconUrl.isNotEmpty
+                    ? SafeNetworkImage(
+                        url: iconUrl,
+                        fit: BoxFit.cover,
+                        width: 40,
+                        height: 40,
+                        fallback: Icon(Icons.fitness_center, size: 20, color: AppColors.accent),
+                      )
+                    : Icon(Icons.fitness_center, size: 20, color: AppColors.accent),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  name,
+                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          if (sets.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Set',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Reps',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Weight',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Rest',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ...sets.map((set) => _buildJournalSetRow(set)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJournalSetRow(Map<String, dynamic> set) {
+    final setNumber = set['setNumber']?.toString() ?? '-';
+    final reps = set['reps']?.toString() ?? '-';
+    final weightRaw = set['weight']?.toString() ?? '-';
+    final weight = weightRaw != '-' && weightRaw.isNotEmpty ? '$weightRaw kg' : '-';
+    final rest = _formatProgramRest(set['restTime']);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 1,
+            child: Text(
+              setNumber,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(reps, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(weight, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(rest.isNotEmpty ? rest : '-', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
           ),
         ],
       ),
@@ -2401,7 +2621,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
       final averagePace = paceMinutes + (paceSeconds / 60.0);
 
       // Get calories
-      final calories = runData['calories'] is int ? runData['calories'] as int : (runData['calories'] is String ? int.tryParse(runData['calories'].toString()) ?? 0 : 0);
+      final calories = runData['calories'] is int
+          ? runData['calories'] as int
+          : (runData['calories'] is String ? int.tryParse(runData['calories'].toString()) ?? 0 : 0);
 
       // Create RunModel from parsed data
       final runModel = RunModel(
