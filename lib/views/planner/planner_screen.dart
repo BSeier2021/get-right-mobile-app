@@ -1,13 +1,16 @@
+﻿import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/run_model.dart';
+import 'package:get_right/repo/calendar_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
-import 'package:get_right/views/journal/add_workout_screen.dart';
 import 'package:get_right/views/planner/add_date_screen.dart';
+import 'package:get_right/views/planner/calendar_type_dialog.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -24,415 +27,94 @@ class _PlannerScreenState extends State<PlannerScreen> {
   DateTime _focusedMonth = DateTime.now();
   bool _isCalendarCollapsed = false;
   final ImagePicker _imagePicker = ImagePicker();
+  final CalendarRepository _calendarRepo = CalendarRepository();
 
-  // Mock workout data for calendar (status: completed, incomplete, rest)
-  final Map<DateTime, Map<String, dynamic>> _dayData = {
-    // December 2025 mock data
-    DateTime(2025, 12, 1): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': true,
-      'workout': {'duration': '45:00', 'exercises': 5, 'sets': 15, 'calories': 450},
-      'run': null,
-      'nutrition': {'calories': '2100/2200', 'protein': '140g', 'carbs': '220g', 'fats': '65g'},
-      'notes': 'Started new program',
-    },
-    DateTime(2025, 12, 2): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': {'distance': '5.20 km', 'time': '28:00', 'pace': '5:23 /km', 'calories': 320},
-      'nutrition': {'calories': '1950/2200', 'protein': '130g', 'carbs': '210g', 'fats': '58g'},
-      'notes': 'Morning run',
-    },
-    DateTime(2025, 12, 3): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': true,
-      'workout': {'duration': '30:00', 'exercises': 4, 'sets': 12, 'calories': 300},
-      'run': null,
-      'nutrition': {'calories': '1850/2200', 'protein': '145g', 'carbs': '195g', 'fats': '62g'},
-      'notes': '',
-    },
-    DateTime(2025, 12, 4): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '60:00', 'exercises': 6, 'sets': 18, 'calories': 550},
-      'run': null,
-      'nutrition': {'calories': '2150/2200', 'protein': '155g', 'carbs': '230g', 'fats': '70g'},
-      'notes': 'Leg day - intense session',
-    },
-    DateTime(2025, 12, 5): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': true,
-      'workout': {'duration': '30:00', 'exercises': 4, 'sets': 12, 'calories': 300},
-      'run': {'distance': '3.00 km', 'time': '20:00', 'pace': '4:00 /km', 'calories': 250},
-      'nutrition': {'calories': '1800/2200', 'protein': '120g', 'carbs': '200g', 'fats': '60g'},
-      'notes': 'Great workout today!',
-    },
-    DateTime(2025, 12, 6): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': null,
-      'nutrition': {'calories': '1900/2200', 'protein': '125g', 'carbs': '205g', 'fats': '63g'},
-      'notes': '',
-    },
-    DateTime(2025, 12, 7): {
-      'workoutStatus': 'rest',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': null,
-      'nutrition': {'calories': '1600/2200', 'protein': '100g', 'carbs': '180g', 'fats': '55g'},
-      'notes': 'Rest day - recovery',
-    },
-    DateTime(2025, 12, 8): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '40:00', 'exercises': 5, 'sets': 14, 'calories': 380},
-      'run': null,
-      'nutrition': {'calories': '2050/2200', 'protein': '150g', 'carbs': '215g', 'fats': '68g'},
-      'notes': '',
-    },
-    DateTime(2025, 12, 9): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': true,
-      'workout': null,
-      'run': {'distance': '8.50 km', 'time': '45:00', 'pace': '5:18 /km', 'calories': 520},
-      'nutrition': {'calories': '2250/2200', 'protein': '135g', 'carbs': '240g', 'fats': '72g'},
-      'notes': 'Long run - feeling strong',
-    },
-    DateTime(2025, 12, 10): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '35:00', 'exercises': 4, 'sets': 13, 'calories': 330},
-      'run': null,
-      'nutrition': {'calories': '1950/2200', 'protein': '142g', 'carbs': '208g', 'fats': '64g'},
-      'notes': '',
-    },
-    DateTime(2025, 12, 11): {
-      'workoutStatus': 'incomplete',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '30:00', 'exercises': 4, 'sets': 12, 'calories': 300},
-      'run': null,
-      'nutrition': null,
-      'notes': 'Planned workout',
-    },
-    DateTime(2025, 12, 12): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '50:00', 'exercises': 6, 'sets': 16, 'calories': 480},
-      'run': {'distance': '4.20 km', 'time': '22:00', 'pace': '4:14 /km', 'calories': 280},
-      'nutrition': {'calories': '2200/2200', 'protein': '160g', 'carbs': '225g', 'fats': '75g'},
-      'notes': 'Double session day',
-    },
-    DateTime(2025, 12, 13): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': true,
-      'workout': {'duration': '38:00', 'exercises': 5, 'sets': 15, 'calories': 360},
-      'run': null,
-      'nutrition': {'calories': '1980/2200', 'protein': '148g', 'carbs': '212g', 'fats': '66g'},
-      'notes': '',
-    },
-    DateTime(2025, 12, 14): {
-      'workoutStatus': 'rest',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': null,
-      'nutrition': {'calories': '1650/2200', 'protein': '105g', 'carbs': '185g', 'fats': '56g'},
-      'notes': 'Active recovery - light walk',
-    },
-    DateTime(2025, 12, 15): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '42:00', 'exercises': 5, 'sets': 14, 'calories': 400},
-      'run': null,
-      'nutrition': {'calories': '2100/2200', 'protein': '152g', 'carbs': '218g', 'fats': '69g'},
-      'notes': '',
-    },
-    DateTime(2025, 12, 16): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': {'distance': '6.80 km', 'time': '36:00', 'pace': '5:18 /km', 'calories': 410},
-      'nutrition': {'calories': '1920/2200', 'protein': '128g', 'carbs': '202g', 'fats': '61g'},
-      'notes': 'Evening run',
-    },
-    DateTime(2025, 12, 17): {
-      'workoutStatus': 'incomplete',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '35:00', 'exercises': 4, 'sets': 13, 'calories': 340},
-      'run': null,
-      'nutrition': null,
-      'notes': 'Scheduled workout',
-    },
-    DateTime(2025, 12, 18): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': true,
-      'workout': {'duration': '55:00', 'exercises': 7, 'sets': 20, 'calories': 600},
-      'run': null,
-      'nutrition': {'calories': '2300/2200', 'protein': '165g', 'carbs': '245g', 'fats': '80g'},
-      'notes': 'Weekend warrior session',
-    },
-    DateTime(2025, 12, 19): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': {'distance': '10.00 km', 'time': '52:00', 'pace': '5:12 /km', 'calories': 620},
-      'nutrition': {'calories': '2180/2200', 'protein': '138g', 'carbs': '235g', 'fats': '73g'},
-      'notes': '10K milestone!',
-    },
-    DateTime(2025, 12, 20): {
-      'workoutStatus': 'rest',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': null,
-      'nutrition': {'calories': '1700/2200', 'protein': '110g', 'carbs': '190g', 'fats': '58g'},
-      'notes': 'Rest day',
-    },
-    DateTime(2025, 12, 21): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '33:00', 'exercises': 4, 'sets': 12, 'calories': 310},
-      'run': null,
-      'nutrition': {'calories': '2000/2200', 'protein': '146g', 'carbs': '210g', 'fats': '65g'},
-      'notes': '',
-    },
-    DateTime(2025, 12, 22): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '48:00', 'exercises': 6, 'sets': 17, 'calories': 470},
-      'run': {'distance': '3.50 km', 'time': '18:00', 'pace': '3:51 /km', 'calories': 240},
-      'nutrition': {'calories': '2250/2200', 'protein': '158g', 'carbs': '238g', 'fats': '76g'},
-      'notes': 'Fast run today',
-    },
-    DateTime(2025, 12, 23): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': true,
-      'workout': {'duration': '40:00', 'exercises': 5, 'sets': 15, 'calories': 390},
-      'run': null,
-      'nutrition': {'calories': '1950/2200', 'protein': '143g', 'carbs': '207g', 'fats': '64g'},
-      'notes': '',
-    },
-    DateTime(2025, 12, 24): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': {'distance': '5.00 km', 'time': '25:00', 'pace': '5:00 /km', 'calories': 310},
-      'nutrition': {'calories': '2400/2200', 'protein': '120g', 'carbs': '280g', 'fats': '85g'},
-      'notes': 'Christmas Eve run',
-    },
-    DateTime(2025, 12, 25): {
-      'workoutStatus': 'rest',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': null,
-      'nutrition': {'calories': '2500/2200', 'protein': '110g', 'carbs': '300g', 'fats': '90g'},
-      'notes': 'Christmas - family time',
-    },
-    DateTime(2025, 12, 26): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '45:00', 'exercises': 5, 'sets': 16, 'calories': 440},
-      'run': null,
-      'nutrition': {'calories': '2050/2200', 'protein': '151g', 'carbs': '220g', 'fats': '68g'},
-      'notes': 'Back to routine',
-    },
-    DateTime(2025, 12, 27): {
-      'workoutStatus': 'incomplete',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '30:00', 'exercises': 4, 'sets': 12, 'calories': 300},
-      'run': null,
-      'nutrition': null,
-      'notes': 'Planned workout',
-    },
-    DateTime(2025, 12, 28): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '50:00', 'exercises': 6, 'sets': 18, 'calories': 500},
-      'run': null,
-      'nutrition': {'calories': '2120/2200', 'protein': '154g', 'carbs': '222g', 'fats': '71g'},
-      'notes': '',
-    },
-    DateTime(2025, 12, 29): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': true,
-      'workout': null,
-      'run': {'distance': '7.20 km', 'time': '38:00', 'pace': '5:17 /km', 'calories': 450},
-      'nutrition': {'calories': '1970/2200', 'protein': '132g', 'carbs': '209g', 'fats': '63g'},
-      'notes': '',
-    },
-    DateTime(2025, 12, 30): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '43:00', 'exercises': 5, 'sets': 15, 'calories': 420},
-      'run': null,
-      'nutrition': {'calories': '2080/2200', 'protein': '149g', 'carbs': '216g', 'fats': '67g'},
-      'notes': '',
-    },
-    DateTime(2025, 12, 31): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '60:00', 'exercises': 7, 'sets': 21, 'calories': 650},
-      'run': {'distance': '5.50 km', 'time': '28:00', 'pace': '5:05 /km', 'calories': 340},
-      'nutrition': {'calories': '2350/2200', 'protein': '162g', 'carbs': '248g', 'fats': '78g'},
-      'notes': 'End of year challenge!',
-    },
+  Map<DateTime, Map<String, dynamic>> _dayData = {};
+  bool _isLoadingCalendar = false;
+  bool _isLoadingDayDetail = false;
+  String? _calendarLoadError;
+  String? _dayDetailError;
+  bool _isDeletingEntry = false;
+  bool _isMarkingComplete = false;
 
-    // March 2026 mock data (matching calendar screenshot)
-    DateTime(2026, 3, 3): {
-      'workoutStatus': 'rest',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': null,
-      'nutrition': {'calories': '1600/2200', 'protein': '100g', 'carbs': '180g', 'fats': '55g'},
-      'notes': 'Rest day',
-    },
-    DateTime(2026, 3, 4): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '45:00', 'exercises': 5, 'sets': 15, 'calories': 450},
-      'run': null,
-      'nutrition': {'calories': '2100/2200', 'protein': '140g', 'carbs': '220g', 'fats': '65g'},
-      'notes': '',
-    },
-    DateTime(2026, 3, 5): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '50:00', 'exercises': 6, 'sets': 18, 'calories': 520},
-      'run': null,
-      'nutrition': {'calories': '2000/2200', 'protein': '145g', 'carbs': '210g', 'fats': '68g'},
-      'notes': '',
-    },
-    DateTime(2026, 3, 6): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': {'distance': '5.00 km', 'time': '26:00', 'pace': '5:12 /km', 'calories': 310},
-      'nutrition': {'calories': '1950/2200', 'protein': '130g', 'carbs': '200g', 'fats': '60g'},
-      'notes': 'Morning run',
-    },
-    DateTime(2026, 3, 7): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '35:00', 'exercises': 4, 'sets': 12, 'calories': 340},
-      'run': null,
-      'nutrition': {'calories': '2050/2200', 'protein': '148g', 'carbs': '215g', 'fats': '66g'},
-      'notes': '',
-    },
-    DateTime(2026, 3, 10): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '40:00', 'exercises': 5, 'sets': 14, 'calories': 400},
-      'run': null,
-      'nutrition': {'calories': '2100/2200', 'protein': '150g', 'carbs': '218g', 'fats': '67g'},
-      'notes': '',
-    },
-    DateTime(2026, 3, 11): {
-      'workoutStatus': 'rest',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': null,
-      'nutrition': {'calories': '1650/2200', 'protein': '105g', 'carbs': '185g', 'fats': '56g'},
-      'notes': 'Rest day - recovery',
-    },
-    DateTime(2026, 3, 12): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '55:00', 'exercises': 6, 'sets': 18, 'calories': 550},
-      'run': null,
-      'nutrition': {'calories': '2200/2200', 'protein': '155g', 'carbs': '230g', 'fats': '72g'},
-      'notes': '',
-    },
-    DateTime(2026, 3, 13): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': {'distance': '6.50 km', 'time': '34:00', 'pace': '5:14 /km', 'calories': 400},
-      'nutrition': {'calories': '2050/2200', 'protein': '138g', 'carbs': '212g', 'fats': '64g'},
-      'notes': '',
-    },
-    DateTime(2026, 3, 14): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '42:00', 'exercises': 5, 'sets': 15, 'calories': 420},
-      'run': null,
-      'nutrition': {'calories': '2150/2200', 'protein': '152g', 'carbs': '225g', 'fats': '70g'},
-      'notes': '',
-    },
-    DateTime(2026, 3, 17): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '48:00', 'exercises': 6, 'sets': 16, 'calories': 470},
-      'run': null,
-      'nutrition': {'calories': '2100/2200', 'protein': '149g', 'carbs': '220g', 'fats': '69g'},
-      'notes': '',
-    },
-    DateTime(2026, 3, 18): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '38:00', 'exercises': 5, 'sets': 14, 'calories': 380},
-      'run': null,
-      'nutrition': {'calories': '1980/2200', 'protein': '142g', 'carbs': '208g', 'fats': '65g'},
-      'notes': '',
-    },
-    DateTime(2026, 3, 19): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': true,
-      'workout': {'duration': '50:00', 'exercises': 6, 'sets': 18, 'calories': 500},
-      'run': null,
-      'nutrition': {'calories': '2250/2200', 'protein': '160g', 'carbs': '240g', 'fats': '75g'},
-      'notes': 'Great progress!',
-    },
-    DateTime(2026, 3, 20): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': {'distance': '8.00 km', 'time': '42:00', 'pace': '5:15 /km', 'calories': 490},
-      'nutrition': {'calories': '2180/2200', 'protein': '136g', 'carbs': '232g', 'fats': '71g'},
-      'notes': '',
-    },
+  bool get _hasDeletableEntry => _calendarEntryIdForSelectedDate() != null;
 
-    // April 2026 mock data (current month)
-    DateTime(2026, 4, 1): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '45:00', 'exercises': 5, 'sets': 15, 'calories': 440},
-      'run': null,
-      'nutrition': {'calories': '2100/2200', 'protein': '148g', 'carbs': '218g', 'fats': '67g'},
-      'notes': 'New month, new goals',
-    },
-    DateTime(2026, 4, 2): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': {'distance': '5.50 km', 'time': '28:00', 'pace': '5:05 /km', 'calories': 340},
-      'nutrition': {'calories': '2000/2200', 'protein': '135g', 'carbs': '210g', 'fats': '63g'},
-      'notes': '',
-    },
-    DateTime(2026, 4, 3): {
-      'workoutStatus': 'rest',
-      'hasProgressPhoto': false,
-      'workout': null,
-      'run': null,
-      'nutrition': {'calories': '1700/2200', 'protein': '110g', 'carbs': '190g', 'fats': '58g'},
-      'notes': 'Rest day',
-    },
-    DateTime(2026, 4, 4): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': true,
-      'workout': {'duration': '55:00', 'exercises': 7, 'sets': 20, 'calories': 580},
-      'run': null,
-      'nutrition': {'calories': '2200/2200', 'protein': '158g', 'carbs': '228g', 'fats': '73g'},
-      'notes': '',
-    },
-    DateTime(2026, 4, 5): {
-      'workoutStatus': 'completed',
-      'hasProgressPhoto': false,
-      'workout': {'duration': '40:00', 'exercises': 5, 'sets': 14, 'calories': 400},
-      'run': null,
-      'nutrition': {'calories': '2050/2200', 'protein': '146g', 'carbs': '215g', 'fats': '66g'},
-      'notes': '',
-    },
-  };
+  bool get _canMarkAsComplete {
+    final status = _getDataForDate(_selectedDate)?['workoutStatus']?.toString();
+    return status != 'completed' && status != 'rest';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCalendarMonth();
+  }
+
+  Future<void> _loadCalendarMonth() async {
+    setState(() {
+      _isLoadingCalendar = true;
+      _calendarLoadError = null;
+    });
+    try {
+      final data = await _calendarRepo.fetchCalendarMonth(year: _focusedMonth.year, month: _focusedMonth.month);
+      if (!mounted) return;
+      setState(() {
+        _dayData = data;
+        _isLoadingCalendar = false;
+      });
+      await _loadSelectedDayDetail();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingCalendar = false;
+        _calendarLoadError = CalendarRepository.errorMessageFrom(e);
+      });
+    }
+  }
+
+  void _changeFocusedMonth(DateTime month) {
+    setState(() {
+      _focusedMonth = month;
+      _isCalendarCollapsed = false;
+    });
+    _loadCalendarMonth();
+  }
+
+  void _selectDate(DateTime date) {
+    setState(() {
+      _selectedDate = date;
+      _isCalendarCollapsed = true;
+      _dayDetailError = null;
+    });
+    _loadSelectedDayDetail();
+  }
+
+  Future<void> _loadSelectedDayDetail() async {
+    final summary = _getDataForDate(_selectedDate);
+    final entryId = summary?['calendarEntryId']?.toString();
+    if (entryId == null || entryId.isEmpty) return;
+
+    setState(() {
+      _isLoadingDayDetail = true;
+      _dayDetailError = null;
+    });
+
+    try {
+      final detail = await _calendarRepo.fetchCalendarEntry(entryId);
+      if (!mounted) return;
+      setState(() {
+        final key = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+        _dayData[key] = detail;
+        _isLoadingDayDetail = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingDayDetail = false;
+        _dayDetailError = CalendarRepository.errorMessageFrom(e);
+      });
+    }
+  }
 
   String _formatRunTime(Duration duration) {
     final minutes = duration.inMinutes;
@@ -550,22 +232,167 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
+  String? _calendarEntryIdForSelectedDate() {
+    return CalendarRepository.entryIdForDate(_dayData, _selectedDate);
+  }
+
+  Future<void> _persistCalendarNotes(String notes) async {
+    final entryId = _calendarEntryIdForSelectedDate();
+
+    try {
+      if (entryId != null) {
+        await _calendarRepo.updateCalendarEntry(calendarEntryId: entryId, notes: notes);
+      } else {
+        final type = await showCalendarTypeDialog(context);
+        if (type == null || !mounted) return;
+        await _calendarRepo.createCalendarEntry(date: _selectedDate, type: type, notes: notes);
+      }
+
+      if (!mounted) return;
+      await _loadCalendarMonth();
+      await _loadSelectedDayDetail();
+      Get.snackbar('Saved', 'Notes updated', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      if (!mounted) return;
+      await showCalendarErrorDialog(context, e);
+    }
+  }
+
+  Future<void> _persistProgressPhoto(File photo, String type) async {
+    final entryId = _calendarEntryIdForSelectedDate();
+    final existingNotes = _getDataForDate(_selectedDate)?['notes']?.toString();
+
+    try {
+      if (entryId != null) {
+        await _calendarRepo.updateCalendarEntry(
+          calendarEntryId: entryId,
+          notes: existingNotes?.trim().isNotEmpty == true ? existingNotes!.trim() : null,
+          progressPhotoFiles: [photo],
+        );
+      } else {
+        final entryType = await showCalendarTypeDialog(context);
+        if (entryType == null || !mounted) return;
+        await _calendarRepo.createCalendarEntry(date: _selectedDate, type: entryType, notes: '$type progress photo', progressPhotoFiles: [photo]);
+      }
+
+      if (!mounted) return;
+      await _loadCalendarMonth();
+      await _loadSelectedDayDetail();
+      Get.snackbar('Success', '$type photo added successfully', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      if (!mounted) return;
+      await showCalendarErrorDialog(context, e);
+    }
+  }
+
+  Future<void> _confirmDeleteCalendarEntry() async {
+    final entryId = _calendarEntryIdForSelectedDate();
+    if (entryId == null || _isDeletingEntry) return;
+
+    final dateLabel = DateFormat('MMM d, yyyy').format(_selectedDate);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Delete entry?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+        content: Text('Remove this calendar entry for $dateLabel? This cannot be undone.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              'Delete',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _deleteCalendarEntry(entryId);
+    }
+  }
+
+  Future<void> _deleteCalendarEntry(String entryId) async {
+    setState(() => _isDeletingEntry = true);
+    try {
+      await _calendarRepo.deleteCalendarEntry(calendarEntryId: entryId);
+      if (!mounted) return;
+
+      setState(() {
+        final key = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+        _dayData.remove(key);
+        _dayDetailError = null;
+      });
+
+      await _loadCalendarMonth();
+      if (!mounted) return;
+      Get.snackbar('Deleted', 'Calendar entry removed', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      if (!mounted) return;
+      await showCalendarErrorDialog(context, e);
+    } finally {
+      if (mounted) setState(() => _isDeletingEntry = false);
+    }
+  }
+
+  Widget _buildMarkAsCompleteButton() {
+    if (!_canMarkAsComplete) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: _isMarkingComplete ? null : _markAsComplete,
+          icon: _isMarkingComplete
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onError))
+              : const Icon(Icons.check_circle_outline, size: 20),
+          label: Text(_isMarkingComplete ? 'Marking...' : 'Mark as Complete'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF6FCF97),
+            foregroundColor: AppColors.onError,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _markAsComplete() async {
+    setState(() => _isMarkingComplete = true);
+    try {
+      final entryId = _calendarEntryIdForSelectedDate();
+      if (entryId != null) {
+        await _calendarRepo.updateCalendarEntry(calendarEntryId: entryId, type: CalendarRepository.typeCompleted);
+      } else {
+        await _calendarRepo.createCalendarEntry(date: _selectedDate, type: CalendarRepository.typeCompleted);
+      }
+
+      if (!mounted) return;
+      await _loadCalendarMonth();
+      if (!mounted) return;
+      Get.snackbar('Success', 'Day marked as complete', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      if (!mounted) return;
+      await showCalendarErrorDialog(context, e);
+    } finally {
+      if (mounted) setState(() => _isMarkingComplete = false);
+    }
+  }
+
   Future<void> _capturePhoto(String type) async {
     try {
       final XFile? photo = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 85);
 
       if (photo != null) {
-        // TODO: Upload photo to backend
-        setState(() {
-          final key = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-          if (_dayData[key] != null) {
-            _dayData[key]!['hasProgressPhoto'] = true;
-          } else {
-            _dayData[key] = {'workoutStatus': null, 'hasProgressPhoto': true, 'workout': null, 'run': null, 'nutrition': null, 'notes': ''};
-          }
-        });
-
-        Get.snackbar('Success', '$type photo added successfully', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+        await _persistProgressPhoto(File(photo.path), type);
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to capture photo: $e', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
@@ -573,7 +400,21 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _showAddWorkoutDialog() {
-    Get.to(() => AddDateScreen(selectedDate: _selectedDate, onAddProgressPhoto: _addProgressPhoto, onAddNotes: _showNotesDialog));
+    Get.to(
+      () => AddDateScreen(selectedDate: _selectedDate, calendarEntryId: _calendarEntryIdForSelectedDate(), onAddProgressPhoto: _addProgressPhoto, onAddNotes: _showNotesDialog),
+    )?.then((_) async {
+      if (!mounted) return;
+      await _loadCalendarMonth();
+      await _loadSelectedDayDetail();
+    });
+  }
+
+  String? _progressPhotoUrl(DateTime date, int index) {
+    final photos = _getDataForDate(date)?['progressPhotos'];
+    if (photos is! List || index >= photos.length) return null;
+    final photo = photos[index];
+    if (photo is Map) return photo['url']?.toString();
+    return null;
   }
 
   void _showNotesDialog() {
@@ -608,16 +449,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
             child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
           ),
           ElevatedButton(
-            onPressed: () {
-              setState(() {
-                final key = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-                if (_dayData[key] != null) {
-                  _dayData[key]!['notes'] = notesController.text;
-                } else {
-                  _dayData[key] = {'workoutStatus': null, 'hasProgressPhoto': false, 'workout': null, 'run': null, 'nutrition': null, 'notes': notesController.text};
-                }
-              });
+            onPressed: () async {
+              final notes = notesController.text.trim();
               Navigator.pop(context);
+              await _persistCalendarNotes(notes);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.onAccent),
             child: const Text('Save'),
@@ -787,6 +622,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _viewPhotoFullScreen(DateTime date, String type) {
+    final photoIndex = type == 'front' ? 0 : 1;
+    final photoUrl = _progressPhotoUrl(date, photoIndex);
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -835,16 +673,32 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     width: double.infinity,
                     margin: const EdgeInsets.all(16),
                     decoration: BoxDecoration(color: AppColors.primaryGrayLight, borderRadius: BorderRadius.circular(12)),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(type == 'front' ? Icons.camera_front : Icons.camera_alt, size: 80, color: AppColors.primaryGray),
-                        const SizedBox(height: 16),
-                        Text('Photo Preview', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-                        const SizedBox(height: 8),
-                        Text('TODO: Load actual photo', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray.withOpacity(0.7))),
-                      ],
-                    ),
+                    child: photoUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              photoUrl,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: 400,
+                              errorBuilder: (_, __, ___) => Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(type == 'front' ? Icons.camera_front : Icons.camera_alt, size: 80, color: AppColors.primaryGray),
+                                  const SizedBox(height: 16),
+                                  Text('Could not load photo', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                                ],
+                              ),
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(type == 'front' ? Icons.camera_front : Icons.camera_alt, size: 80, color: AppColors.primaryGray),
+                              const SizedBox(height: 16),
+                              Text('Photo Preview', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                            ],
+                          ),
                   ),
                 ],
               ),
@@ -1058,7 +912,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     }
   }
 
-  /// Screenshot 1 – Workout Summary card
+  /// Screenshot 1 â€“ Workout Summary card
   Widget _buildSummaryPreviewCard(Map<String, dynamic>? data) {
     final workout = data?['workout'] as Map<String, dynamic>?;
     final duration = workout?['duration'] ?? 'N/A';
@@ -1130,7 +984,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
-  /// Screenshot 2 – Workout Download / Details card
+  /// Screenshot 2 â€“ Workout Download / Details card
   Widget _buildDownloadPreviewCard(Map<String, dynamic>? data) {
     final workout = data?['workout'] as Map<String, dynamic>?;
     final duration = workout?['duration'] ?? '55:00';
@@ -1349,7 +1203,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
         ),
         title: Text('Calendar', style: AppTextStyles.titleLarge.copyWith(color: AppColors.black)),
         centerTitle: true,
-        actions: const [],
+        actions: [
+          if (_isCalendarCollapsed && _hasDeletableEntry)
+            IconButton(
+              tooltip: 'Delete entry',
+              onPressed: _isDeletingEntry ? null : _confirmDeleteCalendarEntry,
+              icon: _isDeletingEntry
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.error))
+                  : const Icon(Icons.delete_outline, color: AppColors.error),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -1379,20 +1242,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.chevron_left, color: AppColors.onSurface),
-                    onPressed: () {
-                      setState(() {
-                        _focusedMonth = DateTime(_focusedMonth.year - 1, _focusedMonth.month);
-                      });
-                    },
+                    onPressed: () => _changeFocusedMonth(DateTime(_focusedMonth.year - 1, _focusedMonth.month)),
                   ),
                   Text('${_focusedMonth.year}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
                   IconButton(
                     icon: const Icon(Icons.chevron_right, color: AppColors.onSurface),
-                    onPressed: () {
-                      setState(() {
-                        _focusedMonth = DateTime(_focusedMonth.year + 1, _focusedMonth.month);
-                      });
-                    },
+                    onPressed: () => _changeFocusedMonth(DateTime(_focusedMonth.year + 1, _focusedMonth.month)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1474,8 +1329,22 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ),
                 const SizedBox(height: 8),
 
-                // Calendar grid
-                _buildCalendarGrid(),
+                if (_calendarLoadError != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Text(
+                      _calendarLoadError!,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                    ),
+                  ),
+                if (_isLoadingCalendar)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                  )
+                else
+                  _buildCalendarGrid(),
                 const SizedBox(height: 16),
 
                 // Pagination dots below calendar (hidden when collapsed)
@@ -1554,17 +1423,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
       onHorizontalDragEnd: (details) {
         if (details.primaryVelocity != null) {
           if (details.primaryVelocity! < 0) {
-            // Swipe left → next month
-            setState(() {
-              _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
-              _isCalendarCollapsed = false;
-            });
+            // Swipe left â†’ next month
+            _changeFocusedMonth(DateTime(_focusedMonth.year, _focusedMonth.month + 1));
           } else if (details.primaryVelocity! > 0) {
-            // Swipe right → previous month
-            setState(() {
-              _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
-              _isCalendarCollapsed = false;
-            });
+            // Swipe right â†’ previous month
+            _changeFocusedMonth(DateTime(_focusedMonth.year, _focusedMonth.month - 1));
           }
         }
       },
@@ -1594,17 +1457,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
               final dateColor = _getDateColor(date);
 
               return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedDate = date;
-                    _isCalendarCollapsed = true;
-                  });
-                },
+                onTap: () => _selectDate(date),
                 onLongPress: () {
-                  setState(() {
-                    _selectedDate = date;
-                    _isCalendarCollapsed = true;
-                  });
+                  _selectDate(date);
                   _showAddWorkoutDialog();
                 },
                 child: Builder(
@@ -1662,6 +1517,32 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Widget _buildDayDetailView() {
+    if (_isLoadingDayDetail) {
+      return const Padding(
+        padding: EdgeInsets.all(40),
+        child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+      );
+    }
+
+    if (_dayDetailError != null) {
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Column(
+            children: [
+              Text(
+                _dayDetailError!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error),
+              ),
+              const SizedBox(height: 12),
+              TextButton(onPressed: _loadSelectedDayDetail, child: const Text('Retry')),
+            ],
+          ),
+        ),
+      );
+    }
+
     final data = _getDataForDate(_selectedDate);
 
     if (data == null ||
@@ -1690,6 +1571,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   ),
                 ),
               ),
+              _buildMarkAsCompleteButton(),
             ],
           ),
         ),
@@ -1785,6 +1667,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               ),
             ],
           ),
+          _buildMarkAsCompleteButton(),
         ],
       ),
     );
