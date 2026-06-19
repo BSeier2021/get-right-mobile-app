@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:get_right/repo/calendar_repo.dart';
 import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/planner/add_notes_screen.dart';
@@ -14,13 +15,7 @@ class AddDateScreen extends StatefulWidget {
   final VoidCallback? onAddProgressPhoto;
   final VoidCallback? onAddNotes;
 
-  const AddDateScreen({
-    super.key,
-    required this.selectedDate,
-    this.calendarEntryId,
-    this.onAddProgressPhoto,
-    this.onAddNotes,
-  });
+  const AddDateScreen({super.key, required this.selectedDate, this.calendarEntryId, this.onAddProgressPhoto, this.onAddNotes});
 
   @override
   State<AddDateScreen> createState() => _AddDateScreenState();
@@ -64,8 +59,17 @@ class _AddDateScreenState extends State<AddDateScreen> {
     }
   }
 
-  Future<void> _handleAddWorkout() async {
-    await Get.toNamed(AppRoutes.workoutJournal, arguments: {'selectedDate': widget.selectedDate});
+  void _handleAddWorkout() {
+    Get.back(result: 'workout_journal');
+    Get.back();
+    if (Get.isRegistered<HomeNavigationController>()) {
+      if (Get.currentRoute != AppRoutes.home) {
+        Get.until((route) => route.settings.name == AppRoutes.home);
+      }
+      Get.find<HomeNavigationController>().changeTab(2, journalTab: 0);
+      return;
+    }
+    Get.offNamed(AppRoutes.home, arguments: {'navigateToTab': 2, 'journalTabIndex': 0});
   }
 
   Future<void> _handleAddNotes() async {

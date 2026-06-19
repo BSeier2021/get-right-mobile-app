@@ -57,6 +57,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<void> _loadCalendarMonth() async {
+    if (!mounted) return;
     setState(() {
       _isLoadingCalendar = true;
       _calendarLoadError = null;
@@ -99,6 +100,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final summary = _getDataForDate(_selectedDate);
     final entryId = summary?['calendarEntryId']?.toString();
     if (entryId == null || entryId.isEmpty) return;
+    if (!mounted) return;
 
     setState(() {
       _isLoadingDayDetail = true;
@@ -461,7 +463,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Move Workout', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold)),
+                            Text(
+                              'Move Workout',
+                              style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                            ),
                             const SizedBox(height: 4),
                             Text('Reschedule this program workout to another day', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                           ],
@@ -485,17 +490,20 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title, style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 6),
                         Text(
-                          'Currently on ${DateFormat.yMMMd().format(_selectedDate)}',
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                          title,
+                          style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
                         ),
+                        const SizedBox(height: 6),
+                        Text('Currently on ${DateFormat.yMMMd().format(_selectedDate)}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                       ],
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text('Move To', style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600)),
+                  Text(
+                    'Move To',
+                    style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                  ),
                   const SizedBox(height: 10),
                   Material(
                     color: Colors.transparent,
@@ -624,9 +632,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
   void _showAddWorkoutDialog() {
     Get.to(
       () => AddDateScreen(selectedDate: _selectedDate, calendarEntryId: _calendarEntryIdForSelectedDate(), onAddProgressPhoto: _addProgressPhoto, onAddNotes: _showNotesDialog),
-    )?.then((_) async {
-      if (!mounted) return;
+    )?.then((result) async {
+      if (!mounted || result == 'workout_journal') return;
       await _loadCalendarMonth();
+      if (!mounted) return;
       await _loadSelectedDayDetail();
     });
   }
@@ -2404,11 +2413,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Widget _buildNutritionSummarySection(Map<String, dynamic> nutrition) {
-    // Parse numeric values from nutrition strings
-    String caloriesVal = nutrition['calories']?.toString().split('/').first ?? '0';
-    String proteinVal = nutrition['protein']?.toString().replaceAll('g', '') ?? '0';
-    String carbsVal = nutrition['carbs']?.toString().replaceAll('g', '') ?? '0';
-    String fatsVal = nutrition['fats']?.toString().replaceAll('g', '') ?? '0';
+    final caloriesRaw = nutrition['calories']?.toString() ?? '0';
+    final caloriesParts = caloriesRaw.split('/');
+    final caloriesVal = caloriesParts.first.trim();
+    final caloriesGoal = caloriesParts.length > 1 ? caloriesParts.last.trim() : null;
+    final proteinVal = nutrition['protein']?.toString().replaceAll('g', '').trim() ?? '0';
+    final carbsVal = nutrition['carbs']?.toString().replaceAll('g', '').trim() ?? '0';
+    final fatsVal = nutrition['fats']?.toString().replaceAll('g', '').trim() ?? '0';
+    final caloriesDisplay = caloriesGoal != null && caloriesGoal.isNotEmpty ? '$caloriesVal / $caloriesGoal' : caloriesVal;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -2421,43 +2433,38 @@ class _PlannerScreenState extends State<PlannerScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title row with serving controls
           Row(
             children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.restaurant_menu, color: AppColors.accent, size: 20),
+              ),
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'Nutrition (per serving)',
-                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 17),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Daily Nutrition',
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 17),
+                    ),
+                    const SizedBox(height: 2),
+                    Text('Total consumed for this day', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                  ],
                 ),
-              ),
-              GestureDetector(
-                onTap: () {},
-                child: Icon(Icons.remove_circle_outline, color: AppColors.primaryGray, size: 22),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  '1.0',
-                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                ),
-              ),
-              GestureDetector(
-                onTap: () {},
-                child: Icon(Icons.add_circle_outline, color: AppColors.primaryGray, size: 22),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          // Top row: Calories + Protein
           Row(
             children: [
-              Expanded(child: _buildNutritionBox(caloriesVal, 'Calories kcal', const Color(0xFFE8F5E0), AppColors.onSurface)),
+              Expanded(child: _buildNutritionBox(caloriesDisplay, 'Calories kcal', const Color(0xFFE8F5E0), AppColors.onSurface)),
               const SizedBox(width: 12),
               Expanded(child: _buildNutritionBox(proteinVal, 'Protein g', const Color(0xFFE8F5E0), AppColors.onSurface)),
             ],
           ),
           const SizedBox(height: 12),
-          // Bottom row: Carbs + Fats
           Row(
             children: [
               Expanded(child: _buildNutritionBox(carbsVal, 'Carbs g', const Color(0xFFE8F5E0), AppColors.onSurface)),
