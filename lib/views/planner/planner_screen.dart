@@ -11,6 +11,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/planner/add_date_screen.dart';
 import 'package:get_right/views/planner/calendar_type_dialog.dart';
+import 'package:get_right/widgets/safe_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -37,6 +38,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
   bool _isDeletingEntry = false;
   bool _isMarkingComplete = false;
   bool _isMovingProgramWorkout = false;
+  late final PageController _progressPhotoPageController;
+  int _progressPhotoPageIndex = 0;
 
   bool get _hasDeletableEntry => _calendarEntryIdForSelectedDate() != null;
 
@@ -53,7 +56,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
   @override
   void initState() {
     super.initState();
+    _progressPhotoPageController = PageController();
     _loadCalendarMonth();
+  }
+
+  @override
+  void dispose() {
+    _progressPhotoPageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCalendarMonth() async {
@@ -92,7 +102,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
       _selectedDate = date;
       _isCalendarCollapsed = true;
       _dayDetailError = null;
+      _progressPhotoPageIndex = 0;
     });
+    if (_progressPhotoPageController.hasClients) {
+      _progressPhotoPageController.jumpToPage(0);
+    }
     _loadSelectedDayDetail();
   }
 
@@ -146,6 +160,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   bool _dayHasVisibleContent(Map<String, dynamic>? data) {
     if (data == null) return false;
+    if (data['calendarEntryId'] != null) return true;
     if (data['hasProgressPhoto'] == true) return true;
     if (data['workout'] != null) return true;
     if (data['program'] != null) return true;
@@ -291,22 +306,20 @@ class _PlannerScreenState extends State<PlannerScreen> {
   Future<void> _persistProgressPhoto(File photo, String type) async {
     final entryId = _calendarEntryIdForSelectedDate();
     final existingNotes = _getDataForDate(_selectedDate)?['notes']?.toString();
+    final photoNotes = CalendarRepository.mergePhotoTypeNotes(existingNotes, type);
 
     try {
       if (entryId != null) {
-        await _calendarRepo.updateCalendarEntry(
-          calendarEntryId: entryId,
-          notes: existingNotes?.trim().isNotEmpty == true ? existingNotes!.trim() : null,
-          progressPhotoFiles: [photo],
-        );
+        await _calendarRepo.updateCalendarEntry(calendarEntryId: entryId, notes: photoNotes, progressPhotoFiles: [photo]);
       } else {
         final entryType = await showCalendarTypeDialog(context);
         if (entryType == null || !mounted) return;
-        await _calendarRepo.createCalendarEntry(date: _selectedDate, type: entryType, notes: '$type progress photo', progressPhotoFiles: [photo]);
+        await _calendarRepo.createCalendarEntry(date: _selectedDate, type: entryType, notes: photoNotes, progressPhotoFiles: [photo]);
       }
 
       if (!mounted) return;
       await _loadCalendarMonth();
+      if (!mounted) return;
       await _loadSelectedDayDetail();
       Get.snackbar('Success', '$type photo added successfully', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
@@ -640,12 +653,26 @@ class _PlannerScreenState extends State<PlannerScreen> {
     });
   }
 
-  String? _progressPhotoUrl(DateTime date, int index) {
+  String? _progressPhotoUrlByType(DateTime date, String type) {
     final photos = _getDataForDate(date)?['progressPhotos'];
-    if (photos is! List || index >= photos.length) return null;
-    final photo = photos[index];
-    if (photo is Map) return photo['url']?.toString();
-    return null;
+    return CalendarRepository.progressPhotoUrlForType(photos, type);
+  }
+
+  void _handleProgressPhotoTap(DateTime date, String type) {
+    final photoUrl = _progressPhotoUrlByType(date, type);
+    if (photoUrl != null) {
+      _viewPhotoFullScreen(date, type);
+      return;
+    }
+
+    final isSelectedDay = date.year == _selectedDate.year && date.month == _selectedDate.month && date.day == _selectedDate.day;
+    if (!isSelectedDay) {
+      setState(() {
+        _selectedDate = date;
+        _isCalendarCollapsed = true;
+      });
+    }
+    _capturePhoto(type);
   }
 
   void _showNotesDialog() {
@@ -768,6 +795,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Widget _buildPhotoHistoryItem(DateTime date, bool isLatest) {
+    final frontUrl = _progressPhotoUrlByType(date, 'front');
+    final sideUrl = _progressPhotoUrlByType(date, 'side');
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -803,47 +833,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
           Row(
             children: [
               Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    _viewPhotoFullScreen(date, 'front');
-                  },
-                  child: Container(
-                    height: 150,
-                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(8)),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.camera_front, size: 50, color: AppColors.primaryGray),
-                        const SizedBox(height: 8),
-                        Text('Front Photo', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                        const SizedBox(height: 4),
-                        Text('Tap to view', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontSize: 10)),
-                      ],
-                    ),
-                  ),
-                ),
+                child: _buildProgressPhotoTile(type: 'front', photoUrl: frontUrl, height: 150, onTap: () => _handleProgressPhotoTap(date, 'front')),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    _viewPhotoFullScreen(date, 'side');
-                  },
-                  child: Container(
-                    height: 150,
-                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(8)),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.camera_alt, size: 50, color: AppColors.primaryGray),
-                        const SizedBox(height: 8),
-                        Text('Side Photo', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                        const SizedBox(height: 4),
-                        Text('Tap to view', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontSize: 10)),
-                      ],
-                    ),
-                  ),
-                ),
+                child: _buildProgressPhotoTile(type: 'side', photoUrl: sideUrl, height: 150, onTap: () => _handleProgressPhotoTap(date, 'side')),
               ),
             ],
           ),
@@ -853,8 +847,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _viewPhotoFullScreen(DateTime date, String type) {
-    final photoIndex = type == 'front' ? 0 : 1;
-    final photoUrl = _progressPhotoUrl(date, photoIndex);
+    final photoUrl = _progressPhotoUrlByType(date, type);
 
     showDialog(
       context: context,
@@ -868,7 +861,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Header
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: const BoxDecoration(
@@ -898,28 +890,25 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       ],
                     ),
                   ),
-                  // Photo placeholder
                   Container(
                     height: 400,
                     width: double.infinity,
                     margin: const EdgeInsets.all(16),
                     decoration: BoxDecoration(color: AppColors.primaryGrayLight, borderRadius: BorderRadius.circular(12)),
+                    clipBehavior: Clip.antiAlias,
                     child: photoUrl != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              photoUrl,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: 400,
-                              errorBuilder: (_, __, ___) => Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(type == 'front' ? Icons.camera_front : Icons.camera_alt, size: 80, color: AppColors.primaryGray),
-                                  const SizedBox(height: 16),
-                                  Text('Could not load photo', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-                                ],
-                              ),
+                        ? SafeNetworkImage(
+                            url: photoUrl,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: 400,
+                            fallback: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(type == 'front' ? Icons.camera_front : Icons.camera_alt, size: 80, color: AppColors.primaryGray),
+                                const SizedBox(height: 16),
+                                Text('Could not load photo', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                              ],
                             ),
                           )
                         : Column(
@@ -927,7 +916,15 @@ class _PlannerScreenState extends State<PlannerScreen> {
                             children: [
                               Icon(type == 'front' ? Icons.camera_front : Icons.camera_alt, size: 80, color: AppColors.primaryGray),
                               const SizedBox(height: 16),
-                              Text('Photo Preview', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                              Text('No photo added yet', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                              const SizedBox(height: 12),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _handleProgressPhotoTap(date, type);
+                                },
+                                child: const Text('Add Photo'),
+                              ),
                             ],
                           ),
                   ),
@@ -1813,39 +1810,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       child: Column(
         children: [
           // Progress Photos Section with swipe hint
-          if (data['hasProgressPhoto']) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [Text('Swipe left for Progress Pictures', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray))],
-            ),
-            const SizedBox(height: 8),
-            // Pagination dots for progress photos
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildProgressPhotosSection(),
-            const SizedBox(height: 12),
-          ],
+          if (data['hasProgressPhoto'] == true || _calendarEntryIdForSelectedDate() != null) ...[_buildProgressPhotosSection(), const SizedBox(height: 12)],
 
           // Program Workout (mapped from enrolled program)
           if (data['program'] != null) _buildProgramWorkoutSection(data['program']),
@@ -1906,7 +1871,67 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
+  Widget _buildProgressPhotoTile({required String type, required String? photoUrl, required double height, required VoidCallback onTap}) {
+    final label = type == 'front' ? 'Front Photo' : 'Side Photo';
+    final icon = type == 'front' ? Icons.camera_front_rounded : Icons.camera_alt_rounded;
+    final hasPhoto = photoUrl != null;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: AppColors.primaryGrayLight.withOpacity(0.6),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: hasPhoto ? AppColors.accent.withOpacity(0.4) : AppColors.primaryGray.withOpacity(0.3)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: hasPhoto
+              ? Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    SafeNetworkImage(
+                      url: photoUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: height,
+                      fallback: Center(child: Icon(icon, size: 36, color: AppColors.primaryGray)),
+                    ),
+                    Positioned(
+                      left: 8,
+                      bottom: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
+                        child: Text(label, style: AppTextStyles.labelSmall.copyWith(color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: 36, color: AppColors.primaryGray),
+                    const SizedBox(height: 8),
+                    Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface)),
+                    const SizedBox(height: 2),
+                    Text(hasPhoto ? 'Tap to view' : 'Tap to add', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontSize: 11)),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildProgressPhotosSection() {
+    const photoTypes = ['front', 'side'];
+    final frontUrl = _progressPhotoUrlByType(_selectedDate, 'front');
+    final sideUrl = _progressPhotoUrlByType(_selectedDate, 'side');
+    final hasAnyPhoto = frontUrl != null || sideUrl != null;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -1926,73 +1951,59 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 'Progress Pictures',
                 style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
               ),
-              TextButton.icon(
-                onPressed: _showPhotoHistory,
-                icon: const Icon(Icons.history, size: 16),
-                label: const Text('History'),
-                style: TextButton.styleFrom(foregroundColor: AppColors.accent, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: _addProgressPhoto,
+                    icon: const Icon(Icons.add_a_photo_outlined, size: 16),
+                    label: const Text('Add'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.accent, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                  ),
+                  TextButton.icon(
+                    onPressed: _showPhotoHistory,
+                    icon: const Icon(Icons.history, size: 16),
+                    label: const Text('History'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.accent, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          Text(
+            hasAnyPhoto ? 'Swipe left for front and side photos' : 'Add front and side progress photos for this day',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+          ),
+          const SizedBox(height: 10),
           Row(
-            children: [
-              Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => _viewPhotoFullScreen(_selectedDate, 'front'),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryGrayLight.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.camera_front_rounded, size: 36, color: AppColors.primaryGray),
-                          const SizedBox(height: 8),
-                          Text('Front Photo', style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface)),
-                          const SizedBox(height: 2),
-                          Text('Tap to view', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontSize: 11)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => _viewPhotoFullScreen(_selectedDate, 'side'),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryGrayLight.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.camera_alt_rounded, size: 36, color: AppColors.primaryGray),
-                          const SizedBox(height: 8),
-                          Text('Side Photo', style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface)),
-                          const SizedBox(height: 2),
-                          Text('Tap to view', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontSize: 11)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(photoTypes.length, (index) {
+              final isActive = _progressPhotoPageIndex == index;
+              return Container(
+                width: 6,
+                height: 6,
+                margin: EdgeInsets.only(right: index == photoTypes.length - 1 ? 0 : 4),
+                decoration: BoxDecoration(color: isActive ? AppColors.accent : AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 220,
+            child: PageView.builder(
+              controller: _progressPhotoPageController,
+              onPageChanged: (index) {
+                if (mounted) setState(() => _progressPhotoPageIndex = index);
+              },
+              itemCount: photoTypes.length,
+              itemBuilder: (context, index) {
+                final type = photoTypes[index];
+                final photoUrl = type == 'front' ? frontUrl : sideUrl;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: _buildProgressPhotoTile(type: type, photoUrl: photoUrl, height: 220, onTap: () => _handleProgressPhotoTap(_selectedDate, type)),
+                );
+              },
+            ),
           ),
         ],
       ),

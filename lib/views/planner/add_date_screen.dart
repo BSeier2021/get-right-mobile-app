@@ -144,7 +144,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                         ? () {}
                         : () {
                             if (widget.onAddProgressPhoto != null) {
-                              Get.back();
+                              Get.back(result: 'progress_photo');
                               WidgetsBinding.instance.addPostFrameCallback((_) => widget.onAddProgressPhoto!.call());
                             }
                           },

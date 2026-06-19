@@ -128,10 +128,112 @@ class CalendarRepository {
     };
   }
 
+  static bool hasProgressPhotosInEntry(Map<String, dynamic> entry) {
+    final photos = entry['progressPhotos'];
+    return photos is List && photos.isNotEmpty;
+  }
+
+  static String? photoUrlFrom(dynamic photo) {
+    if (photo is String) {
+      final value = photo.trim();
+      return value.isNotEmpty && value != 'null' ? value : null;
+    }
+    if (photo is! Map) return null;
+
+    final map = Map<String, dynamic>.from(photo);
+    for (final key in ['url', 'imageUrl', 'fileUrl', 'photoUrl', 'path', 'src', 'secureUrl']) {
+      final value = map[key]?.toString().trim();
+      if (value != null && value.isNotEmpty && value != 'null') return value;
+    }
+
+    final file = map['file'];
+    if (file is Map) {
+      final nested = photoUrlFrom(file);
+      if (nested != null) return nested;
+    }
+
+    final media = map['media'];
+    if (media is Map) return photoUrlFrom(media);
+
+    return null;
+  }
+
+  static String normalizePhotoType(String? raw, {required int index, String? entryNotes}) {
+    final value = raw?.trim().toLowerCase() ?? '';
+    if (value.contains('front')) return 'front';
+    if (value.contains('side')) return 'side';
+
+    final notes = entryNotes?.toLowerCase() ?? '';
+    if (notes.contains('front')) return 'front';
+    if (notes.contains('side')) return 'side';
+
+    return index == 0 ? 'front' : 'side';
+  }
+
   static List<Map<String, dynamic>> progressPhotosFromEntry(Map<String, dynamic> entry) {
     final photos = entry['progressPhotos'];
-    if (photos is! List) return const [];
-    return photos.whereType<Map>().map((photo) => Map<String, dynamic>.from(photo)).toList();
+    if (photos is! List || photos.isEmpty) return const [];
+
+    final entryNotes = entry['notes']?.toString();
+    final result = <Map<String, dynamic>>[];
+
+    for (var i = 0; i < photos.length; i++) {
+      final photo = photos[i];
+      if (photo is String) {
+        final url = photoUrlFrom(photo);
+        if (url == null) continue;
+        result.add({
+          'url': url,
+          'type': normalizePhotoType(null, index: i, entryNotes: entryNotes),
+        });
+        continue;
+      }
+
+      if (photo is Map) {
+        final map = Map<String, dynamic>.from(photo);
+        final url = photoUrlFrom(map);
+        if (url == null) continue;
+        result.add({
+          ...map,
+          'url': url,
+          'type': normalizePhotoType(
+            map['type']?.toString() ?? map['photoType']?.toString() ?? map['label']?.toString(),
+            index: i,
+            entryNotes: entryNotes,
+          ),
+        });
+      }
+    }
+
+    return result;
+  }
+
+  static String? progressPhotoUrlForType(dynamic photosRaw, String type) {
+    if (photosRaw is! List || photosRaw.isEmpty) return null;
+
+    final target = type.toLowerCase();
+    for (final photo in photosRaw) {
+      if (photo is! Map) continue;
+      final map = Map<String, dynamic>.from(photo);
+      final photoType = map['type']?.toString().toLowerCase() ?? '';
+      if (photoType.contains(target)) {
+        return photoUrlFrom(map);
+      }
+    }
+
+    final fallbackIndex = target == 'front' ? 0 : 1;
+    if (fallbackIndex < photosRaw.length) {
+      return photoUrlFrom(photosRaw[fallbackIndex]);
+    }
+    return null;
+  }
+
+  static String mergePhotoTypeNotes(String? existing, String type) {
+    final tag = '$type progress photo';
+    final base = existing?.trim() ?? '';
+    if (base.isEmpty) return tag;
+    if (base.toLowerCase().contains(type.toLowerCase())) return base;
+    return '$base · $tag';
   }
 
   static List<Map<String, dynamic>> programExercisesFrom(dynamic exercisesRaw) {
@@ -190,7 +292,7 @@ class CalendarRepository {
     return {
       'calendarEntryId': entry['_id']?.toString(),
       'workoutStatus': workoutStatusFromType(entry['type']?.toString()),
-      'hasProgressPhoto': photos.isNotEmpty,
+      'hasProgressPhoto': hasProgressPhotosInEntry(entry),
       'progressPhotos': photos,
       'workout': workoutSummaryFromJournal(journal),
       'run': null,
