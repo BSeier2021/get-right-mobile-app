@@ -40,6 +40,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   bool _isMovingProgramWorkout = false;
   late final PageController _progressPhotoPageController;
   int _progressPhotoPageIndex = 0;
+  bool _pendingDayDetailLoad = false;
 
   bool get _hasDeletableEntry => _calendarEntryIdForSelectedDate() != null;
 
@@ -79,7 +80,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
         _dayData = data;
         _isLoadingCalendar = false;
       });
-      await _loadSelectedDayDetail();
+      if (_pendingDayDetailLoad || _isCalendarCollapsed) {
+        await _loadSelectedDayDetail();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -103,6 +106,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       _isCalendarCollapsed = true;
       _dayDetailError = null;
       _progressPhotoPageIndex = 0;
+      _pendingDayDetailLoad = true;
     });
     if (_progressPhotoPageController.hasClients) {
       _progressPhotoPageController.jumpToPage(0);
@@ -111,9 +115,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<void> _loadSelectedDayDetail() async {
-    final summary = _getDataForDate(_selectedDate);
-    final entryId = summary?['calendarEntryId']?.toString();
-    if (entryId == null || entryId.isEmpty) return;
+    if (_isLoadingCalendar) {
+      _pendingDayDetailLoad = true;
+      return;
+    }
+
+    final entryId = CalendarRepository.entryIdForDate(_dayData, _selectedDate);
+    if (entryId == null) {
+      _pendingDayDetailLoad = false;
+      return;
+    }
     if (!mounted) return;
 
     setState(() {
@@ -125,15 +136,17 @@ class _PlannerScreenState extends State<PlannerScreen> {
       final detail = await _calendarRepo.fetchCalendarEntry(entryId);
       if (!mounted) return;
       setState(() {
-        final key = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+        final key = CalendarRepository.normalizedDate(_selectedDate);
         _dayData[key] = detail;
         _isLoadingDayDetail = false;
+        _pendingDayDetailLoad = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoadingDayDetail = false;
         _dayDetailError = CalendarRepository.errorMessageFrom(e);
+        _pendingDayDetailLoad = false;
       });
     }
   }
@@ -154,8 +167,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Map<String, dynamic>? _getDataForDate(DateTime date) {
-    final key = DateTime(date.year, date.month, date.day);
-    return _dayData[key];
+    return CalendarRepository.dayDataForDate(_dayData, date);
   }
 
   bool _dayHasVisibleContent(Map<String, dynamic>? data) {
@@ -367,7 +379,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       if (!mounted) return;
 
       setState(() {
-        final key = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+        final key = CalendarRepository.normalizedDate(_selectedDate);
         _dayData.remove(key);
         _dayDetailError = null;
       });

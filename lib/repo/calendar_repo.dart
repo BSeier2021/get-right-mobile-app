@@ -59,20 +59,48 @@ class CalendarRepository {
     return dayDataMapFromEntries(list);
   }
 
+  static DateTime normalizedDate(DateTime date) => DateTime(date.year, date.month, date.day);
+
+  static bool isSameCalendarDay(DateTime a, DateTime b) {
+    final left = normalizedDate(a);
+    final right = normalizedDate(b);
+    return left.year == right.year && left.month == right.month && left.day == right.day;
+  }
+
+  static String? entryIdFromCalendarRecord(Map<String, dynamic> entry) {
+    return _mongoId(entry['_id'] ?? entry['id'] ?? entry['calendarEntryId']);
+  }
+
+  static Map<String, dynamic>? dayDataForDate(Map<DateTime, Map<String, dynamic>> dayData, DateTime date) {
+    final key = normalizedDate(date);
+    final direct = dayData[key];
+    if (direct != null) return direct;
+
+    for (final item in dayData.entries) {
+      if (isSameCalendarDay(item.key, date)) return item.value;
+    }
+    return null;
+  }
+
+  static String? entryIdForDate(Map<DateTime, Map<String, dynamic>> dayData, DateTime date) {
+    final data = dayDataForDate(dayData, date);
+    return _mongoId(data?['calendarEntryId']);
+  }
+
   static DateTime dateKeyFromEntry(Map<String, dynamic> entry) {
     final year = _intFrom(entry['year']);
     final month = _intFrom(entry['month']);
     final day = _intFrom(entry['day']);
     if (year != null && month != null && day != null) {
-      return DateTime(year, month, day);
+      return normalizedDate(DateTime(year, month, day));
     }
 
     final parsed = DateTime.tryParse(entry['date']?.toString() ?? '');
     if (parsed != null) {
-      return DateTime(parsed.year, parsed.month, parsed.day);
+      return normalizedDate(DateTime(parsed.year, parsed.month, parsed.day));
     }
 
-    return DateTime.now();
+    return normalizedDate(DateTime.now());
   }
 
   static int? _intFrom(dynamic raw) {
@@ -290,7 +318,7 @@ class CalendarRepository {
     final programDay = programDayFromEntry(entry);
 
     return {
-      'calendarEntryId': entry['_id']?.toString(),
+      'calendarEntryId': entryIdFromCalendarRecord(entry),
       'workoutStatus': workoutStatusFromType(entry['type']?.toString()),
       'hasProgressPhoto': hasProgressPhotosInEntry(entry),
       'progressPhotos': photos,
@@ -524,12 +552,6 @@ class CalendarRepository {
     return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
   }
 
-  static String? entryIdForDate(Map<DateTime, Map<String, dynamic>> dayData, DateTime date) {
-    final key = DateTime(date.year, date.month, date.day);
-    return _mongoId(dayData[key]?['calendarEntryId']);
-  }
-
-  /// Creates a new entry or updates an existing one when [calendarEntryId] is provided.
   Future<Map<String, dynamic>> saveOrUpdateCalendarEntry({
     required DateTime date,
     String? calendarEntryId,
