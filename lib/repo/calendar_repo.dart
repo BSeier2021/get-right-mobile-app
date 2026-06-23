@@ -147,13 +147,69 @@ class CalendarRepository {
 
     final durationSeconds = _intFrom(journal['duration']) ?? 0;
     final calories = durationSeconds > 0 ? (durationSeconds / 60 * 5).round() : 0;
+    final parsedWorkouts = journalWorkoutsFromJournal(journal);
 
     return {
       'duration': formatDurationSeconds(durationSeconds),
-      'exercises': workouts.length,
+      'exercises': parsedWorkouts.length,
       'sets': setCount,
       'calories': calories,
+      'journalId': journal['_id']?.toString(),
+      'notes': journal['notes']?.toString().trim() ?? '',
+      'journalDate': journal['date']?.toString(),
+      'workouts': parsedWorkouts,
     };
+  }
+
+  static String? exerciseIconUrlFromWorkout(Map<String, dynamic> workout) {
+    final ref = workout['refExercise'];
+    if (ref is Map) {
+      final icon = Map<String, dynamic>.from(ref)['icon'];
+      if (icon is Map) return photoUrlFrom(icon);
+    }
+    return null;
+  }
+
+  static List<Map<String, dynamic>> journalWorkoutsFromJournal(Map<String, dynamic> journal) {
+    final workouts = journal['workout'];
+    if (workouts is! List) return const [];
+
+    final result = <Map<String, dynamic>>[];
+    for (final item in workouts) {
+      if (item is! Map) continue;
+      final workout = Map<String, dynamic>.from(item);
+
+      String name = workout['name']?.toString().trim() ?? '';
+      final ref = workout['refExercise'];
+      if (name.isEmpty && ref is Map) {
+        name = Map<String, dynamic>.from(ref)['name']?.toString().trim() ?? '';
+      }
+      if (name.isEmpty) name = 'Exercise';
+
+      final sets = <Map<String, dynamic>>[];
+      final exerciseSets = workout['exercise'];
+      if (exerciseSets is List) {
+        for (var i = 0; i < exerciseSets.length; i++) {
+          final setRaw = exerciseSets[i];
+          if (setRaw is! Map) continue;
+          final setMap = Map<String, dynamic>.from(setRaw);
+          sets.add({
+            'setNumber': _intFrom(setMap['sets']) ?? (i + 1),
+            'reps': setMap['reps']?.toString() ?? '-',
+            'weight': setMap['weight']?.toString() ?? '-',
+            'restTime': _intFrom(setMap['restTime']),
+          });
+        }
+      }
+
+      result.add({
+        'id': workout['_id']?.toString(),
+        'name': name,
+        'iconUrl': exerciseIconUrlFromWorkout(workout),
+        'sets': sets,
+      });
+    }
+    return result;
   }
 
   static bool hasProgressPhotosInEntry(Map<String, dynamic> entry) {

@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_right/repo/calendar_repo.dart';
+import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 
@@ -10,13 +12,9 @@ class WorkoutCelebrationScreen extends StatefulWidget {
   final String duration;
   final int calories;
   final String workoutName;
+  final String? workoutJournalId;
 
-  const WorkoutCelebrationScreen({
-    super.key,
-    required this.duration,
-    required this.calories,
-    required this.workoutName,
-  });
+  const WorkoutCelebrationScreen({super.key, required this.duration, required this.calories, required this.workoutName, this.workoutJournalId});
 
   @override
   State<WorkoutCelebrationScreen> createState() => _WorkoutCelebrationScreenState();
@@ -26,6 +24,7 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
+  final CalendarRepository _calendarRepo = CalendarRepository();
 
   final List<String> _motivationalQuotes = [
     "You showed up—and that's what counts. Keep going!",
@@ -41,20 +40,27 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
+    _controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
 
-    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
-    );
+    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     _controller.forward();
+    _addWorkoutJournalToCalendar();
+  }
+
+  Future<void> _addWorkoutJournalToCalendar() async {
+    final journalId = widget.workoutJournalId?.trim();
+    if (!WorkoutRepository.isValidMongoId(journalId)) return;
+
+    try {
+      final now = DateTime.now();
+      await _calendarRepo.createCalendarEntry(date: DateTime(now.year, now.month, now.day), type: CalendarRepository.typeCompleted, workoutJournal: journalId);
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Calendar', CalendarRepository.errorMessageFrom(e), backgroundColor: AppColors.error, colorText: AppColors.onError);
+    }
   }
 
   @override
@@ -99,26 +105,13 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: LinearGradient(
-                            colors: [
-                              AppColors.accent.withOpacity(0.3),
-                              AppColors.accent.withOpacity(0.1),
-                            ],
+                            colors: [AppColors.accent.withOpacity(0.3), AppColors.accent.withOpacity(0.1)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accent.withOpacity(0.3),
-                              blurRadius: 30,
-                              spreadRadius: 5,
-                            ),
-                          ],
+                          boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 30, spreadRadius: 5)],
                         ),
-                        child: const Icon(
-                          Icons.celebration,
-                          size: 60,
-                          color: AppColors.accent,
-                        ),
+                        child: const Icon(Icons.celebration, size: 60, color: AppColors.accent),
                       ),
                     ),
 
@@ -129,10 +122,7 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
                       opacity: _fadeAnimation,
                       child: Text(
                         'Workout Complete!',
-                        style: AppTextStyles.headlineLarge.copyWith(
-                          color: AppColors.onBackground,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: AppTextStyles.headlineLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -147,17 +137,11 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
                         decoration: BoxDecoration(
                           color: AppColors.accent.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: AppColors.accent.withOpacity(0.3),
-                            width: 1,
-                          ),
+                          border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 1),
                         ),
                         child: Text(
                           _getRandomQuote(),
-                          style: AppTextStyles.bodyLarge.copyWith(
-                            color: AppColors.onBackground,
-                            fontStyle: FontStyle.italic,
-                          ),
+                          style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontStyle: FontStyle.italic),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -176,27 +160,14 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.secondary.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        boxShadow: [BoxShadow(color: AppColors.secondary.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
                       ),
                       child: Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.accent.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.check_circle,
-                              color: AppColors.accent,
-                              size: 24,
-                            ),
+                            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                            child: const Icon(Icons.check_circle, color: AppColors.accent, size: 24),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -205,17 +176,12 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
                               children: [
                                 Text(
                                   'Workout Saved!',
-                                  style: AppTextStyles.titleSmall.copyWith(
-                                    color: AppColors.onSurface,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   'Your workout data has been saved to your calendar',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.primaryGrayDark,
-                                  ),
+                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark),
                                 ),
                               ],
                             ),
@@ -235,15 +201,10 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accent,
                           foregroundColor: AppColors.onAccent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 2,
                         ),
-                        child: Text(
-                          'Done',
-                          style: AppTextStyles.buttonLarge,
-                        ),
+                        child: Text('Done', style: AppTextStyles.buttonLarge),
                       ),
                     ),
                   ],
@@ -284,13 +245,7 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.secondary.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: AppColors.secondary.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 2))],
       ),
       child: Column(
         children: [
@@ -300,29 +255,20 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
             decoration: BoxDecoration(
               color: AppColors.accent.withOpacity(0.15),
               shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.accent.withOpacity(0.3),
-                width: 2,
-              ),
+              border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 2),
             ),
             child: Icon(icon, color: AppColors.accent, size: 28),
           ),
           const SizedBox(height: 12),
           Text(
             value,
-            style: AppTextStyles.titleLarge.copyWith(
-              color: AppColors.accent,
-              fontWeight: FontWeight.bold,
-            ),
+            style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: AppTextStyles.labelSmall.copyWith(
-              color: AppColors.primaryGrayDark,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600),
             textAlign: TextAlign.center,
           ),
         ],
@@ -330,4 +276,3 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
     );
   }
 }
-
