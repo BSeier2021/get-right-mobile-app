@@ -41,6 +41,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   late final PageController _progressPhotoPageController;
   int _progressPhotoPageIndex = 0;
   bool _pendingDayDetailLoad = false;
+  final Map<String, String> _localProgressPhotoPaths = {};
 
   bool get _hasDeletableEntry => _calendarEntryIdForSelectedDate() != null;
 
@@ -137,10 +138,18 @@ class _PlannerScreenState extends State<PlannerScreen> {
       if (!mounted) return;
       setState(() {
         final key = CalendarRepository.normalizedDate(_selectedDate);
-        _dayData[key] = detail;
+        final existing = _dayData[key];
+        _dayData[key] = CalendarRepository.mergeDayData(existing, detail);
+        CalendarRepository.expandProgramScheduleInMap(_dayData);
         _isLoadingDayDetail = false;
         _pendingDayDetailLoad = false;
       });
+      if (CalendarRepository.progressPhotoUrlForType(detail['progressPhotos'], 'front') != null) {
+        _localProgressPhotoPaths.remove('front');
+      }
+      if (CalendarRepository.progressPhotoUrlForType(detail['progressPhotos'], 'side') != null) {
+        _localProgressPhotoPaths.remove('side');
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -178,8 +187,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
     if (data['program'] != null) return true;
     if (data['run'] != null) return true;
     if (data['nutrition'] != null) return true;
-    final notes = data['notes']?.toString().trim();
-    return notes != null && notes.isNotEmpty;
+    final notes = CalendarRepository.displayNotesFrom(data['notes']?.toString());
+    return notes.isNotEmpty;
   }
 
   String _formatProgramRest(dynamic seconds) {
@@ -196,6 +205,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
   Color _getDateColor(DateTime date) {
     final data = _getDataForDate(date);
     if (data == null) return Colors.transparent;
+
+    final program = data['program'];
+    if (program is Map) {
+      switch (program['status']?.toString().toLowerCase()) {
+        case 'completed':
+          return const Color(0xFF6FCF97);
+        case 'incomplete':
+          return const Color(0xFFE74C3C);
+      }
+    }
 
     final status = data['workoutStatus'];
 
@@ -317,29 +336,59 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   Future<void> _persistProgressPhoto(File photo, String type) async {
     final entryId = _calendarEntryIdForSelectedDate();
-    final existingNotes = _getDataForDate(_selectedDate)?['notes']?.toString();
-    final photoNotes = CalendarRepository.mergePhotoTypeNotes(existingNotes, type);
+    final userNotes = CalendarRepository.displayNotesFrom(_getDataForDate(_selectedDate)?['notes']?.toString());
+    final key = CalendarRepository.normalizedDate(_selectedDate);
 
     try {
+      Map<String, dynamic> response;
       if (entryId != null) {
-        await _calendarRepo.updateCalendarEntry(calendarEntryId: entryId, notes: photoNotes, progressPhotoFiles: [photo]);
+        response = await _calendarRepo.updateCalendarEntry(
+          calendarEntryId: entryId,
+          notes: userNotes.isEmpty ? null : userNotes,
+          progressPhotoFiles: [photo],
+          progressPhotoType: type,
+        );
       } else {
         final entryType = await showCalendarTypeDialog(context);
         if (entryType == null || !mounted) return;
-        await _calendarRepo.createCalendarEntry(date: _selectedDate, type: entryType, notes: photoNotes, progressPhotoFiles: [photo]);
+        response = await _calendarRepo.createCalendarEntry(
+          date: _selectedDate,
+          type: entryType,
+          notes: userNotes.isEmpty ? null : userNotes,
+          progressPhotoFiles: [photo],
+          progressPhotoType: type,
+        );
       }
 
       if (!mounted) return;
+
+      _localProgressPhotoPaths[type] = photo.path;
+      final mutationDay = CalendarRepository.dayDataFromMutationResponse(response);
+      if (mutationDay != null) {
+        setState(() {
+          _dayData[key] = CalendarRepository.mergeDayData(_dayData[key], mutationDay);
+        });
+      } else {
+        setState(() {
+          final existing = _dayData[key];
+          final photos = existing?['progressPhotos'] is List
+              ? List<Map<String, dynamic>>.from((existing!['progressPhotos'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)))
+              : <Map<String, dynamic>>[];
+          photos.removeWhere((item) => item['type']?.toString().toLowerCase().contains(type) == true);
+          photos.add({'url': photo.path, 'type': type, 'local': true});
+          _dayData[key] = CalendarRepository.mergeDayData(existing, {
+            'calendarEntryId': entryId ?? CalendarRepository.entryIdFrom(response),
+            'hasProgressPhoto': true,
+            'progressPhotos': photos,
+            if (userNotes.isNotEmpty) 'notes': userNotes,
+          });
+        });
+      }
+
       await _loadCalendarMonth();
       if (!mounted) return;
       await _loadSelectedDayDetail();
-      Get.snackbar(
-        'Success',
-        '$type photo added successfully',
-        backgroundColor: AppColors.completed,
-        colorText: AppColors.onError,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Success', '$type photo added successfully', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       if (!mounted) return;
       await showCalendarErrorDialog(context, e);
@@ -356,10 +405,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: Text('Delete entry?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-        content: Text(
-          'Remove this calendar entry for $dateLabel? This cannot be undone.',
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
-        ),
+        content: Text('Remove this calendar entry for $dateLabel? This cannot be undone.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -395,13 +441,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
       await _loadCalendarMonth();
       if (!mounted) return;
-      Get.snackbar(
-        'Deleted',
-        'Calendar entry removed',
-        backgroundColor: AppColors.completed,
-        colorText: AppColors.onError,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Deleted', 'Calendar entry removed', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       if (!mounted) return;
       await showCalendarErrorDialog(context, e);
@@ -448,13 +488,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       if (!mounted) return;
       await _loadCalendarMonth();
       if (!mounted) return;
-      Get.snackbar(
-        'Success',
-        'Day marked as complete',
-        backgroundColor: AppColors.completed,
-        colorText: AppColors.onError,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Success', 'Day marked as complete', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       if (!mounted) return;
       await showCalendarErrorDialog(context, e);
@@ -628,13 +662,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final normalizedTarget = DateTime(targetDate.year, targetDate.month, targetDate.day);
     final normalizedSelected = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
     if (normalizedTarget == normalizedSelected) {
-      Get.snackbar(
-        'Move Workout',
-        'Choose a different date',
-        backgroundColor: AppColors.error,
-        colorText: AppColors.onError,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Move Workout', 'Choose a different date', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
@@ -683,14 +711,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   void _showAddWorkoutDialog() {
     Get.to(
-      () => AddDateScreen(
-        selectedDate: _selectedDate,
-        calendarEntryId: _calendarEntryIdForSelectedDate(),
-        onAddProgressPhoto: _addProgressPhoto,
-        onAddNotes: _showNotesDialog,
-      ),
+      () => AddDateScreen(selectedDate: _selectedDate, calendarEntryId: _calendarEntryIdForSelectedDate(), onAddProgressPhoto: _addProgressPhoto, onAddNotes: _showNotesDialog),
     )?.then((result) async {
-      if (!mounted || result == 'workout_journal') return;
+      if (!mounted || result == 'workout_journal' || result == 'runner_log') return;
       await _loadCalendarMonth();
       if (!mounted) return;
       await _loadSelectedDayDetail();
@@ -699,7 +722,38 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   String? _progressPhotoUrlByType(DateTime date, String type) {
     final photos = _getDataForDate(date)?['progressPhotos'];
-    return CalendarRepository.progressPhotoUrlForType(photos, type);
+    final networkUrl = CalendarRepository.progressPhotoUrlForType(photos, type);
+    if (networkUrl != null) return networkUrl;
+
+    final isSelectedDay = CalendarRepository.isSameCalendarDay(date, _selectedDate);
+    if (isSelectedDay) {
+      return _localProgressPhotoPaths[type];
+    }
+    return null;
+  }
+
+  void _goToProgressPhotoPage(int index) {
+    if (!_progressPhotoPageController.hasClients) return;
+    _progressPhotoPageController.animateToPage(index.clamp(0, 1), duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+  }
+
+  Widget _buildProgressPhotoImage({required String? photoUrl, required IconData icon, required double height}) {
+    if (photoUrl == null) {
+      return Center(child: Icon(icon, size: 36, color: AppColors.primaryGray));
+    }
+
+    final localFile = File(photoUrl);
+    if (localFile.existsSync()) {
+      return Image.file(localFile, fit: BoxFit.cover, width: double.infinity, height: height);
+    }
+
+    return SafeNetworkImage(
+      url: photoUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: height,
+      fallback: Center(child: Icon(icon, size: 36, color: AppColors.primaryGray)),
+    );
   }
 
   void _handleProgressPhotoTap(DateTime date, String type) {
@@ -721,7 +775,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   void _showNotesDialog() {
     final data = _getDataForDate(_selectedDate);
-    final currentNotes = data?['notes'] ?? '';
+    final currentNotes = CalendarRepository.displayNotesFrom(data?['notes']?.toString());
     final notesController = TextEditingController(text: currentNotes);
 
     showDialog(
@@ -767,23 +821,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
   void _markAsRestDay() {
     setState(() {
       final key = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      _dayData[key] = {
-        'workoutStatus': 'rest',
-        'hasProgressPhoto': false,
-        'workout': null,
-        'run': null,
-        'nutrition': null,
-        'notes': _dayData[key]?['notes'] ?? '',
-      };
+      _dayData[key] = {'workoutStatus': 'rest', 'hasProgressPhoto': false, 'workout': null, 'run': null, 'nutrition': null, 'notes': _dayData[key]?['notes'] ?? ''};
     });
 
-    Get.snackbar(
-      'Success',
-      'Day marked as rest day',
-      backgroundColor: const Color(0xFF4A90E2),
-      colorText: AppColors.onError,
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    Get.snackbar('Success', 'Day marked as rest day', backgroundColor: const Color(0xFF4A90E2), colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
   }
 
   void _showPhotoHistory() {
@@ -791,13 +832,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final photoDates = _dayData.entries.where((entry) => entry.value['hasProgressPhoto'] == true).map((entry) => entry.key).toList();
 
     if (photoDates.isEmpty) {
-      Get.snackbar(
-        'No Photos',
-        'You haven\'t added any progress photos yet',
-        backgroundColor: AppColors.error,
-        colorText: AppColors.onError,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('No Photos', 'You haven\'t added any progress photos yet', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
@@ -960,20 +995,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     decoration: BoxDecoration(color: AppColors.primaryGrayLight, borderRadius: BorderRadius.circular(12)),
                     clipBehavior: Clip.antiAlias,
                     child: photoUrl != null
-                        ? SafeNetworkImage(
-                            url: photoUrl,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: 400,
-                            fallback: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(type == 'front' ? Icons.camera_front : Icons.camera_alt, size: 80, color: AppColors.primaryGray),
-                                const SizedBox(height: 16),
-                                Text('Could not load photo', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
-                              ],
-                            ),
-                          )
+                        ? _buildProgressPhotoImage(photoUrl: photoUrl, icon: type == 'front' ? Icons.camera_front : Icons.camera_alt, height: 400)
                         : Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -1439,10 +1461,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 Icon(Icons.info_outline, color: AppColors.primaryGray, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    'Recipients can import this workout into their calendar',
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11),
-                  ),
+                  child: Text('Recipients can import this workout into their calendar', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 11)),
                 ),
               ],
             ),
@@ -1864,6 +1883,21 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: const Text('Add Progress Photo'),
+                  onPressed: _addProgressPhoto,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.accent,
+                    side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
               _buildMarkAsCompleteButton(),
             ],
           ),
@@ -1894,7 +1928,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           if (data['nutrition'] != null) _buildNutritionSummarySection(data['nutrition']),
 
           // Notes Section
-          if (data['notes'] != null && data['notes'].toString().isNotEmpty) _buildNotesSection(data['notes']),
+          if (CalendarRepository.hasUserNotes(data['notes']?.toString())) _buildNotesSection(CalendarRepository.displayNotesFrom(data['notes']?.toString())),
 
           const SizedBox(height: 16),
 
@@ -1959,13 +1993,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               ? Stack(
                   fit: StackFit.expand,
                   children: [
-                    SafeNetworkImage(
-                      url: photoUrl,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: height,
-                      fallback: Center(child: Icon(icon, size: 36, color: AppColors.primaryGray)),
-                    ),
+                    _buildProgressPhotoImage(photoUrl: photoUrl, icon: icon, height: height),
                     Positioned(
                       left: 8,
                       bottom: 8,
@@ -2055,20 +2083,40 @@ class _PlannerScreenState extends State<PlannerScreen> {
           const SizedBox(height: 12),
           SizedBox(
             height: 220,
-            child: PageView.builder(
-              controller: _progressPhotoPageController,
-              onPageChanged: (index) {
-                if (mounted) setState(() => _progressPhotoPageIndex = index);
-              },
-              itemCount: photoTypes.length,
-              itemBuilder: (context, index) {
-                final type = photoTypes[index];
-                final photoUrl = type == 'front' ? frontUrl : sideUrl;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: _buildProgressPhotoTile(type: type, photoUrl: photoUrl, height: 220, onTap: () => _handleProgressPhotoTap(_selectedDate, type)),
-                );
-              },
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: _progressPhotoPageIndex > 0 ? () => _goToProgressPhotoPage(_progressPhotoPageIndex - 1) : null,
+                  icon: const Icon(Icons.chevron_left),
+                  color: AppColors.accent,
+                ),
+                Expanded(
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (notification) => notification.metrics.axis == Axis.horizontal,
+                    child: PageView.builder(
+                      controller: _progressPhotoPageController,
+                      physics: const PageScrollPhysics(),
+                      onPageChanged: (index) {
+                        if (mounted) setState(() => _progressPhotoPageIndex = index);
+                      },
+                      itemCount: photoTypes.length,
+                      itemBuilder: (context, index) {
+                        final type = photoTypes[index];
+                        final photoUrl = type == 'front' ? frontUrl : sideUrl;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: _buildProgressPhotoTile(type: type, photoUrl: photoUrl, height: 220, onTap: () => _handleProgressPhotoTap(_selectedDate, type)),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _progressPhotoPageIndex < photoTypes.length - 1 ? () => _goToProgressPhotoPage(_progressPhotoPageIndex + 1) : null,
+                  icon: const Icon(Icons.chevron_right),
+                  color: AppColors.accent,
+                ),
+              ],
             ),
           ),
         ],
@@ -2076,15 +2124,37 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
+  List<Map<String, dynamic>> _programWorkoutDaysList(Map<String, dynamic> program) {
+    final raw = program['workoutDays'];
+    if (raw is List && raw.isNotEmpty) {
+      return raw.whereType<Map>().map((day) => Map<String, dynamic>.from(day)).toList();
+    }
+    return const [];
+  }
+
+  List<Map<String, dynamic>> _exercisesForProgramWorkoutDay(Map<String, dynamic> day) {
+    final raw = day['exercises'];
+    if (raw is! List) return const [];
+    return raw.whereType<Map>().map((ex) => Map<String, dynamic>.from(ex)).toList();
+  }
+
   Widget _buildProgramWorkoutSection(Map<String, dynamic> program) {
     final title = program['title']?.toString() ?? 'Program Workout';
     final status = program['status']?.toString().toLowerCase() ?? '';
     final difficulty = program['difficulty']?.toString() ?? '';
-    final exerciseCount = (program['exerciseCount'] as num?)?.toInt() ?? 0;
-    final totalSets = (program['totalSets'] as num?)?.toInt() ?? 0;
-    final exercises = program['exercises'] is List
-        ? (program['exercises'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
-        : <Map<String, dynamic>>[];
+    final workoutDays = _programWorkoutDaysList(program);
+    final currentDayNumber = (program['currentDayNumber'] as num?)?.toInt() ?? (program['dayNumber'] as num?)?.toInt() ?? 0;
+    final exercises = program['exercises'] is List ? (program['exercises'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : <Map<String, dynamic>>[];
+    final totalExercises = workoutDays.isNotEmpty ? workoutDays.fold<int>(0, (sum, day) => sum + _exercisesForProgramWorkoutDay(day).length) : exercises.length;
+    final totalSets = workoutDays.isNotEmpty
+        ? workoutDays.fold<int>(0, (sum, day) {
+            return sum +
+                _exercisesForProgramWorkoutDay(day).fold<int>(0, (daySum, ex) {
+                  final sets = ex['numberOfSets'] ?? ex['sets'];
+                  return daySum + ((sets is num) ? sets.toInt() : int.tryParse(sets?.toString() ?? '') ?? 0);
+                });
+          })
+        : (program['totalSets'] as num?)?.toInt() ?? 0;
 
     Color statusColor;
     String statusLabel;
@@ -2131,10 +2201,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       title,
                       style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                     ),
-                    if (difficulty.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(difficulty, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
-                    ],
+                    if (difficulty.isNotEmpty) ...[const SizedBox(height: 4), Text(difficulty, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray))],
                   ],
                 ),
               ),
@@ -2151,23 +2218,31 @@ class _PlannerScreenState extends State<PlannerScreen> {
           const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(child: _buildWorkoutStatBox('assets/images/Vector.png', '$exerciseCount', 'Exercises')),
+              Expanded(child: _buildWorkoutStatBox('assets/images/Vector.png', '$totalExercises', 'Exercises')),
               const SizedBox(width: 10),
               Expanded(child: _buildWorkoutStatBox('assets/images/sets111.png', '$totalSets', 'Sets')),
+              if (workoutDays.isNotEmpty) ...[const SizedBox(width: 10), Expanded(child: _buildWorkoutStatBox('assets/icons/time.svg', '${workoutDays.length}', 'Workout Days'))],
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Text(
-            'Today\'s Exercises',
+            workoutDays.isNotEmpty ? 'Program Schedule' : 'Today\'s Exercises',
             style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 10),
-          ...exercises.asMap().entries.map((entry) => _buildProgramExerciseTile(entry.value, entry.key + 1)),
+          if (workoutDays.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text('Full day-by-day plan from your enrolled program', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+            const SizedBox(height: 12),
+            ...workoutDays.map((day) => _buildProgramWorkoutDayCard(day, currentDayNumber)),
+          ] else ...[
+            const SizedBox(height: 10),
+            ...exercises.asMap().entries.map((entry) => _buildProgramExerciseTile(entry.value, entry.key + 1)),
+          ],
           if (_canMoveProgramWorkout) ...[
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
-              height: 46,
+              height: 50.h,
               child: OutlinedButton.icon(
                 onPressed: _isMovingProgramWorkout ? null : _showMoveProgramWorkoutSheet,
                 icon: _isMovingProgramWorkout
@@ -2183,6 +2258,73 @@ class _PlannerScreenState extends State<PlannerScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildProgramWorkoutDayCard(Map<String, dynamic> day, int currentDayNumber) {
+    final dayNumber = (day['dayNumber'] as num?)?.toInt() ?? 0;
+    final dayExercises = _exercisesForProgramWorkoutDay(day);
+    final isCurrentDay = dayNumber > 0 && dayNumber == currentDayNumber;
+    final label = dayNumber > 0 ? 'Day $dayNumber' : 'Workout Day';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: isCurrentDay ? AppColors.accent.withOpacity(0.08) : AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isCurrentDay ? AppColors.accent.withOpacity(0.45) : const Color(0xFFE8EFE0), width: isCurrentDay ? 1.5 : 1),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: isCurrentDay,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(color: isCurrentDay ? AppColors.accent.withOpacity(0.18) : AppColors.accent.withOpacity(0.1), shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: Text(
+              dayNumber > 0 ? '$dayNumber' : '•',
+              style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+            ),
+          ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: isCurrentDay ? FontWeight.w800 : FontWeight.w700),
+                ),
+              ),
+              if (isCurrentDay)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                  child: Text(
+                    'Today',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 10),
+                  ),
+                ),
+            ],
+          ),
+          subtitle: Text(
+            dayExercises.isEmpty ? 'No exercises listed' : '${dayExercises.length} exercise${dayExercises.length == 1 ? '' : 's'}',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+          ),
+          iconColor: AppColors.accent,
+          collapsedIconColor: AppColors.primaryGray,
+          children: dayExercises.isEmpty
+              ? [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text('Exercises for this day will appear here.', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                  ),
+                ]
+              : dayExercises.asMap().entries.map((entry) => _buildProgramExerciseTile(entry.value, entry.key + 1)).toList(),
+        ),
       ),
     );
   }
@@ -2273,9 +2415,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final notes = workout['notes']?.toString().trim() ?? '';
     final journalDateRaw = workout['journalDate']?.toString();
     final journalDate = journalDateRaw != null ? DateTime.tryParse(journalDateRaw) : null;
-    final workouts = workout['workouts'] is List
-        ? (workout['workouts'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
-        : <Map<String, dynamic>>[];
+    final workouts = workout['workouts'] is List ? (workout['workouts'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : <Map<String, dynamic>>[];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -2306,10 +2446,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     ),
                     if (journalDate != null) ...[
                       const SizedBox(height: 4),
-                      Text(
-                        DateFormat('MMM d, yyyy · h:mm a').format(journalDate.toLocal()),
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-                      ),
+                      Text(DateFormat('MMM d, yyyy · h:mm a').format(journalDate.toLocal()), style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                     ],
                   ],
                 ),
@@ -2367,9 +2504,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   Widget _buildJournalExerciseTile(Map<String, dynamic> workout, int order) {
     final name = workout['name']?.toString().trim().isNotEmpty == true ? workout['name'].toString() : 'Exercise $order';
     final iconUrl = workout['iconUrl']?.toString();
-    final sets = workout['sets'] is List
-        ? (workout['sets'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
-        : <Map<String, dynamic>>[];
+    final sets = workout['sets'] is List ? (workout['sets'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : <Map<String, dynamic>>[];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -2633,9 +2768,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       final averagePace = paceMinutes + (paceSeconds / 60.0);
 
       // Get calories
-      final calories = runData['calories'] is int
-          ? runData['calories'] as int
-          : (runData['calories'] is String ? int.tryParse(runData['calories'].toString()) ?? 0 : 0);
+      final calories = runData['calories'] is int ? runData['calories'] as int : (runData['calories'] is String ? int.tryParse(runData['calories'].toString()) ?? 0 : 0);
 
       // Create RunModel from parsed data
       final runModel = RunModel(

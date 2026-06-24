@@ -331,6 +331,8 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
         points: List<LatLng>.from(_routePoints),
         estimatedDistanceMeters: _totalDistance,
         estimatedTimeSeconds: estimatedTimeSeconds,
+        startName: _startSearchController.text.trim(),
+        endName: _endSearchController.text.trim(),
       );
 
       final storageService = Get.find<StorageService>();
@@ -371,6 +373,8 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
       routePoints: _routePoints,
       estimatedDistance: _totalDistance,
       createdAt: DateTime.now(),
+      startPointName: _startSearchController.text.trim().isNotEmpty ? _startSearchController.text.trim() : null,
+      endPointName: _endSearchController.text.trim().isNotEmpty ? _endSearchController.text.trim() : null,
     );
 
     Get.toNamed(AppRoutes.activityTypeSelection, arguments: {'plannedRoute': route});

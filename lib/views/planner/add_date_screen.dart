@@ -60,16 +60,24 @@ class _AddDateScreenState extends State<AddDateScreen> {
   }
 
   void _handleAddWorkout() {
-    Get.back(result: 'workout_journal');
+    _navigateToJournalTab(0, result: 'workout_journal');
+  }
+
+  void _handleAddRun() {
+    _navigateToJournalTab(1, result: 'runner_log');
+  }
+
+  void _navigateToJournalTab(int journalTabIndex, {required String result}) {
+    Get.back(result: result);
     Get.back();
     if (Get.isRegistered<HomeNavigationController>()) {
       if (Get.currentRoute != AppRoutes.home) {
         Get.until((route) => route.settings.name == AppRoutes.home);
       }
-      Get.find<HomeNavigationController>().changeTab(2, journalTab: 0);
+      Get.find<HomeNavigationController>().changeTab(2, journalTab: journalTabIndex);
       return;
     }
-    Get.offNamed(AppRoutes.home, arguments: {'navigateToTab': 2, 'journalTabIndex': 0});
+    Get.offNamed(AppRoutes.home, arguments: {'navigateToTab': 2, 'journalTabIndex': journalTabIndex});
   }
 
   Future<void> _handleAddNotes() async {
@@ -127,11 +135,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                     iconBg: const Color(0xFFFFE8D1),
                     title: 'Add Run',
                     subtitle: 'Log a run or outdoor activity',
-                    onTap: _isSaving
-                        ? () {}
-                        : () {
-                            Get.toNamed(AppRoutes.logRun, arguments: {'selectedDate': widget.selectedDate});
-                          },
+                    onTap: _isSaving ? () {} : _handleAddRun,
                   ),
                   const SizedBox(height: 12),
                   _buildActionTile(

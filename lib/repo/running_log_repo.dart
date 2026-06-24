@@ -7,6 +7,7 @@ import 'package:get_right/models/planned_route_model.dart';
 import 'package:get_right/models/run_model.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/utils/route_location_helper.dart';
 import 'package:get_right/utils%20copy/utils.dart';
 
 class PlannedRouteListPage {
@@ -190,7 +191,8 @@ class RunningLogRepository {
   static PlannedRouteModel plannedRouteFromApi(Map<String, dynamic> json) {
     final id = json['_id']?.toString() ?? '';
     final createdAt = DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now();
-    final points = latLngFromApiLocation(json['location']);
+    final parsed = RouteLocationHelper.parseApiLocation(json['location']);
+    final points = parsed.points.isNotEmpty ? parsed.points : latLngFromApiLocation(json['location']);
     final distance = _estimatedDistanceMeters(points);
 
     return PlannedRouteModel(
@@ -200,6 +202,8 @@ class RunningLogRepository {
       estimatedDistance: distance,
       createdAt: createdAt,
       isSaved: true,
+      startPointName: parsed.startName,
+      endPointName: parsed.endName,
     );
   }
 
@@ -215,10 +219,21 @@ class RunningLogRepository {
     final createdAt = DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? startTime;
 
     List<LocationPoint>? routePoints;
+    String? startPointName;
+    String? endPointName;
     final route = json['route'];
     if (route is Map) {
       final routeMap = Map<String, dynamic>.from(route);
-      routePoints = locationPointsFromApi(routeMap['location']);
+      final parsed = RouteLocationHelper.parseApiLocation(routeMap['location']);
+      if (parsed.points.isNotEmpty) {
+        routePoints = parsed.points
+            .map((point) => LocationPoint(latitude: point.latitude, longitude: point.longitude, timestamp: DateTime.now()))
+            .toList();
+        startPointName = parsed.startName;
+        endPointName = parsed.endName;
+      } else {
+        routePoints = locationPointsFromApi(routeMap['location']);
+      }
       if (distanceMeters <= 0) {
         final estimated = (routeMap['estimatedDistance'] as num?)?.toDouble();
         if (estimated != null && estimated > 0) {
@@ -248,6 +263,8 @@ class RunningLogRepository {
       maxSpeed: (json['averageSpeed'] as num?)?.toDouble(),
       caloriesBurned: (json['caloriesBurned'] as num?)?.toInt(),
       createdAt: createdAt,
+      startPointName: startPointName,
+      endPointName: endPointName,
     );
   }
 
@@ -330,15 +347,27 @@ class RunningLogRepository {
   }
 
   /// Builds `location[]` with GeoJSON points for route planning / full API body.
-  static List<Map<String, dynamic>> locationWaypointsFromLatLngs(List<LatLng> points) {
+  static List<Map<String, dynamic>> locationWaypointsFromLatLngs(
+    List<LatLng> points, {
+    String? startName,
+    String? endName,
+  }) {
     return List.generate(points.length, (index) {
       final point = points[index];
+      String locationName;
+      if (index == 0) {
+        locationName = (startName != null && startName.trim().isNotEmpty) ? startName.trim() : _locationNameForWaypoint(index, points.length);
+      } else if (index == points.length - 1) {
+        locationName = (endName != null && endName.trim().isNotEmpty) ? endName.trim() : _locationNameForWaypoint(index, points.length);
+      } else {
+        locationName = _locationNameForWaypoint(index, points.length);
+      }
       return {
         'geo': {
           'type': 'Point',
           'coordinates': [point.longitude, point.latitude],
         },
-        'locationName': _locationNameForWaypoint(index, points.length),
+        'locationName': locationName,
       };
     });
   }
@@ -348,10 +377,12 @@ class RunningLogRepository {
     required List<LatLng> points,
     required double estimatedDistanceMeters,
     int? estimatedTimeSeconds,
+    String? startName,
+    String? endName,
   }) {
     final estimatedTime = estimatedTimeSeconds ?? (estimatedDistanceMeters / 1000 * 6 * 60).round();
     return {
-      'location': locationWaypointsFromLatLngs(points),
+      'location': locationWaypointsFromLatLngs(points, startName: startName, endName: endName),
       'estimatedTime': estimatedTime,
       'estimatedDistance': estimatedDistanceMeters.round(),
     };
@@ -362,6 +393,8 @@ class RunningLogRepository {
     required List<LatLng> points,
     required double estimatedDistanceMeters,
     int? estimatedTimeSeconds,
+    String? startName,
+    String? endName,
   }) async {
     if (points.isEmpty) {
       throw Exception('Add at least one point to save a route');
@@ -371,6 +404,8 @@ class RunningLogRepository {
       points: points,
       estimatedDistanceMeters: estimatedDistanceMeters,
       estimatedTimeSeconds: estimatedTimeSeconds,
+      startName: startName,
+      endName: endName,
     );
     logPlannedRouteSavePayload(body);
 
@@ -387,6 +422,8 @@ class RunningLogRepository {
       estimatedDistance: estimatedDistanceMeters,
       createdAt: DateTime.now(),
       isSaved: true,
+      startPointName: startName,
+      endPointName: endName,
     );
   }
 

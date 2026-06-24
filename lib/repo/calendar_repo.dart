@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:get_right/app_url.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/utils/image_url_sanitizer.dart';
 
 class CalendarRepository {
   final _network = NetworkApiService();
@@ -218,28 +219,36 @@ class CalendarRepository {
   }
 
   static String? photoUrlFrom(dynamic photo) {
+    String? raw;
+
     if (photo is String) {
-      final value = photo.trim();
-      return value.isNotEmpty && value != 'null' ? value : null;
+      raw = photo.trim();
+    } else if (photo is Map) {
+      final map = Map<String, dynamic>.from(photo);
+      for (final key in ['url', 'imageUrl', 'fileUrl', 'photoUrl', 'path', 'src', 'secureUrl', 'location', 'key', 'filePath', 'filename']) {
+        final value = map[key];
+        if (value is Map) {
+          raw = photoUrlFrom(value);
+        } else {
+          raw = value?.toString().trim();
+        }
+        if (raw != null && raw.isNotEmpty && raw != 'null') break;
+      }
+
+      raw ??= photoUrlFrom(map['file']);
+      raw ??= photoUrlFrom(map['media']);
+      raw ??= photoUrlFrom(map['icon']);
+      raw ??= photoUrlFrom(map['thumbnail']);
     }
-    if (photo is! Map) return null;
 
-    final map = Map<String, dynamic>.from(photo);
-    for (final key in ['url', 'imageUrl', 'fileUrl', 'photoUrl', 'path', 'src', 'secureUrl']) {
-      final value = map[key]?.toString().trim();
-      if (value != null && value.isNotEmpty && value != 'null') return value;
-    }
+    if (raw == null || raw.isEmpty || raw == 'null') return null;
+    if (_looksLikeMongoId(raw)) return null;
 
-    final file = map['file'];
-    if (file is Map) {
-      final nested = photoUrlFrom(file);
-      if (nested != null) return nested;
-    }
+    return ImageUrlSanitizer.resolveMediaUrl(raw) ?? ImageUrlSanitizer.asHttpUrlOrNull(raw);
+  }
 
-    final media = map['media'];
-    if (media is Map) return photoUrlFrom(media);
-
-    return null;
+  static bool _looksLikeMongoId(String value) {
+    return RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(value.trim());
   }
 
   static String normalizePhotoType(String? raw, {required int index, String? entryNotes}) {
@@ -281,7 +290,7 @@ class CalendarRepository {
           ...map,
           'url': url,
           'type': normalizePhotoType(
-            map['type']?.toString() ?? map['photoType']?.toString() ?? map['label']?.toString(),
+            map['type']?.toString() ?? map['photoType']?.toString() ?? map['progressPhotoType']?.toString() ?? map['label']?.toString(),
             index: i,
             entryNotes: entryNotes,
           ),
@@ -297,11 +306,12 @@ class CalendarRepository {
 
     final target = type.toLowerCase();
     for (final photo in photosRaw) {
-      if (photo is! Map) continue;
-      final map = Map<String, dynamic>.from(photo);
-      final photoType = map['type']?.toString().toLowerCase() ?? '';
-      if (photoType.contains(target)) {
-        return photoUrlFrom(map);
+      if (photo is Map) {
+        final map = Map<String, dynamic>.from(photo);
+        final photoType = map['type']?.toString().toLowerCase() ?? '';
+        if (photoType.contains(target)) {
+          return photoUrlFrom(map);
+        }
       }
     }
 
@@ -312,26 +322,103 @@ class CalendarRepository {
     return null;
   }
 
-  static String mergePhotoTypeNotes(String? existing, String type) {
-    final tag = '$type progress photo';
-    final base = existing?.trim() ?? '';
-    if (base.isEmpty) return tag;
-    if (base.toLowerCase().contains(type.toLowerCase())) return base;
-    return '$base · $tag';
+  static Map<String, dynamic>? dayDataFromMutationResponse(dynamic raw) {
+    if (raw is! Map) return null;
+    final root = Map<String, dynamic>.from(raw);
+
+    final data = root['data'];
+    if (data is Map) {
+      final dataMap = Map<String, dynamic>.from(data);
+      for (final key in ['entry', 'calendar', 'calendarEntry', 'result']) {
+        final nested = dataMap[key];
+        if (nested is Map) {
+          return dayDataFromEntry(
+            Map<String, dynamic>.from(nested),
+            nutrition: nutritionSummaryFromApi(dataMap['nutrition']),
+          );
+        }
+      }
+      if (dataMap.containsKey('_id')) {
+        return dayDataFromEntry(dataMap, nutrition: nutritionSummaryFromApi(dataMap['nutrition']));
+      }
+    }
+
+    if (root.containsKey('_id')) {
+      return dayDataFromEntry(root);
+    }
+    return null;
   }
+
+  static Map<String, dynamic> mergeDayData(Map<String, dynamic>? existing, Map<String, dynamic> incoming) {
+    if (existing == null) return incoming;
+
+    final merged = Map<String, dynamic>.from(existing)..addAll(incoming);
+    final existingPhotos = existing['progressPhotos'];
+    final incomingPhotos = incoming['progressPhotos'];
+
+    if (incomingPhotos is List && incomingPhotos.isNotEmpty) {
+      merged['progressPhotos'] = incomingPhotos;
+      merged['hasProgressPhoto'] = true;
+    } else if (existingPhotos is List && existingPhotos.isNotEmpty) {
+      merged['progressPhotos'] = existingPhotos;
+      merged['hasProgressPhoto'] = true;
+    }
+
+    merged['calendarEntryId'] ??= existing['calendarEntryId'] ?? incoming['calendarEntryId'];
+    return merged;
+  }
+
+  static final RegExp _progressPhotoNoteTag = RegExp(r'^(front|side)\s+progress\s+photo$', caseSensitive: false);
+
+  /// User-facing notes only — strips internal progress-photo tags saved in older builds.
+  static String displayNotesFrom(String? raw) {
+    final notes = raw?.trim() ?? '';
+    if (notes.isEmpty) return '';
+
+    final parts = notes.split(RegExp(r'\s*[·•]\s*'));
+    final filtered = parts.map((part) => part.trim()).where((part) {
+      if (part.isEmpty) return false;
+      return !_progressPhotoNoteTag.hasMatch(part);
+    }).toList();
+
+    return filtered.join(' · ').trim();
+  }
+
+  static bool hasUserNotes(String? raw) => displayNotesFrom(raw).isNotEmpty;
 
   static List<Map<String, dynamic>> programExercisesFrom(dynamic exercisesRaw) {
     if (exercisesRaw is! List) return const [];
     return exercisesRaw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  static Map<String, dynamic>? programDayFromEntry(Map<String, dynamic> entry) {
-    final programRaw = entry['program'];
-    if (programRaw is! Map) return null;
-    final program = Map<String, dynamic>.from(programRaw);
-    final exercises = programExercisesFrom(program['exercises']);
-    if (exercises.isEmpty) return null;
+  static List<Map<String, dynamic>> parseWorkoutDaysList(dynamic raw) {
+    if (raw is! List) return const [];
+    final days = raw.whereType<Map>().map((day) => Map<String, dynamic>.from(day)).toList();
+    days.sort((a, b) => (_intFrom(a['dayNumber']) ?? 0).compareTo(_intFrom(b['dayNumber']) ?? 0));
+    return days;
+  }
 
+  static int? inferProgramDayNumber(List<Map<String, dynamic>> dayExercises, List<Map<String, dynamic>> workoutDays) {
+    if (dayExercises.isEmpty || workoutDays.isEmpty) return null;
+    final signature = dayExercises.map((e) => e['exerciseName']?.toString()).join('|');
+    for (final day in workoutDays) {
+      final exercises = programExercisesFrom(day['exercises']);
+      final daySignature = exercises.map((e) => e['exerciseName']?.toString()).join('|');
+      if (signature.isNotEmpty && signature == daySignature) {
+        return _intFrom(day['dayNumber']);
+      }
+    }
+    return null;
+  }
+
+  static Map<String, dynamic> buildProgramDay({
+    required Map<String, dynamic>? enrollment,
+    required Map<String, dynamic> programStub,
+    required List<Map<String, dynamic>> workoutDays,
+    required List<Map<String, dynamic>> exercises,
+    required int dayNumber,
+    String? entryType,
+  }) {
     var totalSets = 0;
     for (final ex in exercises) {
       totalSets += _intFrom(ex['numberOfSets']) ?? 0;
@@ -341,10 +428,10 @@ class CalendarRepository {
     String? difficulty;
     int? durationWeeks;
     String? enrollmentId;
-    final enrollment = program['enrollmentId'];
-    if (enrollment is Map) {
-      enrollmentId = enrollment['_id']?.toString();
-      final nestedProgram = enrollment['program'];
+    if (enrollment != null) {
+      final enrollmentMap = Map<String, dynamic>.from(enrollment);
+      enrollmentId = enrollmentMap['_id']?.toString();
+      final nestedProgram = enrollmentMap['program'];
       if (nestedProgram is Map) {
         final nested = Map<String, dynamic>.from(nestedProgram);
         title = nested['title']?.toString();
@@ -353,19 +440,120 @@ class CalendarRepository {
       }
     }
 
-    final status = program['status']?.toString().trim().isNotEmpty == true ? program['status']?.toString() : entry['type']?.toString();
+    final status = programStub['status']?.toString().trim().isNotEmpty == true ? programStub['status']?.toString() : entryType;
 
     return {
       'title': title ?? 'Program Workout',
-      'status': status ?? '',
+      'status': status ?? 'incomplete',
       'difficulty': difficulty ?? '',
       'durationWeeks': durationWeeks ?? 0,
       'exercises': exercises,
       'exerciseCount': exercises.length,
       'totalSets': totalSets,
-      'programId': program['programId']?.toString(),
+      'programId': programStub['programId']?.toString(),
       'enrollmentId': enrollmentId,
+      'workoutDays': workoutDays,
+      'dayNumber': dayNumber,
+      'currentDayNumber': dayNumber,
     };
+  }
+
+  static Map<String, dynamic>? programDayFromEntry(Map<String, dynamic> entry) {
+    final programRaw = entry['program'];
+    if (programRaw is! Map) return null;
+    final program = Map<String, dynamic>.from(programRaw);
+    final exercises = programExercisesFrom(program['exercises']);
+    if (exercises.isEmpty) return null;
+
+    Map<String, dynamic>? enrollment;
+    var workoutDays = const <Map<String, dynamic>>[];
+    if (program['enrollmentId'] is Map) {
+      enrollment = Map<String, dynamic>.from(program['enrollmentId'] as Map);
+      final nestedProgram = enrollment['program'];
+      if (nestedProgram is Map) {
+        workoutDays = parseWorkoutDaysList(nestedProgram['workoutDays']);
+      }
+    }
+
+    final dayNumber = inferProgramDayNumber(exercises, workoutDays) ?? _intFrom(program['dayNumber']) ?? 1;
+
+    return buildProgramDay(
+      enrollment: enrollment,
+      programStub: program,
+      workoutDays: workoutDays,
+      exercises: exercises,
+      dayNumber: dayNumber,
+      entryType: entry['type']?.toString(),
+    );
+  }
+
+  static void expandProgramScheduleInMap(Map<DateTime, Map<String, dynamic>> map) {
+    final grouped = <String, List<MapEntry<DateTime, Map<String, dynamic>>>>{};
+
+    for (final entry in map.entries) {
+      final program = entry.value['program'];
+      if (program is! Map) continue;
+      final enrollmentId = program['enrollmentId']?.toString();
+      if (enrollmentId == null || enrollmentId.isEmpty) continue;
+      grouped.putIfAbsent(enrollmentId, () => []).add(entry);
+    }
+
+    for (final entries in grouped.values) {
+      entries.sort((a, b) => a.key.compareTo(b.key));
+      final templateProgram = Map<String, dynamic>.from(entries.first.value['program'] as Map);
+      final workoutDays = templateProgram['workoutDays'] is List
+          ? (templateProgram['workoutDays'] as List).whereType<Map>().map((day) => Map<String, dynamic>.from(day)).toList()
+          : const <Map<String, dynamic>>[];
+      if (workoutDays.isEmpty) continue;
+
+      final anchorDate = entries.first.key;
+
+      for (var i = 0; i < workoutDays.length; i++) {
+        final workoutDay = workoutDays[i];
+        final dayNumber = _intFrom(workoutDay['dayNumber']) ?? (i + 1);
+        final exercises = programExercisesFrom(workoutDay['exercises']);
+        if (exercises.isEmpty) continue;
+
+        final targetDate = i < entries.length ? entries[i].key : anchorDate.add(Duration(days: i));
+        final dayProgram = Map<String, dynamic>.from(templateProgram)
+          ..['exercises'] = exercises
+          ..['exerciseCount'] = exercises.length
+          ..['totalSets'] = exercises.fold<int>(0, (sum, ex) => sum + (_intFrom(ex['numberOfSets']) ?? 0))
+          ..['workoutDays'] = workoutDays
+          ..['dayNumber'] = dayNumber
+          ..['currentDayNumber'] = dayNumber;
+
+        if (map.containsKey(targetDate)) {
+          final existing = map[targetDate]!;
+          final existingProgram = existing['program'];
+          if (existingProgram == null) {
+            map[targetDate] = mergeDayData(existing, {
+              'program': dayProgram,
+              'workoutStatus': workoutStatusFromType(dayProgram['status']?.toString()),
+            });
+          } else if (existingProgram is Map) {
+            final mergedProgram = Map<String, dynamic>.from(existingProgram);
+            if (mergedProgram['workoutDays'] == null || (mergedProgram['workoutDays'] is List && (mergedProgram['workoutDays'] as List).isEmpty)) {
+              mergedProgram['workoutDays'] = workoutDays;
+            }
+            mergedProgram['currentDayNumber'] = dayNumber;
+            mergedProgram['dayNumber'] = dayNumber;
+            map[targetDate] = mergeDayData(existing, {'program': mergedProgram});
+          }
+        } else {
+          map[targetDate] = {
+            'workoutStatus': workoutStatusFromType(dayProgram['status']?.toString()),
+            'hasProgressPhoto': false,
+            'progressPhotos': const [],
+            'workout': null,
+            'run': null,
+            'nutrition': null,
+            'notes': '',
+            'program': dayProgram,
+          };
+        }
+      }
+    }
   }
 
   static Map<String, dynamic> dayDataFromEntry(Map<String, dynamic> entry, {Map<String, dynamic>? nutrition}) {
@@ -375,13 +563,15 @@ class CalendarRepository {
 
     return {
       'calendarEntryId': entryIdFromCalendarRecord(entry),
-      'workoutStatus': workoutStatusFromType(entry['type']?.toString()),
+      'workoutStatus': programDay != null
+          ? workoutStatusFromType(programDay['status']?.toString())
+          : workoutStatusFromType(entry['type']?.toString()),
       'hasProgressPhoto': hasProgressPhotosInEntry(entry),
       'progressPhotos': photos,
       'workout': workoutSummaryFromJournal(journal),
       'run': null,
       'nutrition': nutrition,
-      'notes': entry['notes']?.toString().trim() ?? '',
+      'notes': displayNotesFrom(entry['notes']?.toString()),
       if (programDay != null) 'program': programDay,
     };
   }
@@ -455,6 +645,7 @@ class CalendarRepository {
       if (entry['isDeleted'] == true) continue;
       map[dateKeyFromEntry(entry)] = dayDataFromEntry(entry);
     }
+    expandProgramScheduleInMap(map);
     return map;
   }
 
@@ -465,8 +656,12 @@ class CalendarRepository {
     String? notes,
     String? workoutJournal,
     List<File>? progressPhotoFiles,
+    String? progressPhotoType,
   }) async {
     final body = createEntryBody(date: date, type: type, notes: notes, workoutJournal: workoutJournal);
+    if (progressPhotoType != null && progressPhotoType.trim().isNotEmpty) {
+      body['progressPhotoType'] = progressPhotoType.trim().toLowerCase();
+    }
     final files = progressPhotoFiles?.where((f) => f.path.isNotEmpty).toList() ?? const <File>[];
 
     final dynamic raw;
@@ -499,6 +694,7 @@ class CalendarRepository {
     String? notes,
     String? type,
     List<File>? progressPhotoFiles,
+    String? progressPhotoType,
   }) async {
     final id = calendarEntryId.trim();
     if (!WorkoutRepository.isValidMongoId(id)) {
@@ -506,6 +702,9 @@ class CalendarRepository {
     }
 
     final body = updateEntryBody(notes: notes, type: type);
+    if (progressPhotoType != null && progressPhotoType.trim().isNotEmpty) {
+      body['progressPhotoType'] = progressPhotoType.trim().toLowerCase();
+    }
     final files = progressPhotoFiles?.where((f) => f.path.isNotEmpty).toList() ?? const <File>[];
 
     final dynamic raw;

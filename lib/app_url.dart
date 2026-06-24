@@ -1,8 +1,8 @@
 class AppUrl {
   // development url
-  // static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
-  // static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
-  // static const String socketUrl = 'http://getright.prodservers.com:8003';
+  static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
+  static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
+  static const String socketUrl = 'http://getright.prodservers.com:8003';
 
   // client url
   // static const String baseUrl = 'http://getright.prodservers.com:8004/api/v1';

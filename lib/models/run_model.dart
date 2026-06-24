@@ -16,6 +16,8 @@ class RunModel {
   final String? notes;
   final List<Split>? splits;
   final DateTime createdAt;
+  final String? startPointName;
+  final String? endPointName;
 
   RunModel({
     required this.id,
@@ -34,6 +36,8 @@ class RunModel {
     this.notes,
     this.splits,
     required this.createdAt,
+    this.startPointName,
+    this.endPointName,
   });
 
   /// Calculate average speed in m/s
@@ -58,6 +62,8 @@ class RunModel {
       notes: json['notes'],
       splits: json['splits'] != null ? (json['splits'] as List).map((split) => Split.fromJson(split)).toList() : null,
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      startPointName: json['startPointName']?.toString(),
+      endPointName: json['endPointName']?.toString(),
     );
   }
 
@@ -80,6 +86,8 @@ class RunModel {
       'notes': notes,
       'splits': splits?.map((split) => split.toJson()).toList(),
       'createdAt': createdAt.toIso8601String(),
+      if (startPointName != null) 'startPointName': startPointName,
+      if (endPointName != null) 'endPointName': endPointName,
     };
   }
 }

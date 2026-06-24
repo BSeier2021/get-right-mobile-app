@@ -11,6 +11,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/widgets/tracker/route_endpoint_labels.dart';
 
 /// Run History Screen - Display all completed runs
 class RunHistoryScreen extends StatefulWidget {
@@ -589,7 +590,16 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
                     _startPill(),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+                if (route.routePoints.isNotEmpty)
+                  RouteEndpointLabels(
+                    start: route.routePoints.first,
+                    end: route.routePoints.length > 1 ? route.routePoints.last : route.routePoints.first,
+                    startName: route.startPointName,
+                    endName: route.endPointName,
+                    compact: true,
+                  ),
+                const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -724,7 +734,16 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
                       const Icon(Icons.chevron_right_rounded, color: AppColors.primaryGray),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  if (run.routePoints != null && run.routePoints!.isNotEmpty)
+                    RouteEndpointLabels(
+                      start: LatLng(run.routePoints!.first.latitude, run.routePoints!.first.longitude),
+                      end: LatLng(run.routePoints!.last.latitude, run.routePoints!.last.longitude),
+                      startName: run.startPointName,
+                      endName: run.endPointName,
+                      compact: true,
+                    ),
+                  const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
@@ -936,6 +955,15 @@ class _SavedRoutePreviewSheet extends StatelessWidget {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: RouteEndpointLabels(
+              start: start,
+              end: end,
+              startName: route.startPointName,
+              endName: route.endPointName,
+            ),
+          ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -979,14 +1007,14 @@ class _SavedRoutePreviewSheet extends StatelessWidget {
                       markerId: const MarkerId('start'),
                       position: start,
                       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-                      infoWindow: const InfoWindow(title: 'Start'),
+                      infoWindow: InfoWindow(title: 'Start', snippet: route.startPointName),
                     ),
                     if (points.length > 1)
                       Marker(
                         markerId: const MarkerId('end'),
                         position: end,
                         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-                        infoWindow: const InfoWindow(title: 'End'),
+                        infoWindow: InfoWindow(title: 'End', snippet: route.endPointName),
                       ),
                   },
                   myLocationButtonEnabled: false,

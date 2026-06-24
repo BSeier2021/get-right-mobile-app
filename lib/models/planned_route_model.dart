@@ -10,6 +10,8 @@ class PlannedRouteModel {
   final DateTime? scheduledDate;
   final bool isSaved;
   final DateTime createdAt;
+  final String? startPointName;
+  final String? endPointName;
 
   PlannedRouteModel({
     required this.id,
@@ -20,6 +22,8 @@ class PlannedRouteModel {
     this.scheduledDate,
     this.isSaved = false,
     required this.createdAt,
+    this.startPointName,
+    this.endPointName,
   });
 
   /// From JSON
@@ -33,6 +37,8 @@ class PlannedRouteModel {
       scheduledDate: json['scheduledDate'] != null ? DateTime.parse(json['scheduledDate']) : null,
       isSaved: json['isSaved'] ?? false,
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      startPointName: json['startPointName']?.toString(),
+      endPointName: json['endPointName']?.toString(),
     );
   }
 
@@ -47,6 +53,8 @@ class PlannedRouteModel {
       'scheduledDate': scheduledDate?.toIso8601String(),
       'isSaved': isSaved,
       'createdAt': createdAt.toIso8601String(),
+      if (startPointName != null) 'startPointName': startPointName,
+      if (endPointName != null) 'endPointName': endPointName,
     };
   }
 
@@ -60,6 +68,8 @@ class PlannedRouteModel {
     DateTime? scheduledDate,
     bool? isSaved,
     DateTime? createdAt,
+    String? startPointName,
+    String? endPointName,
   }) {
     return PlannedRouteModel(
       id: id ?? this.id,
@@ -70,6 +80,8 @@ class PlannedRouteModel {
       scheduledDate: scheduledDate ?? this.scheduledDate,
       isSaved: isSaved ?? this.isSaved,
       createdAt: createdAt ?? this.createdAt,
+      startPointName: startPointName ?? this.startPointName,
+      endPointName: endPointName ?? this.endPointName,
     );
   }
 }

@@ -10,6 +10,7 @@ import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/helpers.dart';
+import 'package:get_right/widgets/tracker/route_endpoint_labels.dart';
 
 /// Run Summary Screen - Display completed run with map and stats
 class RunSummaryScreen extends StatefulWidget {
@@ -67,6 +68,18 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
                 _buildStatsSection(run),
                 const SizedBox(height: 20),
                 _buildMapSection(run),
+                if (run.routePoints != null && run.routePoints!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: RouteEndpointLabels(
+                      start: LatLng(run.routePoints!.first.latitude, run.routePoints!.first.longitude),
+                      end: LatLng(run.routePoints!.last.latitude, run.routePoints!.last.longitude),
+                      startName: run.startPointName,
+                      endName: run.endPointName,
+                    ),
+                  ),
+                ],
 
                 _buildDetailedStats(run),
                 if (run.splits != null && run.splits!.isNotEmpty) _buildSplitsSection(run),
@@ -100,13 +113,13 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
         markerId: const MarkerId('start'),
         position: points.first,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-        infoWindow: const InfoWindow(title: 'Start'),
+        infoWindow: InfoWindow(title: 'Start', snippet: run.startPointName),
       ),
       Marker(
         markerId: const MarkerId('end'),
         position: points.last,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        infoWindow: const InfoWindow(title: 'Finish'),
+        infoWindow: InfoWindow(title: 'Finish', snippet: run.endPointName),
       ),
     };
 
