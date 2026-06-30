@@ -1,3 +1,5 @@
+import 'package:get_right/utils/image_url_sanitizer.dart';
+
 /// Model for a recipe ingredient
 class RecipeIngredient {
   final String name;
@@ -38,6 +40,7 @@ enum RecipeCategory {
   breakfast,
   lunch,
   dinner,
+  snacks,
   bodybuilding,
   lowCarb,
   highProtein,
@@ -54,6 +57,8 @@ enum RecipeCategory {
         return 'Lunch';
       case RecipeCategory.dinner:
         return 'Dinner';
+      case RecipeCategory.snacks:
+        return 'Snacks';
       case RecipeCategory.bodybuilding:
         return 'Bodybuilding';
       case RecipeCategory.lowCarb:
@@ -91,6 +96,7 @@ class Recipe {
   final double? estimatedCost;
   final double? costPerServing;
   final String? videoUrl;
+  final String? videoThumbnailUrl;
   final bool isPremium;
   final bool isFeatured;
   final DateTime? createdAt;
@@ -114,6 +120,7 @@ class Recipe {
     this.estimatedCost,
     this.costPerServing,
     this.videoUrl,
+    this.videoThumbnailUrl,
     this.isPremium = false,
     this.isFeatured = false,
     this.createdAt,
@@ -121,6 +128,14 @@ class Recipe {
   });
 
   int get totalTimeMinutes => prepTimeMinutes + cookTimeMinutes;
+
+  bool get hasWalkthroughVideo => videoUrl != null && videoUrl!.trim().isNotEmpty;
+
+  String get walkthroughPosterUrl {
+    final thumb = videoThumbnailUrl?.trim();
+    if (thumb != null && thumb.isNotEmpty) return thumb;
+    return imageUrl;
+  }
 
   // Calculate nutrition for multiple servings
   Map<String, double> calculateForServings(double servingCount) {
@@ -133,29 +148,194 @@ class Recipe {
   }
 
   factory Recipe.fromJson(Map<String, dynamic> json) {
+    return Recipe.fromApiJson(json);
+  }
+
+  factory Recipe.fromApiJson(Map<String, dynamic> json) {
+    final id = json['_id']?.toString() ?? json['id']?.toString() ?? '';
+    final mealType = json['mealType']?.toString().trim();
+    final categories = <RecipeCategory>[];
+    final fromMeal = _categoryFromMealType(mealType);
+    if (fromMeal != null) categories.add(fromMeal);
+
+    final tags = json['tags'] ?? json['categories'];
+    if (tags is List) {
+      for (final tag in tags) {
+        String? tagName;
+        if (tag is Map) {
+          tagName = Map<String, dynamic>.from(tag)['name']?.toString();
+        } else {
+          tagName = tag?.toString();
+        }
+        final cat = _categoryFromTag(tagName);
+        if (cat != null && !categories.contains(cat)) categories.add(cat);
+      }
+    }
+
+    final categoryLabel = json['category']?.toString().trim();
+    if (categoryLabel != null && categoryLabel.isNotEmpty) {
+      final fromCategory = _categoryFromTag(categoryLabel);
+      if (fromCategory != null && !categories.contains(fromCategory)) categories.add(fromCategory);
+    }
+
+    final prep = ((json['prepTimeMinutes'] ?? json['prepTime'] ?? json['prepMinutes']) as num?)?.toInt() ?? 0;
+    final cook = ((json['cookTimeMinutes'] ?? json['cookTime'] ?? json['cookMinutes']) as num?)?.toInt() ?? 0;
+    final totalTime = (json['totalTimeMinutes'] ?? json['totalTime'] as num?)?.toInt();
+    final prepTime = prep > 0 ? prep : (totalTime != null && totalTime > cook ? totalTime - cook : totalTime ?? 0);
+    final cookTime = cook > 0 ? cook : 0;
+
+    final macros = json['macronutrients'] ?? json['nutrition'];
+    double macro(String key, List<String> alt) {
+      if (macros is Map) {
+        final m = Map<String, dynamic>.from(macros);
+        for (final k in alt) {
+          final v = m[k];
+          if (v is num) return v.toDouble();
+        }
+      }
+      for (final k in alt) {
+        final v = json[k];
+        if (v is num) return v.toDouble();
+      }
+      return 0;
+    }
+
     return Recipe(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-      description: json['description'] ?? '',
-      imageUrl: json['imageUrl'] ?? '',
-      categories: (json['categories'] as List<dynamic>?)?.map((cat) => RecipeCategory.values.firstWhere((e) => e.name == cat, orElse: () => RecipeCategory.dinner)).toList() ?? [],
-      prepTimeMinutes: json['prepTimeMinutes'] ?? 0,
-      cookTimeMinutes: json['cookTimeMinutes'] ?? 0,
-      servings: json['servings'] ?? 1,
-      ingredients: (json['ingredients'] as List<dynamic>?)?.map((i) => RecipeIngredient.fromJson(i)).toList() ?? [],
-      instructions: (json['instructions'] as List<dynamic>?)?.map((i) => RecipeInstruction.fromJson(i)).toList() ?? [],
-      caloriesPerServing: (json['caloriesPerServing'] ?? 0).toDouble(),
-      proteinPerServing: (json['proteinPerServing'] ?? 0).toDouble(),
-      carbsPerServing: (json['carbsPerServing'] ?? 0).toDouble(),
-      fatsPerServing: (json['fatsPerServing'] ?? 0).toDouble(),
-      estimatedCost: json['estimatedCost']?.toDouble(),
-      costPerServing: json['costPerServing']?.toDouble(),
-      videoUrl: json['videoUrl'],
-      isPremium: json['isPremium'] ?? false,
-      isFeatured: json['isFeatured'] ?? false,
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-      popularity: json['popularity'],
+      id: id,
+      name: json['name']?.toString() ?? json['title']?.toString() ?? 'Recipe',
+      description: json['description']?.toString() ?? '',
+      imageUrl: _imageUrlFromApi(json),
+      categories: categories.isEmpty ? [RecipeCategory.dinner] : categories,
+      prepTimeMinutes: prepTime,
+      cookTimeMinutes: cookTime,
+      servings: (json['servings'] as num?)?.toInt() ?? 1,
+      ingredients: _ingredientsFromApi(json['ingredients']),
+      instructions: _instructionsFromApi(json['instructions'] ?? json['steps']),
+      caloriesPerServing: macro('calories', ['calories', 'caloriesPerServing', 'calorie']),
+      proteinPerServing: macro('protein', ['protein', 'proteinPerServing', 'proteinG', 'proteinGrams']),
+      carbsPerServing: macro('carbs', ['carbs', 'carbsPerServing', 'carbsG', 'carbsGrams']),
+      fatsPerServing: macro('fats', ['fats', 'fatsPerServing', 'fatG', 'fat', 'fatGrams']),
+      estimatedCost: (json['estimatedCost'] as num?)?.toDouble() ?? (json['netPrice'] as num?)?.toDouble(),
+      costPerServing: (json['costPerServing'] as num?)?.toDouble() ?? (json['price'] as num?)?.toDouble(),
+      videoUrl: _videoUrlFromApi(json),
+      videoThumbnailUrl: _videoThumbnailFromApi(json),
+      isPremium: json['isPremium'] == true || json['premium'] == true || (json.containsKey('isFree') && json['isFree'] != true),
+      isFeatured: json['isFeatured'] == true || json['featured'] == true,
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
+      popularity: (json['popularity'] as num?)?.toInt(),
     );
+  }
+
+  static RecipeCategory? _categoryFromMealType(String? mealType) {
+    switch (mealType?.trim()) {
+      case 'Breakfast':
+        return RecipeCategory.breakfast;
+      case 'Lunch':
+        return RecipeCategory.lunch;
+      case 'Dinner':
+        return RecipeCategory.dinner;
+      case 'Snacks':
+        return RecipeCategory.snacks;
+      default:
+        return null;
+    }
+  }
+
+  static RecipeCategory? _categoryFromTag(String? raw) {
+    final s = raw?.trim().toLowerCase().replaceAll(' ', '');
+    if (s == null || s.isEmpty) return null;
+    for (final cat in RecipeCategory.values) {
+      if (cat.name.toLowerCase() == s || cat.displayName.toLowerCase().replaceAll('-', '').replaceAll(' ', '') == s) {
+        return cat;
+      }
+    }
+    if (s.contains('protein')) return RecipeCategory.highProtein;
+    if (s.contains('lowcarb')) return RecipeCategory.lowCarb;
+    return null;
+  }
+
+  static String _imageUrlFromApi(Map<String, dynamic> json) {
+    String? pick(dynamic v) => ImageUrlSanitizer.asHttpUrlOrNull(v?.toString());
+
+    final image = json['image'];
+    if (image is Map) {
+      final url = pick(Map<String, dynamic>.from(image)['url']);
+      if (url != null) return url;
+    }
+
+    final direct = pick(json['imageUrl'] ?? json['thumbnail']);
+    if (direct != null) return direct;
+
+    final media = json['imageMedia'] ?? json['coverImage'] ?? json['promoMedia'] ?? json['photo'];
+    if (media is Map) {
+      final url = pick(Map<String, dynamic>.from(media)['url']);
+      if (url != null) return url;
+    }
+    return '';
+  }
+
+  static String? _videoUrlFromApi(Map<String, dynamic> json) {
+    final walkthrough = json['walkthroughVideo'];
+    if (walkthrough is Map) {
+      final url = ImageUrlSanitizer.asHttpUrlOrNull(Map<String, dynamic>.from(walkthrough)['url']?.toString());
+      if (url != null) return url;
+    }
+    final legacy = json['videoUrl']?.toString() ?? json['video']?.toString();
+    return legacy != null && legacy.isNotEmpty ? legacy : null;
+  }
+
+  static String? _videoThumbnailFromApi(Map<String, dynamic> json) {
+    final walkthrough = json['walkthroughVideo'];
+    if (walkthrough is! Map) return null;
+    final wm = Map<String, dynamic>.from(walkthrough);
+    final thumbnail = wm['thumbnail'];
+    if (thumbnail is Map) {
+      return ImageUrlSanitizer.asHttpUrlOrNull(Map<String, dynamic>.from(thumbnail)['url']?.toString());
+    }
+    return ImageUrlSanitizer.asHttpUrlOrNull(wm['thumbnailUrl']?.toString());
+  }
+
+  static List<RecipeIngredient> _ingredientsFromApi(dynamic raw) {
+    if (raw is! List) return const [];
+    final out = <RecipeIngredient>[];
+    for (var i = 0; i < raw.length; i++) {
+      final item = raw[i];
+      if (item is String) {
+        out.add(RecipeIngredient(name: item, quantity: ''));
+        continue;
+      }
+      if (item is! Map) continue;
+      final m = Map<String, dynamic>.from(item);
+      out.add(
+        RecipeIngredient(
+          name: m['name']?.toString() ?? m['ingredient']?.toString() ?? '',
+          quantity: m['quantity']?.toString() ?? m['amount']?.toString() ?? '',
+          unit: m['unit']?.toString(),
+        ),
+      );
+    }
+    return out;
+  }
+
+  static List<RecipeInstruction> _instructionsFromApi(dynamic raw) {
+    if (raw is! List) return const [];
+    final out = <RecipeInstruction>[];
+    for (var i = 0; i < raw.length; i++) {
+      final item = raw[i];
+      if (item is String) {
+        out.add(RecipeInstruction(step: i + 1, instruction: item));
+        continue;
+      }
+      if (item is! Map) continue;
+      final m = Map<String, dynamic>.from(item);
+      out.add(
+        RecipeInstruction(
+          step: (m['step'] as num?)?.toInt() ?? (m['order'] as num?)?.toInt() ?? (i + 1),
+          instruction: m['instruction']?.toString() ?? m['text']?.toString() ?? m['description']?.toString() ?? '',
+        ),
+      );
+    }
+    return out;
   }
 
   Map<String, dynamic> toJson() {
@@ -177,6 +357,7 @@ class Recipe {
       'estimatedCost': estimatedCost,
       'costPerServing': costPerServing,
       'videoUrl': videoUrl,
+      'videoThumbnailUrl': videoThumbnailUrl,
       'isPremium': isPremium,
       'isFeatured': isFeatured,
       'createdAt': createdAt?.toIso8601String(),

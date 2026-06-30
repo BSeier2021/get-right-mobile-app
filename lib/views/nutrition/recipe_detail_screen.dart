@@ -4,10 +4,12 @@ import 'package:get/get.dart';
 import 'package:get_right/controllers/nutrition_controller.dart';
 import 'package:get_right/models/meal_entry.dart';
 import 'package:get_right/models/recipe.dart';
+import 'package:get_right/repo/recipe_repo.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/views/marketplace/program_hls_player_screen.dart';
 
-/// Recipe Detail Screen - Shows full recipe details
+/// Recipe Detail Screen — loads `GET /customer/recipes/catalog/:recipeId`.
 class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
 
@@ -18,12 +20,56 @@ class RecipeDetailScreen extends StatefulWidget {
 }
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
+  final RecipeRepository _recipeRepo = RecipeRepository();
+
   double servings = 1.0;
+  Recipe? _detail;
+  bool _loading = true;
+  String? _error;
+
+  Recipe get recipe => _detail ?? widget.recipe;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDetail();
+  }
+
+  Future<void> _loadDetail() async {
+    final recipeId = recipe.id.trim();
+    if (recipeId.isEmpty) {
+      setState(() {
+        _loading = false;
+        _error = 'Invalid recipe';
+      });
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final detail = await _recipeRepo.fetchRecipeDetail(recipeId);
+      if (!mounted) return;
+      setState(() {
+        _detail = detail;
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<NutritionController>();
-    final nutrition = widget.recipe.calculateForServings(servings);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -41,7 +87,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           onPressed: () => Get.back(),
         ),
         actions: [
-          if (widget.recipe.isPremium)
+          if (!_loading && recipe.isPremium)
             Container(
               margin: const EdgeInsets.only(right: 16),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -59,7 +105,41 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: _buildBody(controller),
+    );
+  }
+
+  Widget _buildBody(NutritionController controller) {
+    if (_loading && _detail == null) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+    }
+    if (_error != null && _detail == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_error!, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray), textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadDetail,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final nutrition = recipe.calculateForServings(servings);
+
+    return SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,7 +148,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: Image.network(
-                widget.recipe.imageUrl,
+                recipe.imageUrl,
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -83,11 +163,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             const SizedBox(height: 16),
             // Title and description
             Text(
-              widget.recipe.name,
+              recipe.name,
               style: AppTextStyles.headlineMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
             ),
             const SizedBox(height: 8),
-            Text(widget.recipe.description, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray)),
+            Text(recipe.description, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray)),
 
             const SizedBox(height: 16),
             SizedBox(
@@ -96,9 +176,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _buildInfoChip('assets/images/clock.png', '${widget.recipe.prepTimeMinutes} min prep'),
-                  _buildInfoChip('assets/images/knife.png', '${widget.recipe.cookTimeMinutes} min cook'),
-                  _buildInfoChip('assets/images/people22.png', '${widget.recipe.servings} servings'),
+                  _buildInfoChip('assets/images/clock.png', '${recipe.prepTimeMinutes} min prep'),
+                  _buildInfoChip('assets/images/knife.png', '${recipe.cookTimeMinutes} min cook'),
+                  _buildInfoChip('assets/images/people22.png', '${recipe.servings} servings'),
                 ],
               ),
             ),
@@ -118,7 +198,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.primaryGrayLight.withOpacity(0.6)),
               ),
-              child: Column(children: widget.recipe.ingredients.asMap().entries.map((entry) => _buildIngredientItem(entry.key + 1, entry.value)).toList()),
+              child: Column(children: recipe.ingredients.asMap().entries.map((entry) => _buildIngredientItem(entry.key + 1, entry.value)).toList()),
             ),
 
             const SizedBox(height: 24),
@@ -127,36 +207,37 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
             ),
             const SizedBox(height: 12),
-            ...widget.recipe.instructions.map((instruction) => _buildInstructionStep(instruction)),
+            ...recipe.instructions.map((instruction) => _buildInstructionStep(instruction)),
 
             const SizedBox(height: 24),
-            if (widget.recipe.videoUrl != null) ...[
+            if (recipe.hasWalkthroughVideo) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // Background recipe image
                     Image.network(
-                      widget.recipe.imageUrl,
+                      recipe.walkthroughPosterUrl,
                       height: 220.h,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(height: 180, color: AppColors.accent.withOpacity(0.2)),
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 220.h,
+                        color: AppColors.accent.withOpacity(0.2),
+                        child: const Center(child: Icon(Icons.play_circle_outline, size: 64, color: AppColors.accent)),
+                      ),
                     ),
-                    // Dark gradient overlay
                     Positioned.fill(
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Colors.black.withOpacity(0.80), Colors.black.withOpacity(0.80)],
+                            colors: [Colors.black.withOpacity(0.55), Colors.black.withOpacity(0.75)],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                           ),
                         ),
                       ),
                     ),
-                    // Content
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(
@@ -172,7 +253,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                           Text('Watch step-by-step instructions', style: AppTextStyles.bodySmall.copyWith(color: Colors.white.withOpacity(0.9))),
                           const SizedBox(height: 12),
                           ElevatedButton(
-                            onPressed: () => Get.snackbar('Video', 'Video player will open here', snackPosition: SnackPosition.BOTTOM),
+                            onPressed: _openWalkthroughVideo,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF205536),
                               foregroundColor: Colors.white,
@@ -217,7 +298,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             const SizedBox(height: 24),
           ],
         ),
-      ),
     );
   }
 
@@ -456,12 +536,28 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
+  void _openWalkthroughVideo() {
+    final url = recipe.videoUrl?.trim();
+    if (url == null || url.isEmpty) {
+      Get.snackbar('Video unavailable', 'No walkthrough video for this recipe.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      Get.snackbar('Video unavailable', 'Invalid video URL.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    Get.to<void>(() => ProgramHlsPlayerScreen(videoUri: uri, title: recipe.name));
+  }
+
   void _showAddToTrackerDialog(BuildContext context, NutritionController controller) {
     MealType selectedMealType = MealType.lunch;
+    var isSubmitting = false;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      barrierDismissible: !isSubmitting,
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
             backgroundColor: AppColors.surface,
@@ -480,11 +576,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   return RadioListTile<MealType>(
                     value: type,
                     groupValue: selectedMealType,
-                    onChanged: (value) {
-                      setState(() {
-                        selectedMealType = value!;
-                      });
-                    },
+                    onChanged: isSubmitting
+                        ? null
+                        : (value) {
+                            setState(() {
+                              selectedMealType = value!;
+                            });
+                          },
                     title: Text('${type.icon} ${type.displayName}', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
                     activeColor: AppColors.accent,
                   );
@@ -498,28 +596,50 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Get.back(),
+                onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
                 child: Text('Cancel', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.mediumGray)),
               ),
               ElevatedButton(
-                onPressed: () {
-                  controller.addRecipeToTracker(widget.recipe, servings, selectedMealType);
-                  Get.back(); // Close dialog
-                  Get.back(); // Go back to nutrition screen
-                  Get.snackbar(
-                    'Success',
-                    '${widget.recipe.name} added to your ${selectedMealType.displayName}',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: AppColors.accent,
-                    colorText: Colors.white,
-                  );
-                },
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        setState(() => isSubmitting = true);
+                        final error = await controller.purchaseRecipeToTracker(recipe, servings, selectedMealType);
+                        if (!context.mounted) return;
+                        if (error != null) {
+                          setState(() => isSubmitting = false);
+                          Get.snackbar(
+                            'Could not add recipe',
+                            error,
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: AppColors.error,
+                            colorText: Colors.white,
+                          );
+                          return;
+                        }
+
+                        Navigator.pop(dialogContext);
+                        Get.back();
+                        Get.snackbar(
+                          'Success',
+                          '${recipe.name} added to your ${selectedMealType.displayName}',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: AppColors.accent,
+                          colorText: Colors.white,
+                        );
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: Text('Add', style: AppTextStyles.buttonMedium.copyWith(color: Colors.white)),
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text('Add', style: AppTextStyles.buttonMedium.copyWith(color: Colors.white)),
               ),
             ],
           );

@@ -343,7 +343,7 @@ class AppUrl {
   }
 
   /// `GET /customer/calendar/:calendarEntryId` → `data.entry`, `data.nutrition`.
-  /// `PUT /customer/calendar/:calendarEntryId` — body: `notes`, `type`, optional `progressPhotos` (multipart file).
+  /// `PUT /customer/calendar/:calendarEntryId` — body: `notes`, `type`, `runningLog`, optional `progressPhotos` (multipart file).
   /// `DELETE /customer/calendar/:calendarEntryId` — remove calendar entry.
   static String customerCalendarById(String calendarEntryId) => '$baseUrl/customer/calendar/${Uri.encodeComponent(calendarEntryId.trim())}';
 
@@ -352,4 +352,30 @@ class AppUrl {
 
   /// `POST /customer/calendar/program/move` — body: `calendarEntryId`, `targetDate`.
   static String get customerCalendarProgramMove => '$baseUrl/customer/calendar/program/move';
+
+  /// `GET /customer/recipes/catalog` — query: `page`, `limit`, `sort`, `search`, `mealType`, `featured`.
+  static String customerRecipesCatalog({
+    int page = 1,
+    int limit = 10,
+    String? sort,
+    String? search,
+    String? mealType,
+    bool? featured,
+  }) {
+    final params = <String, String>{
+      'page': '$page',
+      'limit': '$limit',
+    };
+    if (sort != null && sort.trim().isNotEmpty) params['sort'] = sort.trim();
+    if (search != null && search.trim().isNotEmpty) params['search'] = search.trim();
+    if (mealType != null && mealType.trim().isNotEmpty) params['mealType'] = mealType.trim();
+    if (featured == true) params['featured'] = 'true';
+    return '$baseUrl/customer/recipes/catalog?${Uri(queryParameters: params).query}';
+  }
+
+  /// `GET /customer/recipes/catalog/:recipeId`
+  static String customerRecipeById(String recipeId) => '$baseUrl/customer/recipes/catalog/${Uri.encodeComponent(recipeId.trim())}';
+
+  /// `POST /customer/recipes/purchase` — body: `recipeId`, `logToTracker` (`mealType`, `servings`).
+  static String get customerRecipesPurchase => '$baseUrl/customer/recipes/purchase';
 }

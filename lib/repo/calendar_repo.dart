@@ -34,6 +34,7 @@ class CalendarRepository {
     required String type,
     String? notes,
     String? workoutJournal,
+    String? runningLog,
   }) {
     final body = <String, dynamic>{
       'date': dateToApiIso(date),
@@ -42,6 +43,9 @@ class CalendarRepository {
     if (notes != null && notes.trim().isNotEmpty) body['notes'] = notes.trim();
     if (workoutJournal != null && WorkoutRepository.isValidMongoId(workoutJournal)) {
       body['workoutJournal'] = workoutJournal.trim();
+    }
+    if (runningLog != null && WorkoutRepository.isValidMongoId(runningLog)) {
+      body['runningLog'] = runningLog.trim();
     }
     return body;
   }
@@ -133,6 +137,52 @@ class CalendarRepository {
     return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
+  static String formatPaceMinPerKm(double? paceMinPerKm) {
+    if (paceMinPerKm == null || paceMinPerKm <= 0) return '--:-- /km';
+    final minutes = paceMinPerKm.floor();
+    final seconds = ((paceMinPerKm - minutes) * 60).round();
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')} /km';
+  }
+
+  static Map<String, dynamic>? runSummaryFromRunningLogRaw(dynamic runningLogRaw) {
+    if (runningLogRaw == null) return null;
+    if (runningLogRaw is! Map) return null;
+
+    final log = Map<String, dynamic>.from(runningLogRaw);
+    var distanceMeters = (log['distance'] as num?)?.toDouble() ?? 0.0;
+    final durationSeconds = (log['duration'] as num?)?.toInt() ?? 0;
+    double? averagePace;
+    if (distanceMeters > 0 && durationSeconds > 0) {
+      averagePace = (durationSeconds / 60) / (distanceMeters / 1000);
+    }
+
+    String? routeId;
+    final routeRaw = log['route'];
+    if (routeRaw is String && WorkoutRepository.isValidMongoId(routeRaw)) {
+      routeId = routeRaw.trim();
+    } else if (routeRaw is Map) {
+      final routeMap = Map<String, dynamic>.from(routeRaw);
+      final nested = routeMap['_id'] ?? routeMap['id'];
+      if (WorkoutRepository.isValidMongoId(nested?.toString())) {
+        routeId = nested.toString().trim();
+      }
+    }
+
+    final activityType = log['runningType']?.toString() ?? 'Run';
+    final isPlannedRoute = routeId != null && durationSeconds <= 0 && distanceMeters <= 0;
+
+    return {
+      'id': log['_id']?.toString(),
+      'distance': '${(distanceMeters / 1000).toStringAsFixed(2)} km',
+      'time': formatDurationSeconds(durationSeconds),
+      'pace': formatPaceMinPerKm(averagePace),
+      'calories': (log['caloriesBurned'] as num?)?.toInt() ?? 0,
+      'activityType': activityType,
+      if (routeId != null) 'routeId': routeId,
+      'isPlannedRoute': isPlannedRoute,
+    };
+  }
+
   static Map<String, dynamic>? workoutSummaryFromJournal(dynamic journalRaw) {
     if (journalRaw is! Map) return null;
     final journal = Map<String, dynamic>.from(journalRaw);
@@ -203,11 +253,14 @@ class CalendarRepository {
         }
       }
 
+      final exerciseType = WorkoutRepository.workoutItemTypeFromMap(workout)?.apiValue;
+
       result.add({
         'id': workout['_id']?.toString(),
         'name': name,
         'iconUrl': exerciseIconUrlFromWorkout(workout),
         'sets': sets,
+        if (exerciseType != null) 'exerciseType': exerciseType,
       });
     }
     return result;
@@ -569,7 +622,7 @@ class CalendarRepository {
       'hasProgressPhoto': hasProgressPhotosInEntry(entry),
       'progressPhotos': photos,
       'workout': workoutSummaryFromJournal(journal),
-      'run': null,
+      'run': runSummaryFromRunningLogRaw(entry['runningLog']),
       'nutrition': nutrition,
       'notes': displayNotesFrom(entry['notes']?.toString()),
       if (programDay != null) 'program': programDay,
@@ -655,10 +708,11 @@ class CalendarRepository {
     required String type,
     String? notes,
     String? workoutJournal,
+    String? runningLog,
     List<File>? progressPhotoFiles,
     String? progressPhotoType,
   }) async {
-    final body = createEntryBody(date: date, type: type, notes: notes, workoutJournal: workoutJournal);
+    final body = createEntryBody(date: date, type: type, notes: notes, workoutJournal: workoutJournal, runningLog: runningLog);
     if (progressPhotoType != null && progressPhotoType.trim().isNotEmpty) {
       body['progressPhotoType'] = progressPhotoType.trim().toLowerCase();
     }
@@ -681,18 +735,22 @@ class CalendarRepository {
     return Map<String, dynamic>.from(raw as Map);
   }
 
-  static Map<String, dynamic> updateEntryBody({String? notes, String? type}) {
+  static Map<String, dynamic> updateEntryBody({String? notes, String? type, String? runningLog}) {
     final body = <String, dynamic>{};
     if (notes != null) body['notes'] = notes.trim();
     if (type != null && type.trim().isNotEmpty) body['type'] = type.trim();
+    if (runningLog != null && WorkoutRepository.isValidMongoId(runningLog)) {
+      body['runningLog'] = runningLog.trim();
+    }
     return body;
   }
 
-  /// `PUT /customer/calendar/:id` — update notes, type, and/or append progress photos.
+  /// `PUT /customer/calendar/:id` — update notes, type, runningLog, and/or append progress photos.
   Future<Map<String, dynamic>> updateCalendarEntry({
     required String calendarEntryId,
     String? notes,
     String? type,
+    String? runningLog,
     List<File>? progressPhotoFiles,
     String? progressPhotoType,
   }) async {
@@ -701,7 +759,7 @@ class CalendarRepository {
       throw Exception('Invalid calendar entry id');
     }
 
-    final body = updateEntryBody(notes: notes, type: type);
+    final body = updateEntryBody(notes: notes, type: type, runningLog: runningLog);
     if (progressPhotoType != null && progressPhotoType.trim().isNotEmpty) {
       body['progressPhotoType'] = progressPhotoType.trim().toLowerCase();
     }
@@ -805,6 +863,41 @@ class CalendarRepository {
       throw Exception(_messageFrom(raw) ?? 'Could not move program workout');
     }
     return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+  }
+
+  /// Links a completed run log to the calendar day (`PUT` or `POST /customer/calendar` with `runningLog`).
+  Future<Map<String, dynamic>> attachRunningLogToCalendar({
+    required DateTime date,
+    required String runningLogId,
+    String? calendarEntryId,
+    String type = typeCompleted,
+  }) async {
+    final logId = runningLogId.trim();
+    if (!WorkoutRepository.isValidMongoId(logId)) {
+      throw Exception('Invalid running log id');
+    }
+
+    final runDate = normalizedDate(date);
+    var entryId = _mongoId(calendarEntryId);
+
+    if (entryId == null) {
+      final month = await fetchCalendarMonth(year: runDate.year, month: runDate.month);
+      entryId = entryIdForDate(month, runDate);
+    }
+
+    if (entryId != null) {
+      return updateCalendarEntry(
+        calendarEntryId: entryId,
+        type: type,
+        runningLog: logId,
+      );
+    }
+
+    return createCalendarEntry(
+      date: runDate,
+      type: type,
+      runningLog: logId,
+    );
   }
 
   Future<Map<String, dynamic>> saveOrUpdateCalendarEntry({

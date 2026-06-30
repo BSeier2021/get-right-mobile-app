@@ -143,6 +143,8 @@ class WorkoutRepository {
     }
   }
 
+  static JournalExerciseType? workoutItemTypeFromMap(Map<String, dynamic> map) => _workoutItemTypeFromMap(map);
+
   static JournalExerciseType? _workoutItemTypeFromMap(Map<String, dynamic> map) {
     for (final key in ['type', 'workoutType', 'exerciseType']) {
       final parsed = JournalExerciseType.fromApi(map[key]?.toString());
@@ -301,7 +303,9 @@ class WorkoutRepository {
       } else {
         entry['reps'] = s.reps ?? 0;
       }
-      if (s.weight != null && s.weight! > 0) {
+      if (s.isBodyweight) {
+        entry['weight'] = 'BW';
+      } else if (s.weight != null && s.weight! > 0) {
         entry['weight'] = s.weight! % 1 == 0 ? s.weight!.toInt() : s.weight;
       }
       if (s.distance != null && s.distance! > 0) {
@@ -343,8 +347,23 @@ class WorkoutRepository {
     }
 
     double? weight;
+    String? weightType;
     final w = sm['weight'];
-    if (w != null) weight = double.tryParse(w.toString());
+    if (w != null) {
+      final ws = w.toString().trim();
+      if (ws.toUpperCase() == 'BW') {
+        weightType = 'BW';
+        weight = 0;
+      } else {
+        weight = double.tryParse(ws);
+        if (weight != null && weight > 0) weightType = 'standard';
+      }
+    }
+    final apiWeightType = sm['weightType']?.toString().trim();
+    if (apiWeightType != null && apiWeightType.toUpperCase() == 'BW') {
+      weightType = 'BW';
+      weight ??= 0;
+    }
 
     double? distance;
     final d = sm['distance'];
@@ -357,6 +376,7 @@ class WorkoutRepository {
       repsType: repsType,
       timeSeconds: timeSeconds,
       weight: weight,
+      weightType: weightType,
       distance: distance,
       distanceUnit: sm['distanceUnit']?.toString(),
     );

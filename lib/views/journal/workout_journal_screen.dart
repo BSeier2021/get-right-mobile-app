@@ -18,6 +18,7 @@ import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/journal/exercise_card.dart';
 import 'package:get_right/widgets/journal/superset_card.dart';
 import 'package:get_right/views/journal/workout_celebration_screen.dart';
+import 'package:get_right/views/home/dashboard_screen.dart';
 
 class WorkoutJournalScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -46,16 +47,25 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   int _seconds = 0;
   int _calories = 0;
   DateTime? _startTime;
+  Worker? _plannerReloadWorker;
 
   @override
   void initState() {
     super.initState();
+    if (Get.isRegistered<HomeNavigationController>()) {
+      final nav = Get.find<HomeNavigationController>();
+      _plannerReloadWorker = ever<int>(nav.journalPlannerReloadNonce, (_) {
+        if (!mounted || nav.journalAnchorDate.value == null) return;
+        _loadWorkoutJournal();
+      });
+    }
     _load();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _plannerReloadWorker?.dispose();
     super.dispose();
   }
 
@@ -120,8 +130,13 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   }
 
   WorkoutJournalModel _emptyWorkoutShell() {
-    return WorkoutJournalModel(id: '', userId: 'user_1', date: DateTime.now(), warmupExercises: [], workoutExercises: [], createdAt: DateTime.now());
+    final day = HomeNavigationController.journalDayOrNow();
+    return WorkoutJournalModel(id: '', userId: 'user_1', date: day, warmupExercises: [], workoutExercises: [], createdAt: day);
   }
+
+  DateTime get _journalDay => HomeNavigationController.journalDayOrNow();
+
+  HomeNavigationController? get _navController => Get.isRegistered<HomeNavigationController>() ? Get.find<HomeNavigationController>() : null;
 
   WorkoutJournalModel _applyStoredExerciseSections(WorkoutJournalModel fromApi) {
     final warmup = <WorkoutExerciseModel>[];
@@ -164,30 +179,37 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     }
 
     try {
-      var page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: DateTime.now());
-      var rawEntries = WorkoutRepository.entriesForDay(page);
+      final day = _journalDay;
+      var page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: day);
+      var rawEntries = WorkoutRepository.entriesForDay(page, day: day);
 
       if (rawEntries.length > 1) {
-        final canonicalId = WorkoutRepository.primaryJournalIdForDay(rawEntries);
+        final canonicalId = WorkoutRepository.primaryJournalIdForDay(rawEntries, day: day);
         if (canonicalId != null) {
           try {
-            await _workoutRepo.consolidateDayJournal(preferredJournalId: canonicalId);
-            page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: DateTime.now());
-            rawEntries = WorkoutRepository.entriesForDay(page);
+            await _workoutRepo.consolidateDayJournal(preferredJournalId: canonicalId, date: day);
+            page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: day);
+            rawEntries = WorkoutRepository.entriesForDay(page, day: day);
           } catch (_) {
             /* keep merged UI view if consolidate fails */
           }
         }
       }
 
-      final today = WorkoutRepository.todayEntryFrom(page);
+      final nav = _navController;
+      final startFresh = nav?.startFreshJournal.value == true;
+      final preferredId = nav?.preferredJournalId.value;
+      final today = startFresh ? null : WorkoutRepository.todayEntryFrom(page, day: day);
       if (!mounted) return;
 
       final previousWorkout = _workout;
       setState(() {
         _journalEntries = rawEntries;
         _workoutJournalByExerciseId = WorkoutRepository.exerciseJournalMapFrom(rawEntries);
-        _workoutJournalId = WorkoutRepository.primaryJournalIdForDay(rawEntries) ?? _workoutJournalId;
+        _workoutJournalId =
+            WorkoutRepository.primaryJournalIdForDay(rawEntries, day: day) ??
+            (WorkoutRepository.isValidMongoId(preferredId) ? preferredId : null) ??
+            _workoutJournalId;
         if (today != null && today.id.isNotEmpty) {
           _workout = _applyStoredExerciseSections(
             today.copyWith(
@@ -197,13 +219,17 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               caloriesBurned: previousWorkout?.caloriesBurned,
             ),
           );
-        } else if (_workout == null) {
+        } else if (_workout == null || startFresh) {
           _workoutJournalId = null;
           _workout = _emptyWorkoutShell();
         }
         _isLoading = false;
         _loadError = null;
       });
+
+      if (nav?.journalTabIndex.value == 0) {
+        nav?.clearJournalPlannerContext();
+      }
 
       if (page.syncFailed && mounted) {
         Get.snackbar(
@@ -419,6 +445,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         preferredJournalId: _workoutJournalId,
         duration: _seconds,
         notes: '',
+        date: _journalDay,
       );
       await _refreshWorkoutJournalFromApi();
     } catch (e) {
@@ -461,7 +488,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   String _formatTime(int s) => '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
   Future<void> _ensureWorkoutJournalId() async {
-    _workoutJournalId = await _workoutRepo.findWorkoutJournalIdForToday() ?? _workoutJournalId;
+    _workoutJournalId = await _workoutRepo.findWorkoutJournalIdForToday(date: _journalDay) ?? _workoutJournalId;
   }
 
   List<String> _currentJournalWorkoutIds() {

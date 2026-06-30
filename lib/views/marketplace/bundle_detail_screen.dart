@@ -6,6 +6,7 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/bundle_card_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/widgets/safe_network_image.dart';
 
@@ -23,6 +24,9 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
   String? _error;
   String? _bundleId;
   bool _isEnrolled = false;
+
+  static const String _webPurchaseNotice =
+      'Program and bundle purchases are only available on the Marketplace website: http://getright.prodservers.com:8011/ Purchases cannot be made through the app.';
 
   @override
   void initState() {
@@ -42,8 +46,10 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     } else if (_isEnrolled && _programsList().isNotEmpty) {
       _loading = false;
     } else {
-      _bundle = _getMockBundleData();
-      _loading = false;
+      setState(() {
+        _loading = false;
+        _error = 'Could not load bundle details';
+      });
     }
   }
 
@@ -128,6 +134,21 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     }
     return out;
   }
+
+  Map<String, dynamic> _bundlePricing() {
+    final api = _bundle['_apiBundle'];
+    if (api is Map) {
+      return resolveBundlePricingFromApi(Map<String, dynamic>.from(api));
+    }
+    return resolveBundlePricingFromApi({
+      'price': _bundle['price'] ?? _bundle['totalValue'],
+      'netPrice': _bundle['bundlePrice'],
+      'bundlePrice': _bundle['bundlePrice'],
+      'discount': _bundle['discount'],
+    });
+  }
+
+  bool get _showWebPurchaseNotice => !_loading && !_isEnrolled && _bundle['hidePricing'] != true;
 
   String? _trainerAvatarUrlFromBundleApi(Map<String, dynamic> api) {
     final tr = api['trainer'];
@@ -315,8 +336,6 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     final String title = (_bundle['title'] ?? 'Bundle Deal').toString();
     final String? subtitle = _bundle['subtitle']?.toString();
     final String description = (_bundle['description'] ?? '').toString();
-    final double totalValue = (_bundle['totalValue'] as num?)?.toDouble() ?? 64.99;
-    final double bundlePrice = (_bundle['bundlePrice'] as num?)?.toDouble() ?? 49.99;
     final int discount = (_bundle['discount'] as num?)?.toInt() ?? 25;
     final String imageUrl = (_bundle['imageUrl'] ?? '').toString();
 
@@ -342,6 +361,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
             onPressed: () => Get.back(),
           ),
         ),
+        bottomNavigationBar: _showWebPurchaseNotice ? _buildWebPurchaseNoticeBar() : null,
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null && programs.isEmpty && (_bundle['title'] == null || _bundle['title'].toString().trim().isEmpty)
@@ -391,7 +411,6 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
                       ],
                       const SizedBox(height: 14),
                       _buildTrainerProfileBar(trainer),
-                      if (!_isEnrolled) ...[const SizedBox(height: 14), _buildPricingCard(totalValue: totalValue, bundlePrice: bundlePrice, discount: discount)],
                       const SizedBox(height: 14),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -415,7 +434,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
                       const SizedBox(height: 10),
                       _buildWhatsIncludedSection(programs.length, discount),
                       const SizedBox(height: 10),
-                      if (_isEnrolled) _buildEnrolledBottomBar() else _buildBottomPriceRow(totalValue: totalValue, bundlePrice: bundlePrice),
+                      if (_isEnrolled) _buildEnrolledBottomBar(),
                       const SizedBox(height: 12),
                     ],
                   ),
@@ -460,64 +479,6 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
           _buildFeatureItem('assets/images/receipt-discount.png', 'Special bundle discount ($discount% OFF)'),
         ],
       ],
-    );
-  }
-
-  Widget _buildPricingCard({required double totalValue, required double bundlePrice, required int discount}) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5FCEB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE1EDCF)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Total Value', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark)),
-                    Text(
-                      '\$${totalValue.toStringAsFixed(2)}',
-                      style: AppTextStyles.headlineSmall.copyWith(color: AppColors.primaryGrayDark, decoration: TextDecoration.lineThrough, fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('Bundle Price', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground)),
-                    Text(
-                      '\$${bundlePrice.toStringAsFixed(2)}',
-                      style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5FCEB),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFCFDEC0)),
-            ),
-            child: Text(
-              'Save \$${(totalValue - bundlePrice).clamp(0, double.infinity).toStringAsFixed(2)} ($discount% OFF)',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -672,73 +633,59 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     );
   }
 
-  Widget _buildBottomPriceRow({required double totalValue, required double bundlePrice}) {
+  Widget _buildWebPurchaseNoticeBar() {
+    final pricing = _bundlePricing();
+    final listPrice = (pricing['totalValue'] as num).toDouble();
+    final netPrice = (pricing['bundlePrice'] as num).toDouble();
+    final discount = (pricing['discount'] as num).toInt();
+    final hasDiscount = discount > 0 && listPrice > netPrice;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5FCEB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE1EDCF)),
+        color: AppColors.surface,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, -2))],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text('Total Price', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark)),
-                Row(
-                  children: [
-                    Text(
-                      '\$${totalValue.toStringAsFixed(2)}',
-                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark, decoration: TextDecoration.lineThrough),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '\$${bundlePrice.toStringAsFixed(2)}',
-                      style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w800),
-                    ),
-                  ],
+                Text(
+                  '\$${netPrice.toStringAsFixed(2)}',
+                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700, height: 1),
                 ),
+                if (hasDiscount) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '\$${listPrice.toStringAsFixed(2)}',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, decoration: TextDecoration.lineThrough),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(10)),
+                    child: Text(
+                      '$discount% OFF',
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w700, fontSize: 10),
+                    ),
+                  ),
+                ],
               ],
             ),
-          ),
-          const SizedBox(width: 10),
-          SizedBox(
-            height: 42,
-            child: ElevatedButton(
-              onPressed: () => Get.toNamed(AppRoutes.programTerms, arguments: {'isBundle': true, 'bundle': _bundle}),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-              ),
-              child: Text('Enroll Now', style: AppTextStyles.labelLarge.copyWith(color: Colors.white)),
+            const SizedBox(height: 6),
+            Text(
+              _webPurchaseNotice,
+              style: AppTextStyles.labelSmall.copyWith(color: AppColors.mediumGray, height: 1.35, fontSize: 11.sp),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Map<String, dynamic> _getMockBundleData() {
-    return {
-      'id': 'bundle_1',
-      'title': 'Gym Floor Mastery',
-      'description': 'Full body transformation program',
-      'discount': 25,
-      'totalValue': 64.99,
-      'bundlePrice': 49.99,
-      'imageUrl': 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=1200&h=800&fit=crop',
-      'trainer': 'Sarah Johnson',
-      'trainerImage': 'SJ',
-      'trainerId': 'trainer_mock_1',
-      'programs': [
-        {'id': 'program_1', 'title': 'Complete Strength Program', 'trainer': 'Sarah', 'trainerImage': 'S', 'price': 49.99, 'duration': '12 Weeks', 'rating': 4.8},
-        {'id': 'program_2', 'title': 'Cardio Blast Challenge', 'trainer': 'Mike Chen', 'trainerImage': 'M', 'price': 49.99, 'duration': '12 Weeks', 'rating': 4.8},
-      ],
-    };
-  }
 }

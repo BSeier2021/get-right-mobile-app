@@ -6,174 +6,239 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/nutrition/recipe_detail_screen.dart';
 
-/// Recipes Tab - Shows cookbook recipes
-class RecipesTab extends StatelessWidget {
+/// Recipes Tab - Shows cookbook recipes from `GET /customer/recipes/catalog`.
+class RecipesTab extends StatefulWidget {
   const RecipesTab({super.key});
+
+  @override
+  State<RecipesTab> createState() => _RecipesTabState();
+}
+
+class _RecipesTabState extends State<RecipesTab> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    final controller = Get.isRegistered<NutritionController>() ? Get.find<NutritionController>() : null;
+    _searchController = TextEditingController(text: controller?.searchQuery.value ?? '');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!Get.isRegistered<NutritionController>()) return;
+      Get.find<NutritionController>().refreshRecipesTab();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return GetBuilder<NutritionController>(
       builder: (controller) {
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Search Bar
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: TextField(
-                  onChanged: (value) => controller.setSearchQuery(value),
-                  decoration: InputDecoration(
-                    hintText: 'Search recipes...',
-                    filled: true,
-                    fillColor: AppColors.white,
-                    hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray),
-                    prefixIcon: const Icon(Icons.search, color: AppColors.mediumGray),
-
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        return RefreshIndicator(
+          color: AppColors.accent,
+          onRefresh: controller.refreshRecipesTab,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: TextField(
+                    controller: _searchController,
+                    textInputAction: TextInputAction.search,
+                    onChanged: controller.setSearchQuery,
+                    onSubmitted: (_) => controller.submitRecipeSearch(),
+                    decoration: InputDecoration(
+                      hintText: 'Search recipes...',
+                      filled: true,
+                      fillColor: AppColors.white,
+                      hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray),
+                      prefixIcon: const Icon(Icons.search, color: AppColors.mediumGray),
+                      suffixIcon: controller.isRecipeSearchActive
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: AppColors.mediumGray),
+                              onPressed: () {
+                                _searchController.clear();
+                                controller.clearRecipeSearch();
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
                   ),
                 ),
-              ),
 
-              // Categories
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Categories',
-                      style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
-                    ),
-                    const SizedBox(height: 12),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildCategoryChip(controller, null, 'All'),
-                          const SizedBox(width: 8),
-                          _buildCategoryChip(controller, RecipeCategory.breakfast, 'Breakfast'),
-                          const SizedBox(width: 8),
-                          _buildCategoryChip(controller, RecipeCategory.lunch, 'Lunch'),
-                          const SizedBox(width: 8),
-                          _buildCategoryChip(controller, RecipeCategory.dinner, 'Dinner'),
-                          const SizedBox(width: 8),
-                          _buildCategoryChip(controller, RecipeCategory.highProtein, 'High Protein'),
-                          const SizedBox(width: 8),
-                          _buildCategoryChip(controller, RecipeCategory.lowCarb, 'Low Carb'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Featured Recipes
-              if (controller.featuredRecipes.isNotEmpty) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Featured Recipes',
-                    style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Categories',
+                        style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                      ),
+                      const SizedBox(height: 12),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildCategoryChip(controller, null, 'All'),
+                            const SizedBox(width: 8),
+                            _buildCategoryChip(controller, RecipeCategory.breakfast, 'Breakfast'),
+                            const SizedBox(width: 8),
+                            _buildCategoryChip(controller, RecipeCategory.lunch, 'Lunch'),
+                            const SizedBox(width: 8),
+                            _buildCategoryChip(controller, RecipeCategory.dinner, 'Dinner'),
+                            const SizedBox(width: 8),
+                            _buildCategoryChip(controller, RecipeCategory.snacks, 'Snacks'),
+                            const SizedBox(width: 8),
+                            _buildCategoryChip(controller, RecipeCategory.highProtein, 'High Protein'),
+                            const SizedBox(width: 8),
+                            _buildCategoryChip(controller, RecipeCategory.lowCarb, 'Low Carb'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                if (!controller.isRecipeSearchActive) ...[
+                  if (controller.featuredRecipesLoading.value)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                    )
+                  else if (controller.featuredRecipes.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'Featured Recipes',
+                        style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 220,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: controller.featuredRecipes.length,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: EdgeInsets.only(right: index < controller.featuredRecipes.length - 1 ? 16 : 0),
+                            child: _buildFeaturedRecipeCard(controller.featuredRecipes[index]),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ],
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        controller.isRecipeSearchActive ? 'Search Results' : 'All Recipes',
+                        style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                      ),
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () => _showSortOptions(context, controller),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppColors.lightGray),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.sort, size: 18, color: AppColors.mediumGray),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    controller.recipeSortLabel.value,
+                                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 12),
-                SizedBox(
-                  height: 220,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
+
+                if (controller.recipesLoading.value && controller.filteredRecipes.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                  )
+                else if (controller.recipesError.value.isNotEmpty && controller.filteredRecipes.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Text(controller.recipesError.value, textAlign: TextAlign.center, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error)),
+                        const SizedBox(height: 12),
+                        OutlinedButton(onPressed: () => controller.refreshRecipesTab(), child: const Text('Retry')),
+                      ],
+                    ),
+                  )
+                else if (controller.filteredRecipes.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        controller.isRecipeSearchActive
+                            ? 'No recipes found for "${controller.searchQuery.value.trim()}"'
+                            : 'No recipes found',
+                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mediumGray),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                else
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: controller.featuredRecipes.length,
+                    itemCount: controller.filteredRecipes.length,
                     itemBuilder: (context, index) {
                       return Padding(
-                        padding: EdgeInsets.only(right: index < controller.featuredRecipes.length - 1 ? 16 : 0),
-                        child: _buildFeaturedRecipeCard(controller.featuredRecipes[index]),
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildRecipeCard(controller.filteredRecipes[index]),
                       );
                     },
                   ),
-                ),
+
+                if (controller.recipesHasMore.value && controller.filteredRecipes.isNotEmpty) ...[
+                  Center(
+                    child: controller.recipesLoadingMore.value
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: CircularProgressIndicator(color: AppColors.accent),
+                          )
+                        : TextButton(onPressed: controller.loadMoreRecipes, child: const Text('Load more')),
+                  ),
+                ],
+
                 const SizedBox(height: 24),
               ],
-
-              // Filter and Sort Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'All Recipes',
-                      style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
-                    ),
-                    Row(
-                      children: [
-                        // Filter Button
-                        GestureDetector(
-                          onTap: () => _showFilterOptions(context, controller),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.lightGray),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.filter_list, size: 18, color: AppColors.mediumGray),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Filter',
-                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Sort Button
-                        GestureDetector(
-                          onTap: () => _showSortOptions(context, controller),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.lightGray),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.sort, size: 18, color: AppColors.mediumGray),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Sort',
-                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.mediumGray, fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: controller.filteredRecipes.length,
-                itemBuilder: (context, index) {
-                  return Padding(padding: const EdgeInsets.only(bottom: 12), child: _buildRecipeCard(controller.filteredRecipes[index]));
-                },
-              ),
-
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
         );
       },
@@ -198,8 +263,11 @@ class RecipesTab extends StatelessWidget {
             else if (category == RecipeCategory.lunch)
               const Text('🥗', style: TextStyle(fontSize: 16))
             else if (category == RecipeCategory.dinner)
-              const Text('🍽️', style: TextStyle(fontSize: 16)),
-            if (category != null && [RecipeCategory.breakfast, RecipeCategory.lunch, RecipeCategory.dinner].contains(category)) const SizedBox(width: 6),
+              const Text('🍽️', style: TextStyle(fontSize: 16))
+            else if (category == RecipeCategory.snacks)
+              const Text('🍿', style: TextStyle(fontSize: 16)),
+            if (category != null && [RecipeCategory.breakfast, RecipeCategory.lunch, RecipeCategory.dinner, RecipeCategory.snacks].contains(category))
+              const SizedBox(width: 6),
             Text(
               label,
               style: AppTextStyles.bodyMedium.copyWith(color: isSelected ? Colors.white : AppColors.onSurface, fontWeight: FontWeight.w600),
@@ -221,23 +289,18 @@ class RecipesTab extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Recipe Image
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(
-                recipe.imageUrl,
-                width: 280,
-                height: 220,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 280,
-                  height: 220,
-                  color: AppColors.accent.withOpacity(0.3),
-                  child: const Center(child: Icon(Icons.restaurant, size: 60, color: AppColors.accent)),
-                ),
-              ),
+              child: recipe.imageUrl.isNotEmpty
+                  ? Image.network(
+                      recipe.imageUrl,
+                      width: 280,
+                      height: 220,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => _recipeImagePlaceholder(280, 220),
+                    )
+                  : _recipeImagePlaceholder(280, 220),
             ),
-            // Gradient Overlay
             Container(
               width: 280,
               height: 220,
@@ -246,7 +309,6 @@ class RecipesTab extends StatelessWidget {
                 gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.7)]),
               ),
             ),
-            // Category Tag
             if (recipe.categories.isNotEmpty)
               Positioned(
                 top: 12,
@@ -260,7 +322,6 @@ class RecipesTab extends StatelessWidget {
                   ),
                 ),
               ),
-            // Premium Badge
             if (recipe.isPremium)
               Positioned(
                 top: 12,
@@ -272,15 +333,11 @@ class RecipesTab extends StatelessWidget {
                     children: [
                       const Icon(Icons.star, color: Colors.white, size: 14),
                       const SizedBox(width: 4),
-                      Text(
-                        'Premium',
-                        style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
+                      Text('Premium', style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
               ),
-            // Recipe Info
             Positioned(
               bottom: 0,
               left: 0,
@@ -314,6 +371,15 @@ class RecipesTab extends StatelessWidget {
     );
   }
 
+  Widget _recipeImagePlaceholder(double width, double height) {
+    return Container(
+      width: width,
+      height: height,
+      color: AppColors.accent.withOpacity(0.3),
+      child: const Center(child: Icon(Icons.restaurant, size: 60, color: AppColors.accent)),
+    );
+  }
+
   Widget _buildRecipeCard(Recipe recipe) {
     return GestureDetector(
       onTap: () => Get.to(() => RecipeDetailScreen(recipe: recipe)),
@@ -326,25 +392,20 @@ class RecipesTab extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Recipe Image with Category Tag
             Stack(
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
-                  child: Image.network(
-                    recipe.imageUrl,
-                    width: 100,
-                    height: 100,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      width: 100,
-                      height: 100,
-                      color: AppColors.accent.withOpacity(0.2),
-                      child: const Icon(Icons.restaurant, color: AppColors.accent, size: 40),
-                    ),
-                  ),
+                  child: recipe.imageUrl.isNotEmpty
+                      ? Image.network(
+                          recipe.imageUrl,
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => _recipeImagePlaceholder(100, 100),
+                        )
+                      : _recipeImagePlaceholder(100, 100),
                 ),
-                // Category Tag
                 if (recipe.categories.isNotEmpty)
                   Positioned(
                     top: 6,
@@ -360,7 +421,6 @@ class RecipesTab extends StatelessWidget {
                   ),
               ],
             ),
-            // Recipe Info
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -423,78 +483,8 @@ class RecipesTab extends StatelessWidget {
       children: [
         Icon(icon, color: Colors.white, size: 16),
         const SizedBox(width: 4),
-        Text(
-          text,
-          style: AppTextStyles.bodySmall.copyWith(color: Colors.white, fontWeight: FontWeight.w500),
-        ),
+        Text(text, style: AppTextStyles.bodySmall.copyWith(color: Colors.white, fontWeight: FontWeight.w500)),
       ],
-    );
-  }
-
-  void _showFilterOptions(BuildContext context, NutritionController controller) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Filter Recipes',
-              style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            Text('Dietary Preferences', style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _buildStaticFilterChip('High Protein'),
-                _buildStaticFilterChip('Low Carb'),
-                _buildStaticFilterChip('Vegetarian'),
-                _buildStaticFilterChip('Budget Friendly'),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Text('Prep Time', style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            Wrap(spacing: 8, runSpacing: 8, children: [_buildStaticFilterChip('Under 15 min'), _buildStaticFilterChip('15-30 min'), _buildStaticFilterChip('30+ min')]),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Apply Filters', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStaticFilterChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.lightGray),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-      ),
     );
   }
 
@@ -509,17 +499,11 @@ class RecipesTab extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Sort By',
-              style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-            ),
+            Text('Sort By', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),
-            _buildSortOption(buildContext, 'Most Popular', Icons.trending_up),
-            _buildSortOption(buildContext, 'Highest Protein', Icons.fitness_center),
-            _buildSortOption(buildContext, 'Lowest Calories', Icons.local_fire_department),
-            _buildSortOption(buildContext, 'Quickest to Make', Icons.access_time),
-            _buildSortOption(buildContext, 'Cheapest', Icons.attach_money),
-            _buildSortOption(buildContext, 'Newest', Icons.new_releases),
+            ...NutritionController.recipeSortLabelsToApi.keys.map(
+              (label) => _buildSortOption(buildContext, controller, label),
+            ),
             const SizedBox(height: 16),
           ],
         ),
@@ -527,33 +511,31 @@ class RecipesTab extends StatelessWidget {
     );
   }
 
-  Widget _buildSortOption(BuildContext context, String label, IconData icon) {
+  Widget _buildSortOption(BuildContext context, NutritionController controller, String label) {
+    final selected = controller.recipeSortLabel.value == label;
     return InkWell(
       onTap: () {
+        controller.setRecipeSort(label);
         Navigator.pop(context);
-        Get.snackbar(
-          'Sort Applied',
-          'Recipes sorted by: $label',
-          backgroundColor: AppColors.accent,
-          colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM,
-          duration: const Duration(seconds: 2),
-        );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accent.withOpacity(0.08) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.mediumGray, size: 24),
-            const SizedBox(width: 16),
             Expanded(
               child: Text(
                 label,
-                style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w500),
+                style: AppTextStyles.bodyLarge.copyWith(
+                  color: selected ? AppColors.accent : AppColors.onSurface,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.mediumGray, size: 24),
+            if (selected) const Icon(Icons.check, color: AppColors.accent, size: 22),
           ],
         ),
       ),

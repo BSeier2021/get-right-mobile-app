@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
@@ -5,10 +7,21 @@ import 'package:get_right/models/food_item.dart';
 import 'package:get_right/models/meal_entry.dart';
 import 'package:get_right/models/nutrition_day.dart';
 import 'package:get_right/models/recipe.dart';
-import 'package:get_right/services/storage_service.dart';
+import 'package:get_right/repo/recipe_repo.dart';
 
 /// Controller for managing nutrition tracking and recipes
 class NutritionController extends GetxController {
+  final RecipeRepository _recipeRepo = RecipeRepository();
+  Timer? _recipeSearchDebounce;
+
+  static const Map<String, String> recipeSortLabelsToApi = {
+    'Most Popular': 'Featured',
+    'Highest Protein': 'Protein',
+    'Lowest Calories': 'Calories',
+    'Quickest to Make': 'PrepTime',
+    'Cheapest': 'Cost',
+    'Newest': 'Newest',
+  };
   // Current selected date
   final Rx<DateTime> selectedDate = DateTime.now().obs;
 
@@ -51,6 +64,21 @@ class NutritionController extends GetxController {
   // Recipe filters
   final Rx<RecipeCategory?> selectedCategory = Rx<RecipeCategory?>(null);
   final RxString searchQuery = ''.obs;
+  final RxString recipeSort = 'Featured'.obs;
+  final RxString recipeSortLabel = 'Most Popular'.obs;
+  final RxBool recipesLoading = false.obs;
+  final RxBool recipesLoadingMore = false.obs;
+  final RxBool featuredRecipesLoading = false.obs;
+  final RxString recipesError = ''.obs;
+  final RxBool recipesHasMore = false.obs;
+  int _recipesPage = 1;
+  static const int _recipesPageSize = 10;
+
+  @override
+  void onClose() {
+    _recipeSearchDebounce?.cancel();
+    super.onClose();
+  }
 
   @override
   void onInit() {
@@ -59,14 +87,9 @@ class NutritionController extends GetxController {
     _initializeDemoData();
   }
 
-  /// Re-read subscription from storage. Does not fetch analytics — call [fetchNutritionTracker] when the nutrition screen opens.
+  /// Nutrition is free for all users.
   void refreshSubscription() {
-    try {
-      final storage = Get.find<StorageService>();
-      hasSubscription.value = storage.hasActiveSubscription();
-    } catch (_) {
-      hasSubscription.value = false;
-    }
+    hasSubscription.value = true;
     update();
   }
 
@@ -140,31 +163,24 @@ class NutritionController extends GetxController {
     }
   }
 
-  // Add recipe serving to tracker
-  void addRecipeToTracker(Recipe recipe, double servings, MealType mealType) {
-    final nutrition = recipe.calculateForServings(servings);
-    final foodItem = FoodItem(
-      id: '${recipe.id}_${DateTime.now().millisecondsSinceEpoch}',
-      name: recipe.name,
-      calories: nutrition['calories']!,
-      protein: nutrition['protein']!,
-      carbs: nutrition['carbs']!,
-      fats: nutrition['fats']!,
-      defaultServingSize: servings,
-      servingUnit: 'serving',
-      imageUrl: recipe.imageUrl,
-    );
+  /// `POST /customer/recipes/purchase` — logs recipe to calorie tracker.
+  Future<String?> purchaseRecipeToTracker(Recipe recipe, double servings, MealType mealType) async {
+    final recipeId = recipe.id.trim();
+    if (recipeId.isEmpty) return 'Invalid recipe';
 
-    final entry = MealEntry(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      foodItem: foodItem,
-      quantity: 1,
-      mealType: mealType,
-      timestamp: selectedDate.value,
-      notes: 'From recipe: ${recipe.name}',
-    );
-
-    addMealEntry(entry);
+    try {
+      await _recipeRepo.purchaseRecipe(
+        recipeId: recipeId,
+        mealType: mealType.displayName,
+        servings: servings,
+      );
+      selectToday();
+      await fetchNutritionTracker();
+      update();
+      return null;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
   }
 
   Future<bool> updateCalorieGoal(double goal) async {
@@ -195,9 +211,7 @@ class NutritionController extends GetxController {
   void changeDate(DateTime date) {
     selectedDate.value = date;
     update();
-    if (hasSubscription.value) {
-      fetchNutritionTracker();
-    }
+    fetchNutritionTracker();
   }
 
   /// Select today's local date (used after logging food for the current day).
@@ -209,7 +223,6 @@ class NutritionController extends GetxController {
 
   /// Loads `GET /customer/food-logs/analytics` for [selectedDate] via [AuthController].
   Future<void> fetchNutritionTracker() async {
-    if (!hasSubscription.value) return;
     if (!Get.isRegistered<AuthController>()) return;
 
     isLoading.value = true;
@@ -489,32 +502,154 @@ class NutritionController extends GetxController {
     calorieGoal.value = nutritionDays[dateKey]!.calorieGoal;
   }
 
-  // Filter recipes
-  List<Recipe> get filteredRecipes {
-    var filtered = recipes.where((recipe) {
-      // Category filter
-      if (selectedCategory.value != null && !recipe.categories.contains(selectedCategory.value)) {
-        return false;
-      }
-      // Search filter
-      if (searchQuery.value.isNotEmpty && !recipe.name.toLowerCase().contains(searchQuery.value.toLowerCase())) {
-        return false;
-      }
-      return true;
-    }).toList();
-    return filtered;
+  // Filter recipes (API-backed list is already filtered server-side).
+  List<Recipe> get filteredRecipes => recipes;
+
+  String? _mealTypeForCategory(RecipeCategory? category) {
+    switch (category) {
+      case RecipeCategory.breakfast:
+        return RecipeMealTypes.breakfast;
+      case RecipeCategory.lunch:
+        return RecipeMealTypes.lunch;
+      case RecipeCategory.dinner:
+        return RecipeMealTypes.dinner;
+      case RecipeCategory.snacks:
+        return RecipeMealTypes.snacks;
+      case RecipeCategory.highProtein:
+      case RecipeCategory.lowCarb:
+        return null;
+      default:
+        return null;
+    }
   }
+
+  String? _searchForCategory(RecipeCategory? category) {
+    switch (category) {
+      case RecipeCategory.highProtein:
+        return 'protein';
+      case RecipeCategory.lowCarb:
+        return 'low carb';
+      default:
+        return null;
+    }
+  }
+
+  String? _resolveRecipeSearch() {
+    final typed = searchQuery.value.trim();
+    if (typed.isNotEmpty) return typed;
+    return _searchForCategory(selectedCategory.value);
+  }
+
+  Future<void> loadRecipesCatalog({bool refresh = true}) async {
+    if (refresh) {
+      if (recipesLoading.value) return;
+      recipesLoading.value = true;
+      _recipesPage = 1;
+      recipesError.value = '';
+    } else {
+      if (recipesLoadingMore.value || !recipesHasMore.value) return;
+      recipesLoadingMore.value = true;
+    }
+
+    update();
+
+    try {
+      final category = selectedCategory.value;
+      final mealType = _mealTypeForCategory(category);
+      final search = _resolveRecipeSearch();
+
+      final page = await _recipeRepo.fetchCatalog(
+        page: _recipesPage,
+        limit: _recipesPageSize,
+        sort: recipeSort.value,
+        search: search,
+        mealType: mealType,
+      );
+
+      if (refresh) {
+        recipes.assignAll(page.recipes);
+      } else {
+        recipes.addAll(page.recipes);
+      }
+      recipesHasMore.value = page.hasMore;
+      if (page.hasMore) _recipesPage = page.page + 1;
+      recipesError.value = '';
+    } catch (e) {
+      if (refresh) {
+        recipes.clear();
+        recipesError.value = e.toString().replaceFirst('Exception: ', '');
+      }
+    } finally {
+      recipesLoading.value = false;
+      recipesLoadingMore.value = false;
+      update();
+    }
+  }
+
+  Future<void> loadFeaturedRecipes() async {
+    if (featuredRecipesLoading.value) return;
+    featuredRecipesLoading.value = true;
+    update();
+
+    try {
+      final page = await _recipeRepo.fetchCatalog(
+        page: 1,
+        limit: 10,
+        sort: 'Featured',
+        featured: true,
+      );
+      featuredRecipes.assignAll(page.recipes);
+    } catch (_) {
+      featuredRecipes.clear();
+    } finally {
+      featuredRecipesLoading.value = false;
+      update();
+    }
+  }
+
+  Future<void> refreshRecipesTab() async {
+    await Future.wait([
+      loadFeaturedRecipes(),
+      loadRecipesCatalog(refresh: true),
+    ]);
+  }
+
+  Future<void> loadMoreRecipes() => loadRecipesCatalog(refresh: false);
 
   // Set category filter
   void setCategory(RecipeCategory? category) {
     selectedCategory.value = category;
-    update();
+    loadRecipesCatalog(refresh: true);
   }
 
   // Set search query
   void setSearchQuery(String query) {
     searchQuery.value = query;
+    _recipeSearchDebounce?.cancel();
+    _recipeSearchDebounce = Timer(const Duration(milliseconds: 400), () {
+      loadRecipesCatalog(refresh: true);
+    });
     update();
+  }
+
+  void submitRecipeSearch() {
+    _recipeSearchDebounce?.cancel();
+    loadRecipesCatalog(refresh: true);
+  }
+
+  void clearRecipeSearch() {
+    searchQuery.value = '';
+    _recipeSearchDebounce?.cancel();
+    loadRecipesCatalog(refresh: true);
+    update();
+  }
+
+  bool get isRecipeSearchActive => searchQuery.value.trim().isNotEmpty;
+
+  void setRecipeSort(String label) {
+    recipeSortLabel.value = label;
+    recipeSort.value = recipeSortLabelsToApi[label] ?? 'Featured';
+    loadRecipesCatalog(refresh: true);
   }
 
   // Helper to get date key
@@ -531,145 +666,5 @@ class NutritionController extends GetxController {
       FoodItem(id: '3', name: 'Brown Rice', calories: 216, protein: 5, carbs: 45, fats: 2, defaultServingSize: 1, servingUnit: 'cup', isSaved: true),
       FoodItem(id: '4', name: 'Protein Shake', calories: 120, protein: 24, carbs: 3, fats: 1, defaultServingSize: 1, servingUnit: 'scoop', isSaved: true),
     ]);
-
-    // Demo recipes
-    recipes.addAll([
-      Recipe(
-        id: '1',
-        name: 'High Protein Chicken Bowl',
-        description: 'A delicious and nutritious high-protein meal perfect for post-workout recovery.',
-        imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800',
-        categories: [RecipeCategory.highProtein, RecipeCategory.lunch, RecipeCategory.bodybuilding],
-        prepTimeMinutes: 15,
-        cookTimeMinutes: 25,
-        servings: 4,
-        ingredients: [
-          RecipeIngredient(name: 'chicken breast, diced', quantity: '2 lbs', unit: ''),
-          RecipeIngredient(name: 'brown rice, cooked', quantity: '2 cups', unit: ''),
-          RecipeIngredient(name: 'broccoli, steamed', quantity: '1 cup', unit: ''),
-          RecipeIngredient(name: 'red bell pepper, sliced', quantity: '1', unit: ''),
-          RecipeIngredient(name: 'olive oil', quantity: '2 tbsp', unit: ''),
-        ],
-        instructions: [
-          RecipeInstruction(step: 1, instruction: 'Season chicken breast with salt and pepper to taste'),
-          RecipeInstruction(step: 2, instruction: 'Heat olive oil in a large pan over medium heat'),
-          RecipeInstruction(step: 3, instruction: 'Cook chicken until golden brown and cooked through, about 8-10 minutes'),
-          RecipeInstruction(step: 4, instruction: 'Steam broccoli until tender, about 5 minutes'),
-          RecipeInstruction(step: 5, instruction: 'Slice bell pepper into strips'),
-          RecipeInstruction(step: 6, instruction: 'Serve chicken over brown rice with vegetables on the side'),
-        ],
-        caloriesPerServing: 420,
-        proteinPerServing: 45,
-        carbsPerServing: 35,
-        fatsPerServing: 12,
-        estimatedCost: 18.50,
-        costPerServing: 4.63,
-        videoUrl: 'https://www.youtube.com/watch?v=example',
-        isPremium: false,
-        isFeatured: true,
-        popularity: 95,
-      ),
-      Recipe(
-        id: '2',
-        name: 'Protein Smoothie Bowl',
-        description: 'Start your day with this protein-packed smoothie bowl topped with fresh fruits and nuts.',
-        imageUrl: 'https://images.unsplash.com/photo-1590301157890-4810ed352733?w=800',
-        categories: [RecipeCategory.breakfast, RecipeCategory.highProtein, RecipeCategory.quickPrep],
-        prepTimeMinutes: 5,
-        cookTimeMinutes: 0,
-        servings: 2,
-        ingredients: [
-          RecipeIngredient(name: 'frozen banana', quantity: '2', unit: ''),
-          RecipeIngredient(name: 'protein powder', quantity: '2 scoops', unit: ''),
-          RecipeIngredient(name: 'almond milk', quantity: '1 cup', unit: ''),
-          RecipeIngredient(name: 'spinach', quantity: '1 cup', unit: ''),
-          RecipeIngredient(name: 'blueberries', quantity: '1/2 cup', unit: ''),
-        ],
-        instructions: [
-          RecipeInstruction(step: 1, instruction: 'Add frozen banana, protein powder, almond milk, and spinach to blender'),
-          RecipeInstruction(step: 2, instruction: 'Blend until smooth and creamy'),
-          RecipeInstruction(step: 3, instruction: 'Pour into bowl'),
-          RecipeInstruction(step: 4, instruction: 'Top with blueberries, granola, and nuts'),
-        ],
-        caloriesPerServing: 280,
-        proteinPerServing: 30,
-        carbsPerServing: 35,
-        fatsPerServing: 5,
-        estimatedCost: 8.00,
-        costPerServing: 4.00,
-        isPremium: false,
-        isFeatured: true,
-        popularity: 88,
-      ),
-      Recipe(
-        id: '3',
-        name: 'Grilled Salmon with Vegetables',
-        description: 'Omega-3 rich salmon with a medley of colorful roasted vegetables.',
-        imageUrl: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=800',
-        categories: [RecipeCategory.dinner, RecipeCategory.highProtein, RecipeCategory.lowCarb],
-        prepTimeMinutes: 10,
-        cookTimeMinutes: 20,
-        servings: 4,
-        ingredients: [
-          RecipeIngredient(name: 'salmon fillet', quantity: '4', unit: 'pieces'),
-          RecipeIngredient(name: 'asparagus', quantity: '1 lb', unit: ''),
-          RecipeIngredient(name: 'cherry tomatoes', quantity: '2 cups', unit: ''),
-          RecipeIngredient(name: 'olive oil', quantity: '3 tbsp', unit: ''),
-          RecipeIngredient(name: 'lemon', quantity: '1', unit: ''),
-        ],
-        instructions: [
-          RecipeInstruction(step: 1, instruction: 'Preheat oven to 400°F (200°C)'),
-          RecipeInstruction(step: 2, instruction: 'Place salmon on baking sheet, drizzle with olive oil'),
-          RecipeInstruction(step: 3, instruction: 'Arrange asparagus and tomatoes around salmon'),
-          RecipeInstruction(step: 4, instruction: 'Season with salt, pepper, and lemon juice'),
-          RecipeInstruction(step: 5, instruction: 'Bake for 15-20 minutes until salmon is cooked through'),
-        ],
-        caloriesPerServing: 412,
-        proteinPerServing: 38,
-        carbsPerServing: 12,
-        fatsPerServing: 24,
-        estimatedCost: 24.00,
-        costPerServing: 6.00,
-        isPremium: true,
-        isFeatured: true,
-        popularity: 92,
-      ),
-      Recipe(
-        id: '4',
-        name: 'Turkey Chili',
-        description: 'Hearty and healthy turkey chili loaded with beans and vegetables.',
-        imageUrl: 'https://images.unsplash.com/photo-1603046891726-36bfd957e96d?w=800',
-        categories: [RecipeCategory.dinner, RecipeCategory.highProtein, RecipeCategory.budgetFriendly],
-        prepTimeMinutes: 15,
-        cookTimeMinutes: 45,
-        servings: 6,
-        ingredients: [
-          RecipeIngredient(name: 'ground turkey', quantity: '2 lbs', unit: ''),
-          RecipeIngredient(name: 'kidney beans', quantity: '2 cans', unit: ''),
-          RecipeIngredient(name: 'diced tomatoes', quantity: '1 can', unit: ''),
-          RecipeIngredient(name: 'onion, diced', quantity: '1', unit: ''),
-          RecipeIngredient(name: 'chili powder', quantity: '2 tbsp', unit: ''),
-        ],
-        instructions: [
-          RecipeInstruction(step: 1, instruction: 'Brown ground turkey in large pot'),
-          RecipeInstruction(step: 2, instruction: 'Add diced onion and cook until softened'),
-          RecipeInstruction(step: 3, instruction: 'Stir in beans, tomatoes, and chili powder'),
-          RecipeInstruction(step: 4, instruction: 'Simmer for 30-45 minutes'),
-          RecipeInstruction(step: 5, instruction: 'Serve hot with toppings of your choice'),
-        ],
-        caloriesPerServing: 340,
-        proteinPerServing: 35,
-        carbsPerServing: 28,
-        fatsPerServing: 10,
-        estimatedCost: 15.00,
-        costPerServing: 2.50,
-        isPremium: false,
-        isFeatured: false,
-        popularity: 78,
-      ),
-    ]);
-
-    // Set featured recipes
-    featuredRecipes.value = recipes.where((r) => r.isFeatured).toList();
   }
 }

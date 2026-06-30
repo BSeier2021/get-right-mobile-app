@@ -16,6 +16,7 @@ import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/bundle_card_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/widgets/safe_network_image.dart';
 import 'package:get_right/views/marketplace/program_hls_player_screen.dart';
@@ -44,7 +45,6 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   /// When set (e.g. from My Programs), loads `GET /customer/program/enrolled/:id` instead of program catalog detail.
   String? _enrollmentDetailId;
   bool _loadingDetail = false;
-  bool _enrolling = false;
   bool _isHandlingBack = false;
   double _rating = 0.0;
   bool _hasSubmittedRating = false;
@@ -53,6 +53,9 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   List<Map<String, dynamic>> _programReviews = [];
   bool _reviewsLoading = false;
   String? _reviewsError;
+
+  static const String _webPurchaseNotice =
+      'Program and bundle purchases are only available on the Marketplace \nwebsite: http://getright.prodservers.com:8011/ \nPurchases cannot be made through the app.';
   bool _reviewActionInFlight = false;
 
   static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
@@ -434,7 +437,29 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     }
     _syncEnrollmentFromProgram();
     _hydrateMyReviewFromProgram();
+    _applyProgramPricingToSafeProgram();
   }
+
+  Map<String, dynamic> _programPricingFrom(Map<String, dynamic> program) {
+    final raw = program['_apiProgram'];
+    if (raw is Map) {
+      return resolveProgramPricingFromApi(Map<String, dynamic>.from(raw));
+    }
+    return resolveProgramPricingFromApi({
+      'price': program['price'],
+      'netPrice': program['netPrice'],
+      'discount': program['discount'],
+    });
+  }
+
+  void _applyProgramPricingToSafeProgram() {
+    final pricing = _programPricingFrom(_safeProgram);
+    _safeProgram['price'] = pricing['listPrice'];
+    _safeProgram['netPrice'] = pricing['netPrice'];
+    _safeProgram['discount'] = pricing['discount'];
+  }
+
+  Map<String, dynamic> _programPricing() => _programPricingFrom(_safeProgram);
 
   String? _resolveTrainerAvatarUrlFromMap(Map<String, dynamic> program) {
     final imageUrl = ImageUrlSanitizer.asHttpUrlOrNull(program['trainerImageUrl']?.toString());
@@ -1023,19 +1048,6 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     }
   }
 
-  void _enrollAndOpenCheckout() {
-    if (_isEnrolled) {
-      Get.snackbar('Already enrolled', 'This program is already enrolled.', snackPosition: SnackPosition.BOTTOM);
-      return;
-    }
-    final enrollId = _programEnrollMongoId();
-    if (enrollId == null) {
-      Get.snackbar('Enroll', 'This program cannot be enrolled (invalid id).', snackPosition: SnackPosition.BOTTOM);
-      return;
-    }
-    Get.toNamed(AppRoutes.programTerms, arguments: {'isBundle': false, 'program': Map<String, dynamic>.from(_safeProgram)});
-  }
-
   String? _resolveApiMediaUrl(String? raw) {
     final input = raw?.trim();
     if (input == null || input.isEmpty) return null;
@@ -1478,8 +1490,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
             ),
           ],
         ),
-        // Bottom bar: enrolled users see status message; others see purchase/enroll.
-        bottomNavigationBar: _isEnrolled ? _buildAlreadyEnrolledBottomBar() : _buildPurchaseBottomBar(),
+        // Bottom bar: enrolled users see calendar actions; others see web purchase notice.
+        bottomNavigationBar: _isEnrolled ? _buildAlreadyEnrolledBottomBar() : _buildWebPurchaseNoticeBar(),
       ),
     );
   }
@@ -1532,41 +1544,55 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     );
   }
 
-  Widget _buildPurchaseBottomBar() {
+  Widget _buildWebPurchaseNoticeBar() {
+    final pricing = _programPricing();
+    final listPrice = (pricing['listPrice'] as num).toDouble();
+    final netPrice = (pricing['netPrice'] as num).toDouble();
+    final discount = (pricing['discount'] as num).toInt();
+    final hasDiscount = discount > 0 && listPrice > netPrice;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, -2))],
       ),
       child: SafeArea(
-        child: Row(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text('Total Price', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
+               
                 Text(
-                  '\$${(((_safeProgram['price'] as num?) ?? 0)).toStringAsFixed(2)}',
-                  style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
+                  '\$${netPrice.toStringAsFixed(2)}',
+                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700, height: 1),
                 ),
+                if (hasDiscount) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '\$${listPrice.toStringAsFixed(2)}',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, decoration: TextDecoration.lineThrough),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(10)),
+                    child: Text(
+                      '$discount% OFF',
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w700, fontSize: 10),
+                    ),
+                  ),
+                ],
               ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _enrolling ? null : _enrollAndOpenCheckout,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                ),
-                icon: _enrolling
-                    ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
-                    : const Icon(Icons.school, size: 20),
-                label: Text('Enroll Now', style: AppTextStyles.labelLarge.copyWith(color: AppColors.onAccent)),
-              ),
+            const SizedBox(height: 6),
+            Text(
+              _webPurchaseNotice,
+              style: AppTextStyles.labelSmall.copyWith(color: AppColors.mediumGray, height: 1.35, fontSize: 11.sp),
             ),
           ],
         ),

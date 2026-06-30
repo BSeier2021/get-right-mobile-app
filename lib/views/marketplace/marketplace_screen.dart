@@ -8,6 +8,7 @@ import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/bundle_card_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/widgets/safe_circle_network_avatar.dart';
@@ -1374,12 +1375,70 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return null;
   }
 
-  double? _programDiscountPercent(Map<String, dynamic> program) {
-    final p = _programRaw(program);
-    if (p == null) return null;
-    final disc = p['discount'];
-    if (disc is num && disc > 0) return disc.toDouble();
-    return null;
+  Map<String, dynamic> _programPricing(Map<String, dynamic> program) {
+    final raw = _programRaw(program);
+    if (raw != null) return resolveProgramPricingFromApi(raw);
+    return resolveProgramPricingFromApi({
+      'price': program['price'],
+      'netPrice': program['netPrice'],
+      'discount': program['discount'],
+    });
+  }
+
+  Widget _buildProgramCardPrice(Map<String, dynamic> program) {
+    final pricing = _programPricing(program);
+    final listPrice = (pricing['listPrice'] as num).toDouble();
+    final netPrice = (pricing['netPrice'] as num).toDouble();
+    final discount = (pricing['discount'] as num).toInt();
+    final hasDiscount = discount > 0 && listPrice > netPrice;
+    final priceStyle = AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 16.sp);
+
+    if (!hasDiscount) {
+      return Text(
+        '\$${netPrice.toStringAsFixed(2)}',
+        style: priceStyle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.end,
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          '\$${netPrice.toStringAsFixed(2)}',
+          style: priceStyle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        Text(
+          '\$${listPrice.toStringAsFixed(2)}',
+          style: TextStyle(color: const Color(0xFF999999), fontSize: 10.sp, decoration: TextDecoration.lineThrough),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProgramCardPriceRow(Map<String, dynamic> program, {BorderRadius? viewButtonRadius}) {
+    return Row(
+      children: [
+        _buildCompactViewButton(
+          onPressed: () => _viewProgram(program),
+          borderRadius: viewButtonRadius ?? BorderRadius.circular(50),
+        ),
+        SizedBox(width: 4.w),
+        Flexible(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _buildProgramCardPrice(program),
+          ),
+        ),
+      ],
+    );
   }
 
   List<String> _programWhatsIncludedLines(Map<String, dynamic> program) {
@@ -1446,9 +1505,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final difficulty = (program['difficulty'] ?? program['goal'])?.toString().trim();
     final statusLabel = _programStatusLabel(program);
     final reviewCount = _programReviewCount(program);
-    final discountPct = _programDiscountPercent(program);
-    final priceVal = ((program['price'] as num?) ?? 0).toDouble();
-    final payable = (discountPct != null && discountPct > 0) ? priceVal * (1 - discountPct / 100) : priceVal;
+    final pricing = _programPricing(program);
+    final listPrice = (pricing['listPrice'] as num).toDouble();
+    final netPrice = (pricing['netPrice'] as num).toDouble();
+    final discountPct = (pricing['discount'] as num).toInt();
+    final hasDiscount = discountPct > 0 && listPrice > netPrice;
     final whatsLines = _programWhatsIncludedLines(program);
     final exercisePreview = _programExercisePreview(program);
     final trainerAvatar = _programTrainerAvatarUrl(program);
@@ -1605,30 +1666,24 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Price', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
-                          if (discountPct != null && discountPct > 0 && priceVal > 0) ...[
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
+                          if (hasDiscount) ...[
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '\$${payable.toStringAsFixed(2)}',
+                                  '\$${netPrice.toStringAsFixed(2)}',
                                   style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
                                 ),
-                                const SizedBox(width: 8),
                                 Text(
-                                  '\$${priceVal.toStringAsFixed(2)}',
+                                  '\$${listPrice.toStringAsFixed(2)}',
                                   style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, decoration: TextDecoration.lineThrough),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${discountPct.toStringAsFixed(0)}% off',
-                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
-                            ),
+                          
                           ] else
                             Text(
-                              '\$${priceVal.toStringAsFixed(2)}',
+                              '\$${netPrice.toStringAsFixed(2)}',
                               style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
                             ),
                         ],
@@ -2294,17 +2349,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       SizedBox(height: 8.h),
 
                       // Price and Button
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildCompactViewButton(onPressed: () => _viewProgram(program)),
-                          SizedBox(width: 4.w),
-                          Text(
-                            '\$${((program['price'] as num?) ?? 0).toDouble().toStringAsFixed(2)}',
-                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 18.sp),
-                          ),
-                        ],
-                      ),
+                      _buildProgramCardPriceRow(program),
                     ],
                   ),
                 ),
@@ -2422,7 +2467,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.65, crossAxisSpacing: 12.w, mainAxisSpacing: 12.h),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.80, crossAxisSpacing: 12.w, mainAxisSpacing: 12.h),
         itemCount: programs.length,
         itemBuilder: (context, index) {
           return _buildGridProgramCard(programs[index]);
@@ -2546,7 +2591,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 6.w),
                           // Trainer Name
                           Flexible(
-                            child: Text(
+                            child: Text( 
                               (program['trainer'] ?? 'Trainer').toString().replaceAll(' ', '\n'),
                               style: TextStyle(color: const Color(0xFF333333), fontSize: 10.sp, height: 1.0, fontWeight: FontWeight.w600),
                               maxLines: 2,
@@ -2575,17 +2620,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       SizedBox(height: 15.h),
 
                       // Price and Button
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildCompactViewButton(onPressed: () => _viewProgram(program), borderRadius: BorderRadius.circular(10)),
-                          SizedBox(width: 4.w),
-                          Text(
-                            '\$${((program['price'] as num?) ?? 0).toDouble().toStringAsFixed(2)}',
-                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 18.sp),
-                          ),
-                        ],
-                      ),
+                      _buildProgramCardPriceRow(program, viewButtonRadius: BorderRadius.circular(10)),
                     ],
                   ),
                 ),
@@ -2985,17 +3020,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     // Rating
 
                     // Price and Duration
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildCompactViewButton(onPressed: () => _viewProgram(program), borderRadius: BorderRadius.circular(10)),
-                        SizedBox(width: 4.w),
-                        Text(
-                          '\$${((program['price'] as num?) ?? 0).toDouble().toStringAsFixed(2)}',
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 18.sp),
-                        ),
-                      ],
-                    ),
+                    _buildProgramCardPriceRow(program, viewButtonRadius: BorderRadius.circular(10)),
 
                     // View Button
                   ],

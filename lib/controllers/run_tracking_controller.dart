@@ -268,31 +268,35 @@ class RunTrackingController extends GetxController {
     );
 
     // Save run to storage
-    await _saveRun(run);
-
-    return run;
+    return _saveRun(run);
   }
 
   /// Save run to local storage, backend, and auto-sync to journal/calendar.
-  Future<void> _saveRun(RunModel run) async {
+  Future<RunModel?> _saveRun(RunModel run) async {
     try {
       final runs = await _storageService.getRuns();
-      runs.add(run);
-      await _storageService.saveRuns(runs);
+      var persisted = run;
 
       var backendSynced = false;
       try {
-        await _runningLogRepo.saveRunningLog(
+        final response = await _runningLogRepo.saveRunningLog(
           run: run,
           existingRouteId: plannedRouteId,
         );
+        final logId = RunningLogRepository.runningLogIdFrom(response);
+        if (logId != null && logId.isNotEmpty) {
+          persisted = run.copyWith(backendLogId: logId);
+        }
         backendSynced = true;
       } catch (e) {
         // Local save succeeded; backend sync is best-effort.
       }
 
+      runs.add(persisted);
+      await _storageService.saveRuns(runs);
+
       // Auto-sync to journal and calendar
-      final localSyncSuccess = await _storageService.autoSyncRun(run);
+      final localSyncSuccess = await _storageService.autoSyncRun(persisted);
       if (localSyncSuccess || backendSynced) {
         // Defer so navigation off active run does not dispose snackbar before Get closes it.
         Future.delayed(const Duration(milliseconds: 400), () {
@@ -312,12 +316,14 @@ class RunTrackingController extends GetxController {
           );
         });
       }
+      return persisted;
     } catch (e) {
       Future.delayed(const Duration(milliseconds: 400), () {
         if (Get.isSnackbarOpen == true) return;
         Get.snackbar('Save Error', 'Failed to save run data', snackPosition: SnackPosition.BOTTOM);
       });
     }
+    return null;
   }
 
   /// Cancel tracking without saving

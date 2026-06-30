@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/controllers/notification_controller.dart';
 import 'dart:math' as math;
@@ -779,10 +780,47 @@ class HomeNavigationController extends GetxController {
   final _currentIndex = 2.obs;
   final journalTabIndex = 0.obs; // 0 = Workout Journal, 1 = Runner Log
   final refreshTrigger = 0.obs; // Trigger to force UI refresh
+  final journalAnchorDate = Rxn<DateTime>();
+  final preferredJournalId = Rxn<String>();
+  final startFreshJournal = false.obs;
+  final plannedRouteIdForSession = Rxn<String>();
+  final journalPlannerReloadNonce = 0.obs;
   GlobalKey<ScaffoldState>? scaffoldKey;
 
   int get currentIndex => _currentIndex.value;
   RxInt get currentIndexRx => _currentIndex;
+
+  /// Calendar day for journal API calls (planner-selected date), or local today.
+  static DateTime journalDayOrNow() {
+    if (Get.isRegistered<HomeNavigationController>()) {
+      final anchor = Get.find<HomeNavigationController>().journalAnchorDate.value;
+      if (anchor != null) {
+        return DateTime(anchor.year, anchor.month, anchor.day);
+      }
+    }
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  void setJournalPlannerContext({
+    required DateTime date,
+    String? journalId,
+    bool startFresh = false,
+    String? plannedRouteId,
+  }) {
+    journalAnchorDate.value = DateTime(date.year, date.month, date.day);
+    preferredJournalId.value = WorkoutRepository.isValidMongoId(journalId) ? journalId!.trim() : null;
+    startFreshJournal.value = startFresh;
+    plannedRouteIdForSession.value = WorkoutRepository.isValidMongoId(plannedRouteId) ? plannedRouteId!.trim() : null;
+    journalPlannerReloadNonce.value++;
+  }
+
+  void clearJournalPlannerContext() {
+    journalAnchorDate.value = null;
+    preferredJournalId.value = null;
+    startFreshJournal.value = false;
+    plannedRouteIdForSession.value = null;
+  }
 
   void changeTab(int index, {int? journalTab}) {
     if (journalTab != null) {

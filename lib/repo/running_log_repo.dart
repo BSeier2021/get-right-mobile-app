@@ -265,6 +265,7 @@ class RunningLogRepository {
       createdAt: createdAt,
       startPointName: startPointName,
       endPointName: endPointName,
+      backendLogId: id.isNotEmpty ? id : null,
     );
   }
 
@@ -509,6 +510,25 @@ class RunningLogRepository {
     final route = Map<String, dynamic>.from(data)['route'];
     if (route is! Map) return null;
     return Map<String, dynamic>.from(route)['_id']?.toString();
+  }
+
+  static String? runningLogIdFrom(dynamic response) {
+    if (response is! Map) return null;
+    final root = Map<String, dynamic>.from(response);
+    final direct = root['_id']?.toString();
+    if (direct != null && direct.isNotEmpty) return direct;
+
+    final data = root['data'];
+    if (data is! Map) return null;
+    final dm = Map<String, dynamic>.from(data);
+    for (final key in ['log', 'runningLog', 'running-log', 'result']) {
+      final nested = dm[key];
+      if (nested is Map) {
+        final id = Map<String, dynamic>.from(nested)['_id']?.toString();
+        if (id != null && id.isNotEmpty) return id;
+      }
+    }
+    return dm['_id']?.toString();
   }
 
   /// Builds `POST /customer/running-logs` body from a completed [RunModel].

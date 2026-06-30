@@ -18,6 +18,8 @@ class RunModel {
   final DateTime createdAt;
   final String? startPointName;
   final String? endPointName;
+  /// MongoDB id from `POST /customer/running-logs`, when synced to backend.
+  final String? backendLogId;
 
   RunModel({
     required this.id,
@@ -38,7 +40,32 @@ class RunModel {
     required this.createdAt,
     this.startPointName,
     this.endPointName,
+    this.backendLogId,
   });
+
+  RunModel copyWith({String? backendLogId}) {
+    return RunModel(
+      id: id,
+      userId: userId,
+      activityType: activityType,
+      distanceMeters: distanceMeters,
+      duration: duration,
+      startTime: startTime,
+      endTime: endTime,
+      routePoints: routePoints,
+      elevationGain: elevationGain,
+      averagePace: averagePace,
+      maxPace: maxPace,
+      maxSpeed: maxSpeed,
+      caloriesBurned: caloriesBurned,
+      notes: notes,
+      splits: splits,
+      createdAt: createdAt,
+      startPointName: startPointName,
+      endPointName: endPointName,
+      backendLogId: backendLogId ?? this.backendLogId,
+    );
+  }
 
   /// Calculate average speed in m/s
   double get averageSpeed => distanceMeters / duration.inSeconds;
@@ -64,6 +91,7 @@ class RunModel {
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
       startPointName: json['startPointName']?.toString(),
       endPointName: json['endPointName']?.toString(),
+      backendLogId: json['backendLogId']?.toString(),
     );
   }
 
@@ -88,6 +116,7 @@ class RunModel {
       'createdAt': createdAt.toIso8601String(),
       if (startPointName != null) 'startPointName': startPointName,
       if (endPointName != null) 'endPointName': endPointName,
+      if (backendLogId != null) 'backendLogId': backendLogId,
     };
   }
 }

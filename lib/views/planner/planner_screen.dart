@@ -711,7 +711,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   void _showAddWorkoutDialog() {
     Get.to(
-      () => AddDateScreen(selectedDate: _selectedDate, calendarEntryId: _calendarEntryIdForSelectedDate(), onAddProgressPhoto: _addProgressPhoto, onAddNotes: _showNotesDialog),
+      () => AddDateScreen(
+        selectedDate: _selectedDate,
+        calendarEntryId: _calendarEntryIdForSelectedDate(),
+        dayData: _getDataForDate(_selectedDate),
+        onAddProgressPhoto: _addProgressPhoto,
+        onAddNotes: _showNotesDialog,
+      ),
     )?.then((result) async {
       if (!mounted || result == 'workout_journal' || result == 'runner_log') return;
       await _loadCalendarMonth();

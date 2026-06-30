@@ -778,7 +778,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
                 if (isActiveTab || isCancelledTab)
                   _viewBundleDetailsButton(bundle)
                 else if (isScheduledTab)
-                  _cancelButton(programs.isNotEmpty ? programs.first : bundle)
+                  _scheduledActions(onViewDetails: () => _viewBundleDetails(bundle), cancelTarget: bundle)
                 else if (isCompletedTab)
                   _completedBundleButtons(bundle),
               ],
@@ -851,7 +851,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
                 if (isActiveTab)
                   _viewDetailsButton(program)
                 else if (isScheduledTab)
-                  _cancelButton(program)
+                  _scheduledActions(onViewDetails: () => _viewProgramDetails(program), cancelTarget: program)
                 else if (isCompletedTab)
                   _completedButtons(program)
                 else if (isCancelledTab)
@@ -971,22 +971,42 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     );
   }
 
-  Widget _cancelButton(Map<String, dynamic> program) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        onPressed: () => _cancelProgram(program),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.onSurface,
-          padding: const EdgeInsets.symmetric(vertical: 13),
-          side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 1.2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+  Widget _scheduledActions({required VoidCallback onViewDetails, required Map<String, dynamic> cancelTarget}) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => _cancelProgram(cancelTarget),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.onSurface,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 1.2),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+            ),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+            ),
+          ),
         ),
-        child: Text(
-          'Cancel',
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: onViewDetails,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accentVariant,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+              elevation: 0,
+            ),
+            child: Text(
+              'View Details',
+              style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 

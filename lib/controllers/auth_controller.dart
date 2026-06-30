@@ -1287,6 +1287,8 @@ class AuthController extends GetxController {
 
     final purchased = ext['purchased'] == true || inner['isEnrolled'] == true;
     final price = (inner['price'] as num?)?.toDouble() ?? (ext['price'] as num?)?.toDouble() ?? 0.0;
+    final netPrice = (inner['netPrice'] as num?)?.toDouble();
+    final discount = (inner['discount'] as num?)?.toDouble();
     final demoVideo = inner['demoVideo'];
     final video = inner['video'];
     final resources = inner['resources'];
@@ -1309,6 +1311,8 @@ class AuthController extends GetxController {
             return null;
           })(),
       'price': price,
+      if (netPrice != null) 'netPrice': netPrice,
+      if (discount != null) 'discount': discount,
       'duration': duration,
       'category': (() {
         if (attrs['focus'] != null) return attrs['focus'].toString();

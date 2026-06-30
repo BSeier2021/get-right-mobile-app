@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:get_right/models/run_activity_model.dart';
+import 'package:get_right/models/run_model.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -81,25 +81,30 @@ class _LiveRunTrackingScreenState extends State<LiveRunTrackingScreen> {
   void _endActivity() {
     _timer?.cancel();
 
-    // Create run activity model
-    final activity = RunActivityModel(
+    final endTime = DateTime.now();
+    final startTime = endTime.subtract(Duration(seconds: _seconds));
+    final routePoints = _routePoints
+        .map((p) => LocationPoint(latitude: p.latitude, longitude: p.longitude, timestamp: endTime))
+        .toList();
+
+    final run = RunModel(
       id: 'run_${DateTime.now().millisecondsSinceEpoch}',
       userId: 'user_1',
-      date: DateTime.now(),
       activityType: _activityType,
-      durationSeconds: _seconds,
       distanceMeters: _distanceMeters,
+      duration: Duration(seconds: _seconds),
+      startTime: startTime,
+      endTime: endTime,
+      routePoints: routePoints.isEmpty ? null : routePoints,
       averagePace: _averagePace,
       maxPace: _currentPace,
       caloriesBurned: _calories,
-      routePoints: _routePoints,
-      startedAt: DateTime.now().subtract(Duration(seconds: _seconds)),
-      completedAt: DateTime.now(),
+      createdAt: endTime,
     );
 
     // Navigate to post-run summary (pop this screen then push so home stays in stack)
     Get.back();
-    Get.toNamed(AppRoutes.runDetail, arguments: {'activity': activity});
+    Get.toNamed(AppRoutes.runDetail, arguments: run);
   }
 
   void _toggleLock() {

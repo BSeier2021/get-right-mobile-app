@@ -1,5 +1,32 @@
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
+/// Program-level pricing from API (`price`, `netPrice`, `discount`).
+Map<String, dynamic> resolveProgramPricingFromApi(Map<String, dynamic> p) {
+  final listPrice = (p['price'] as num?)?.toDouble() ?? 0.0;
+  final discountPct = (p['discount'] as num?)?.toDouble() ?? 0.0;
+  final netPrice = (p['netPrice'] as num?)?.toDouble();
+
+  double sellingPrice;
+  if (netPrice != null && netPrice >= 0) {
+    sellingPrice = netPrice;
+  } else if (listPrice > 0 && discountPct > 0) {
+    sellingPrice = listPrice * (1 - discountPct / 100);
+  } else {
+    sellingPrice = listPrice;
+  }
+
+  var discount = discountPct.round().clamp(0, 95);
+  if (discount == 0 && listPrice > sellingPrice && listPrice > 0) {
+    discount = (((listPrice - sellingPrice) / listPrice) * 100).round().clamp(0, 95);
+  }
+
+  return {
+    'listPrice': listPrice,
+    'netPrice': sellingPrice,
+    'discount': discount,
+  };
+}
+
 /// Bundle-level pricing from API (`price`, `netPrice`, `discount`) — not summed program prices.
 Map<String, dynamic> resolveBundlePricingFromApi(Map<String, dynamic> b) {
   final pricing = b['pricing_summary'];

@@ -159,7 +159,6 @@ class AppPages {
     GetPage(name: AppRoutes.programDetail, page: () => const ProgramDetailScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.programSendReview, page: () => ProgramSendReviewScreen.fromArguments(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.purchaseDetails, page: () => const PurchaseDetailsScreen(), transition: Transition.rightToLeft),
-    GetPage(name: AppRoutes.paymentForm, page: () => const PaymentFormScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.programTerms, page: () => const ProgramTermsScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.myPrograms, page: () => const MyProgramsScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.favorites, page: () => const FavoritesScreen(), transition: Transition.rightToLeft),

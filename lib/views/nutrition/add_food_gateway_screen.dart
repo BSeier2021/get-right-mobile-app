@@ -136,10 +136,6 @@ class _AddFoodGatewayScreenState extends State<AddFoodGatewayScreen> {
   }
 
   void _onSelectMeal(MealType type, {String? mealTypeApiId}) {
-    if (!controller.hasSubscription.value) {
-      Get.snackbar('Subscription', 'Subscribe to add food', snackPosition: SnackPosition.BOTTOM);
-      return;
-    }
     Get.to(() => AddFoodScreen(mealType: type, mealTypeApiId: mealTypeApiId));
   }
 

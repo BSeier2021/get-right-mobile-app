@@ -30,8 +30,10 @@ class _NutritionScreenState extends State<NutritionScreen> with SingleTickerProv
 
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
-    if (_tabController.index == 0 && nutritionController.hasSubscription.value) {
+    if (_tabController.index == 0) {
       nutritionController.fetchNutritionTracker();
+    } else if (_tabController.index == 1) {
+      nutritionController.refreshRecipesTab();
     }
   }
 
@@ -93,9 +95,7 @@ class _NutritionScreenState extends State<NutritionScreen> with SingleTickerProv
                 GestureDetector(
                   onTap: () {
                     _tabController.animateTo(0);
-                    if (nutritionController.hasSubscription.value) {
-                      nutritionController.fetchNutritionTracker();
-                    }
+                    nutritionController.fetchNutritionTracker();
                   },
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -114,7 +114,10 @@ class _NutritionScreenState extends State<NutritionScreen> with SingleTickerProv
                 ),
                 const SizedBox(width: 15),
                 GestureDetector(
-                  onTap: () => _tabController.animateTo(1),
+                  onTap: () {
+                    _tabController.animateTo(1);
+                    nutritionController.refreshRecipesTab();
+                  },
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

@@ -8,8 +8,10 @@ import 'package:get_right/controllers/run_tracking_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/gps_service.dart';
 import 'package:get_right/services/storage_service.dart';
+import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/views/home/dashboard_screen.dart';
 
 /// Run Tracker - GPS tracking and run history
 class RunTrackerScreen extends StatefulWidget {
@@ -32,6 +34,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
   Position? _lastCameraPosition;
   DateTime? _lastCameraUpdate;
   String? _selectedActivity;
+  Worker? _plannerReloadWorker;
 
   // ignore: unused_field
   final List<Map<String, dynamic>> _activities = [
@@ -44,6 +47,11 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
   @override
   void initState() {
     super.initState();
+    if (Get.isRegistered<HomeNavigationController>()) {
+      final nav = Get.find<HomeNavigationController>();
+      _plannerReloadWorker = ever<int>(nav.journalPlannerReloadNonce, (_) => _applyPlannerRunContext());
+    }
+    _applyPlannerRunContext();
     _loadStats();
     _initializeLocation();
     // Listen to position updates and update camera only (with debouncing)
@@ -126,6 +134,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
 
   @override
   void dispose() {
+    _plannerReloadWorker?.dispose();
     _mapController?.dispose();
     _mapController = null;
     _isMapCreated = false;
@@ -659,6 +668,17 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
         ],
       ),
     );
+  }
+
+  void _applyPlannerRunContext() {
+    if (!Get.isRegistered<HomeNavigationController>()) return;
+    final nav = Get.find<HomeNavigationController>();
+    if (nav.journalTabIndex.value != 1) return;
+    final routeId = nav.plannedRouteIdForSession.value;
+    if (WorkoutRepository.isValidMongoId(routeId)) {
+      _trackingController.plannedRouteId = routeId!.trim();
+      nav.plannedRouteIdForSession.value = null;
+    }
   }
 
   /// Start activity with selected type

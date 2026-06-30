@@ -44,7 +44,9 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
       final bp = _parseDoubleLoose(_item['bundlePrice']);
       if (bp != null && bp > 0) return bp;
     }
-    return _parseDoubleLoose(_item['price']) ?? 0.0;
+    final net = _parseDoubleLoose(_item['netPrice']) ?? _parseDoubleLoose(_apiProgram?['netPrice']);
+    if (net != null && net >= 0) return net;
+    return _parseDoubleLoose(_item['price']) ?? _parseDoubleLoose(_apiProgram?['price']) ?? 0.0;
   }
 
   static double? _parseDoubleLoose(dynamic value) {

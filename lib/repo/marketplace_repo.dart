@@ -616,7 +616,10 @@ class MarketplaceRepository {
         (p['reviews'] as num?)?.toInt() ??
         0;
     final students = (display['enrollment_count'] as num?)?.toInt() ?? (p['students'] as num?)?.toInt() ?? 0;
-    final price = (p['price'] as num?)?.toDouble() ?? 0.0;
+    final pricing = resolveProgramPricingFromApi(p);
+    final price = (pricing['listPrice'] as num?)?.toDouble() ?? 0.0;
+    final netPrice = (pricing['netPrice'] as num?)?.toDouble() ?? price;
+    final discount = (pricing['discount'] as num?)?.toInt() ?? 0;
     final weeks = durationWeeksFrom(p['durationWeeks'] ?? p['duration']);
     final duration = weeks > 0 ? '$weeks weeks' : (p['duration']?.toString().trim().isNotEmpty == true ? p['duration'].toString() : '—');
     final focus = p['focus']?.toString() ?? '';
@@ -663,6 +666,8 @@ class MarketplaceRepository {
       'trainerImage': _initials(trainer),
       if (trainerAvatarUrl != null) 'trainerImageUrl': trainerAvatarUrl,
       'price': price,
+      'netPrice': netPrice,
+      'discount': discount,
       'duration': duration,
       'category': focus.isNotEmpty ? _titleCaseSlug(focus) : 'Program',
       'goal': (p['subtitle']?.toString().trim().isNotEmpty == true) ? p['subtitle'].toString() : (focus.isNotEmpty ? _titleCaseSlug(focus) : 'Fitness'),

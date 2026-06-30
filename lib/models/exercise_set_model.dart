@@ -28,14 +28,35 @@ class ExerciseSetModel {
   });
 
   factory ExerciseSetModel.fromJson(Map<String, dynamic> json) {
+    final weightRaw = json['weight'];
+    String? weightType = json['weightType']?.toString();
+    double? weight;
+    if (weightRaw != null) {
+      final ws = weightRaw.toString().trim();
+      if (ws.toUpperCase() == 'BW') {
+        weightType = 'BW';
+        weight = 0;
+      } else if (weightRaw is num) {
+        weight = weightRaw.toDouble();
+      } else {
+        weight = double.tryParse(ws);
+      }
+    }
+    if (weightType != null && weightType.toUpperCase() == 'BW') {
+      weightType = 'BW';
+      weight ??= 0;
+    } else if (weight != null && weight > 0 && weightType == null) {
+      weightType = 'standard';
+    }
+
     return ExerciseSetModel(
       id: json['id'] ?? '',
       setNumber: json['setNumber'] ?? 0,
       reps: json['reps']?.toInt(),
       repsType: json['repsType'],
       timeSeconds: json['timeSeconds']?.toInt(),
-      weight: json['weight']?.toDouble(),
-      weightType: json['weightType'],
+      weight: weight,
+      weightType: weightType,
       percentage: json['percentage']?.toDouble(),
       distance: json['distance']?.toDouble(),
       distanceUnit: json['distanceUnit'],
@@ -50,7 +71,7 @@ class ExerciseSetModel {
       'reps': reps,
       'repsType': repsType,
       'timeSeconds': timeSeconds,
-      'weight': weight,
+      'weight': isBodyweight ? 'BW' : weight,
       'weightType': weightType,
       'percentage': percentage,
       'distance': distance,

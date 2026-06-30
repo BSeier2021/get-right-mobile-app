@@ -4,7 +4,11 @@ import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:get_right/models/run_activity_model.dart';
 import 'package:get_right/models/run_model.dart';
+import 'package:get_right/repo/calendar_repo.dart';
+import 'package:get_right/repo/running_log_repo.dart';
+import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -22,6 +26,93 @@ class RunSummaryScreen extends StatefulWidget {
 
 class _RunSummaryScreenState extends State<RunSummaryScreen> {
   GoogleMapController? _mapController;
+  final CalendarRepository _calendarRepo = CalendarRepository();
+  final RunningLogRepository _runningLogRepo = RunningLogRepository();
+  bool _isSavingToCalendar = false;
+  RunModel? _run;
+
+  @override
+  void initState() {
+    super.initState();
+    _run = _tryRunFromArguments();
+  }
+
+  RunModel? _tryRunFromArguments() {
+    final args = Get.arguments;
+    if (args is RunModel) return args;
+    if (args is! Map) return null;
+
+    final map = Map<String, dynamic>.from(args);
+    if (map['run'] is RunModel) return map['run'] as RunModel;
+    if (map['runModel'] is RunModel) return map['runModel'] as RunModel;
+
+    final activity = map['activity'];
+    if (activity is RunActivityModel) return _runFromActivity(activity);
+    if (activity is Map) {
+      return _runFromActivity(RunActivityModel.fromJson(Map<String, dynamic>.from(activity)));
+    }
+
+    return _runFromLooseMap(map);
+  }
+
+  RunModel _runFromActivity(RunActivityModel activity) {
+    final start = activity.startedAt ?? activity.date;
+    final end = activity.completedAt ?? start.add(Duration(seconds: activity.durationSeconds));
+    final routePoints = activity.routePoints
+        .map((p) => LocationPoint(latitude: p.latitude, longitude: p.longitude, timestamp: end))
+        .toList();
+
+    return RunModel(
+      id: activity.id,
+      userId: activity.userId,
+      activityType: activity.activityType,
+      distanceMeters: activity.distanceMeters,
+      duration: Duration(seconds: activity.durationSeconds),
+      startTime: start,
+      endTime: end,
+      routePoints: routePoints.isEmpty ? null : routePoints,
+      elevationGain: activity.elevationGain,
+      averagePace: activity.averagePace,
+      maxPace: activity.maxPace,
+      caloriesBurned: activity.caloriesBurned,
+      notes: activity.notes,
+      createdAt: activity.date,
+    );
+  }
+
+  RunModel? _runFromLooseMap(Map<String, dynamic> map) {
+    final distanceMeters = (map['distanceMeters'] as num?)?.toDouble();
+    final durationSeconds = (map['durationSeconds'] as num?)?.toInt() ?? (map['duration'] as num?)?.toInt();
+    if (distanceMeters == null && durationSeconds == null) return null;
+
+    final startRaw = map['startTime'] ?? map['startedAt'];
+    final endRaw = map['endTime'] ?? map['completedAt'];
+    final start = startRaw != null ? DateTime.tryParse(startRaw.toString()) ?? DateTime.now() : DateTime.now();
+    final end = endRaw != null ? DateTime.tryParse(endRaw.toString()) ?? start : start;
+
+    return RunModel(
+      id: map['id']?.toString() ?? 'run_${DateTime.now().millisecondsSinceEpoch}',
+      userId: map['userId']?.toString() ?? 'user',
+      activityType: map['activityType']?.toString() ?? 'Run',
+      distanceMeters: distanceMeters ?? 0,
+      duration: Duration(seconds: durationSeconds ?? 0),
+      startTime: start,
+      endTime: end,
+      averagePace: (map['averagePace'] as num?)?.toDouble(),
+      maxPace: (map['maxPace'] as num?)?.toDouble(),
+      caloriesBurned: (map['caloriesBurned'] as num?)?.toInt(),
+      backendLogId: map['backendLogId']?.toString(),
+      createdAt: DateTime.tryParse(map['createdAt']?.toString() ?? '') ?? start,
+    );
+  }
+
+  String? _calendarEntryIdFromArguments() {
+    final args = Get.arguments;
+    if (args is! Map) return null;
+    final id = args['calendarEntryId']?.toString().trim();
+    if (id != null && WorkoutRepository.isValidMongoId(id)) return id;
+    return null;
+  }
 
   @override
   void dispose() {
@@ -31,8 +122,27 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Get run data from arguments
-    final RunModel run = Get.arguments as RunModel;
+    final run = _run;
+    if (run == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Run data unavailable', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+                  const SizedBox(height: 16),
+                  OutlinedButton(onPressed: () => Get.back(), child: const Text('Go back')),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -399,22 +509,15 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
             width: double.infinity,
             height: 56,
             child: OutlinedButton(
-              onPressed: () {
-                if (Get.isRegistered<HomeNavigationController>()) {
-                  if (Get.currentRoute != AppRoutes.home) {
-                    Get.until((route) => route.settings.name == AppRoutes.home);
-                  }
-                  Get.find<HomeNavigationController>().changeTab(2, journalTab: 1);
-                  return;
-                }
-                Get.offNamed(AppRoutes.home, arguments: {'navigateToTab': 2, 'journalTabIndex': 1});
-              },
+              onPressed: _isSavingToCalendar ? null : () => _onDone(run),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 2),
                 foregroundColor: AppColors.onSurface,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              child: Text('Done', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onSurface)),
+              child: _isSavingToCalendar
+                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
+                  : Text('Done', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onSurface)),
             ),
           ),
         ],
@@ -454,6 +557,56 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
       return '${hours}h ${minutes}m ${seconds}s';
     }
     return '${minutes}m ${seconds}s';
+  }
+
+  Future<void> _onDone(RunModel run) async {
+    setState(() => _isSavingToCalendar = true);
+    try {
+      var logId = run.backendLogId;
+      if (logId == null || !WorkoutRepository.isValidMongoId(logId)) {
+        if (WorkoutRepository.isValidMongoId(run.id)) {
+          logId = run.id;
+        } else {
+          final response = await _runningLogRepo.saveRunningLog(run: run);
+          logId = RunningLogRepository.runningLogIdFrom(response);
+        }
+      }
+
+      if (logId == null || !WorkoutRepository.isValidMongoId(logId)) {
+        throw Exception('Could not save running log');
+      }
+
+      await _calendarRepo.attachRunningLogToCalendar(
+        date: run.startTime,
+        runningLogId: logId,
+        calendarEntryId: _calendarEntryIdFromArguments(),
+      );
+
+      if (!mounted) return;
+      _navigateHomeAfterSave();
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar(
+        'Could not save run',
+        CalendarRepository.errorMessageFrom(e),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: AppColors.white,
+      );
+    } finally {
+      if (mounted) setState(() => _isSavingToCalendar = false);
+    }
+  }
+
+  void _navigateHomeAfterSave() {
+    if (Get.isRegistered<HomeNavigationController>()) {
+      if (Get.currentRoute != AppRoutes.home) {
+        Get.until((route) => route.settings.name == AppRoutes.home);
+      }
+      Get.find<HomeNavigationController>().changeTab(2, journalTab: 1);
+      return;
+    }
+    Get.offNamed(AppRoutes.home, arguments: {'navigateToTab': 2, 'journalTabIndex': 1});
   }
 
   /// Save run to journal

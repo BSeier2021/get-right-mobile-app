@@ -11,6 +11,7 @@ import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/views/home/dashboard_screen.dart';
 
 class ExerciseConfigurationScreen extends StatefulWidget {
   const ExerciseConfigurationScreen({super.key});
@@ -359,7 +360,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       try {
         // One journal id per day — always attach warmups and workouts to the same entry.
         var journalId = WorkoutRepository.isValidMongoId(_workoutJournalId) ? _workoutJournalId!.trim() : null;
-        journalId ??= await _workoutRepo.findWorkoutJournalIdForToday();
+        journalId ??= await _workoutRepo.findWorkoutJournalIdForToday(date: HomeNavigationController.journalDayOrNow());
 
         for (var i = 0; i < _configs.length; i++) {
           final cfg = _configs[i];
@@ -391,7 +392,12 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         }
 
         if (createdApiIds.isNotEmpty) {
-          journalId = await _workoutRepo.consolidateDayJournal(newWorkoutIds: createdApiIds, existingJournalWorkoutIds: _journalWorkoutIds, preferredJournalId: journalId);
+          journalId = await _workoutRepo.consolidateDayJournal(
+            newWorkoutIds: createdApiIds,
+            existingJournalWorkoutIds: _journalWorkoutIds,
+            preferredJournalId: journalId,
+            date: HomeNavigationController.journalDayOrNow(),
+          );
         }
         _workoutJournalId = journalId;
       } catch (e) {
@@ -416,7 +422,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           repsType: cfg.mainType != 'Time' ? (s.repsType ?? 'standard') : null,
           timeSeconds: cfg.mainType == 'Time' && s.time > 0 ? s.time : null,
           weight: cfg.extraType == 'Weight' ? s.weight : null,
-          weightType: cfg.extraType == 'Weight' ? (s.isBodyweight || s.weight == 0 ? 'BW' : 'standard') : null,
+          weightType: cfg.extraType == 'Weight' ? (s.isBodyweight ? 'BW' : (s.weight > 0 ? 'standard' : null)) : null,
           distance: cfg.extraType == 'Distance' ? s.distance : null,
           distanceUnit: cfg.extraType == 'Distance' ? s.distanceUnit : null,
         );
@@ -461,8 +467,12 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         entry['reps'] = s.reps;
       }
 
-      if (cfg.extraType == 'Weight' && !s.isBodyweight && s.weight > 0) {
-        entry['weight'] = s.weight % 1 == 0 ? s.weight.toInt() : s.weight;
+      if (cfg.extraType == 'Weight') {
+        if (s.isBodyweight) {
+          entry['weight'] = 'BW';
+        } else if (s.weight > 0) {
+          entry['weight'] = s.weight % 1 == 0 ? s.weight.toInt() : s.weight;
+        }
       }
 
       if (cfg.extraType == 'Distance' && s.distance > 0) {
