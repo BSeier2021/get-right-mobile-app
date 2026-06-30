@@ -168,7 +168,7 @@ class AppPages {
     GetPage(name: AppRoutes.activeProgramDetail, page: () => const ActiveProgramDetailScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.completedProgramDetail, page: () => const CompletedProgramDetailScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.programModificationRequest, page: () => const ProgramModificationRequestScreen(), transition: Transition.rightToLeft),
-    GetPage(name: AppRoutes.transactionHistory, page: () => TransactionHistoryScreen(), transition: Transition.rightToLeft),
+    GetPage(name: AppRoutes.transactionHistory, page: () => const TransactionHistoryScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.transactionDetail, page: () => const TransactionDetailScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.bundleDetail, page: () => const BundleDetailScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.allBundles, page: () => const AllBundlesScreen(), transition: Transition.rightToLeft),

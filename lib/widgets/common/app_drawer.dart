@@ -165,6 +165,14 @@ class _AppDrawerState extends State<AppDrawer> {
                     },
                   ),
                   _drawerItem(
+                    fallbackIcon: Icons.receipt_long_outlined,
+                    title: 'Transaction History',
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed(AppRoutes.transactionHistory);
+                    },
+                  ),
+                  _drawerItem(
                     asset: 'assets/images/music-library-2.png',
                     fallbackIcon: Icons.lock_outline_rounded,
                     title: 'Library',

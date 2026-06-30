@@ -378,4 +378,17 @@ class AppUrl {
 
   /// `POST /customer/recipes/purchase` — body: `recipeId`, `logToTracker` (`mealType`, `servings`).
   static String get customerRecipesPurchase => '$baseUrl/customer/recipes/purchase';
+
+  /// `GET /customer/transactions` — query: `page`, `limit` → `data.transactions[]`, `data.summary`.
+  static String customerTransactionsList({int page = 1, int limit = 10}) {
+    final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;
+    return '$baseUrl/customer/transactions?$q';
+  }
+
+  /// `GET /customer/transactions/summary` → `data.summary`.
+  static String get customerTransactionsSummary => '$baseUrl/customer/transactions/summary';
+
+  /// `GET /customer/transactions/:transactionId` → `data.transaction`.
+  static String customerTransactionById(String transactionId) =>
+      '$baseUrl/customer/transactions/${Uri.encodeComponent(transactionId.trim())}';
 }
