@@ -212,6 +212,11 @@ class AuthRepository {
     return _network.get(AppUrl.customerProgramEnrolledDetail(enrollmentId));
   }
 
+  /// `POST /customer/program/enrolled/:enrollmentId/cancel` — cancel scheduled enrollment.
+  Future<dynamic> cancelCustomerEnrollmentRepo(String enrollmentId) async {
+    return _network.post(AppUrl.customerProgramEnrolledCancel(enrollmentId), {});
+  }
+
   /// `GET /customer/bundle` — paginated bundle deals (`limit` maps from [perPage]).
   Future<dynamic> getMarketplaceBundlesRepo({int page = 1, int perPage = 10}) async {
     return _network.get(AppUrl.customerBundles(page: page, limit: perPage));

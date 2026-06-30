@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -47,6 +49,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
   final List<Map<String, dynamic>> _cardRows = [];
   int _page = 1;
   bool _hasMore = false;
+  final Set<String> _cancellingEnrollmentIds = {};
 
   static Uri _originSansApiPath() {
     final u = Uri.parse(AppUrl.baseUrl);
@@ -458,6 +461,8 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     p['startDate'] = enrollment['startDate'];
     p['endDate'] = enrollment['endDate'];
     p['status'] = enrollment['status'];
+    p['hideAddToCalendar'] = _currentTab == EnrollmentListTab.scheduled;
+    p['showAddToCalendar'] = _currentTab == EnrollmentListTab.cancelled;
     Get.toNamed(AppRoutes.programDetail, arguments: p);
   }
 
@@ -641,8 +646,151 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     };
   }
 
-  void _cancelProgram(Map<String, dynamic> program) {
-    Get.snackbar('Cancel enrollment', 'Please contact support or use program settings to cancel.', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 3));
+  void _cancelProgram(Map<String, dynamic> target) {
+    if (_currentTab != EnrollmentListTab.scheduled) {
+      Get.snackbar('Cancel enrollment', 'Please contact support or use program settings to cancel.', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 3));
+      return;
+    }
+    unawaited(_cancelScheduledEnrollment(target));
+  }
+
+  String? _enrollmentIdFromCard(Map<String, dynamic> card) {
+    final raw = card['rawEnrollment'];
+    if (raw is Map) {
+      final id = raw['_id']?.toString() ?? raw['id']?.toString();
+      if (id != null && id.trim().isNotEmpty) return id.trim();
+    }
+    final id = card['id']?.toString();
+    if (id != null && id.trim().isNotEmpty) return id.trim();
+    return null;
+  }
+
+  List<String> _enrollmentIdsFromCancelTarget(Map<String, dynamic> target) {
+    if (target['isBundle'] == true && target['programs'] is List) {
+      final ids = <String>[];
+      for (final item in target['programs'] as List) {
+        if (item is Map<String, dynamic>) {
+          final id = _enrollmentIdFromCard(item);
+          if (id != null) ids.add(id);
+        }
+      }
+      return ids;
+    }
+    final id = _enrollmentIdFromCard(target);
+    return id != null ? [id] : [];
+  }
+
+  bool _isCancellingTarget(Map<String, dynamic> target) {
+    final ids = _enrollmentIdsFromCancelTarget(target);
+    return ids.any(_cancellingEnrollmentIds.contains);
+  }
+
+  Future<void> _cancelScheduledEnrollment(Map<String, dynamic> target) async {
+    final enrollmentIds = _enrollmentIdsFromCancelTarget(target);
+    if (enrollmentIds.isEmpty) {
+      Get.snackbar('Cancel enrollment', 'Enrollment id not found', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: AppColors.onError);
+      return;
+    }
+
+    final title = target['title']?.toString() ?? 'this program';
+    final confirmed = await Get.dialog<bool>(
+      Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FFE9),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFCDE7C8)),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 4))],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.accentVariant.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.accentVariant.withOpacity(0.25)),
+                ),
+                child: const Icon(Icons.event_busy_outlined, color: AppColors.accentVariant, size: 28),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Cancel enrollment?',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Are you sure you want to cancel "$title"? This scheduled enrollment will be removed from your calendar.',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, height: 1.45),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Get.back(result: false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.onSurface,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 1.2),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                      ),
+                      child: Text(
+                        'Keep',
+                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Get.back(result: true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentVariant,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _cancellingEnrollmentIds.addAll(enrollmentIds));
+    try {
+      final auth = Get.find<AuthController>();
+      for (var i = 0; i < enrollmentIds.length; i++) {
+        final ok = await auth.cancelCustomerEnrollment(
+          enrollmentId: enrollmentIds[i],
+          showSuccessMessage: i == enrollmentIds.length - 1,
+        );
+        if (!ok) return;
+      }
+      if (!mounted) return;
+      await _loadPrograms();
+    } finally {
+      if (mounted) {
+        setState(() => _cancellingEnrollmentIds.removeAll(enrollmentIds));
+      }
+    }
   }
 
   Widget _buildBundleEnrollmentCard(Map<String, dynamic> bundle) {
@@ -972,21 +1120,24 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
   }
 
   Widget _scheduledActions({required VoidCallback onViewDetails, required Map<String, dynamic> cancelTarget}) {
+    final isCancelling = _isCancellingTarget(cancelTarget);
     return Row(
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: () => _cancelProgram(cancelTarget),
+            onPressed: isCancelling ? null : () => _cancelProgram(cancelTarget),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.onSurface,
               padding: const EdgeInsets.symmetric(vertical: 13),
               side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 1.2),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
             ),
-            child: Text(
-              'Cancel',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-            ),
+            child: isCancelling
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentVariant))
+                : Text(
+                    'Cancel',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                  ),
           ),
         ),
         const SizedBox(width: 12),

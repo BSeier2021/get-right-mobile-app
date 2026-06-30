@@ -749,6 +749,56 @@ class AuthController extends GetxController {
     }
   }
 
+  /// `POST /customer/program/enrolled/:enrollmentId/cancel` — cancel a scheduled enrollment.
+  Future<bool> cancelCustomerEnrollment({required String enrollmentId, bool showSuccessMessage = true}) async {
+    final id = enrollmentId.trim();
+    if (id.isEmpty) {
+      _snackError('Cancel enrollment', 'Missing enrollment id');
+      return false;
+    }
+    try {
+      _syncNetworkBearerFromStorage();
+      final response = await _authRepo.cancelCustomerEnrollmentRepo(id);
+      if (response is! Map<String, dynamic>) {
+        _snackError('Cancel enrollment', 'Unexpected response from server');
+        return false;
+      }
+      if (response['success'] != true) {
+        _snackError('Cancel enrollment', response['message']?.toString() ?? 'Could not cancel enrollment');
+        return false;
+      }
+      final msg = response['message']?.toString() ?? 'Enrollment cancelled successfully';
+      if (showSuccessMessage) {
+        Get.snackbar('Success', msg, snackPosition: SnackPosition.BOTTOM);
+      }
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Cancel enrollment', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Cancel enrollment', e.message);
+      return false;
+    } on ForbiddenException catch (e) {
+      _snackError('Cancel enrollment', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('Cancel enrollment', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Cancel enrollment', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Cancel enrollment', e.message);
+      return false;
+    } on NotFoundException catch (e) {
+      _snackError('Cancel enrollment', e.message);
+      return false;
+    } catch (e) {
+      _snackError('Cancel enrollment', e);
+      return false;
+    }
+  }
+
   /// `GET /customer/bundle/:id` — returns a map aligned with bundle detail UI, or null.
   Future<Map<String, dynamic>?> fetchMarketplaceBundleDetail(String bundleId) async {
     final id = bundleId.trim();

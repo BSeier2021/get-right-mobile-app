@@ -564,6 +564,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       if (detail != null) {
         final wasEnrolled = _isEnrolled || _safeProgram['isEnrolled'] == true || _safeProgram['purchased'] == true;
         final hidePricing = _safeProgram['hidePricing'] == true;
+        final hideAddToCalendar = _safeProgram['hideAddToCalendar'] == true;
+        final showAddToCalendar = _safeProgram['showAddToCalendar'] == true;
         final previousStatus = _safeProgram['status']?.toString();
         final keepReviewText = _reviewCommentController.text;
         final keepRatingVal = _rating;
@@ -579,6 +581,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
           _safeProgram['isEnrolled'] = true;
           _safeProgram['purchased'] = true;
           if (hidePricing) _safeProgram['hidePricing'] = true;
+          if (hideAddToCalendar) _safeProgram['hideAddToCalendar'] = true;
+          if (showAddToCalendar) _safeProgram['showAddToCalendar'] = true;
           _safeProgram['status'] ??= previousStatus ?? 'active';
           _syncEnrollmentFromProgram();
         }
@@ -709,8 +713,12 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
 
   bool get _canAddProgramToCalendar {
     if (!_isEnrolled) return false;
+    if (_safeProgram['showAddToCalendar'] == true) return true;
+    if (_safeProgram['hideAddToCalendar'] == true) return false;
     final status = _safeProgram['status']?.toString().toLowerCase().trim() ?? '';
-    return status != 'cancelled';
+    if (status == 'scheduled') return false;
+    if (status == 'cancelled') return true;
+    return true;
   }
 
   DateTime _defaultProgramCalendarStartDate() {

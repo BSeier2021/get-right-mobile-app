@@ -204,6 +204,10 @@ class AppUrl {
   /// `GET /customer/program/enrolled/:enrollmentId` — single enrollment with nested `program` (full media, exercises).
   static String customerProgramEnrolledDetail(String enrollmentId) => '$baseUrl/customer/program/enrolled/${Uri.encodeComponent(enrollmentId.trim())}';
 
+  /// `POST /customer/program/enrolled/:enrollmentId/cancel` — cancel a scheduled enrollment.
+  static String customerProgramEnrolledCancel(String enrollmentId) =>
+      '$baseUrl/customer/program/enrolled/${Uri.encodeComponent(enrollmentId.trim())}/cancel';
+
   /// `GET /customer/bundle` — paginated bundle deals (`page`, `limit`). Response: `data.bundles`, `totalDocs`, `hasNextPage`.
   static String customerBundles({required int page, required int limit}) {
     final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;
