@@ -55,10 +55,39 @@ class AuthController extends GetxController {
 
   AuthController(this._storageService);
 
+  StreamSubscription<Map<String, dynamic>>? _accountBlockedSub;
+  bool _accountBlockLogoutInProgress = false;
+
   @override
   void onInit() {
     super.onInit();
     _syncNetworkBearerFromStorage();
+    _attachAccountBlockedListener();
+  }
+
+  @override
+  void onClose() {
+    _accountBlockedSub?.cancel();
+    _accountBlockedSub = null;
+    super.onClose();
+  }
+
+  void _attachAccountBlockedListener() {
+    _accountBlockedSub?.cancel();
+    _accountBlockedSub = ChatSocketService.instance.onAccountBlocked.listen(_handleAccountBlockedByAdmin);
+  }
+
+  Future<void> _handleAccountBlockedByAdmin(Map<String, dynamic> payload) async {
+    if (_accountBlockLogoutInProgress || !isLoggedIn()) return;
+    _accountBlockLogoutInProgress = true;
+    final message = payload['message']?.toString().trim();
+    Get.snackbar(
+      'Account blocked',
+      message != null && message.isNotEmpty ? message : 'Your account has been blocked by an administrator.',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+    await logout();
+    _accountBlockLogoutInProgress = false;
   }
 
   bool _isLoading = false;

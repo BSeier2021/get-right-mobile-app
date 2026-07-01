@@ -29,16 +29,19 @@ class ChatSocketService {
   final StreamController<Map<String, dynamic>> _userStatusController = StreamController.broadcast();
   final StreamController<Map<String, dynamic>> _conversationBlockController = StreamController.broadcast();
   final StreamController<Map<String, dynamic>> _conversationUpdatedController = StreamController.broadcast();
+  final StreamController<Map<String, dynamic>> _accountBlockedController = StreamController.broadcast();
   final StreamController<bool> _connectionController = StreamController.broadcast();
 
   /// Direct handler — always invoked before the stream (avoids missed broadcast events).
   void Function(Map<String, dynamic> payload)? onMessageReceived;
+  void Function(Map<String, dynamic> payload)? onAccountBlockedReceived;
 
   Stream<Map<String, dynamic>> get onNewMessage => _newMessageController.stream;
   Stream<Map<String, dynamic>> get onUserTyping => _userTypingController.stream;
   Stream<Map<String, dynamic>> get onUserStatusChanged => _userStatusController.stream;
   Stream<Map<String, dynamic>> get onConversationBlockChanged => _conversationBlockController.stream;
   Stream<Map<String, dynamic>> get onConversationUpdated => _conversationUpdatedController.stream;
+  Stream<Map<String, dynamic>> get onAccountBlocked => _accountBlockedController.stream;
   Stream<bool> get onConnectionChanged => _connectionController.stream;
 
   bool get isConnected => _socket?.connected == true;
@@ -231,9 +234,17 @@ class ChatSocketService {
       });
     }
 
+    for (final event in const ['account-blocked', 'accountBlocked']) {
+      _socket!.on(event, (data) {
+        debugPrint('[ChatSocket] $event: $data');
+        _dispatchAccountBlocked(_asMap(data) ?? <String, dynamic>{}, source: event);
+      });
+    }
+
     _socket!.onAny((event, data) {
       debugPrint('[ChatSocket] onAny: $event');
       if (event == 'new-message' || event == 'newMessage' || event == 'message') return;
+      if (event == 'account-blocked' || event == 'accountBlocked') return;
       final map = _asMap(data);
       if (map == null) return;
       _dispatchConversationBlockIfPresent(map, source: event);
@@ -247,6 +258,14 @@ class ChatSocketService {
     debugPrint('[ChatSocket] $source → block status update');
     if (!_conversationBlockController.isClosed) {
       _conversationBlockController.add(map);
+    }
+  }
+
+  void _dispatchAccountBlocked(Map<String, dynamic> map, {required String source}) {
+    debugPrint('[ChatSocket] $source → admin account block');
+    onAccountBlockedReceived?.call(map);
+    if (!_accountBlockedController.isClosed) {
+      _accountBlockedController.add(map);
     }
   }
 
