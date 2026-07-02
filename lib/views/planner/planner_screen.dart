@@ -2422,6 +2422,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final notes = workout['notes']?.toString().trim() ?? '';
     final journalDateRaw = workout['journalDate']?.toString();
     final journalDate = journalDateRaw != null ? DateTime.tryParse(journalDateRaw) : null;
+    final journalType = workout['journalType']?.toString().trim();
     final workouts = workout['workouts'] is List ? (workout['workouts'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : <Map<String, dynamic>>[];
 
     return Container(
@@ -2448,7 +2449,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Workout Journal',
+                      journalType != null && journalType.isNotEmpty ? '$journalType Journal' : 'Workout Journal',
                       style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 17),
                     ),
                     if (journalDate != null) ...[
@@ -2511,7 +2512,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
   Widget _buildJournalExerciseTile(Map<String, dynamic> workout, int order) {
     final name = workout['name']?.toString().trim().isNotEmpty == true ? workout['name'].toString() : 'Exercise $order';
     final iconUrl = workout['iconUrl']?.toString();
+    final exerciseType = workout['exerciseType']?.toString();
     final sets = workout['sets'] is List ? (workout['sets'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : <Map<String, dynamic>>[];
+    final showReps = sets.any((s) => s['hasReps'] == true);
+    final showTime = sets.any((s) => s['hasTime'] == true);
+    final showWeight = sets.any((s) => s['hasWeight'] == true);
+    final showDistance = sets.any((s) => s['hasDistance'] == true);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -2543,9 +2549,18 @@ class _PlannerScreenState extends State<PlannerScreen> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  name,
-                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                    ),
+                    if (exerciseType != null && exerciseType.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(exerciseType, style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600)),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -2555,73 +2570,106 @@ class _PlannerScreenState extends State<PlannerScreen> {
             Row(
               children: [
                 Expanded(
-                  flex: 1,
-                  child: Text(
+                  flex: 2,
+                  child: Center(child: Text(
                     'Set',
                     style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
-                  ),
+                  )),
                 ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Reps',
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                if (showTime)
+                  Expanded(
+                    flex: 2,
+                    child: Center(child: Text(
+                      'Time',
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                    )),
                   ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Weight',
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                if (showReps)
+                  Expanded(
+                    flex: 2,
+                    child: Center(child: Text(
+                      'Reps',
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                    )),
                   ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Rest',
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                if (showDistance)
+                  Expanded(
+                    flex: 2,
+                    child: Center(child: Text(
+                      'Distance',
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                    )),
                   ),
-                ),
+                if (showWeight)
+                  Expanded(
+                    flex: 2,
+                    child: Center(child: Text(
+                      'Weight',
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+                    )),
+                  ),
               ],
             ),
             const SizedBox(height: 6),
-            ...sets.map((set) => _buildJournalSetRow(set)),
+            ...sets.map((set) => _buildJournalSetRow(
+                  set,
+                  showReps: showReps,
+                  showTime: showTime,
+                  showWeight: showWeight,
+                  showDistance: showDistance,
+                )),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildJournalSetRow(Map<String, dynamic> set) {
+  Widget _buildJournalSetRow(
+    Map<String, dynamic> set, {
+    required bool showReps,
+    required bool showTime,
+    required bool showWeight,
+    required bool showDistance,
+  }) {
     final setNumber = set['setNumber']?.toString() ?? '-';
     final reps = set['reps']?.toString() ?? '-';
-    final weightRaw = set['weight']?.toString() ?? '-';
-    final weight = weightRaw != '-' && weightRaw.isNotEmpty ? '$weightRaw kg' : '-';
-    final rest = _formatProgramRest(set['restTime']);
+    final time = set['time']?.toString() ?? '-';
+    final distanceRaw = set['distance'];
+    final distance = distanceRaw is num ? '${distanceRaw % 1 == 0 ? distanceRaw.toInt() : distanceRaw}' : '-';
+    final weightRaw = set['weight']?.toString();
+    final weight = weightRaw != null && weightRaw.isNotEmpty ? (weightRaw.toUpperCase() == 'BW' ? 'BW' : '$weightRaw kg') : '-';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Expanded(
-            flex: 1,
-            child: Text(
+            flex: 2,
+            child: Center(child: Text(
               setNumber,
               style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+            )),
+          ),
+          if (showTime)
+            Expanded(
+              flex: 2,
+              child: Center(child: Text(time, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface))),
             ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(reps, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(weight, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(rest.isNotEmpty ? rest : '-', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
-          ),
+          if (showReps)
+            Expanded(
+              flex: 2,
+              child: Center(child: Text(reps, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface))),
+            ),
+          if (showDistance)
+            Expanded(
+              flex: 2,
+              child: Center(child: Text(distance, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface))),
+            ),
+          if (showWeight)
+            Expanded(
+              flex: 2,
+              child: Center(child: Text(weight, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface))),
+            ),
         ],
       ),
     );

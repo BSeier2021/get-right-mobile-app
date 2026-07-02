@@ -189,9 +189,9 @@ class _AddFoodGatewayScreenState extends State<AddFoodGatewayScreen> {
   };
 
   String _iconAsset(MealType type) => switch (type) {
-    MealType.breakfast => 'assets/images/Group 48099133.png',
-    MealType.lunch => 'assets/images/Subtract.png',
-    MealType.dinner => 'assets/images/Subtract (1).png',
-    MealType.snacks => 'assets/images/Group 48099134.png',
+    MealType.breakfast => 'assets/images/meal_breakfast.png',
+    MealType.lunch => 'assets/images/meal_lunch.png',
+    MealType.dinner => 'assets/images/meal_dinner.png',
+    MealType.snacks => 'assets/images/meal_snacks.png',
   };
 }

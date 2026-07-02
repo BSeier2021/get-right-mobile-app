@@ -197,18 +197,78 @@ class CalendarRepository {
     }
 
     final durationSeconds = _intFrom(journal['duration']) ?? 0;
-    final calories = durationSeconds > 0 ? (durationSeconds / 60 * 5).round() : 0;
+    final journalCalories = _intFrom(journal['caloriesBurned']);
+    final calories = journalCalories ?? (durationSeconds > 0 ? (durationSeconds / 60 * 5).round() : 0);
     final parsedWorkouts = journalWorkoutsFromJournal(journal);
 
     return {
       'duration': formatDurationSeconds(durationSeconds),
+      'durationSeconds': durationSeconds,
       'exercises': parsedWorkouts.length,
       'sets': setCount,
       'calories': calories,
       'journalId': journal['_id']?.toString(),
+      'journalType': journal['type']?.toString(),
       'notes': journal['notes']?.toString().trim() ?? '',
       'journalDate': journal['date']?.toString(),
       'workouts': parsedWorkouts,
+    };
+  }
+
+  static Map<String, dynamic> journalSetFromApi(Map<String, dynamic> setMap, int fallbackIndex) {
+    final setNumber = _intFrom(setMap['sets']) ?? (fallbackIndex + 1);
+    final restTime = _intFrom(setMap['restTime']);
+
+    int? timeSeconds;
+    final timeField = setMap['time'];
+    if (timeField is num && timeField > 0) {
+      timeSeconds = timeField.toInt();
+    } else {
+      timeSeconds = WorkoutRepository.decodeTimedSecondsFromApiReps(setMap['reps']);
+    }
+
+    String? repsDisplay;
+    final repsRaw = setMap['reps'];
+    if (repsRaw == 'FAILURE') {
+      repsDisplay = 'FAILURE';
+    } else if (repsRaw == 'AMRAP') {
+      repsDisplay = 'AMRAP';
+    } else if (timeSeconds == null || timeSeconds <= 0) {
+      if (repsRaw != null) {
+        final parsed = int.tryParse(repsRaw.toString());
+        if (parsed != null && parsed > 0) repsDisplay = parsed.toString();
+      }
+    }
+
+    String? weightDisplay;
+    final weightRaw = setMap['weight'];
+    if (weightRaw != null) {
+      final ws = weightRaw.toString().trim();
+      if (ws.toUpperCase() == 'BW') {
+        weightDisplay = 'BW';
+      } else if (ws.isNotEmpty && ws.toLowerCase() != 'null') {
+        weightDisplay = ws;
+      }
+    }
+
+    double? distance;
+    final distanceRaw = setMap['distance'];
+    if (distanceRaw is num && distanceRaw > 0) {
+      distance = distanceRaw.toDouble();
+    }
+
+    return {
+      'setNumber': setNumber,
+      'reps': repsDisplay,
+      'weight': weightDisplay,
+      'timeSeconds': timeSeconds,
+      'time': timeSeconds != null && timeSeconds > 0 ? formatDurationSeconds(timeSeconds) : null,
+      'distance': distance,
+      'restTime': restTime,
+      'hasReps': repsDisplay != null,
+      'hasWeight': weightDisplay != null,
+      'hasTime': timeSeconds != null && timeSeconds > 0,
+      'hasDistance': distance != null && distance > 0,
     };
   }
 
@@ -243,17 +303,11 @@ class CalendarRepository {
         for (var i = 0; i < exerciseSets.length; i++) {
           final setRaw = exerciseSets[i];
           if (setRaw is! Map) continue;
-          final setMap = Map<String, dynamic>.from(setRaw);
-          sets.add({
-            'setNumber': _intFrom(setMap['sets']) ?? (i + 1),
-            'reps': setMap['reps']?.toString() ?? '-',
-            'weight': setMap['weight']?.toString() ?? '-',
-            'restTime': _intFrom(setMap['restTime']),
-          });
+          sets.add(journalSetFromApi(Map<String, dynamic>.from(setRaw), i));
         }
       }
 
-      final exerciseType = WorkoutRepository.workoutItemTypeFromMap(workout)?.apiValue;
+      final exerciseType = WorkoutRepository.workoutItemTypeFromMap(workout)?.apiValue ?? journal['type']?.toString();
 
       result.add({
         'id': workout['_id']?.toString(),

@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
-import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/models/exercise_set_model.dart';
+import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/models/journal_exercise_type.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/repo/workout_repo.dart';
@@ -435,41 +435,30 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   }
 
   List<Map<String, dynamic>> _buildApiExerciseSets(_Config cfg) {
-    const defaultRestTime = 90;
-    final sets = <Map<String, dynamic>>[];
+    final models = <ExerciseSetModel>[];
 
     for (var i = 0; i < cfg.sets.length; i++) {
       final s = cfg.sets[i];
       if (!_setHasData(s, cfg)) continue;
 
-      final entry = <String, dynamic>{'sets': i + 1, 'restTime': defaultRestTime};
-
-      if (cfg.mainType == 'Time') {
-        entry['reps'] = WorkoutRepository.encodeTimedRepsForApi(s.time);
-      } else if (s.repsType == 'FAILURE') {
-        entry['reps'] = 'FAILURE';
-      } else if (s.repsType == 'AMRAP') {
-        entry['reps'] = 'AMRAP';
-      } else {
-        entry['reps'] = s.reps;
-      }
-
-      if (cfg.extraType == 'Weight') {
-        if (s.isBodyweight) {
-          entry['weight'] = 'BW';
-        } else if (s.weight > 0) {
-          entry['weight'] = s.weight % 1 == 0 ? s.weight.toInt() : s.weight;
-        }
-      }
-
-      if (cfg.extraType == 'Distance' && s.distance > 0) {
-        entry['distance'] = s.distance % 1 == 0 ? s.distance.toInt() : s.distance;
-      }
-
-      sets.add(entry);
+      models.add(
+        ExerciseSetModel(
+          id: 'set_${i + 1}',
+          setNumber: i + 1,
+          reps: cfg.mainType != 'Time' && s.repsType != 'AMRAP' && s.repsType != 'FAILURE' ? s.reps : null,
+          repsType: cfg.mainType != 'Time' ? s.repsType : null,
+          timeSeconds: cfg.mainType == 'Time' && s.time > 0 ? s.time : null,
+          weight: cfg.extraType == 'Weight' ? s.weight : null,
+          weightType: cfg.extraType == 'Weight'
+              ? (s.isBodyweight ? 'BW' : (s.weight > 0 ? 'standard' : null))
+              : null,
+          distance: cfg.extraType == 'Distance' && s.distance > 0 ? s.distance : null,
+          distanceUnit: cfg.extraType == 'Distance' ? s.distanceUnit : null,
+        ),
+      );
     }
 
-    return sets;
+    return WorkoutRepository.exerciseSetsToApi(models);
   }
 
   bool _setHasData(_SetData setData, _Config cfg) {

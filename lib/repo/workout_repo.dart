@@ -287,30 +287,39 @@ class WorkoutRepository {
     return note;
   }
 
-  /// Encodes [ExerciseSetModel] list for `PUT /customer/workout/:id`.
+  /// Encodes [ExerciseSetModel] list for `POST/PUT /customer/workout`.
   static List<Map<String, dynamic>> exerciseSetsToApi(List<ExerciseSetModel> sets) {
     const defaultRestTime = 90;
     final out = <Map<String, dynamic>>[];
     for (var i = 0; i < sets.length; i++) {
       final s = sets[i];
-      final entry = <String, dynamic>{'sets': s.setNumber > 0 ? s.setNumber : i + 1, 'restTime': defaultRestTime};
+      final entry = <String, dynamic>{
+        'sets': s.setNumber > 0 ? s.setNumber : i + 1,
+        'restTime': defaultRestTime,
+      };
+
       if (s.isTimed && s.timeSeconds != null && s.timeSeconds! > 0) {
-        entry['reps'] = encodeTimedRepsForApi(s.timeSeconds!);
+        entry['time'] = s.timeSeconds;
       } else if (s.isFAILURE) {
         entry['reps'] = 'FAILURE';
       } else if (s.isAMRAP) {
         entry['reps'] = 'AMRAP';
-      } else {
-        entry['reps'] = s.reps ?? 0;
+      } else if (s.reps != null && s.reps! > 0) {
+        entry['reps'] = s.reps.toString();
       }
+
       if (s.isBodyweight) {
         entry['weight'] = 'BW';
       } else if (s.weight != null && s.weight! > 0) {
-        entry['weight'] = s.weight! % 1 == 0 ? s.weight!.toInt() : s.weight;
+        final w = s.weight!;
+        entry['weight'] = w % 1 == 0 ? w.toInt().toString() : w.toString();
       }
+
       if (s.distance != null && s.distance! > 0) {
-        entry['distance'] = s.distance;
+        final d = s.distance!;
+        entry['distance'] = d % 1 == 0 ? d.toInt() : d;
       }
+
       out.add(entry);
     }
     return out;
