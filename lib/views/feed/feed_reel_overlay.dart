@@ -12,6 +12,7 @@ import 'package:get_right/views/feed/feed_comments_sheet.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 import 'package:get_right/utils/feed_media_url.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:video_player/video_player.dart';
@@ -319,6 +320,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     final String creatorName = (_post['creator'] ?? 'Creator').toString();
     final String initials = (_post['creatorImage'] ?? 'UT').toString();
     final bool isTrainer = _post['isTrainer'] == true;
+    final bool certificationsVerified = isCertifiedFromUiMap(_post);
     final String category = (_post['category'] ?? 'Fitness').toString();
 
     final String creatorId = (_post['creatorId'] ?? '').toString().trim();
@@ -337,8 +339,9 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
           : 'Fitness enthusiast sharing ${category.toLowerCase()} content with the community.',
       'specialties': <String>[category, 'Training', if (isTrainer) 'Coaching'],
       'yearsOfExperience': isTrainer ? 6 : 2,
-      'certified': isTrainer,
-      'certifications': isTrainer ? ['Certified Personal Trainer'] : null,
+      'isCertificationsVerified': certificationsVerified,
+      'certified': certificationsVerified,
+      'certifications': certificationsVerified ? ['Certified Personal Trainer'] : null,
       'hourlyRate': 75.0,
       'rating': 4.8,
       'totalReviews': 127,
@@ -744,14 +747,23 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       children: [
         GestureDetector(
           onTap: _navigateToCreatorProfile,
-          child: Text(
-            '@${(_post['creator'] ?? 'user').toString().toLowerCase().replaceAll(' ', '')}',
-            style: AppTextStyles.titleSmall.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '@${(_post['creator'] ?? 'user').toString().toLowerCase().replaceAll(' ', '')}',
+                style: AppTextStyles.titleSmall.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+                ),
+              ),
+              if (showFeedCreatorVerifiedBadge(_post)) ...[
+                const SizedBox(width: 6),
+                verifiedBadgeIcon(size: 16),
+              ],
+            ],
           ),
         ),
         if (((_post['title'] ?? '').toString().trim()).isNotEmpty) ...[

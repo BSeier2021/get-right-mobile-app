@@ -23,6 +23,21 @@ class ChatSocketService {
   Timer? _joinRetryTimer;
   int _joinRetryCount = 0;
   bool _authRejected = false;
+  static bool _transportErrorHandlerInstalled = false;
+
+  void _installTransportErrorHandler() {
+    if (_transportErrorHandlerInstalled) return;
+    _transportErrorHandlerInstalled = true;
+    final previous = PlatformDispatcher.instance.onError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      final text = error.toString();
+      if (text.contains('WebSocketConnectionClosed') || text.contains('Connection Closed')) {
+        debugPrint('[ChatSocket] ignored transport close: $text');
+        return true;
+      }
+      return previous?.call(error, stack) ?? false;
+    };
+  }
 
   final StreamController<Map<String, dynamic>> _newMessageController = StreamController.broadcast();
   final StreamController<Map<String, dynamic>> _userTypingController = StreamController.broadcast();
@@ -58,6 +73,8 @@ class ChatSocketService {
   Future<void> connect() async {
     if (_socket?.connected == true) return;
     if (_connectCompleter != null) return _connectCompleter!.future;
+
+    _installTransportErrorHandler();
 
     final completer = Completer<void>();
     _connectCompleter = completer;
@@ -263,6 +280,9 @@ class ChatSocketService {
 
   void _dispatchAccountBlocked(Map<String, dynamic> map, {required String source}) {
     debugPrint('[ChatSocket] $source → admin account block');
+    _authRejected = true;
+    _joinRetryTimer?.cancel();
+    _joinedConversationId = null;
     onAccountBlockedReceived?.call(map);
     if (!_accountBlockedController.isClosed) {
       _accountBlockedController.add(map);
@@ -416,17 +436,31 @@ class ChatSocketService {
   void disconnect() {
     _joinRetryTimer?.cancel();
     _joinRetryCount = 0;
-    _authRejected = false;
-    final joined = _joinedConversationId;
-    if (joined != null && joined.isNotEmpty) {
-      leaveConversation(joined);
-    }
-    _connectCompleter = null;
-    _socket?.disconnect();
-    _socket?.dispose();
-    _socket = null;
-    _listenersAttached = false;
+    _authRejected = true;
     _joinedConversationId = null;
+    _listenersAttached = false;
+    _connectCompleter = null;
+
+    final socket = _socket;
+    _socket = null;
+    if (socket == null) return;
+
+    runZonedGuarded(() {
+      try {
+        if (socket.connected) {
+          socket.disconnect();
+        }
+      } catch (e) {
+        debugPrint('[ChatSocket] disconnect ignored: $e');
+      }
+      try {
+        socket.dispose();
+      } catch (e) {
+        debugPrint('[ChatSocket] dispose ignored: $e');
+      }
+    }, (error, stack) {
+      debugPrint('[ChatSocket] teardown ignored: $error');
+    });
   }
 
   void _emitJoinConversation(String conversationId) {

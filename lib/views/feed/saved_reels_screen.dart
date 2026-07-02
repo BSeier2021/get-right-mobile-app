@@ -4,6 +4,7 @@ import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 import 'package:get_right/utils/feed_post_mapper.dart';
 import 'package:get_right/views/feed/feed_reel_overlay.dart';
 
@@ -150,7 +151,7 @@ class _SavedReelsScreenState extends State<SavedReelsScreen> {
   }
 
   Widget _buildGridItem(Map<String, dynamic> post, int index) {
-    final isTrainer = post['isTrainer'] == true;
+    final showVerified = showFeedCreatorVerifiedBadge(post);
     final isVideo = post['isVideo'] == true;
     return GestureDetector(
       onTap: () => _openPost(index),
@@ -179,14 +180,14 @@ class _SavedReelsScreenState extends State<SavedReelsScreen> {
                 child: Icon(Icons.play_arrow, color: AppColors.accent, size: 24),
               ),
             ),
-          if (isTrainer)
+          if (showVerified)
             Positioned(
               top: 6,
               right: 6,
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(color: const Color.fromARGB(153, 71, 71, 71), shape: BoxShape.circle),
-                child: Icon(Icons.verified, color: AppColors.completed, size: 18),
+                child: verifiedBadgeIcon(size: 18),
               ),
             ),
         ],

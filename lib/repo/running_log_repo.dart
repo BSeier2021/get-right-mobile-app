@@ -531,6 +531,21 @@ class RunningLogRepository {
     return dm['_id']?.toString();
   }
 
+  static int elevationGainForApi(double? elevationGain) {
+    if (elevationGain == null || elevationGain.isNaN || elevationGain.isInfinite) {
+      return 0;
+    }
+    return elevationGain.round().clamp(0, 999999);
+  }
+
+  static Map<String, dynamic> sanitizeRunningLogBody(Map<String, dynamic> body) {
+    final sanitized = Map<String, dynamic>.from(body);
+    sanitized['elevationGain'] = elevationGainForApi(
+      sanitized['elevationGain'] is num ? (sanitized['elevationGain'] as num).toDouble() : null,
+    );
+    return sanitized;
+  }
+
   /// Builds `POST /customer/running-logs` body from a completed [RunModel].
   static Map<String, dynamic> createRunningLogBody({
     required RunModel run,
@@ -544,16 +559,81 @@ class RunningLogRepository {
       'endTime': run.endTime.toUtc().toIso8601String(),
       'route': routeId.trim(),
       'routePoints': run.routePoints?.length ?? 0,
+      'elevationGain': elevationGainForApi(run.elevationGain),
     };
 
-    if (run.elevationGain != null) {
-      body['elevationGain'] = run.elevationGain!.round();
-    }
     if (run.caloriesBurned != null) {
       body['caloriesBurned'] = run.caloriesBurned;
     }
 
     return body;
+  }
+
+  /// Placeholder map points for manual runs (backend uses `estimatedDistance` / `estimatedTime`).
+  static List<LatLng> manualRoutePlaceholderPoints() {
+    const start = LatLng(51.5074, -0.1278);
+    const end = LatLng(51.5074, -0.1270);
+    return [start, end];
+  }
+
+  static int estimateCaloriesForManualRun({
+    required String activityType,
+    required double distanceKm,
+  }) {
+    final caloriesPerKm = switch (activityType.toLowerCase()) {
+      'walk' => 40,
+      'jog' => 55,
+      'bike' => 30,
+      _ => 70,
+    };
+    return (distanceKm * caloriesPerKm).round();
+  }
+
+  /// Creates a backend route + running log for a manually entered activity (no GPS track).
+  Future<Map<String, dynamic>> saveManualRunningLog({
+    required DateTime startTime,
+    required DateTime endTime,
+    required String activityType,
+    required double distanceMeters,
+    required Duration duration,
+    int? caloriesBurned,
+  }) async {
+    if (distanceMeters <= 0) {
+      throw Exception('Distance must be greater than zero');
+    }
+    if (duration.inSeconds <= 0) {
+      throw Exception('Duration must be greater than zero');
+    }
+
+    final routeBody = createPlannedRouteBodyFromMapPoints(
+      points: manualRoutePlaceholderPoints(),
+      estimatedDistanceMeters: distanceMeters,
+      estimatedTimeSeconds: duration.inSeconds,
+      startName: 'Manual Entry',
+      endName: 'Manual Entry',
+    );
+    logPlannedRouteSavePayload(routeBody);
+    final routeResponse = await createPlannedRoute(routeBody);
+    final routeId = plannedRouteIdFrom(routeResponse);
+    if (routeId == null || routeId.isEmpty) {
+      throw Exception('Could not create route for manual run');
+    }
+
+    final body = <String, dynamic>{
+      'runningType': runningTypeFromActivity(activityType),
+      'distance': distanceMeters.round(),
+      'duration': duration.inSeconds,
+      'startTime': startTime.toUtc().toIso8601String(),
+      'endTime': endTime.toUtc().toIso8601String(),
+      'route': routeId,
+      'routePoints': 0,
+      'elevationGain': 0,
+    };
+    if (caloriesBurned != null && caloriesBurned > 0) {
+      body['caloriesBurned'] = caloriesBurned;
+    }
+
+    return createRunningLog(body);
   }
 
   /// Creates backend route (if needed) then posts the running log.
@@ -564,13 +644,14 @@ class RunningLogRepository {
     final points = run.routePoints ?? const <LocationPoint>[];
     final routeId = await ensureRouteId(points: points, existingRouteId: existingRouteId);
     final body = createRunningLogBody(run: run, routeId: routeId);
-    logRunningLogSavePayload(body);
     return createRunningLog(body);
   }
 
   /// `POST /customer/running-logs` — persist a completed run on the server.
   Future<Map<String, dynamic>> createRunningLog(Map<String, dynamic> body) async {
-    final raw = await _network.post(AppUrl.customerRunningLogs, body);
+    final payload = sanitizeRunningLogBody(body);
+    logRunningLogSavePayload(payload);
+    final raw = await _network.post(AppUrl.customerRunningLogs, payload);
     if (!_isOk(raw)) {
       throw Exception(_messageFrom(raw) ?? 'Could not save running log');
     }

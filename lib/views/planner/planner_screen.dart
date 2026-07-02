@@ -51,7 +51,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   bool get _canMarkAsComplete {
-    final status = _getDataForDate(_selectedDate)?['workoutStatus']?.toString();
+    final data = _getDataForDate(_selectedDate);
+    if (!_dayHasVisibleContent(data)) return false;
+    final status = data?['workoutStatus']?.toString();
     return status != 'completed' && status != 'rest';
   }
 
@@ -1904,7 +1906,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   ),
                 ),
               ),
-              _buildMarkAsCompleteButton(),
             ],
           ),
         ),

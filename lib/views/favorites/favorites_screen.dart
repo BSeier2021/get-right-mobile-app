@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:get_right/controllers/favorites_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 
@@ -391,7 +392,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
     final enrolled = _formatEnrolled(item['students']);
     final price = _formatPrice(item['price']);
     final showHot = item['hot'] == true || item['isHot'] == true || (item['hot'] == null && item['isHot'] == null);
-    final showCertified = item['certified'] == true || item['isCertified'] == true || (item['certified'] == null && item['isCertified'] == null);
+    final showCertified = isCertifiedFromUiMap(Map<String, dynamic>.from(item));
     final isDemo = item['_isDemo'] == true;
 
     return Material(

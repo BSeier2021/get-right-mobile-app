@@ -386,19 +386,6 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           }
         }
 
-        if (createdApiIds.isEmpty) {
-          final discovered = await _workoutRepo.findNewWorkoutIdsAfterCreate(beforeIds: _journalWorkoutIds);
-          createdApiIds.addAll(discovered);
-        }
-
-        if (createdApiIds.isNotEmpty) {
-          journalId = await _workoutRepo.consolidateDayJournal(
-            newWorkoutIds: createdApiIds,
-            existingJournalWorkoutIds: _journalWorkoutIds,
-            preferredJournalId: journalId,
-            date: HomeNavigationController.journalDayOrNow(),
-          );
-        }
         _workoutJournalId = journalId;
       } catch (e) {
         if (mounted) setState(() => _isSaving = false);
@@ -1243,7 +1230,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                         // Update controller text when data changes
                         data.updateControllerText(cfg.mainType);
                         return TextField(
-                          key: ValueKey('reps_${cfgIdx}_${setIdx}_${data.repsType}_${data.reps}_${cfg.mainType == 'Time' ? data.timeUnit : ''}'),
+                          key: ValueKey('reps_${cfgIdx}_${setIdx}_${data.repsType}_${cfg.mainType}_${cfg.mainType == 'Time' ? data.timeUnit : ''}'),
                           focusNode: data.repsTimeFocusNode,
                           controller: data.repsTimeController,
                           textAlign: TextAlign.center,

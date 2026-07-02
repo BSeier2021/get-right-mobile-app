@@ -4,6 +4,7 @@ import 'package:get_right/controllers/search_controller.dart' as search_ctrl;
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 
 /// Search Results Screen
 class SearchResultsScreen extends StatelessWidget {
@@ -209,7 +210,7 @@ class SearchResultsScreen extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (item['certified'] == true)
+                      if (isCertifiedFromUiMap(Map<String, dynamic>.from(item)))
                         Padding(
                           padding: const EdgeInsets.only(left: 4),
                           child: Icon(Icons.verified, size: 16, color: AppColors.accent),

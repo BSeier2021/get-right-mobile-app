@@ -27,6 +27,7 @@ import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/bundle_card_mapper.dart';
 import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 
 /// Routes after async work + [GetxController.update] in the same frame can hit
 /// `Navigator._debugLocked`; scheduling avoids that.
@@ -86,8 +87,12 @@ class AuthController extends GetxController {
       message != null && message.isNotEmpty ? message : 'Your account has been blocked by an administrator.',
       snackPosition: SnackPosition.BOTTOM,
     );
-    await logout();
-    _accountBlockLogoutInProgress = false;
+    try {
+      _disconnectChatSocket();
+      await logout(skipRemoteLogout: true);
+    } finally {
+      _accountBlockLogoutInProgress = false;
+    }
   }
 
   bool _isLoading = false;
@@ -237,7 +242,11 @@ class AuthController extends GetxController {
   }
 
   void _disconnectChatSocket() {
-    ChatSocketService.instance.disconnect();
+    try {
+      ChatSocketService.instance.disconnect();
+    } catch (e) {
+      debugPrint('[Auth] chat socket disconnect failed: $e');
+    }
   }
 
   /// Removes only JWT storage so a stale token cannot be sent after OTP until a new token is saved.
@@ -588,6 +597,9 @@ class AuthController extends GetxController {
     }
     if (dto.bio != null && dto.bio!.trim().isNotEmpty) {
       await _storageService.saveString('user_bio', dto.bio!.trim());
+    }
+    if (dto.weight != null && dto.weight! > 0) {
+      await _storageService.saveString('user_weight', dto.weight!.toString());
     }
     if (dto.primaryFocus != null && dto.primaryFocus!.trim().isNotEmpty) {
       await _storageService.saveUserPreference(_slugToReadable(dto.primaryFocus!.trim()));
@@ -956,7 +968,14 @@ class AuthController extends GetxController {
       'trainer': trainerName,
       'trainerImage': trainerInitials,
       if (trainerAvatarUrl != null) 'trainerImageUrl': trainerAvatarUrl,
-      'isCertified': inner['isCertified'] == true,
+      ...() {
+        final verified = isCertificationsVerifiedFromBundleApi(inner!);
+        return {
+          'isCertificationsVerified': verified,
+          'isCertified': verified,
+          'certified': verified,
+        };
+      }(),
       '_apiBundle': inner,
     };
   }
@@ -982,7 +1001,14 @@ class AuthController extends GetxController {
       'category': p['focus']?.toString() ?? 'Program',
       'goal': p['level']?.toString() ?? '—',
       'imageUrl': ImageUrlSanitizer.asHttpUrlOrNull(p['coverImageUrl']?.toString()),
-      'certified': p['isCertified'] == true,
+      ...() {
+        final verified = isCertificationsVerifiedFromProgramApi(p);
+        return {
+          'isCertificationsVerified': verified,
+          'certified': verified,
+          'isCertified': verified,
+        };
+      }(),
     };
   }
 
@@ -1028,7 +1054,14 @@ class AuthController extends GetxController {
       'category': categoryStr,
       'goal': p['difficultyLevel']?.toString() ?? p['level']?.toString() ?? '—',
       'imageUrl': imageUrl,
-      'certified': p['isCertified'] == true,
+      ...() {
+        final verified = isCertificationsVerifiedFromProgramApi(p);
+        return {
+          'isCertificationsVerified': verified,
+          'certified': verified,
+          'isCertified': verified,
+        };
+      }(),
     };
   }
 
@@ -1192,7 +1225,14 @@ class AuthController extends GetxController {
         return 'Program';
       })(),
       'goal': (inner['difficultyLevel'] ?? inner['level'])?.toString() ?? 'Fitness',
-      'certified': inner['isCertified'] == true,
+      ...() {
+        final verified = isCertificationsVerifiedFromProgramApi(inner);
+        return {
+          'isCertificationsVerified': verified,
+          'certified': verified,
+          'isCertified': verified,
+        };
+      }(),
       'rating': 0.0,
       'students': 0,
       'reviews': 0,
@@ -1401,7 +1441,14 @@ class AuthController extends GetxController {
         return 'General';
       })(),
       'goal': (attrs['level'] ?? inner['difficultyLevel'] ?? inner['level'])?.toString() ?? 'Fitness',
-      'certified': inner['isCertified'] == true || trainer['is_certified'] == true,
+      ...() {
+        final verified = isCertificationsVerifiedFromApiNodes([inner, trainer, trainerProfile]);
+        return {
+          'isCertificationsVerified': verified,
+          'certified': verified,
+          'isCertified': verified,
+        };
+      }(),
       'rating': rating,
       'students': students,
       'reviews': reviewCount,
@@ -2011,12 +2058,26 @@ class AuthController extends GetxController {
   }
 
   /// Create customer profile — `POST /customer/profile/create` (multipart). Saves returned token and user ids.
-  Future<bool> createProfile({required String fullName, required String dateofbirth, required String gender, required String phoneNumber, File? profilePicture}) async {
+  Future<bool> createProfile({
+    required String fullName,
+    required String dateofbirth,
+    required String gender,
+    required String phoneNumber,
+    required num weight,
+    File? profilePicture,
+  }) async {
     try {
       _isLoading = true;
       update();
 
-      final response = await _authRepo.createProfileRepo(fullName: fullName, dateofbirth: dateofbirth, gender: gender, phoneNumber: phoneNumber, profilePicture: profilePicture);
+      final response = await _authRepo.createProfileRepo(
+        fullName: fullName,
+        dateofbirth: dateofbirth,
+        gender: gender,
+        phoneNumber: phoneNumber,
+        weight: weight,
+        profilePicture: profilePicture,
+      );
 
       if (response is! Map<String, dynamic>) {
         _snackError('Profile', 'Unexpected response from server');
@@ -2060,6 +2121,7 @@ class AuthController extends GetxController {
       await _storageService.saveString('user_date_of_birth', dateofbirth);
       await _storageService.saveString('user_gender', gender);
       await _storageService.saveString('user_phone', phoneNumber.trim());
+      await _storageService.saveString('user_weight', weight.toString());
 
       final message = response['message']?.toString();
       if (message != null && message.isNotEmpty) {
@@ -2252,6 +2314,7 @@ class AuthController extends GetxController {
     String? gender,
     String? phoneNumber,
     String? bio,
+    num? weight,
     String? primaryFocus,
     String? preferenceId,
     List<String>? mainGoals,
@@ -2271,6 +2334,7 @@ class AuthController extends GetxController {
         gender: (gender != null && gender.trim().isNotEmpty) ? gender.trim() : null,
         phoneNumber: (phoneNumber != null && phoneNumber.trim().isNotEmpty) ? phoneNumber.trim() : null,
         bio: (bio != null && bio.trim().isNotEmpty) ? bio.trim() : null,
+        weight: (weight != null && weight > 0) ? weight : null,
         primaryFocus: (primaryFocus != null && primaryFocus.trim().isNotEmpty) ? primaryFocus.trim() : null,
         preferenceId: (preferenceId != null && preferenceId.trim().isNotEmpty) ? preferenceId.trim() : null,
 
@@ -2567,34 +2631,41 @@ class AuthController extends GetxController {
   }
 
   /// `POST /user/auth/logout` with [deviceToken], then clear local session and go to login.
-  Future<void> logout() async {
-    try {
-      _syncNetworkBearerFromStorage();
-      final deviceToken = await _ensureDeviceToken();
-      await _authRepo.logoutRepo(deviceToken: deviceToken);
-    } on BadRequestException catch (e) {
-      debugPrint('Logout API: ${e.message}');
-    } on UnauthorizedException catch (e) {
-      debugPrint('Logout API: ${e.message}');
-    } on NoInternetException catch (e) {
-      debugPrint('Logout API: ${e.message}');
-    } on RequestTimeoutException catch (e) {
-      debugPrint('Logout API: ${e.message}');
-    } on ServerException catch (e) {
-      debugPrint('Logout API: ${e.message}');
-    } catch (e) {
-      debugPrint('Logout API: $e');
-    } finally {
-      _customerProfile = null;
-      _customerProfileError = null;
-      _disconnectChatSocket();
-      await _storageService.logout();
-      if (Get.isRegistered<LocalStorage>()) {
-        Get.find<LocalStorage>().deleteAccessToken();
+  /// When [skipRemoteLogout] is true (e.g. admin `account-blocked`), only local session is cleared.
+  Future<void> logout({bool skipRemoteLogout = false}) async {
+    if (!skipRemoteLogout) {
+      try {
+        _syncNetworkBearerFromStorage();
+        final deviceToken = await _ensureDeviceToken();
+        await _authRepo.logoutRepo(deviceToken: deviceToken);
+      } on BadRequestException catch (e) {
+        debugPrint('Logout API: ${e.message}');
+      } on UnauthorizedException catch (e) {
+        debugPrint('Logout API: ${e.message}');
+      } on ForbiddenException catch (e) {
+        debugPrint('Logout API: ${e.message}');
+      } on NoInternetException catch (e) {
+        debugPrint('Logout API: ${e.message}');
+      } on RequestTimeoutException catch (e) {
+        debugPrint('Logout API: ${e.message}');
+      } on ServerException catch (e) {
+        debugPrint('Logout API: ${e.message}');
+      } catch (e) {
+        debugPrint('Logout API: $e');
       }
-      update();
-      _scheduleGetNavigation(() => Get.offAllNamed(AppRoutes.login));
     }
+
+    _customerProfile = null;
+    _customerProfileError = null;
+    if (!skipRemoteLogout) {
+      _disconnectChatSocket();
+    }
+    await _storageService.logout();
+    if (Get.isRegistered<LocalStorage>()) {
+      Get.find<LocalStorage>().deleteAccessToken();
+    }
+    update();
+    _scheduleGetNavigation(() => Get.offAllNamed(AppRoutes.login));
   }
 
   /// Sign in with Apple - DEMO VERSION

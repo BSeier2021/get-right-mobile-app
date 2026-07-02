@@ -7,6 +7,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 
 /// Purchase Details Screen with Payment Gateway Integration
 class PurchaseDetailsScreen extends StatefulWidget {
@@ -318,11 +319,11 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
   }
 
   bool get _trainerCertified {
-    if (_item['certified'] == true || _item['isCertified'] == true) return true;
+    if (isCertifiedFromUiMap(_item)) return true;
     final api = _apiProgram;
-    if (api != null && api['isCertified'] == true) return true;
+    if (api != null && isCertificationsVerifiedFromApi(api)) return true;
     final t = _item['trainer'];
-    if (t is Map && t['isCertified'] == true) return true;
+    if (t is Map && isCertificationsVerifiedFromApi(Map<String, dynamic>.from(t))) return true;
     return false;
   }
 

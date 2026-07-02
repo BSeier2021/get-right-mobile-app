@@ -1,4 +1,5 @@
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 
 /// Program-level pricing from API (`price`, `netPrice`, `discount`).
 Map<String, dynamic> resolveProgramPricingFromApi(Map<String, dynamic> p) {
@@ -111,6 +112,8 @@ Map<String, dynamic> normalizeBundleForCard(Map<String, dynamic> b, {String defa
     return null;
   }();
 
+  final certified = isCertificationsVerifiedFromBundleApi(b);
+
   return {
     'id': (b['id'] ?? b['_id'] ?? '').toString(),
     '_id': (b['_id'] ?? b['id'] ?? '').toString(),
@@ -125,7 +128,9 @@ Map<String, dynamic> normalizeBundleForCard(Map<String, dynamic> b, {String defa
     'rating': bundleCardAverageRating({'programs': resolvedPrograms, ...b}),
     'ratingCount': bundleCardReviewCount({'programs': resolvedPrograms, ...b}),
     'isHot': b['isHot'] == true,
-    'isCertified': b['isCertified'] == true,
+    'isCertificationsVerified': certified,
+    'isCertified': certified,
+    'certified': certified,
     if (b['_apiBundle'] != null) '_apiBundle': b['_apiBundle'],
   };
 }

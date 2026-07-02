@@ -15,6 +15,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/feed_post_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const Color _kProfileForestGreen = Color(0xFF2D4635);
@@ -350,6 +351,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     if (bio != _displayBio) _bioExpanded = false;
 
     final contactFields = _extractProfileContactFields(profile: profile, user: user);
+    final certificationsVerified = isCertificationsVerifiedFromApiNodes([user, profile]);
 
     trainer = {
       ...trainer,
@@ -358,6 +360,9 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       'name': name,
       'fullName': name,
       'bio': bio,
+      'isCertificationsVerified': certificationsVerified,
+      'certified': certificationsVerified,
+      'isCertified': certificationsVerified,
       'email': contactFields['email'] ?? user['email']?.toString(),
       'avatarUrl': picUrl,
       'profilePictureUrl': picUrl,
@@ -984,6 +989,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       imageUrl = promo['url']?.toString();
     }
     final id = (m['_id'] ?? m['id'])?.toString() ?? '';
+    final verified = isCertificationsVerifiedFromProgramApi(m);
     return {
       '_id': id,
       'id': id,
@@ -993,6 +999,9 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       'price': _effectivePrice(m),
       'discount': m['discount'],
       'imageUrl': imageUrl,
+      'isCertificationsVerified': verified,
+      'certified': verified,
+      'isCertified': verified,
       // Do not set a fake enrollment-like status; [ProgramDetailScreen] uses flags + enrollment object only.
       if (m['status'] != null) 'status': m['status'],
     };
@@ -1666,20 +1675,34 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                 Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.accent, width: 3),
-                      ),
-                      child: CircleAvatar(
-                        radius: 40,
-                        backgroundColor: AppColors.surface,
-                        backgroundImage: (_avatarNetworkUrl != null && _avatarNetworkUrl!.startsWith('http'))
-                            ? NetworkImage(ImageUrlSanitizer.asHttpUrlOrFallback(_avatarNetworkUrl!))
-                            : null,
-                        child: (_avatarNetworkUrl == null || !_avatarNetworkUrl!.startsWith('http')) ? Icon(Icons.person, size: 40, color: AppColors.accent) : null,
-                      ),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.accent, width: 3),
+                          ),
+                          child: CircleAvatar(
+                            radius: 40,
+                            backgroundColor: AppColors.surface,
+                            backgroundImage: (_avatarNetworkUrl != null && _avatarNetworkUrl!.startsWith('http'))
+                                ? NetworkImage(ImageUrlSanitizer.asHttpUrlOrFallback(_avatarNetworkUrl!))
+                                : null,
+                            child: (_avatarNetworkUrl == null || !_avatarNetworkUrl!.startsWith('http'))
+                                ? Icon(Icons.person, size: 40, color: AppColors.accent)
+                                : null,
+                          ),
+                        ),
+                        if (isCertifiedFromUiMap(trainer))
+                          Positioned(
+                            right: 2,
+                            bottom: 2,
+                            child: verifiedAvatarBadge(size: 22),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 5),
                   ],
@@ -1697,21 +1720,27 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _displayName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold, fontSize: 17.sp),
-                      ),
-                    ),
-                    if (_showFollowButton) ...[_buildFollowButton(compact: true), const SizedBox(width: 8), _buildMessageButton(compact: true)],
-                  ],
+                Text(
+                  _displayName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold, fontSize: 17.sp),
                 ),
-                if (_displayBio.trim().isNotEmpty) ...[const SizedBox(height: 8), _buildExpandableBio()],
+                if (isCertifiedFromUiMap(trainer)) ...[
+                  const SizedBox(height: 8),
+                  verifiedTrainerChip(),
+                ],
+                if (_showFollowButton) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _buildFollowButton(compact: true),
+                      const SizedBox(width: 8),
+                      _buildMessageButton(compact: true),
+                    ],
+                  ),
+                ],
+                if (_displayBio.trim().isNotEmpty) ...[const SizedBox(height: 12), _buildExpandableBio()],
                 if (_hasProfileDetails) ...[const SizedBox(height: 20), _buildProfileDetailsSection()],
                 if (_personalRecords.isNotEmpty) ...[const SizedBox(height: 20), _buildPersonalRecordsSection()],
               ],
@@ -2375,7 +2404,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
             ),
           ),
           // Certifications Section (if available)
-          if (trainer['certified'] == true && trainer['certifications'] != null) ...[
+          if (isCertifiedFromUiMap(trainer)) ...[
             const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),

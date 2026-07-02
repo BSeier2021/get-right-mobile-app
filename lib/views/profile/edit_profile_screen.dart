@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/constants/app_constants.dart';
@@ -9,6 +10,7 @@ import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/no_emoji_input_formatter.dart';
 import 'package:get_right/widgets/common/custom_button.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
 import 'package:image_picker/image_picker.dart';
@@ -106,6 +108,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     final rawGender = p?.gender?.trim().isNotEmpty == true ? p!.gender!.trim() : _storageService.getString('user_gender');
     _selectedGender = GenderEnums.normalize(rawGender);
+
+    final profileWeight = p?.weight;
+    if (profileWeight != null && profileWeight > 0) {
+      _weightController.text = profileWeight % 1 == 0 ? profileWeight.toInt().toString() : profileWeight.toString();
+    } else {
+      final storedWeight = _storageService.getString('user_weight');
+      if (storedWeight != null && storedWeight.trim().isNotEmpty) {
+        _weightController.text = storedWeight.trim();
+      }
+    }
 
     _primaryFocusValue = null;
     if (p?.primaryFocus != null && p!.primaryFocus!.trim().isNotEmpty) {
@@ -229,6 +241,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
+    final weightText = _weightController.text.trim();
+    if (weightText.isEmpty) {
+      Get.snackbar('Profile', 'Please enter your weight', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    final weight = double.tryParse(weightText);
+    if (weight == null || weight <= 0) {
+      Get.snackbar('Profile', 'Please enter a valid weight', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (weight < 20 || weight > 500) {
+      Get.snackbar('Profile', 'Please enter a weight between 20 and 500 kg', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
     final mainSlugs = CustomerProfileEnums.filterMainGoals(_mainGoalSlugs);
     String? preferenceId;
     for (final p in auth.preferences) {
@@ -245,6 +272,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       gender: _selectedGender,
       phoneNumber: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
       bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
+      weight: weight % 1 == 0 ? weight.toInt() : weight,
       primaryFocus: CustomerProfileEnums.isValidPrimaryFocus(_primaryFocusValue) ? _primaryFocusValue : null,
       preferenceId: preferenceId,
       mainGoals: mainSlugs.isEmpty ? null : mainSlugs,
@@ -606,6 +634,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       icon: Icons.wc_outlined,
                       itemLabel: GenderEnums.displayForApi,
                       onChanged: (value) => setState(() => _selectedGender = value),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildSectionHeader('Weight (kg)', Icons.monitor_weight_outlined),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _weightController,
+                      labelText: 'Weight (kg)',
+                      hintText: 'Enter your weight',
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        ...kNoEmojiInputFormatters,
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                      ],
                     ),
                     const SizedBox(height: 32),
 

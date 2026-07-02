@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -26,6 +27,7 @@ class ProfileSetupScreen extends StatefulWidget {
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTickerProviderStateMixin {
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _weightController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   File? _profileImageFile;
   bool _agreedToTerms = false;
@@ -54,6 +56,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
   void dispose() {
     _fullNameController.dispose();
     _phoneController.dispose();
+    _weightController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -107,6 +110,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
       Get.snackbar('Profile', 'Phone number must be between 8 and 15 digits', snackPosition: SnackPosition.BOTTOM);
       return;
     }
+    final weightText = _weightController.text.trim();
+    if (weightText.isEmpty) {
+      Get.snackbar('Profile', 'Please enter your weight', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    final weight = double.tryParse(weightText);
+    if (weight == null || weight <= 0) {
+      Get.snackbar('Profile', 'Please enter a valid weight', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (weight < 20 || weight > 500) {
+      Get.snackbar('Profile', 'Please enter a weight between 20 and 500 kg', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
     if (!_agreedToTerms) {
       Get.snackbar('Profile', 'Please agree to Terms & Conditions and Privacy Policy', snackPosition: SnackPosition.BOTTOM);
       return;
@@ -114,7 +131,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
 
     final dob = DateFormat('yyyy-MM-dd').format(_dateOfBirth!);
     final authController = Get.find<AuthController>();
-    await authController.createProfile(fullName: name, dateofbirth: dob, gender: _selectedGender!, phoneNumber: phone, profilePicture: _profileImageFile);
+    await authController.createProfile(
+      fullName: name,
+      dateofbirth: dob,
+      gender: _selectedGender!,
+      phoneNumber: phone,
+      weight: weight % 1 == 0 ? weight.toInt() : weight,
+      profilePicture: _profileImageFile,
+    );
   }
 
   Future<void> _showImageSourceDialog() async {
@@ -271,6 +295,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                             icon: null,
                             itemLabel: GenderEnums.displayForApi,
                             onChanged: (value) => setState(() => _selectedGender = value),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildSimpleLabel('Weight (kg)'),
+                          const SizedBox(height: 8),
+                          CustomTextField(
+                            controller: _weightController,
+                            hintText: 'Enter your weight',
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            suffixIcon: const Icon(Icons.monitor_weight_outlined, color: AppColors.onBackground, size: 21),
+                            inputFormatters: [
+                              ...kNoEmojiInputFormatters,
+                              FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                            ],
                           ),
                           const SizedBox(height: 16),
                           Row(

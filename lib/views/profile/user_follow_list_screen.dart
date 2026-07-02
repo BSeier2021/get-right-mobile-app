@@ -6,6 +6,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 import 'package:get_right/utils/follow_list_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
@@ -378,7 +379,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (user['isTrainer'] == true) ...[const SizedBox(width: 4), Icon(Icons.verified, size: 16, color: AppColors.accent)],
+                      if (isCertifiedFromUiMap(Map<String, dynamic>.from(user))) ...[const SizedBox(width: 4), verifiedBadgeIcon(size: 16, color: AppColors.accent)],
                     ],
                   ),
                   const SizedBox(height: 4),

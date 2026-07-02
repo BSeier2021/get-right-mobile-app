@@ -9,6 +9,7 @@ import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/bundle_card_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 
 /// One page from `GET /customer/program/:id/reviews`.
 class ProgramReviewsPage {
@@ -486,7 +487,7 @@ class MarketplaceRepository {
 
   static Map<String, dynamic> _bundleCardFromApi(Map<String, dynamic> b, List<Map<String, dynamic>> programCatalog) {
     final bundleId = b['_id']?.toString() ?? '';
-    final bundleCertified = b['isCertified'] == true;
+    final bundleCertified = isCertificationsVerifiedFromBundleApi(b);
     final trainerName = _trainerNameFromBundleApi(b);
     final trainerAvatarUrl = _trainerAvatarUrlFromBundleApi(b);
     final rawPrograms = b['programs'];
@@ -582,7 +583,8 @@ class MarketplaceRepository {
 
   static Map<String, dynamic> _cardFromBrowseProgram(Map<String, dynamic> p) {
     final card = _cardFromApiProgram(p);
-    card['certified'] = p['isCertified'] == true;
+    final verified = isCertificationsVerifiedFromProgramApi(p);
+    applyCertifiedFields(card, verified: verified);
     return card;
   }
 
@@ -655,6 +657,8 @@ class MarketplaceRepository {
       }
     }
 
+    final verified = isCertificationsVerifiedFromProgramApi(p);
+
     return {
       'id': p['_id']?.toString(),
       'title': p['title']?.toString() ?? '',
@@ -671,7 +675,9 @@ class MarketplaceRepository {
       'duration': duration,
       'category': focus.isNotEmpty ? _titleCaseSlug(focus) : 'Program',
       'goal': (p['subtitle']?.toString().trim().isNotEmpty == true) ? p['subtitle'].toString() : (focus.isNotEmpty ? _titleCaseSlug(focus) : 'Fitness'),
-      'certified': false,
+      'isCertificationsVerified': verified,
+      'certified': verified,
+      'isCertified': verified,
       'rating': rating,
       'reviews': reviews,
       'students': students,

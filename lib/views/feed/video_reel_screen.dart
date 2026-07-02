@@ -8,6 +8,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 import 'package:get_right/utils/hls_master_playlist_parser.dart';
 import 'package:get_right/views/feed/feed_comments_sheet.dart';
 import 'package:video_player/video_player.dart';
@@ -474,10 +475,10 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
                         shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
                       ),
                     ),
-                    if (post['isTrainer'])
+                    if (showFeedCreatorVerifiedBadge(post))
                       Padding(
                         padding: EdgeInsets.only(left: 6.w),
-                        child: Icon(Icons.verified, color: AppColors.completed, size: 18.sp),
+                        child: verifiedBadgeIcon(size: 18.sp),
                       ),
                   ],
                 ),
@@ -695,6 +696,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
     final String creatorName = (post['creator'] ?? 'Creator').toString();
     final String initials = (post['creatorImage'] ?? 'UT').toString();
     final bool isTrainer = post['isTrainer'] == true;
+    final bool certificationsVerified = isCertifiedFromUiMap(post);
     final String category = (post['category'] ?? 'Fitness').toString();
 
     final creatorId = (post['creatorId'] ?? '').toString().trim();
@@ -709,8 +711,9 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
           : 'Fitness enthusiast sharing ${category.toLowerCase()} content with the community.',
       'specialties': <String>[category, 'Training', if (isTrainer) 'Coaching'],
       'yearsOfExperience': isTrainer ? 6 : 2,
-      'certified': isTrainer,
-      'certifications': isTrainer ? ['Certified Personal Trainer'] : null,
+      'isCertificationsVerified': certificationsVerified,
+      'certified': certificationsVerified,
+      'certifications': certificationsVerified ? ['Certified Personal Trainer'] : null,
       'hourlyRate': 75.0,
       'rating': 4.8,
       'totalReviews': 127,

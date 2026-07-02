@@ -7,6 +7,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/planner_day_reuse.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
+import 'package:get_right/views/planner/add_manual_run_screen.dart';
 import 'package:get_right/views/planner/add_notes_screen.dart';
 import 'package:get_right/views/planner/calendar_type_dialog.dart';
 import 'package:intl/intl.dart';
@@ -86,7 +87,121 @@ class _AddDateScreenState extends State<AddDateScreen> {
       _showReuseSheet(forWorkout: false);
       return;
     }
-    _openRunnerLog();
+    _showRunOptionsSheet();
+  }
+
+  void _showRunOptionsSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.35), borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Add Run',
+                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Log manually or track with GPS',
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                ),
+                const SizedBox(height: 16),
+                _buildRunOptionTile(
+                  icon: Icons.edit_note_outlined,
+                  title: 'Log manually',
+                  subtitle: 'Enter distance, duration, and activity type',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _openManualRunScreen();
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildRunOptionTile(
+                  icon: Icons.gps_fixed,
+                  title: 'Track with GPS',
+                  subtitle: 'Use live tracking on the map',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _openRunnerLog();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRunOptionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FFE9),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.accent.withOpacity(0.35)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), shape: BoxShape.circle),
+                child: Icon(icon, color: AppColors.accent, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.primaryGray),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openManualRunScreen() async {
+    final result = await Get.to(
+      () => AddManualRunScreen(
+        selectedDate: widget.selectedDate,
+        calendarEntryId: widget.calendarEntryId,
+      ),
+    );
+    if (!mounted || result != 'manual_run') return;
+    Get.back(result: 'manual_run');
   }
 
   void _showReuseSheet({required bool forWorkout}) {
@@ -97,7 +212,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
       if (forWorkout) {
         _openWorkoutJournal(startFresh: true);
       } else {
-        _openRunnerLog();
+        _showRunOptionsSheet();
       }
       return;
     }
@@ -155,7 +270,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                       if (forWorkout) {
                         _openWorkoutJournal(startFresh: true);
                       } else {
-                        _openRunnerLog();
+                        _showRunOptionsSheet();
                       }
                     },
                     style: OutlinedButton.styleFrom(
@@ -367,8 +482,8 @@ class _AddDateScreenState extends State<AddDateScreen> {
                     iconBg: const Color(0xFFFFE8D1),
                     title: 'Add Run',
                     subtitle: reuseOptions.any((o) => o.kind == PlannerReuseKind.plannedRoute || o.kind == PlannerReuseKind.savedActivity)
-                        ? 'Add another run or reuse route/activity'
-                        : 'Log a run or outdoor activity',
+                        ? 'Add another run, log manually, or track with GPS'
+                        : 'Log manually or track with GPS',
                     onTap: _isSaving ? () {} : _handleAddRun,
                   ),
                   const SizedBox(height: 12),

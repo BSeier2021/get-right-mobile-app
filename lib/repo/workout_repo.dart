@@ -512,18 +512,55 @@ class WorkoutRepository {
       throw Exception('At least one workout is required');
     }
 
+    final resolvedDuration = _resolveJournalDuration(
+      entries: entries,
+      requestedDuration: duration,
+      journalId: canonicalId,
+    );
+
     if (canonicalId != null) {
-      await updateWorkoutJournal(journalId: canonicalId, workoutIds: deduped, duration: duration, notes: notes);
+      await updateWorkoutJournal(journalId: canonicalId, workoutIds: deduped, duration: resolvedDuration, notes: notes);
       return canonicalId;
     }
 
     canonicalId = await findWorkoutJournalIdForToday(date: day);
     if (canonicalId != null) {
-      await updateWorkoutJournal(journalId: canonicalId, workoutIds: deduped, duration: duration, notes: notes);
+      final updateDuration = _resolveJournalDuration(
+        entries: entries,
+        requestedDuration: duration,
+        journalId: canonicalId,
+      );
+      await updateWorkoutJournal(journalId: canonicalId, workoutIds: deduped, duration: updateDuration, notes: notes);
       return canonicalId;
     }
 
-    return createWorkoutJournalEntry(date: _dateKey(day), workoutIds: deduped, duration: duration, notes: notes);
+    return createWorkoutJournalEntry(date: _dateKey(day), workoutIds: deduped, duration: resolvedDuration, notes: notes);
+  }
+
+  /// API requires journal `duration` >= 1 second.
+  static int journalDurationForApi(int duration, {int? existingDuration}) {
+    if (duration >= 1) return duration;
+    if (existingDuration != null && existingDuration >= 1) return existingDuration;
+    return 1;
+  }
+
+  static int _resolveJournalDuration({
+    required List<WorkoutJournalModel> entries,
+    required int requestedDuration,
+    String? journalId,
+  }) {
+    if (requestedDuration >= 1) return requestedDuration;
+
+    final existing = journalId != null ? journalEntryById(entries, journalId) : null;
+    final existingDuration = existing?.durationSeconds;
+    if (existingDuration != null && existingDuration >= 1) return existingDuration;
+
+    for (final entry in entries) {
+      final duration = entry.durationSeconds;
+      if (duration != null && duration >= 1) return duration;
+    }
+
+    return 1;
   }
 
   /// Builds `PUT /customer/workout-journal/:id` body.
@@ -533,7 +570,8 @@ class WorkoutRepository {
 
   /// Updates an existing journal entry (`PUT /customer/workout-journal/:journalId`).
   Future<Map<String, dynamic>> updateWorkoutJournal({required String journalId, required List<String> workoutIds, required int duration, required String notes}) async {
-    final raw = await _network.put(AppUrl.customerWorkoutJournalById(journalId), updateJournalBody(workout: workoutIds, duration: duration, notes: notes));
+    final safeDuration = journalDurationForApi(duration);
+    final raw = await _network.put(AppUrl.customerWorkoutJournalById(journalId), updateJournalBody(workout: workoutIds, duration: safeDuration, notes: notes));
     if (!_isOk(raw)) {
       throw Exception(_messageFrom(raw) ?? 'Could not update workout journal');
     }
@@ -562,9 +600,10 @@ class WorkoutRepository {
     if (workoutIds.isEmpty) {
       throw Exception('At least one workout is required');
     }
+    final safeDuration = journalDurationForApi(duration);
     final postRaw = await _network.post(
       AppUrl.customerWorkoutJournalCreate,
-      createJournalBody(date: date, workout: workoutIds, duration: duration, notes: notes, type: type ?? JournalExerciseType.workout.apiValue),
+      createJournalBody(date: date, workout: workoutIds, duration: safeDuration, notes: notes, type: type ?? JournalExerciseType.workout.apiValue),
     );
     if (!_isOk(postRaw)) {
       throw Exception(_messageFrom(postRaw) ?? 'Could not create workout journal');
@@ -601,7 +640,8 @@ class WorkoutRepository {
     required String notes,
     String type = 'Workout',
   }) async {
-    final raw = await _network.post(AppUrl.customerWorkoutJournalCreate, createJournalBody(date: date, workout: workoutIds, duration: duration, notes: notes, type: type));
+    final safeDuration = journalDurationForApi(duration);
+    final raw = await _network.post(AppUrl.customerWorkoutJournalCreate, createJournalBody(date: date, workout: workoutIds, duration: safeDuration, notes: notes, type: type));
     if (!_isOk(raw)) {
       throw Exception(_messageFrom(raw) ?? 'Could not save workout journal');
     }

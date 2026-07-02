@@ -10,6 +10,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/routes/app_route_observer.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 import 'package:get_right/utils/feed_media_url.dart';
 import 'package:get_right/utils/feed_post_mapper.dart';
 import 'package:get_right/views/feed/feed_reel_overlay.dart';
@@ -716,8 +717,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildExploreGridItem(Map<String, dynamic> post) {
-    final isTrainer = post['isTrainer'] ?? false;
-    final isCertified = isTrainer; // Show verified/certified icon if trainer
+    final showVerified = showFeedCreatorVerifiedBadge(post);
 
     return Stack(
       fit: StackFit.expand,
@@ -750,18 +750,14 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         ),
 
         // Verified/Certified icon in top-right corner (only shown if trainer/certified)
-        if (isCertified)
+        if (showVerified)
           Positioned(
             top: 6,
             right: 6,
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(color: const Color.fromARGB(153, 71, 71, 71), shape: BoxShape.circle),
-              child: Icon(
-                Icons.verified,
-                color: AppColors.completed, // Blue/Green color for verified
-                size: 18,
-              ),
+              child: verifiedBadgeIcon(size: 18),
             ),
           ),
       ],

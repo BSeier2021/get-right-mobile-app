@@ -75,6 +75,22 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
     return GenderEnums.displayForApi(api);
   }
 
+  String _formatWeightValue(double value) {
+    final formatted = value % 1 == 0 ? value.toInt().toString() : value.toString();
+    return '$formatted kg';
+  }
+
+  String _displayWeight(CustomerProfileDto? p) {
+    final w = p?.weight;
+    if (w != null && w > 0) return _formatWeightValue(w);
+    final local = _storageService.getString('user_weight');
+    if (local != null && local.trim().isNotEmpty) {
+      final parsed = double.tryParse(local.trim());
+      if (parsed != null && parsed > 0) return _formatWeightValue(parsed);
+    }
+    return 'Not Set';
+  }
+
   String _displayBio(CustomerProfileDto? p) {
     final b = p?.bio?.trim();
     if (b != null && b.isNotEmpty) return b;
@@ -221,6 +237,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                     _infoRow('assets/images/calendar-222.png', 'Date of Birth', _displayDob(p)),
                     _infoRow('assets/images/call.png', 'Contact Number', _displayPhone(p)),
                     _infoRow('assets/images/people22.png', 'Gender', _displayGender(p)),
+                    _infoRow('assets/images/weight.png', 'Weight', _displayWeight(p)),
                     _infoRow('assets/images/clipboard-text.png', 'Bio', _displayBio(p)),
                   ]),
                   if (_onboardingSectionHasAnyValue(p)) ...[

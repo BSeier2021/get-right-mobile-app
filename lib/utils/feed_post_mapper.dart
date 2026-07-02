@@ -1,4 +1,5 @@
 /// Maps API feed documents to the UI map shape used by [FeedScreen] and [FeedVerticalReels].
+import 'package:get_right/utils/trainer_certification_helper.dart';
 
 bool coerceFeedApiBool(dynamic v) {
   if (v == true) return true;
@@ -283,6 +284,7 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
 
   final isVideo = resolvedVideoUrl.isNotEmpty;
   final thumbSanitized = thumb.trim().isNotEmpty ? thumb.trim() : '';
+  final certificationsVerified = isCertificationsVerifiedFromCreatorApi(creator, profile);
 
   return <String, dynamic>{
     'id': (m['_id'] ?? '').toString(),
@@ -290,6 +292,9 @@ Map<String, dynamic> mapApiFeedDocumentToUiPost(
     'creatorId': (creator['_id'] ?? '').toString(),
     'creatorRole': (creator['role'] ?? '').toString(),
     'isTrainer': (creator['role']?.toString() ?? '').trim() == 'Trainer',
+    'isCertificationsVerified': certificationsVerified,
+    'certified': certificationsVerified,
+    'isCertified': certificationsVerified,
     'creator': fullName.isEmpty ? (creator['email'] ?? 'user').toString() : fullName,
     'creatorImage': initials,
     'creatorAvatarUrl': (profilePicture['url'] ?? '').toString(),

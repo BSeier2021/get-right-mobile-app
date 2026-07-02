@@ -1,4 +1,6 @@
 /// Maps `GET /user/follow/:userId/followers|following` list entries to UI rows.
+import 'package:get_right/utils/trainer_certification_helper.dart';
+
 class FollowListPageResult {
   const FollowListPageResult({
     required this.users,
@@ -31,6 +33,7 @@ Map<String, dynamic> mapFollowPersonToUi(Map<String, dynamic> person, {bool isFo
 
   final role = (person['role'] ?? '').toString();
   final id = (person['_id'] ?? person['id'] ?? '').toString();
+  final certificationsVerified = isCertificationsVerifiedFromApiNodes([person, profile]);
 
   final relationFollowing =
       isFollowing ||
@@ -47,6 +50,9 @@ Map<String, dynamic> mapFollowPersonToUi(Map<String, dynamic> person, {bool isFo
     'initials': initials,
     'role': role,
     'isTrainer': role.toLowerCase() == 'trainer',
+    'isCertificationsVerified': certificationsVerified,
+    'certified': certificationsVerified,
+    'isCertified': certificationsVerified,
     'isFollowing': relationFollowing,
   };
 }

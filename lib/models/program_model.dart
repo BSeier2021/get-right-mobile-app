@@ -1,3 +1,5 @@
+import 'package:get_right/utils/trainer_certification_helper.dart';
+
 /// Trainer program/course model
 class ProgramModel {
   final String id;
@@ -45,7 +47,7 @@ class ProgramModel {
       trainerId: json['trainerId'] ?? '',
       trainerName: json['trainerName'] ?? '',
       trainerImage: json['trainerImage'],
-      isTrainerCertified: json['isTrainerCertified'] ?? false,
+      isTrainerCertified: isCertifiedFromUiMap(json),
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       thumbnail: json['thumbnail'],

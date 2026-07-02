@@ -25,9 +25,23 @@ class AuthRepository {
     return response;
   }
 
-  /// `POST /customer/profile/create` — multipart form: fullName, dateofbirth, gender, phoneNumber, optional profilePicture (file).
-  Future<dynamic> createProfileRepo({required String fullName, required String dateofbirth, required String gender, required String phoneNumber, File? profilePicture}) async {
-    final fields = <String, dynamic>{'fullName': fullName.trim(), 'dateofbirth': dateofbirth, 'gender': gender, 'phoneNumber': phoneNumber.trim()};
+  /// `POST /customer/profile/create` — multipart form: fullName, dateofbirth, gender, phoneNumber, weight, optional profilePicture (file).
+  Future<dynamic> createProfileRepo({
+    required String fullName,
+    required String dateofbirth,
+    required String gender,
+    required String phoneNumber,
+    required num weight,
+    File? profilePicture,
+  }) async {
+    final weightValue = weight % 1 == 0 ? weight.toInt() : weight;
+    final fields = <String, dynamic>{
+      'fullName': fullName.trim(),
+      'dateofbirth': dateofbirth,
+      'gender': gender,
+      'phoneNumber': phoneNumber.trim(),
+      'weight': weightValue,
+    };
     final files = <String, List<File>>{};
     if (profilePicture != null && profilePicture.path.isNotEmpty && await profilePicture.exists()) {
       files['profilePicture'] = [profilePicture];
@@ -102,6 +116,7 @@ class AuthRepository {
     String? gender,
     String? phoneNumber,
     String? bio,
+    num? weight,
     String? primaryFocus,
     String? preferenceId,
     List<String>? mainGoals,
@@ -126,6 +141,9 @@ class AuthRepository {
     }
     if (bio != null && bio.trim().isNotEmpty) {
       fields['bio'] = bio.trim();
+    }
+    if (weight != null && weight > 0) {
+      fields['weight'] = weight % 1 == 0 ? weight.toInt() : weight;
     }
     if (primaryFocus != null && primaryFocus.trim().isNotEmpty) {
       fields['primaryFocus'] = primaryFocus.trim();

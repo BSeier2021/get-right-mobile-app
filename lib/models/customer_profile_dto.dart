@@ -9,6 +9,8 @@ class CustomerProfileDto {
   final String? fullName;
   final String? gender;
   final String? phoneNumber;
+  /// Body weight in kg when returned by profile APIs.
+  final double? weight;
   /// `YYYY-MM-DD` when parsable from API ISO string.
   final String? dateofbirth;
   final String? profilePictureUrl;
@@ -31,6 +33,7 @@ class CustomerProfileDto {
     this.fullName,
     this.gender,
     this.phoneNumber,
+    this.weight,
     this.dateofbirth,
     this.profilePictureUrl,
     this.bio,
@@ -62,6 +65,19 @@ class CustomerProfileDto {
       return s.substring(0, 10);
     }
     return s;
+  }
+
+  static double? _parseWeight(dynamic v) {
+    if (v == null) return null;
+    if (v is num) {
+      final parsed = v.toDouble();
+      return parsed > 0 ? parsed : null;
+    }
+    final s = v.toString().trim();
+    if (s.isEmpty) return null;
+    final parsed = double.tryParse(s);
+    if (parsed == null || parsed <= 0) return null;
+    return parsed;
   }
 
   /// Nested `{ title, value, name }` or plain string (API variants).
@@ -172,6 +188,7 @@ class CustomerProfileDto {
     copyUserField(const ['gender'], 'gender');
     copyUserField(const ['bio'], 'bio');
     copyUserField(const ['dateofbirth', 'date_of_birth'], 'dateofbirth');
+    copyUserField(const ['weight'], 'weight');
     return merged;
   }
 
@@ -242,6 +259,7 @@ class CustomerProfileDto {
       fullName: profile['fullName']?.toString() ?? profile['full_name']?.toString(),
       gender: profile['gender']?.toString(),
       phoneNumber: profile['phoneNumber']?.toString() ?? profile['phone_number']?.toString(),
+      weight: _parseWeight(profile['weight']),
       dateofbirth: _normalizeDob(profile['dateofbirth'] ?? profile['date_of_birth']),
       profilePictureUrl: _profilePictureUrlFrom(profile),
       bio: profile['bio']?.toString(),

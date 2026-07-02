@@ -8,6 +8,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/bundle_card_mapper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/utils/trainer_certification_helper.dart';
 import 'package:get_right/widgets/safe_network_image.dart';
 
 /// Bundle detail — loads `GET /customer/bundle/:id` when opened with a bundle id.
@@ -214,11 +215,11 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
 
     var rating = 0.0;
     var students = 0;
-    var certified = _bundle['isCertified'] == true;
+    var certified = isCertifiedFromUiMap(_bundle);
     if (programs.isNotEmpty) {
       rating = programs.map((p) => ((p['rating'] as num?) ?? 0).toDouble()).fold<double>(0, (a, b) => a + b) / programs.length;
       students = programs.map((p) => ((p['students'] as num?) ?? 0).toInt()).fold<int>(0, (a, b) => a + b);
-      certified = certified || programs.every((p) => p['certified'] == true);
+      certified = certified || programs.every((p) => isCertifiedFromUiMap(Map<String, dynamic>.from(p)));
     }
 
     return {
@@ -252,7 +253,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     final avatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(trainer['avatarUrl']?.toString());
     final rating = ((trainer['rating'] as num?) ?? 0).toDouble();
     final students = ((trainer['students'] as num?) ?? 0).toInt();
-    final certified = trainer['certified'] == true;
+    final certified = isCertifiedFromUiMap(trainer);
 
     return GestureDetector(
       onTap: () => _openTrainerProfile(trainer),
