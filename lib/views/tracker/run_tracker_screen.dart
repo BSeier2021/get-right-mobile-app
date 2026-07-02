@@ -5,6 +5,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get_right/controllers/run_tracking_controller.dart';
+import 'package:get_right/models/planned_route_model.dart';
+import 'package:get_right/repo/running_log_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/gps_service.dart';
 import 'package:get_right/services/storage_service.dart';
@@ -23,6 +25,7 @@ class RunTrackerScreen extends StatefulWidget {
 
 class _RunTrackerScreenState extends State<RunTrackerScreen> {
   final RunTrackingController _trackingController = Get.put(RunTrackingController());
+  final RunningLogRepository _runningLogRepo = RunningLogRepository();
   GoogleMapController? _mapController;
   // ignore: unused_field
   int _totalRuns = 0;
@@ -35,6 +38,10 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
   DateTime? _lastCameraUpdate;
   String? _selectedActivity;
   Worker? _plannerReloadWorker;
+  Worker? _journalTabWorker;
+  PlannedRouteModel? _reusedPlannedRoute;
+  bool _isLoadingReusedRoute = false;
+  String? _pendingPlannedRouteId;
 
   // ignore: unused_field
   final List<Map<String, dynamic>> _activities = [
@@ -50,6 +57,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
     if (Get.isRegistered<HomeNavigationController>()) {
       final nav = Get.find<HomeNavigationController>();
       _plannerReloadWorker = ever<int>(nav.journalPlannerReloadNonce, (_) => _applyPlannerRunContext());
+      _journalTabWorker = ever<int>(nav.journalTabIndex, (_) => _applyPlannerRunContext());
     }
     _applyPlannerRunContext();
     _loadStats();
@@ -135,6 +143,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
   @override
   void dispose() {
     _plannerReloadWorker?.dispose();
+    _journalTabWorker?.dispose();
     _mapController?.dispose();
     _mapController = null;
     _isMapCreated = false;
@@ -312,8 +321,9 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
 
     try {
       final mapWidget = GoogleMap(
-        key: const ValueKey('static_google_map'), // Static key prevents rebuilds
+        key: ValueKey('runner_log_map_${_reusedPlannedRoute?.id ?? 'none'}'),
         initialCameraPosition: CameraPosition(target: LatLng(position.latitude, position.longitude), zoom: 15),
+        polylines: _plannedRoutePolylines(),
         onMapCreated: (controller) {
           debugPrint('✅ Map created successfully');
           if (!_isMapCreated || _mapController == null) {
@@ -331,6 +341,10 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
             } catch (e) {
               debugPrint('⚠️ Map style error: $e');
               // Style error doesn't prevent map from working
+            }
+            final reusedRoute = _reusedPlannedRoute;
+            if (reusedRoute != null && reusedRoute.routePoints.isNotEmpty) {
+              _fitMapToPlannedRoute(reusedRoute);
             }
           }
         },
@@ -482,6 +496,51 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
         padding: EdgeInsets.zero,
         children: [
           8.h.verticalSpace,
+          if (_isLoadingReusedRoute)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: LinearProgressIndicator(color: AppColors.accent, minHeight: 3),
+            ),
+          if (_reusedPlannedRoute != null) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3E7F6),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.accent.withOpacity(0.35)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.route, color: AppColors.accent, size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Reusing saved route',
+                            style: AppTextStyles.labelLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${(_reusedPlannedRoute!.estimatedDistance / 1000).toStringAsFixed(2)} km · ${_reusedPlannedRoute!.routePoints.length} points',
+                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _clearReusedPlannedRoute,
+                      child: const Text('Clear'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           // Plan Route - full width primary CTA
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
@@ -670,15 +729,99 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
     );
   }
 
-  void _applyPlannerRunContext() {
+  Set<Polyline> _plannedRoutePolylines() {
+    final route = _reusedPlannedRoute;
+    if (route == null || route.routePoints.isEmpty) return const {};
+    return {
+      Polyline(
+        polylineId: const PolylineId('reused_planned_route'),
+        points: route.routePoints,
+        color: const Color(0xFF7C49E2),
+        width: 5,
+        geodesic: true,
+      ),
+    };
+  }
+
+  void _clearReusedPlannedRoute() {
+    setState(() {
+      _reusedPlannedRoute = null;
+      _pendingPlannedRouteId = null;
+      _cachedMapWidget = null;
+      _isMapCreated = false;
+      _mapController = null;
+    });
+    _trackingController.plannedRouteId = null;
+  }
+
+  Future<void> _applyPlannerRunContext() async {
     if (!Get.isRegistered<HomeNavigationController>()) return;
     final nav = Get.find<HomeNavigationController>();
     if (nav.journalTabIndex.value != 1) return;
-    final routeId = nav.plannedRouteIdForSession.value;
-    if (WorkoutRepository.isValidMongoId(routeId)) {
-      _trackingController.plannedRouteId = routeId!.trim();
+
+    final routeId = nav.plannedRouteIdForSession.value ?? _pendingPlannedRouteId;
+    if (!WorkoutRepository.isValidMongoId(routeId)) return;
+
+    final trimmedId = routeId!.trim();
+    if (nav.plannedRouteIdForSession.value != null) {
       nav.plannedRouteIdForSession.value = null;
     }
+    _pendingPlannedRouteId = trimmedId;
+    _trackingController.plannedRouteId = trimmedId;
+
+    if (_reusedPlannedRoute?.id == trimmedId || _isLoadingReusedRoute) return;
+    await _loadReusedPlannedRoute(trimmedId);
+  }
+
+  Future<void> _loadReusedPlannedRoute(String routeId) async {
+    setState(() => _isLoadingReusedRoute = true);
+    try {
+      final route = await _runningLogRepo.fetchPlannedRouteDetail(routeId);
+      if (!mounted) return;
+      setState(() {
+        _reusedPlannedRoute = route;
+        _pendingPlannedRouteId = null;
+        _isLoadingReusedRoute = false;
+        _cachedMapWidget = null;
+        _isMapCreated = false;
+        _mapController = null;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fitMapToPlannedRoute(route));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingReusedRoute = false);
+      Get.snackbar(
+        'Saved route',
+        'Could not load the saved route. You can still plan a new one.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+      );
+    }
+  }
+
+  Future<void> _fitMapToPlannedRoute(PlannedRouteModel route) async {
+    if (route.routePoints.isEmpty || _mapController == null) return;
+    try {
+      final bounds = _boundsForPoints(route.routePoints);
+      await _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 72));
+    } catch (_) {
+      /* map may not be ready yet */
+    }
+  }
+
+  LatLngBounds _boundsForPoints(List<LatLng> points) {
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+    for (final point in points.skip(1)) {
+      minLat = minLat < point.latitude ? minLat : point.latitude;
+      maxLat = maxLat > point.latitude ? maxLat : point.latitude;
+      minLng = minLng < point.longitude ? minLng : point.longitude;
+      maxLng = maxLng > point.longitude ? maxLng : point.longitude;
+    }
+    return LatLngBounds(southwest: LatLng(minLat, minLng), northeast: LatLng(maxLat, maxLng));
   }
 
   /// Start activity with selected type
@@ -688,8 +831,12 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
       return;
     }
 
-    _trackingController.plannedRouteId = null;
-    Get.toNamed(AppRoutes.runTracking, arguments: {'activityType': _selectedActivity})?.then((_) {
+    final args = <String, dynamic>{'activityType': _selectedActivity};
+    if (_reusedPlannedRoute != null) {
+      args['plannedRoute'] = _reusedPlannedRoute;
+    }
+
+    Get.toNamed(AppRoutes.runTracking, arguments: args)?.then((_) {
       if (mounted) _loadStats();
     });
   }

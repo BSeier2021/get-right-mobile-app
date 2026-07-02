@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_right/repo/calendar_repo.dart';
+import 'package:get_right/repo/running_log_repo.dart';
 import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -34,6 +35,7 @@ class AddDateScreen extends StatefulWidget {
 
 class _AddDateScreenState extends State<AddDateScreen> {
   final CalendarRepository _calendarRepo = CalendarRepository();
+  final RunningLogRepository _runningLogRepo = RunningLogRepository();
   bool _isSaving = false;
 
   bool get _hasExistingEntry {
@@ -256,7 +258,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                           if (forWorkout) {
                             _openWorkoutJournal(startFresh: false, journalId: option.journalId);
                           } else {
-                            _openRunnerLog(routeId: option.routeId);
+                            _openRunnerLog(routeId: option.routeId, runningLogId: option.runningLogId);
                           }
                         },
                       ),
@@ -344,8 +346,17 @@ class _AddDateScreenState extends State<AddDateScreen> {
     _navigateToJournalTab(0, result: 'workout_journal', startFresh: startFresh, journalId: journalId);
   }
 
-  void _openRunnerLog({String? routeId}) {
-    _navigateToJournalTab(1, result: 'runner_log', plannedRouteId: routeId);
+  Future<void> _openRunnerLog({String? routeId, String? runningLogId}) async {
+    var resolvedRouteId = WorkoutRepository.isValidMongoId(routeId) ? routeId!.trim() : null;
+    if (resolvedRouteId == null && WorkoutRepository.isValidMongoId(runningLogId)) {
+      try {
+        resolvedRouteId = await _runningLogRepo.fetchRouteIdForRunningLog(runningLogId!.trim());
+      } catch (_) {
+        /* fall through without route id */
+      }
+    }
+    if (!mounted) return;
+    _navigateToJournalTab(1, result: 'runner_log', plannedRouteId: resolvedRouteId);
   }
 
   void _setPlannerContext({bool startFresh = false, String? journalId, String? plannedRouteId}) {
@@ -370,14 +381,16 @@ class _AddDateScreenState extends State<AddDateScreen> {
   void _navigateToJournalTab(int journalTabIndex, {required String result, bool startFresh = false, String? journalId, String? plannedRouteId}) {
     Get.back(result: result);
     Get.back();
-    _setPlannerContext(startFresh: startFresh, journalId: journalId, plannedRouteId: plannedRouteId);
     if (Get.isRegistered<HomeNavigationController>()) {
       if (Get.currentRoute != AppRoutes.home) {
         Get.until((route) => route.settings.name == AppRoutes.home);
       }
-      Get.find<HomeNavigationController>().changeTab(2, journalTab: journalTabIndex);
+      final nav = Get.find<HomeNavigationController>();
+      nav.changeTab(2, journalTab: journalTabIndex);
+      _setPlannerContext(startFresh: startFresh, journalId: journalId, plannedRouteId: plannedRouteId);
       return;
     }
+    _setPlannerContext(startFresh: startFresh, journalId: journalId, plannedRouteId: plannedRouteId);
     Get.offNamed(
       AppRoutes.home,
       arguments: {
@@ -402,9 +415,9 @@ class _AddDateScreenState extends State<AddDateScreen> {
       case PlannerReuseKind.workout:
         _openWorkoutJournal(startFresh: false, journalId: option.journalId);
       case PlannerReuseKind.plannedRoute:
-        _openRunnerLog(routeId: option.routeId);
+        _openRunnerLog(routeId: option.routeId, runningLogId: option.runningLogId);
       case PlannerReuseKind.savedActivity:
-        _openRunnerLog(routeId: option.routeId);
+        _openRunnerLog(routeId: option.routeId, runningLogId: option.runningLogId);
     }
   }
 

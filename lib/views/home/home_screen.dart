@@ -45,8 +45,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final navigateToTab = args?['navigateToTab'] as int?;
       final journalTabIndex = args?['journalTabIndex'] as int?;
       if (navigateToTab != null) {
-        _applyJournalPlannerContextFromArgs(args);
         _navController.changeTab(navigateToTab, journalTab: journalTabIndex);
+        _applyJournalPlannerContextFromArgs(args);
         if (navigateToTab == 3) {
           _refreshNutritionAnalytics();
         }

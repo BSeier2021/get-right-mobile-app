@@ -220,7 +220,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       controller: _scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, mainAxisSpacing: 16.h, crossAxisSpacing: 8.w, childAspectRatio: 0.72),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, mainAxisSpacing: 16.h, crossAxisSpacing: 8.w, childAspectRatio: 0.65),
                       itemCount: groups.length + (_loadingMore ? 1 : 0),
                       itemBuilder: (context, i) {
                         if (i >= groups.length) {
@@ -266,9 +266,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
+          SizedBox(height: 2.h),
+          Text(
+            _exerciseCountLabel(category.totalExercises),
+            style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontSize: 10.sp, fontWeight: FontWeight.w500),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
+  }
+
+  String _exerciseCountLabel(int count) {
+    if (count == 1) return '1 exercise';
+    return '$count exercises';
   }
 
   Widget _assetOrIcon(String? assetPath) {

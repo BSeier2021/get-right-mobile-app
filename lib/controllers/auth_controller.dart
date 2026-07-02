@@ -1254,6 +1254,8 @@ class AuthController extends GetxController {
       'enrollmentProgress': progressPct ?? 0,
       'enrollmentStartDate': enrollment['startDate'],
       'enrollmentEndDate': enrollment['endDate'],
+      'startDate': enrollment['startDate'],
+      'endDate': enrollment['endDate'],
       'exercises': exercises,
       'workoutDays': workoutDays,
       if (bundlePrograms is List) 'bundlePrograms': bundlePrograms,

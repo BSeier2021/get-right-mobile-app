@@ -458,6 +458,8 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     p['isEnrolled'] = true;
     p['hidePricing'] = true;
     p['progress'] = enrollment['progress'];
+    p['enrollmentStartDate'] = enrollment['startDate'];
+    p['enrollmentEndDate'] = enrollment['endDate'];
     p['startDate'] = enrollment['startDate'];
     p['endDate'] = enrollment['endDate'];
     p['status'] = enrollment['status'];

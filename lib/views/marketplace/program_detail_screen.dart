@@ -509,6 +509,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   void _syncEnrollmentFromProgram() {
     if (_safeProgram['isEnrolled'] == true || _safeProgram['purchased'] == true) {
       _isEnrolled = true;
+      _normalizeEnrollmentDates();
       return;
     }
     final enc = _safeProgram['enrollment'];
@@ -516,11 +517,73 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       final id = enc['_id']?.toString().trim();
       if (id != null && id.isNotEmpty && _mongoIdRe.hasMatch(id)) {
         _isEnrolled = true;
+        _normalizeEnrollmentDates();
         return;
       }
     }
     // Program catalog `status` (e.g. published / active listing) must not imply the viewer is enrolled.
     _isEnrolled = false;
+  }
+
+  DateTime? _parseEnrollmentDateValue(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is DateTime) {
+      final local = raw.isUtc ? raw.toLocal() : raw;
+      return DateTime(local.year, local.month, local.day);
+    }
+    final text = raw.toString().trim();
+    if (text.isEmpty) return null;
+    final parsed = DateTime.tryParse(text);
+    if (parsed == null) return null;
+    final local = parsed.toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
+
+  dynamic _rawEnrollmentBoundaryDate({required bool start}) {
+    final primaryKey = start ? 'enrollmentStartDate' : 'enrollmentEndDate';
+    final altKey = start ? 'startDate' : 'endDate';
+    final nestedKey = start ? 'startDate' : 'endDate';
+
+    final primary = _safeProgram[primaryKey];
+    if (primary != null) return primary;
+
+    final alt = _safeProgram[altKey];
+    if (alt != null) return alt;
+
+    final enc = _safeProgram['enrollment'];
+    if (enc is Map) {
+      final nested = enc[nestedKey];
+      if (nested != null) return nested;
+    }
+    return null;
+  }
+
+  DateTime? _enrollmentStartDateValue() => _parseEnrollmentDateValue(_rawEnrollmentBoundaryDate(start: true));
+
+  DateTime? _enrollmentEndDateValue() {
+    final direct = _parseEnrollmentDateValue(_rawEnrollmentBoundaryDate(start: false));
+    if (direct != null) return direct;
+
+    final start = _enrollmentStartDateValue();
+    if (start == null) return null;
+
+    final api = _safeProgram['_apiProgram'];
+    final durationRaw = _safeProgram['durationWeeks'] ?? _safeProgram['duration'] ?? (api is Map ? (api['durationWeeks'] ?? api['duration']) : null);
+    final weeks = MarketplaceRepository.durationWeeksFrom(durationRaw);
+    return MarketplaceRepository.endDateFromStartAndWeeks(start, weeks);
+  }
+
+  void _normalizeEnrollmentDates() {
+    final start = _enrollmentStartDateValue();
+    final end = _enrollmentEndDateValue();
+    if (start != null) {
+      _safeProgram['enrollmentStartDate'] = start;
+      _safeProgram['startDate'] = start;
+    }
+    if (end != null) {
+      _safeProgram['enrollmentEndDate'] = end;
+      _safeProgram['endDate'] = end;
+    }
   }
 
   void _hydrateMyReviewFromProgram() {
@@ -571,6 +634,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         final keepRatingVal = _rating;
         final keepSubmitted = _hasSubmittedRating;
         final keepMyReviewRating = _safeProgram['myReviewRating'];
+        final keepEnrollmentStart = _rawEnrollmentBoundaryDate(start: true);
+        final keepEnrollmentEnd = _rawEnrollmentBoundaryDate(start: false);
         _fillSafeProgramFrom(detail);
         final pid = detail['id'] ?? detail['_id'];
         if (pid != null && _mongoIdRe.hasMatch(pid.toString().trim())) {
@@ -584,6 +649,14 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
           if (hideAddToCalendar) _safeProgram['hideAddToCalendar'] = true;
           if (showAddToCalendar) _safeProgram['showAddToCalendar'] = true;
           _safeProgram['status'] ??= previousStatus ?? 'active';
+          if (keepEnrollmentStart != null) {
+            _safeProgram['enrollmentStartDate'] ??= keepEnrollmentStart;
+            _safeProgram['startDate'] ??= keepEnrollmentStart;
+          }
+          if (keepEnrollmentEnd != null) {
+            _safeProgram['enrollmentEndDate'] ??= keepEnrollmentEnd;
+            _safeProgram['endDate'] ??= keepEnrollmentEnd;
+          }
           _syncEnrollmentFromProgram();
         }
         if (keepSubmitted) {
@@ -596,11 +669,23 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     });
   }
 
-  String _formatScheduleDate(dynamic raw) {
-    if (raw == null) return '—';
-    final dt = DateTime.tryParse(raw.toString());
-    if (dt == null) return raw.toString();
-    return DateFormat.yMMMd().format(dt.toLocal());
+  String _formatEnrollmentDateLabel(DateTime date) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    String suffix(int day) {
+      if (day >= 11 && day <= 13) return 'th';
+      switch (day % 10) {
+        case 1:
+          return 'st';
+        case 2:
+          return 'nd';
+        case 3:
+          return 'rd';
+        default:
+          return 'th';
+      }
+    }
+
+    return '${months[date.month - 1]} ${date.day}${suffix(date.day)}, ${date.year}';
   }
 
   double _enrollmentProgressFraction() {
@@ -722,13 +807,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   }
 
   DateTime _defaultProgramCalendarStartDate() {
-    final raw = _safeProgram['enrollmentStartDate'] ?? _safeProgram['startDate'];
-    if (raw != null) {
-      final parsed = DateTime.tryParse(raw.toString());
-      if (parsed != null) {
-        return DateTime(parsed.year, parsed.month, parsed.day);
-      }
-    }
+    final start = _enrollmentStartDateValue();
+    if (start != null) return start;
     final now = DateTime.now();
     return DateTime(now.year, now.month, now.day);
   }
@@ -1652,8 +1732,10 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     final statusLabel = statusRaw.isEmpty ? '—' : statusRaw[0].toUpperCase() + statusRaw.substring(1).toLowerCase();
     final frac = _enrollmentProgressFraction();
     final pctRounded = (frac * 100).round().clamp(0, 100);
-    final start = _formatScheduleDate(_safeProgram['enrollmentStartDate'] ?? _safeProgram['startDate']);
-    final end = _formatScheduleDate(_safeProgram['enrollmentEndDate'] ?? _safeProgram['endDate']);
+    final startDate = _enrollmentStartDateValue();
+    final endDate = _enrollmentEndDateValue();
+    final start = startDate == null ? '—' : _formatEnrollmentDateLabel(startDate);
+    final end = endDate == null ? '—' : _formatEnrollmentDateLabel(endDate);
 
     return Container(
       width: double.infinity,
@@ -1725,6 +1807,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                 Text(
                   value,
                   style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                  softWrap: true,
+                  maxLines: 2,
                 ),
               ],
             ),

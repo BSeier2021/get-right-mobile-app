@@ -41,7 +41,40 @@ class _PlannerScreenState extends State<PlannerScreen> {
   late final PageController _progressPhotoPageController;
   int _progressPhotoPageIndex = 0;
   bool _pendingDayDetailLoad = false;
-  final Map<String, String> _localProgressPhotoPaths = {};
+  final Map<String, Map<String, String>> _localProgressPhotoPathsByDate = {};
+
+  String _localPhotoStorageKey(DateTime date) => '${date.year}-${date.month}-${date.day}';
+
+  void _setLocalProgressPhotoPath(DateTime date, String type, String path) {
+    final storageKey = _localPhotoStorageKey(date);
+    _localProgressPhotoPathsByDate.putIfAbsent(storageKey, () => {})[type] = path;
+  }
+
+  String? _localProgressPhotoPath(DateTime date, String type) {
+    final path = _localProgressPhotoPathsByDate[_localPhotoStorageKey(date)]?[type];
+    if (path == null) return null;
+    if (!File(path).existsSync()) {
+      _localProgressPhotoPathsByDate[_localPhotoStorageKey(date)]?.remove(type);
+      return null;
+    }
+    return path;
+  }
+
+  void _clearLocalProgressPhotoPath(DateTime date, String type) {
+    _localProgressPhotoPathsByDate[_localPhotoStorageKey(date)]?.remove(type);
+  }
+
+  void _scheduleProgressPhotoAction(VoidCallback action) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) action();
+    });
+  }
+
+  Future<void> _afterBottomSheetDismiss(Future<void> Function() action) async {
+    await Future<void>.delayed(const Duration(milliseconds: 280));
+    if (!mounted) return;
+    await action();
+  }
 
   bool get _hasDeletableEntry => _calendarEntryIdForSelectedDate() != null;
 
@@ -51,10 +84,46 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   bool get _canMarkAsComplete {
+    if (_isSelectedDateInFuture) return false;
     final data = _getDataForDate(_selectedDate);
-    if (!_dayHasVisibleContent(data)) return false;
-    final status = data?['workoutStatus']?.toString();
-    return status != 'completed' && status != 'rest';
+    if (!_dayHasLoggedData(data)) return false;
+    if (_isCalendarDayMarkedRest(data)) return false;
+    if (_isCalendarDayMarkedComplete(data)) return false;
+    return true;
+  }
+
+  String? _calendarEntryStatus(Map<String, dynamic>? data) {
+    if (data == null) return null;
+    final rawType = data['calendarEntryType']?.toString();
+    if (rawType != null && rawType.trim().isNotEmpty) {
+      return CalendarRepository.workoutStatusFromType(rawType);
+    }
+    if (_calendarEntryIdForSelectedDate() == null) return null;
+    if (data['program'] == null) {
+      return data['workoutStatus']?.toString();
+    }
+    return null;
+  }
+
+  bool _isCalendarDayMarkedComplete(Map<String, dynamic>? data) {
+    final entryStatus = _calendarEntryStatus(data);
+    return entryStatus == 'completed';
+  }
+
+  bool _isCalendarDayMarkedRest(Map<String, dynamic>? data) {
+    final entryStatus = _calendarEntryStatus(data);
+    if (entryStatus == 'rest') return true;
+    if (_calendarEntryIdForSelectedDate() != null) return false;
+    return data?['workoutStatus']?.toString() == 'rest';
+  }
+
+  bool get _canChangeDayStatus => _calendarEntryIdForSelectedDate() != null;
+
+  bool get _isSelectedDateInFuture {
+    final now = DateTime.now();
+    final selected = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final today = DateTime(now.year, now.month, now.day);
+    return selected.isAfter(today);
   }
 
   @override
@@ -77,10 +146,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
       _calendarLoadError = null;
     });
     try {
-      final data = await _calendarRepo.fetchCalendarMonth(year: _focusedMonth.year, month: _focusedMonth.month);
+      final fetched = await _calendarRepo.fetchCalendarMonth(year: _focusedMonth.year, month: _focusedMonth.month);
       if (!mounted) return;
       setState(() {
-        _dayData = data;
+        final merged = <DateTime, Map<String, dynamic>>{};
+        for (final entry in fetched.entries) {
+          final existing = CalendarRepository.dayDataForDate(_dayData, entry.key);
+          merged[entry.key] = CalendarRepository.mergeDayData(existing, entry.value);
+        }
+        for (final entry in _dayData.entries) {
+          final key = CalendarRepository.normalizedDate(entry.key);
+          if (key.year != _focusedMonth.year || key.month != _focusedMonth.month) continue;
+          if (merged.containsKey(key)) continue;
+          if (CalendarRepository.entryIdForDate(_dayData, key) != null || CalendarRepository.dayHasProgressPhotos(entry.value)) {
+            merged[key] = entry.value;
+          }
+        }
+        _dayData = merged;
         _isLoadingCalendar = false;
       });
       if (_pendingDayDetailLoad || _isCalendarCollapsed) {
@@ -125,7 +207,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
     final entryId = CalendarRepository.entryIdForDate(_dayData, _selectedDate);
     if (entryId == null) {
-      _pendingDayDetailLoad = false;
+      if (mounted) {
+        setState(() {
+          _pendingDayDetailLoad = false;
+          _isLoadingDayDetail = false;
+        });
+      }
       return;
     }
     if (!mounted) return;
@@ -147,10 +234,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
         _pendingDayDetailLoad = false;
       });
       if (CalendarRepository.progressPhotoUrlForType(detail['progressPhotos'], 'front') != null) {
-        _localProgressPhotoPaths.remove('front');
+        _clearLocalProgressPhotoPath(_selectedDate, 'front');
       }
       if (CalendarRepository.progressPhotoUrlForType(detail['progressPhotos'], 'side') != null) {
-        _localProgressPhotoPaths.remove('side');
+        _clearLocalProgressPhotoPath(_selectedDate, 'side');
       }
     } catch (e) {
       if (!mounted) return;
@@ -183,10 +270,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   bool _dayHasVisibleContent(Map<String, dynamic>? data) {
     if (data == null) return false;
-    if (data['calendarEntryId'] != null) return true;
+    if (data['program'] != null) return true;
+    return _dayHasLoggedData(data);
+  }
+
+  bool _dayHasLoggedData(Map<String, dynamic>? data) {
+    if (data == null) return false;
     if (data['hasProgressPhoto'] == true) return true;
     if (data['workout'] != null) return true;
-    if (data['program'] != null) return true;
     if (data['run'] != null) return true;
     if (data['nutrition'] != null) return true;
     final notes = CalendarRepository.displayNotesFrom(data['notes']?.toString());
@@ -222,6 +313,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
     // Completed workouts: Green
     if (status == 'completed') return const Color(0xFF6FCF97);
+    // In progress workouts: Accent
+    if (status == 'inprogress') return AppColors.accent;
     // Planned/incomplete workouts: Red
     if (status == 'incomplete') return const Color(0xFFE74C3C);
     // Rest day: Blue
@@ -236,7 +329,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<void> _addProgressPhoto() async {
-    // Check if selected date is in the future
     final now = DateTime.now();
     final selectedDateOnly = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
     final nowDateOnly = DateTime(now.year, now.month, now.day);
@@ -252,7 +344,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
       return;
     }
 
-    // Show options for front or side photo
+    final frontUrl = _progressPhotoUrlByType(_selectedDate, 'front');
+    final sideUrl = _progressPhotoUrlByType(_selectedDate, 'side');
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -276,29 +370,29 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'Add Progress Photo',
+                  'Progress Photo',
                   style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                Text('Choose front or side photo', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                Text('Add or replace front and side photos', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                 const SizedBox(height: 24),
                 _buildShareOptionTile(
                   icon: Icons.camera_front,
-                  title: 'Front Photo',
+                  title: frontUrl == null ? 'Add Front Photo' : 'Replace Front Photo',
                   subtitle: 'Capture from the front',
                   onTap: () {
                     Navigator.pop(context);
-                    _capturePhoto('front');
+                    _scheduleProgressPhotoAction(() => _pickProgressPhoto('front'));
                   },
                 ),
                 const SizedBox(height: 12),
                 _buildShareOptionTile(
                   icon: Icons.camera_alt,
-                  title: 'Side Photo',
+                  title: sideUrl == null ? 'Add Side Photo' : 'Replace Side Photo',
                   subtitle: 'Capture from the side',
                   onTap: () {
                     Navigator.pop(context);
-                    _capturePhoto('side');
+                    _scheduleProgressPhotoAction(() => _pickProgressPhoto('side'));
                   },
                 ),
                 const SizedBox(height: 8),
@@ -308,6 +402,37 @@ class _PlannerScreenState extends State<PlannerScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _pickProgressPhoto(String type) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined, color: AppColors.accent),
+                title: const Text('Take Photo'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined, color: AppColors.accent),
+                title: const Text('Choose from Gallery'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null || !mounted) return;
+    await _afterBottomSheetDismiss(() => _capturePhoto(type, source: source));
   }
 
   String? _calendarEntryIdForSelectedDate() {
@@ -336,8 +461,31 @@ class _PlannerScreenState extends State<PlannerScreen> {
     }
   }
 
+  Future<void> _resolveCalendarEntryIdForSelectedDate() async {
+    try {
+      final fetched = await _calendarRepo.fetchCalendarMonth(year: _selectedDate.year, month: _selectedDate.month);
+      if (!mounted) return;
+      setState(() {
+        for (final entry in fetched.entries) {
+          if (!CalendarRepository.isSameCalendarDay(entry.key, _selectedDate)) continue;
+          final key = CalendarRepository.normalizedDate(entry.key);
+          _dayData[key] = CalendarRepository.mergeDayData(_dayData[key], entry.value);
+        }
+      });
+      if (_calendarEntryIdForSelectedDate() != null) {
+        await _loadSelectedDayDetail();
+      }
+    } catch (_) {
+      /* best-effort lookup before create */
+    }
+  }
+
   Future<void> _persistProgressPhoto(File photo, String type) async {
-    final entryId = _calendarEntryIdForSelectedDate();
+    var entryId = _calendarEntryIdForSelectedDate();
+    if (entryId == null) {
+      await _resolveCalendarEntryIdForSelectedDate();
+      entryId = _calendarEntryIdForSelectedDate();
+    }
     final userNotes = CalendarRepository.displayNotesFrom(_getDataForDate(_selectedDate)?['notes']?.toString());
     final key = CalendarRepository.normalizedDate(_selectedDate);
 
@@ -364,7 +512,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
       if (!mounted) return;
 
-      _localProgressPhotoPaths[type] = photo.path;
+      _setLocalProgressPhotoPath(_selectedDate, type, photo.path);
       final mutationDay = CalendarRepository.dayDataFromMutationResponse(response);
       if (mutationDay != null) {
         setState(() {
@@ -387,13 +535,55 @@ class _PlannerScreenState extends State<PlannerScreen> {
         });
       }
 
-      await _loadCalendarMonth();
-      if (!mounted) return;
-      await _loadSelectedDayDetail();
+      await _refreshSelectedDayProgressPhotos();
       Get.snackbar('Success', '$type photo added successfully', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       if (!mounted) return;
       await showCalendarErrorDialog(context, e);
+    }
+  }
+
+  Future<void> _refreshSelectedDayProgressPhotos() async {
+    final key = CalendarRepository.normalizedDate(_selectedDate);
+    final entryId = _calendarEntryIdForSelectedDate();
+    if (entryId == null) return;
+
+    try {
+      final detail = await _calendarRepo.fetchCalendarEntry(entryId);
+      if (!mounted) return;
+      setState(() {
+        final existing = _dayData[key];
+        _dayData[key] = CalendarRepository.mergeDayData(existing, detail);
+      });
+      if (CalendarRepository.progressPhotoUrlForType(detail['progressPhotos'], 'front') != null) {
+        _clearLocalProgressPhotoPath(_selectedDate, 'front');
+      }
+      if (CalendarRepository.progressPhotoUrlForType(detail['progressPhotos'], 'side') != null) {
+        _clearLocalProgressPhotoPath(_selectedDate, 'side');
+      }
+    } catch (_) {
+      /* keep optimistic local state if detail refresh fails */
+    }
+  }
+
+  Future<void> _reloadProgressPhotoDaysInMonth() async {
+    try {
+      final fetched = await _calendarRepo.fetchCalendarMonth(year: _focusedMonth.year, month: _focusedMonth.month);
+      if (!mounted) return;
+      setState(() {
+        for (final entry in fetched.entries) {
+          if (!CalendarRepository.dayHasProgressPhotos(entry.value)) continue;
+          final key = CalendarRepository.normalizedDate(entry.key);
+          _dayData[key] = CalendarRepository.mergeDayData(_dayData[key], entry.value);
+        }
+      });
+
+      final entryId = _calendarEntryIdForSelectedDate();
+      if (entryId != null) {
+        await _refreshSelectedDayProgressPhotos();
+      }
+    } catch (_) {
+      /* keep existing photo state if refresh fails */
     }
   }
 
@@ -452,32 +642,235 @@ class _PlannerScreenState extends State<PlannerScreen> {
     }
   }
 
-  Widget _buildMarkAsCompleteButton() {
-    if (!_canMarkAsComplete) return const SizedBox.shrink();
+  Widget _buildDayStatusActions() {
+    final showMarkComplete = _canMarkAsComplete;
+    final showChangeStatus = _canChangeDayStatus;
+    if (!showMarkComplete && !showChangeStatus) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 12),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: _isMarkingComplete ? null : _markAsComplete,
-          icon: _isMarkingComplete
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onError))
-              : const Icon(Icons.check_circle_outline, size: 20),
-          label: Text(_isMarkingComplete ? 'Marking...' : 'Mark as Complete'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.accent,
-            foregroundColor: AppColors.onError,
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+      child: Column(
+        children: [
+          if (showMarkComplete)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isMarkingComplete ? null : _markAsComplete,
+                icon: _isMarkingComplete
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onError))
+                    : const Icon(Icons.check_circle_outline, size: 20),
+                label: Text(_isMarkingComplete ? 'Marking...' : 'Mark as Complete'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: AppColors.onError,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                ),
+              ),
+            ),
+          if (showMarkComplete && showChangeStatus) const SizedBox(height: 10),
+          if (showChangeStatus)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isMarkingComplete ? null : _showChangeDayStatusSheet,
+                icon: const Icon(Icons.swap_horiz, size: 20),
+                label: const Text('Change Status'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.accent,
+                  side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showChangeDayStatusSheet() async {
+    final entryId = _calendarEntryIdForSelectedDate();
+    if (entryId == null) return;
+
+    final selectedType = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Change Day Status',
+                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Update how this day appears on your calendar',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                ),
+                const SizedBox(height: 24),
+                _buildStatusOptionTile(
+                  icon: Icons.check_circle_outline,
+                  iconBg: const Color(0xFFDFF1D3),
+                  iconColor: const Color(0xFF6FCF97),
+                  title: 'Completed',
+                  subtitle: 'Finished activity for this day',
+                  onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeCompleted),
+                ),
+                const SizedBox(height: 12),
+                _buildStatusOptionTile(
+                  icon: Icons.timelapse,
+                  iconBg: const Color(0xFFFFF0D8),
+                  iconColor: AppColors.accent,
+                  title: 'In Progress',
+                  subtitle: 'Still working on this day\'s activity',
+                  onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeInProgress),
+                ),
+                const SizedBox(height: 12),
+                _buildStatusOptionTile(
+                  icon: Icons.pending_outlined,
+                  iconBg: const Color(0xFFFFE8E8),
+                  iconColor: const Color(0xFFE74C3C),
+                  title: 'Incomplete',
+                  subtitle: 'Did not finish or skipped this activity',
+                  onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeIncomplete),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (selectedType == null || !mounted) return;
+    await _updateDayStatus(selectedType);
+  }
+
+  Widget _buildStatusOptionTile({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FFE9),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.primaryGray.withOpacity(0.25)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+                child: Icon(icon, color: iconColor, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.primaryGray),
+            ],
           ),
         ),
       ),
     );
   }
 
+  Future<void> _updateDayStatus(String type) async {
+    final entryId = _calendarEntryIdForSelectedDate();
+    if (entryId == null) return;
+
+    setState(() => _isMarkingComplete = true);
+    try {
+      await _calendarRepo.updateCalendarEntry(calendarEntryId: entryId, type: type);
+      if (!mounted) return;
+      await _loadCalendarMonth();
+      if (!mounted) return;
+      final label = switch (type) {
+        CalendarRepository.typeCompleted => 'Completed',
+        CalendarRepository.typeIncomplete => 'Incomplete',
+        CalendarRepository.typeInProgress => 'In Progress',
+        CalendarRepository.typeRest => 'Rest',
+        _ => 'Updated',
+      };
+      Get.snackbar('Updated', 'Day marked as $label', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      if (!mounted) return;
+      await showCalendarErrorDialog(context, e);
+    } finally {
+      if (mounted) setState(() => _isMarkingComplete = false);
+    }
+  }
+
   Future<void> _markAsComplete() async {
+    if (_isSelectedDateInFuture) {
+      Get.snackbar(
+        'Invalid date',
+        'Future days cannot be marked as complete',
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    if (!_dayHasLoggedData(_getDataForDate(_selectedDate))) {
+      Get.snackbar(
+        'Add data first',
+        'Log a workout, run, meal, note, or photo before marking complete',
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    final dayData = _getDataForDate(_selectedDate);
+    if (_isCalendarDayMarkedRest(dayData) || _isCalendarDayMarkedComplete(dayData)) {
+      Get.snackbar(
+        'Already set',
+        'This day is already marked on your calendar',
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
     setState(() => _isMarkingComplete = true);
     try {
       final entryId = _calendarEntryIdForSelectedDate();
@@ -699,15 +1092,15 @@ class _PlannerScreenState extends State<PlannerScreen> {
     }
   }
 
-  Future<void> _capturePhoto(String type) async {
+  Future<void> _capturePhoto(String type, {ImageSource source = ImageSource.camera}) async {
     try {
-      final XFile? photo = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 85);
+      final XFile? photo = await _imagePicker.pickImage(source: source, imageQuality: 85);
 
       if (photo != null) {
         await _persistProgressPhoto(File(photo.path), type);
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to capture photo: $e', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Error', 'Failed to add photo: $e', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
     }
   }
 
@@ -735,7 +1128,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
     final isSelectedDay = CalendarRepository.isSameCalendarDay(date, _selectedDate);
     if (isSelectedDay) {
-      return _localProgressPhotoPaths[type];
+      return _localProgressPhotoPath(date, type);
     }
     return null;
   }
@@ -766,19 +1159,59 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   void _handleProgressPhotoTap(DateTime date, String type) {
     final photoUrl = _progressPhotoUrlByType(date, type);
-    if (photoUrl != null) {
-      _viewPhotoFullScreen(date, type);
-      return;
-    }
-
-    final isSelectedDay = date.year == _selectedDate.year && date.month == _selectedDate.month && date.day == _selectedDate.day;
+    final isSelectedDay = CalendarRepository.isSameCalendarDay(date, _selectedDate);
     if (!isSelectedDay) {
       setState(() {
         _selectedDate = date;
         _isCalendarCollapsed = true;
+        _pendingDayDetailLoad = true;
       });
+      _loadSelectedDayDetail();
     }
-    _capturePhoto(type);
+
+    if (photoUrl != null) {
+      _showProgressPhotoActions(date, type);
+      return;
+    }
+
+    _scheduleProgressPhotoAction(() => _pickProgressPhoto(type));
+  }
+
+  Future<void> _showProgressPhotoActions(DateTime date, String type) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.visibility_outlined, color: AppColors.accent),
+                title: const Text('View Photo'),
+                onTap: () => Navigator.pop(sheetContext, 'view'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined, color: AppColors.accent),
+                title: Text('Replace ${type == 'front' ? 'Front' : 'Side'} Photo'),
+                onTap: () => Navigator.pop(sheetContext, 'replace'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (!mounted || action == null) return;
+    if (action == 'view') {
+      _viewPhotoFullScreen(date, type);
+      return;
+    }
+    if (action == 'replace') {
+      _scheduleProgressPhotoAction(() => _pickProgressPhoto(type));
+    }
   }
 
   void _showNotesDialog() {
@@ -836,15 +1269,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _showPhotoHistory() {
-    // Get all dates with progress photos
-    final photoDates = _dayData.entries.where((entry) => entry.value['hasProgressPhoto'] == true).map((entry) => entry.key).toList();
+    final photoDates = _dayData.entries.where((entry) => CalendarRepository.dayHasProgressPhotos(entry.value)).map((entry) => entry.key).toList();
 
     if (photoDates.isEmpty) {
       Get.snackbar('No Photos', 'You haven\'t added any progress photos yet', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
-    // Sort dates in descending order (newest first)
     photoDates.sort((a, b) => b.compareTo(a));
 
     showModalBottomSheet(
@@ -859,7 +1290,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
         ),
         child: Column(
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
@@ -879,11 +1309,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(width: 48),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _scheduleProgressPhotoAction(_addProgressPhoto);
+                    },
+                    child: Text('Add', style: AppTextStyles.labelLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold)),
+                  ),
                 ],
               ),
             ),
-            // Photo Timeline
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
@@ -897,7 +1332,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ],
         ),
       ),
-    );
+    ).whenComplete(() {
+      if (!mounted || !_isCalendarCollapsed) return;
+      _scheduleProgressPhotoAction(_reloadProgressPhotoDaysInMonth);
+    });
   }
 
   Widget _buildPhotoHistoryItem(DateTime date, bool isLatest) {
@@ -1014,13 +1452,32 @@ class _PlannerScreenState extends State<PlannerScreen> {
                               TextButton(
                                 onPressed: () {
                                   Navigator.pop(context);
-                                  _handleProgressPhotoTap(date, type);
+                                  _scheduleProgressPhotoAction(() => _pickProgressPhoto(type));
                                 },
                                 child: const Text('Add Photo'),
                               ),
                             ],
                           ),
                   ),
+                  if (photoUrl != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _scheduleProgressPhotoAction(() => _pickProgressPhoto(type));
+                          },
+                          icon: const Icon(Icons.camera_alt_outlined),
+                          label: Text('Replace ${type == 'front' ? 'Front' : 'Side'} Photo'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.accent,
+                            side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -1906,6 +2363,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   ),
                 ),
               ),
+              _buildDayStatusActions(),
             ],
           ),
         ),
@@ -1916,8 +2374,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          // Progress Photos Section with swipe hint
-          if (data['hasProgressPhoto'] == true || _calendarEntryIdForSelectedDate() != null) ...[_buildProgressPhotosSection(), const SizedBox(height: 12)],
+          if (!_isSelectedDateInFuture) ...[_buildProgressPhotosSection(), const SizedBox(height: 12)],
 
           // Program Workout (mapped from enrolled program)
           if (data['program'] != null) _buildProgramWorkoutSection(data['program']),
@@ -1972,7 +2429,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               ),
             ],
           ),
-          _buildMarkAsCompleteButton(),
+          _buildDayStatusActions(),
         ],
       ),
     );
@@ -2019,7 +2476,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     const SizedBox(height: 8),
                     Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface)),
                     const SizedBox(height: 2),
-                    Text(hasPhoto ? 'Tap to view' : 'Tap to add', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontSize: 11)),
+                    Text(hasPhoto ? 'Tap for options' : 'Tap to add', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontSize: 11)),
                   ],
                 ),
         ),

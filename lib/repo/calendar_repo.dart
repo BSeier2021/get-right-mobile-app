@@ -10,6 +10,7 @@ class CalendarRepository {
 
   static const String typeCompleted = 'Completed';
   static const String typeIncomplete = 'Incomplete';
+  static const String typeInProgress = 'InProgress';
   static const String typeRest = 'Rest';
 
   /// Readable API / network error for UI.
@@ -119,6 +120,9 @@ class CalendarRepository {
         return 'completed';
       case 'incomplete':
         return 'incomplete';
+      case 'inprogress':
+      case 'in progress':
+        return 'inprogress';
       case 'rest':
         return 'rest';
       default:
@@ -346,6 +350,8 @@ class CalendarRepository {
       raw ??= photoUrlFrom(map['media']);
       raw ??= photoUrlFrom(map['icon']);
       raw ??= photoUrlFrom(map['thumbnail']);
+      raw ??= photoUrlFrom(map['image']);
+      raw ??= photoUrlFrom(map['photo']);
     }
 
     if (raw == null || raw.isEmpty || raw == 'null') return null;
@@ -408,19 +414,28 @@ class CalendarRepository {
     return result;
   }
 
+  static bool dayHasProgressPhotos(Map<String, dynamic>? data) {
+    if (data == null) return false;
+    if (data['hasProgressPhoto'] == true) return true;
+    final photos = data['progressPhotos'];
+    return photos is List && photos.isNotEmpty;
+  }
+
   static String? progressPhotoUrlForType(dynamic photosRaw, String type) {
     if (photosRaw is! List || photosRaw.isEmpty) return null;
 
     final target = type.toLowerCase();
+    String? lastMatch;
+
     for (final photo in photosRaw) {
-      if (photo is Map) {
-        final map = Map<String, dynamic>.from(photo);
-        final photoType = map['type']?.toString().toLowerCase() ?? '';
-        if (photoType.contains(target)) {
-          return photoUrlFrom(map);
-        }
-      }
+      if (photo is! Map) continue;
+      final map = Map<String, dynamic>.from(photo);
+      final photoType = map['type']?.toString().toLowerCase() ?? '';
+      if (!photoType.contains(target)) continue;
+      final url = photoUrlFrom(map);
+      if (url != null) lastMatch = url;
     }
+    if (lastMatch != null) return lastMatch;
 
     final fallbackIndex = target == 'front' ? 0 : 1;
     if (fallbackIndex < photosRaw.length) {
@@ -456,6 +471,56 @@ class CalendarRepository {
     return null;
   }
 
+  static List<Map<String, dynamic>> mergeProgressPhotoLists(dynamic existingRaw, dynamic incomingRaw) {
+    final byType = <String, Map<String, dynamic>>{};
+
+    void put(String key, Map<String, dynamic> map) {
+      final nextUrl = photoUrlFrom(map);
+      final previous = byType[key];
+      if (previous != null) {
+        final previousUrl = photoUrlFrom(previous);
+        if (nextUrl == null && previousUrl != null) return;
+      }
+      byType[key] = map;
+    }
+
+    void absorb(dynamic raw) {
+      if (raw is! List) return;
+      for (var i = 0; i < raw.length; i++) {
+        final photo = raw[i];
+        if (photo is String) {
+          final url = photoUrlFrom(photo);
+          if (url == null) continue;
+          final key = i == 0 ? 'front' : i == 1 ? 'side' : 'photo_$i';
+          put(key, {'url': url, 'type': key == 'side' ? 'side' : 'front'});
+          continue;
+        }
+
+        if (photo is! Map) continue;
+        final map = Map<String, dynamic>.from(photo);
+        final typeRaw = map['type']?.toString().toLowerCase() ?? '';
+        final key = typeRaw.contains('side')
+            ? 'side'
+            : typeRaw.contains('front')
+            ? 'front'
+            : 'photo_$i';
+        put(key, map);
+      }
+    }
+
+    absorb(existingRaw);
+    absorb(incomingRaw);
+    return byType.values.toList();
+  }
+
+  static bool hasResolvableProgressPhotos(dynamic photosRaw) {
+    if (photosRaw is! List || photosRaw.isEmpty) return false;
+    for (final photo in photosRaw) {
+      if (photoUrlFrom(photo) != null) return true;
+    }
+    return false;
+  }
+
   static Map<String, dynamic> mergeDayData(Map<String, dynamic>? existing, Map<String, dynamic> incoming) {
     if (existing == null) return incoming;
 
@@ -463,15 +528,19 @@ class CalendarRepository {
     final existingPhotos = existing['progressPhotos'];
     final incomingPhotos = incoming['progressPhotos'];
 
-    if (incomingPhotos is List && incomingPhotos.isNotEmpty) {
-      merged['progressPhotos'] = incomingPhotos;
-      merged['hasProgressPhoto'] = true;
-    } else if (existingPhotos is List && existingPhotos.isNotEmpty) {
-      merged['progressPhotos'] = existingPhotos;
-      merged['hasProgressPhoto'] = true;
+    if (existingPhotos is List || incomingPhotos is List) {
+      final combined = mergeProgressPhotoLists(existingPhotos, incomingPhotos);
+      if (combined.isNotEmpty) {
+        merged['progressPhotos'] = combined;
+      }
+      merged['hasProgressPhoto'] =
+          hasResolvableProgressPhotos(combined) ||
+          existing['hasProgressPhoto'] == true ||
+          incoming['hasProgressPhoto'] == true;
     }
 
     merged['calendarEntryId'] ??= existing['calendarEntryId'] ?? incoming['calendarEntryId'];
+    merged['calendarEntryType'] ??= incoming['calendarEntryType'] ?? existing['calendarEntryType'];
     return merged;
   }
 
@@ -670,10 +739,11 @@ class CalendarRepository {
 
     return {
       'calendarEntryId': entryIdFromCalendarRecord(entry),
+      'calendarEntryType': entry['type']?.toString(),
       'workoutStatus': programDay != null
           ? workoutStatusFromType(programDay['status']?.toString())
           : workoutStatusFromType(entry['type']?.toString()),
-      'hasProgressPhoto': hasProgressPhotosInEntry(entry),
+      'hasProgressPhoto': photos.isNotEmpty || hasProgressPhotosInEntry(entry),
       'progressPhotos': photos,
       'workout': workoutSummaryFromJournal(journal),
       'run': runSummaryFromRunningLogRaw(entry['runningLog']),

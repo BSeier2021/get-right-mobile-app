@@ -150,6 +150,33 @@ class RunningLogRepository {
     }
   }
 
+  static String? routeIdFromRunningLogJson(Map<String, dynamic> log) {
+    final routeRaw = log['route'];
+    if (routeRaw is String && WorkoutRepository.isValidMongoId(routeRaw)) {
+      return routeRaw.trim();
+    }
+    if (routeRaw is Map) {
+      final routeMap = Map<String, dynamic>.from(routeRaw);
+      final nested = routeMap['_id'] ?? routeMap['id'];
+      if (WorkoutRepository.isValidMongoId(nested?.toString())) {
+        return nested.toString().trim();
+      }
+    }
+    return null;
+  }
+
+  /// Resolves the planned-route id linked to a running log.
+  Future<String?> fetchRouteIdForRunningLog(String logId) async {
+    final raw = await _network.get(AppUrl.customerRunningLogById(logId.trim()));
+    if (!_isOk(raw) || raw is! Map) return null;
+
+    final data = raw['data'];
+    if (data is! Map) return null;
+    final log = Map<String, dynamic>.from(data)['log'];
+    if (log is! Map) return null;
+    return routeIdFromRunningLogJson(Map<String, dynamic>.from(log));
+  }
+
   /// `GET /customer/running-logs/:logId` — single completed run.
   Future<RunModel> fetchRunningLogDetail(String logId) async {
     final raw = await _network.get(AppUrl.customerRunningLogById(logId));

@@ -56,7 +56,7 @@ class ChatMessageBubble extends StatelessWidget {
                       _buildMessageContent(context),
                       const SizedBox(height: 4),
                       Row(
-                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
                         children: [
                           Text(
                             _formatTimestamp(message.timestamp),

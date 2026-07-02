@@ -91,6 +91,19 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       if (WorkoutRepository.isValidMongoId(plannedRoute?.id)) {
         plannedRouteId = plannedRoute!.id;
       }
+    } else if (WorkoutRepository.isValidMongoId(_controller.plannedRouteId)) {
+      final stub = PlannedRouteModel(
+        id: _controller.plannedRouteId!,
+        name: 'Saved Route',
+        routePoints: const [],
+        estimatedDistance: 0,
+        createdAt: DateTime.now(),
+        isSaved: true,
+      );
+      plannedRoute = await _resolvePlannedRoute(stub);
+      if (WorkoutRepository.isValidMongoId(plannedRoute?.id)) {
+        plannedRouteId = plannedRoute!.id;
+      }
     }
 
     if (!_controller.isTracking.value) {
