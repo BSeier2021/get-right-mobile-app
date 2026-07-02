@@ -253,17 +253,26 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
         width: double.infinity,
         child: Stack(
           children: [
-            mapContent,
+            ColoredBox(color: AppColors.surface, child: mapContent),
 
-            // Top overlay with gradient
+            // Light top scrim so controls stay readable over the map (especially on iOS while tiles load).
             Positioned(
               top: 0,
               left: 0,
               right: 0,
               child: Container(
-                height: 100,
+                height: 120,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [AppColors.black.withOpacity(0.6), AppColors.black.withOpacity(0)]),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      AppColors.backgroundColor.withOpacity(0.95),
+                      AppColors.backgroundColor.withOpacity(0.72),
+                      AppColors.backgroundColor.withOpacity(0.0),
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
                 ),
               ),
             ),
@@ -271,19 +280,26 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
             // Map info badge
             if (hasPosition)
               Positioned(
-                top: MediaQuery.of(Get.context!).padding.top + 80,
+                top: MediaQuery.of(Get.context!).padding.top + 72,
                 right: 16,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.accentVariant,
+                    color: AppColors.accent,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.white.withOpacity(0.5), width: 1.5),
+                    border: Border.all(color: AppColors.white.withOpacity(0.35), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.black.withOpacity(0.12),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.gps_fixed, color: AppColors.white, size: 16),
+                      const Icon(Icons.gps_fixed, color: AppColors.white, size: 16),
                       const SizedBox(width: 6),
                       Text(
                         'GPS Ready',

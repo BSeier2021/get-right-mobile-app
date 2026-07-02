@@ -3,10 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/views/planner/planner_screen.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:get_right/controllers/notification_controller.dart';
-import 'package:get_right/services/gps_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/journal/workout_journal_screen.dart';
@@ -25,9 +22,6 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
   late TabController _tabController;
   late final HomeNavigationController _navController;
   late final Worker _journalTabWorker;
-  GoogleMapController? _headerMapController;
-  Position? _currentPosition;
-  bool _isMapInitialized = false;
   bool _isDisposed = false;
 
   @override
@@ -36,11 +30,6 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
     _navController = Get.find<HomeNavigationController>();
     _tabController = TabController(length: 2, vsync: this, initialIndex: _navController.journalTabIndex.value.clamp(0, 1));
     _tabController.addListener(_handleTabChange);
-
-    // Initialize map if starting on Runner Log tab
-    if (_tabController.index == 1) {
-      _initializeMap();
-    }
 
     // If something (e.g. dashboard quick actions) requests a specific tab, jump there.
     _journalTabWorker = ever<int>(_navController.journalTabIndex, (idx) {
@@ -63,30 +52,39 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
     if (_navController.journalTabIndex.value != idx) {
       _navController.journalTabIndex.value = idx;
     }
-    // Initialize map when switching to Runner Log tab
-    if (idx == 1 && !_isMapInitialized) {
-      _initializeMap();
-    }
     if (mounted) {
       setState(() {});
     }
   }
 
-  Future<void> _initializeMap() async {
-    if (_isMapInitialized) return;
+  Color _journalTabColor({required bool isActive, required bool isRunnerLogTab}) {
+    if (isActive) return AppColors.accent;
+    return isRunnerLogTab ? AppColors.primaryGrayDark : AppColors.onBackground;
+  }
 
-    try {
-      final gpsService = GpsService.getInstance();
-      final position = await gpsService.getCurrentLocation();
-      if (mounted && position != null) {
-        setState(() {
-          _currentPosition = position;
-          _isMapInitialized = true;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error getting position for header map: $e');
-    }
+  Widget _runnerLogHeaderScrim() {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.backgroundColor.withOpacity(0.97),
+            AppColors.backgroundColor.withOpacity(0.92),
+            AppColors.backgroundColor.withOpacity(0.72),
+            AppColors.backgroundColor.withOpacity(0.0),
+          ],
+          stops: const [0.0, 0.45, 0.78, 1.0],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -95,7 +93,6 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
     _tabController.removeListener(_handleTabChange);
     _journalTabWorker.dispose();
     _tabController.dispose();
-    _headerMapController?.dispose();
     super.dispose();
   }
 
@@ -113,48 +110,11 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
           elevation: 0,
           toolbarHeight: 56,
           clipBehavior: Clip.none,
-          flexibleSpace: isRunnerLogTab && _currentPosition != null
-              ? Stack(
-                  children: [
-                    // Map background
-                    Positioned.fill(
-                      child: GoogleMap(
-                        initialCameraPosition: CameraPosition(target: LatLng(_currentPosition!.latitude, _currentPosition!.longitude), zoom: 13),
-                        onMapCreated: (controller) {
-                          _headerMapController = controller;
-                        },
-                        myLocationEnabled: false,
-                        myLocationButtonEnabled: false,
-                        zoomControlsEnabled: false,
-                        mapToolbarEnabled: false,
-                        compassEnabled: false,
-                        liteModeEnabled: false,
-                        buildingsEnabled: true,
-                        trafficEnabled: false,
-                        zoomGesturesEnabled: false,
-                        scrollGesturesEnabled: false,
-                        tiltGesturesEnabled: false,
-                        rotateGesturesEnabled: false,
-                      ),
-                    ),
-                    // Gradient overlay for better text visibility
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.black.withOpacity(0.3), Colors.black.withOpacity(0.1), Colors.transparent],
-                          stops: const [0.0, 0.5, 1.0],
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : null,
+          flexibleSpace: isRunnerLogTab ? _runnerLogHeaderScrim() : null,
           systemOverlayStyle: SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
-            statusBarIconBrightness: isRunnerLogTab ? Brightness.light : Brightness.dark,
-            statusBarBrightness: isRunnerLogTab ? Brightness.dark : Brightness.light,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
           ),
           leading: Obx(() {
             final notificationController = Get.find<NotificationController>();
@@ -206,7 +166,7 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
                       'Workout Journal',
                       style: AppTextStyles.titleMedium.copyWith(
                         fontSize: 16.sp,
-                        color: _tabController.index == 0 ? AppColors.accent : const Color(0xFF000000),
+                        color: _journalTabColor(isActive: _tabController.index == 0, isRunnerLogTab: isRunnerLogTab),
                         fontWeight: _tabController.index == 0 ? FontWeight.w900 : FontWeight.w600,
                       ),
                     ),
@@ -232,7 +192,7 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
                       'Runner Log',
                       style: AppTextStyles.titleMedium.copyWith(
                         fontSize: 16.sp,
-                        color: _tabController.index == 1 ? AppColors.accent : const Color(0xFF000000),
+                        color: _journalTabColor(isActive: _tabController.index == 1, isRunnerLogTab: isRunnerLogTab),
                         fontWeight: _tabController.index == 1 ? FontWeight.w900 : FontWeight.w600,
                       ),
                     ),
