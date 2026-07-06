@@ -86,11 +86,18 @@ class _PlannerScreenState extends State<PlannerScreen> {
   bool get _canMarkAsComplete {
     if (_isSelectedDateInFuture) return false;
     final data = _getDataForDate(_selectedDate);
-    if (!_dayHasLoggedData(data)) return false;
+    if (!_canMarkDayCompleted(data)) return false;
     if (_isCalendarDayMarkedRest(data)) return false;
     if (_isCalendarDayMarkedComplete(data)) return false;
     return true;
   }
+
+  bool _canMarkDayCompleted(Map<String, dynamic>? data) {
+    if (_dayHasLoggedData(data)) return true;
+    return data?['program'] != null;
+  }
+
+  bool get _canSetDayStatus => !_isSelectedDateInFuture;
 
   String? _calendarEntryStatus(Map<String, dynamic>? data) {
     if (data == null) return null;
@@ -117,7 +124,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
     return data?['workoutStatus']?.toString() == 'rest';
   }
 
-  bool get _canChangeDayStatus => _calendarEntryIdForSelectedDate() != null;
+  String? get _selectedDayStatusLabel {
+    final status = _calendarEntryStatus(_getDataForDate(_selectedDate));
+    return switch (status) {
+      'completed' => 'Completed',
+      'incomplete' => 'Incomplete',
+      'inprogress' => 'In Progress',
+      'rest' => 'Rest Day',
+      _ => null,
+    };
+  }
 
   bool get _isSelectedDateInFuture {
     final now = DateTime.now();
@@ -643,23 +659,48 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Widget _buildDayStatusActions() {
-    final showMarkComplete = _canMarkAsComplete;
-    final showChangeStatus = _canChangeDayStatus;
-    if (!showMarkComplete && !showChangeStatus) return const SizedBox.shrink();
+    if (!_canSetDayStatus) return const SizedBox.shrink();
+
+    final currentStatus = _selectedDayStatusLabel;
 
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
         children: [
-          if (showMarkComplete)
+          if (currentStatus != null) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Current status: $currentStatus',
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isMarkingComplete ? null : _showSetDayStatusSheet,
+              icon: _isMarkingComplete
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
+                  : const Icon(Icons.event_available_outlined, size: 20),
+              label: Text(_isMarkingComplete ? 'Saving...' : 'Set Day Status'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.accent,
+                side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+              ),
+            ),
+          ),
+          if (_canMarkAsComplete) ...[
+            const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _isMarkingComplete ? null : _markAsComplete,
-                icon: _isMarkingComplete
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onError))
-                    : const Icon(Icons.check_circle_outline, size: 20),
-                label: Text(_isMarkingComplete ? 'Marking...' : 'Mark as Complete'),
+                onPressed: _isMarkingComplete ? null : () => _applyDayStatus(CalendarRepository.typeCompleted),
+                icon: const Icon(Icons.check_circle_outline, size: 20),
+                label: const Text('Quick Mark Complete'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
                   foregroundColor: AppColors.onError,
@@ -669,30 +710,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ),
               ),
             ),
-          if (showMarkComplete && showChangeStatus) const SizedBox(height: 10),
-          if (showChangeStatus)
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _isMarkingComplete ? null : _showChangeDayStatusSheet,
-                icon: const Icon(Icons.swap_horiz, size: 20),
-                label: const Text('Change Status'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.accent,
-                  side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                ),
-              ),
-            ),
+          ],
         ],
       ),
     );
   }
 
-  Future<void> _showChangeDayStatusSheet() async {
-    final entryId = _calendarEntryIdForSelectedDate();
-    if (entryId == null) return;
+  Future<void> _showSetDayStatusSheet() async {
+    if (_isSelectedDateInFuture) {
+      Get.snackbar(
+        'Invalid date',
+        'Future days cannot be updated',
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
 
     final selectedType = await showModalBottomSheet<String>(
       context: context,
@@ -716,12 +750,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'Change Day Status',
+                  'Set Day Status',
                   style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Update how this day appears on your calendar',
+                  'Choose how this day appears on your calendar',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
                 ),
@@ -752,6 +786,15 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   subtitle: 'Did not finish or skipped this activity',
                   onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeIncomplete),
                 ),
+                const SizedBox(height: 12),
+                _buildStatusOptionTile(
+                  icon: Icons.hotel_outlined,
+                  iconBg: const Color(0xFFDCEBFA),
+                  iconColor: const Color(0xFF4A90E2),
+                  title: 'Rest Day',
+                  subtitle: 'Planned recovery with no workout logged',
+                  onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeRest),
+                ),
               ],
             ),
           ),
@@ -760,8 +803,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
 
     if (selectedType == null || !mounted) return;
-    await _updateDayStatus(selectedType);
+    await _applyDayStatus(selectedType);
   }
+
+  Future<void> _showChangeDayStatusSheet() async => _showSetDayStatusSheet();
 
   Widget _buildStatusOptionTile({
     required IconData icon,
@@ -810,37 +855,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
-  Future<void> _updateDayStatus(String type) async {
-    final entryId = _calendarEntryIdForSelectedDate();
-    if (entryId == null) return;
-
-    setState(() => _isMarkingComplete = true);
-    try {
-      await _calendarRepo.updateCalendarEntry(calendarEntryId: entryId, type: type);
-      if (!mounted) return;
-      await _loadCalendarMonth();
-      if (!mounted) return;
-      final label = switch (type) {
-        CalendarRepository.typeCompleted => 'Completed',
-        CalendarRepository.typeIncomplete => 'Incomplete',
-        CalendarRepository.typeInProgress => 'In Progress',
-        CalendarRepository.typeRest => 'Rest',
-        _ => 'Updated',
-      };
-      Get.snackbar('Updated', 'Day marked as $label', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
-    } catch (e) {
-      if (!mounted) return;
-      await showCalendarErrorDialog(context, e);
-    } finally {
-      if (mounted) setState(() => _isMarkingComplete = false);
-    }
-  }
-
-  Future<void> _markAsComplete() async {
+  Future<void> _applyDayStatus(String type) async {
     if (_isSelectedDateInFuture) {
       Get.snackbar(
         'Invalid date',
-        'Future days cannot be marked as complete',
+        'Future days cannot be updated',
         backgroundColor: AppColors.error,
         colorText: AppColors.onError,
         snackPosition: SnackPosition.BOTTOM,
@@ -848,22 +867,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
       return;
     }
 
-    if (!_dayHasLoggedData(_getDataForDate(_selectedDate))) {
+    if (type == CalendarRepository.typeCompleted && !_canMarkDayCompleted(_getDataForDate(_selectedDate))) {
       Get.snackbar(
         'Add data first',
-        'Log a workout, run, meal, note, or photo before marking complete',
-        backgroundColor: AppColors.error,
-        colorText: AppColors.onError,
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
-    final dayData = _getDataForDate(_selectedDate);
-    if (_isCalendarDayMarkedRest(dayData) || _isCalendarDayMarkedComplete(dayData)) {
-      Get.snackbar(
-        'Already set',
-        'This day is already marked on your calendar',
+        'Log a workout, run, meal, note, photo, or program workout before marking complete',
         backgroundColor: AppColors.error,
         colorText: AppColors.onError,
         snackPosition: SnackPosition.BOTTOM,
@@ -875,15 +882,21 @@ class _PlannerScreenState extends State<PlannerScreen> {
     try {
       final entryId = _calendarEntryIdForSelectedDate();
       if (entryId != null) {
-        await _calendarRepo.updateCalendarEntry(calendarEntryId: entryId, type: CalendarRepository.typeCompleted);
+        await _calendarRepo.updateCalendarEntry(calendarEntryId: entryId, type: type);
       } else {
-        await _calendarRepo.createCalendarEntry(date: _selectedDate, type: CalendarRepository.typeCompleted);
+        await _calendarRepo.createCalendarEntry(date: _selectedDate, type: type);
       }
-
       if (!mounted) return;
       await _loadCalendarMonth();
       if (!mounted) return;
-      Get.snackbar('Success', 'Day marked as complete', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+      final label = switch (type) {
+        CalendarRepository.typeCompleted => 'Completed',
+        CalendarRepository.typeIncomplete => 'Incomplete',
+        CalendarRepository.typeInProgress => 'In Progress',
+        CalendarRepository.typeRest => 'Rest Day',
+        _ => 'Updated',
+      };
+      Get.snackbar('Updated', 'Day marked as $label', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       if (!mounted) return;
       await showCalendarErrorDialog(context, e);
@@ -891,6 +904,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
       if (mounted) setState(() => _isMarkingComplete = false);
     }
   }
+
+  Future<void> _updateDayStatus(String type) async => _applyDayStatus(type);
+
+  Future<void> _markAsComplete() async => _applyDayStatus(CalendarRepository.typeCompleted);
 
   Future<void> _showMoveProgramWorkoutSheet() async {
     final entryId = _calendarEntryIdForSelectedDate();
@@ -1260,12 +1277,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _markAsRestDay() {
-    setState(() {
-      final key = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      _dayData[key] = {'workoutStatus': 'rest', 'hasProgressPhoto': false, 'workout': null, 'run': null, 'nutrition': null, 'notes': _dayData[key]?['notes'] ?? ''};
-    });
-
-    Get.snackbar('Success', 'Day marked as rest day', backgroundColor: const Color(0xFF4A90E2), colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+    _applyDayStatus(CalendarRepository.typeRest);
   }
 
   void _showPhotoHistory() {

@@ -57,6 +57,15 @@ Future<String?> showCalendarTypeDialog(BuildContext context) {
                 subtitle: 'Did not finish or skipped this activity',
                 onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeIncomplete),
               ),
+              const SizedBox(height: 12),
+              _StatusOptionTile(
+                icon: Icons.hotel_outlined,
+                iconBg: const Color(0xFFDCEBFA),
+                iconColor: const Color(0xFF4A90E2),
+                title: 'Rest Day',
+                subtitle: 'Planned recovery with no workout logged',
+                onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeRest),
+              ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
