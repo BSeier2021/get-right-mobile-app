@@ -1385,13 +1385,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     });
   }
 
-  Widget _buildProgramCardPrice(Map<String, dynamic> program) {
+  Widget _buildProgramCardPrice(Map<String, dynamic> program, {bool compact = false}) {
     final pricing = _programPricing(program);
     final listPrice = (pricing['listPrice'] as num).toDouble();
     final netPrice = (pricing['netPrice'] as num).toDouble();
     final discount = (pricing['discount'] as num).toInt();
     final hasDiscount = discount > 0 && listPrice > netPrice;
-    final priceStyle = AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, fontSize: 16.sp);
+    final priceStyle = AppTextStyles.titleMedium.copyWith(
+      color: AppColors.onSurface,
+      fontWeight: FontWeight.w700,
+      fontSize: compact ? 13.sp : 16.sp,
+      height: 1.1,
+    );
 
     if (!hasDiscount) {
       return Text(
@@ -1400,6 +1405,28 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         textAlign: TextAlign.end,
+      );
+    }
+
+    if (compact) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            '\$${netPrice.toStringAsFixed(2)}',
+            style: priceStyle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          SizedBox(width: 3.w),
+          Text(
+            '\$${listPrice.toStringAsFixed(2)}',
+            style: TextStyle(color: const Color(0xFF999999), fontSize: 9.sp, height: 1.1, decoration: TextDecoration.lineThrough),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       );
     }
 
@@ -1423,18 +1450,20 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
-  Widget _buildProgramCardPriceRow(Map<String, dynamic> program, {BorderRadius? viewButtonRadius}) {
+  Widget _buildProgramCardPriceRow(Map<String, dynamic> program, {BorderRadius? viewButtonRadius, bool compact = false}) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         _buildCompactViewButton(
           onPressed: () => _viewProgram(program),
           borderRadius: viewButtonRadius ?? BorderRadius.circular(50),
+          height: compact ? 22 : 25,
         ),
         SizedBox(width: 4.w),
         Flexible(
           child: Align(
             alignment: Alignment.centerRight,
-            child: _buildProgramCardPrice(program),
+            child: _buildProgramCardPrice(program, compact: compact),
           ),
         ),
       ],
@@ -1554,21 +1583,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('${program['trainer']}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-                      Row(
-                        children: [
-                          Icon(Icons.star, color: AppColors.upcoming, size: 16),
-                          const SizedBox(width: 4),
-                          Text(ratingVal.toStringAsFixed(1), style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
-                          const SizedBox(width: 8),
-                          if ((program['students'] as num?) != null && (program['students'] as num) > 0)
-                            Text('${program['students']} enrolled', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                          if (reviewCount != null) ...[
-                            if ((program['students'] as num?) != null && (program['students'] as num) > 0)
-                              Text(' · ', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                            Text('$reviewCount reviews', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
-                          ],
-                        ],
-                      ),
+                       Text('Trainer', style: AppTextStyles.labelSmall.copyWith(color: AppColors.black)),
                       if (program['certified'] == true)
                         Row(
                           children: [
@@ -2467,7 +2482,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.80, crossAxisSpacing: 12.w, mainAxisSpacing: 12.h),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.68, crossAxisSpacing: 12.w, mainAxisSpacing: 12.h),
         itemCount: programs.length,
         itemBuilder: (context, index) {
           return _buildGridProgramCard(programs[index]);
@@ -2477,21 +2492,19 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Widget _buildGridProgramCard(Map<String, dynamic> program) {
-    return SizedBox(
-      height: 160.h,
-      child: GestureDetector(
-        onTap: () => _showProgramDetail(program),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Thumbnail Image
-              GestureDetector(
+    return GestureDetector(
+      onTap: () => _showProgramDetail(program),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Thumbnail Image
+            GestureDetector(
                 onTap: () => _showProgramDetail(program),
                 child: Stack(
                   children: [
@@ -2567,60 +2580,60 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               // Content section
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w),
+                  padding: EdgeInsets.fromLTRB(10.w, 4.h, 10.w, 6.h),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       // Title
                       GestureDetector(
                         onTap: () => _showProgramDetail(program),
                         child: Text(
                           program['title'],
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, height: 1.1, fontSize: 16.sp),
-                          maxLines: 2,
+                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700, height: 1.1, fontSize: 13.sp),
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      SizedBox(height: 15.h),
+                      SizedBox(height: 4.h),
 
                       // Instructor with Certification Badge
                       Row(
                         children: [
-                          _programTrainerAvatarChip(program, size: 23.h),
+                          _programTrainerAvatarChip(program, size: 20.h),
                           SizedBox(width: 6.w),
-                          // Trainer Name
                           Flexible(
-                            child: Text( 
-                              (program['trainer'] ?? 'Trainer').toString().replaceAll(' ', '\n'),
-                              style: TextStyle(color: const Color(0xFF333333), fontSize: 10.sp, height: 1.0, fontWeight: FontWeight.w600),
-                              maxLines: 2,
+                            child: Text(
+                              (program['trainer'] ?? 'Trainer').toString(),
+                              style: TextStyle(color: const Color(0xFF333333), fontSize: 10.sp, height: 1.1, fontWeight: FontWeight.w600),
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          SizedBox(width: 7.w),
-                          Icon(Icons.star, color: AppColors.accent, size: 13.sp),
+                          SizedBox(width: 4.w),
+                          Icon(Icons.star, color: AppColors.accent, size: 12.sp),
                           Text(
                             _programRatingValue(program).toStringAsFixed(1),
-                            style: TextStyle(color: Colors.black, fontSize: 13.sp, fontWeight: FontWeight.w600),
+                            style: TextStyle(color: Colors.black, fontSize: 11.sp, fontWeight: FontWeight.w600),
                           ),
-                          SizedBox(width: 5.w),
-                          Icon(Icons.people, color: Colors.black, size: 13.sp),
                           SizedBox(width: 3.w),
+                          Icon(Icons.people, color: Colors.black, size: 12.sp),
+                          SizedBox(width: 2.w),
                           Flexible(
                             child: Text(
                               '${_formatNumber(_programReviewCount(program) ?? (program['students'] as num?)?.toInt() ?? 0)}',
-                              style: TextStyle(color: Colors.black, fontSize: 13.sp),
+                              style: TextStyle(color: Colors.black, fontSize: 11.sp),
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
 
-                      SizedBox(height: 15.h),
+                      const Spacer(),
 
                       // Price and Button
-                      _buildProgramCardPriceRow(program, viewButtonRadius: BorderRadius.circular(10)),
+                      _buildProgramCardPriceRow(program, viewButtonRadius: BorderRadius.circular(10), compact: true),
                     ],
                   ),
                 ),
@@ -2628,7 +2641,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             ],
           ),
         ),
-      ),
     );
   }
 

@@ -52,6 +52,7 @@ import 'package:get_right/views/settings/change_password_screen.dart';
 import 'package:get_right/views/settings/notifications_screen.dart';
 import 'package:get_right/views/settings/help_feedback_screen.dart';
 import 'package:get_right/views/settings/about_screen.dart';
+import 'package:get_right/views/discover/discover_screen.dart';
 import 'package:get_right/views/settings/blocked_users_screen.dart';
 import 'package:get_right/views/settings/reports_screen.dart';
 import 'package:get_right/views/chat/chat_list_screen.dart';
@@ -215,6 +216,7 @@ class AppPages {
     GetPage(name: AppRoutes.reports, page: () => const ReportsScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.helpFeedback, page: () => const HelpFeedbackScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.about, page: () => const AboutScreen(), transition: Transition.rightToLeft),
+    GetPage(name: AppRoutes.discover, page: () => const DiscoverScreen(), transition: Transition.rightToLeft),
     // GetPage(name: AppRoutes.createTrainerProfile, page: () => const CreateTrainerProfileScreen(), transition: Transition.rightToLeft),
   ];
 }

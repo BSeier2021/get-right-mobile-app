@@ -32,6 +32,30 @@ class AppUrl {
   static String updateProfile = '$baseUrl/customer/profile/update';
   static String getProfile = '$baseUrl/customer/profile';
 
+  /// `GET /customer/profile/progress` — summary + weekly activity for progress screen.
+  static String get customerProfileProgress => '$baseUrl/customer/profile/progress';
+
+  /// `GET /user/discover` — search users (`search`, `role`, `sort`, `page`, `limit`).
+  static String usersDiscover({
+    String? search,
+    String? role,
+    String? sort,
+    int page = 1,
+    int limit = 20,
+  }) {
+    final params = <String, String>{
+      'page': '$page',
+      'limit': '$limit',
+    };
+    final q = search?.trim();
+    if (q != null && q.isNotEmpty) params['search'] = q;
+    final r = role?.trim();
+    if (r != null && r.isNotEmpty) params['role'] = r;
+    final s = sort?.trim();
+    if (s != null && s.isNotEmpty) params['sort'] = s;
+    return '$baseUrl/user/discover?${Uri(queryParameters: params).query}';
+  }
+
   /// `GET /user/profiles/:userId/details` — trainer/customer public card (`data.user`, counts, `isFollowedByMe`).
   static String profileUserDetails(String userId) => '$baseUrl/user/profiles/${Uri.encodeComponent(userId.trim())}/details';
 

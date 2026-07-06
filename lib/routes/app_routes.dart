@@ -127,5 +127,6 @@ class AppRoutes {
   static const String termsConditions = '/terms-conditions';
   static const String privacyPolicy = '/privacy-policy';
   static const String about = '/about';
+  static const String discover = '/discover';
   static const String createTrainerProfile = '/create-trainer-profile';
 }

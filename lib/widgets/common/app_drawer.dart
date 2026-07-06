@@ -186,6 +186,14 @@ class _AppDrawerState extends State<AppDrawer> {
 
                   _sectionLabel('COMMUNITY'),
                   const SizedBox(height: 4),
+                  _drawerItem(
+                    fallbackIcon: Icons.explore_outlined,
+                    title: 'Discover',
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed(AppRoutes.discover);
+                    },
+                  ),
                   Obx(
                     () => _drawerItemWithBadge(
                       fallbackIcon: Icons.notifications_none_rounded,
