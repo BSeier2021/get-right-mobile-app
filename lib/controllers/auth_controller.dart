@@ -952,6 +952,16 @@ class AuthController extends GetxController {
       if (trainerInitials.isEmpty) trainerInitials = trainerName.substring(0, 1).toUpperCase();
     }
 
+    var trainerRating = 0.0;
+    var trainerReviews = 0;
+    if (tr is Map) {
+      final review = Map<String, dynamic>.from(tr)['review'];
+      if (review is Map) {
+        trainerRating = (review['ratingAvg'] as num?)?.toDouble() ?? 0.0;
+        trainerReviews = (review['ratingCount'] as num?)?.toInt() ?? 0;
+      }
+    }
+
     return {
       'id': inner['_id']?.toString() ?? '',
       'title': inner['title']?.toString() ?? '',
@@ -968,6 +978,8 @@ class AuthController extends GetxController {
       'trainer': trainerName,
       'trainerImage': trainerInitials,
       if (trainerAvatarUrl != null) 'trainerImageUrl': trainerAvatarUrl,
+      'trainerRating': trainerRating,
+      'trainerReviews': trainerReviews,
       ...() {
         final verified = isCertificationsVerifiedFromBundleApi(inner!);
         return {

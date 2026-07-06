@@ -566,6 +566,20 @@ class MarketplaceRepository {
     final bundlePrice = (pricing['bundlePrice'] as num?)?.toDouble() ?? 0.0;
     final discount = (pricing['discount'] as num?)?.toInt() ?? 0;
 
+    var trainerRating = 0.0;
+    var trainerReviews = 0;
+    String? trainerId;
+    final review = MarketplaceRepository.trainerReviewFromApiNode(b['trainer']);
+    if (review != null) {
+      trainerRating = (review['ratingAvg'] as num?)?.toDouble() ?? 0.0;
+      trainerReviews = (review['ratingCount'] as num?)?.toInt() ?? 0;
+    }
+    final trainerNode = b['trainer'];
+    if (trainerNode is Map) {
+      trainerId = trainerNode['_id']?.toString().trim();
+      if (trainerId != null && trainerId.isEmpty) trainerId = null;
+    }
+
     return {
       'id': bundleId,
       'title': b['title']?.toString() ?? '',
@@ -578,6 +592,9 @@ class MarketplaceRepository {
       'trainer': trainerName,
       'trainerImage': _initials(trainerName),
       if (trainerAvatarUrl != null) 'trainerImageUrl': trainerAvatarUrl,
+      if (trainerId != null) 'trainerId': trainerId,
+      'trainerRating': trainerRating,
+      'trainerReviews': trainerReviews,
       'programs': resolved,
       'isHot': b['isHot'] == true,
       'isCertified': bundleCertified,

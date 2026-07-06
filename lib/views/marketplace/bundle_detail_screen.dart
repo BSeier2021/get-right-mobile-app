@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_right/controllers/auth_controller.dart';
+import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -40,11 +41,9 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     } else if (args is String && args.trim().isNotEmpty) {
       _bundleId = args.trim();
     }
-    if (_bundle['prefetchedBundle'] == true) {
-      _loading = false;
-    } else if (_bundleId != null && _bundleId!.isNotEmpty) {
+    if (_bundleId != null && _bundleId!.isNotEmpty) {
       _loadDetail();
-    } else if (_isEnrolled && _programsList().isNotEmpty) {
+    } else if (_bundle['prefetchedBundle'] == true || (_isEnrolled && _programsList().isNotEmpty)) {
       _loading = false;
     } else {
       setState(() {
@@ -87,7 +86,11 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
       if (!_isEnrolled || _programsList().isEmpty) return;
     }
     setState(() {
-      if (ui != null) _bundle = ui;
+      if (ui != null) {
+        _bundle = ui;
+        final reviewFields = _trainerReviewFieldsFromBundle();
+        _bundle.addAll(reviewFields);
+      }
       if (_isEnrolled) {
         _bundle['isEnrolled'] = true;
         if (hidePricing) _bundle['hidePricing'] = true;
@@ -176,6 +179,36 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     return id.isEmpty ? null : id;
   }
 
+  Map<String, dynamic> _trainerReviewFieldsFromBundle() {
+    var rating = (_bundle['trainerRating'] as num?)?.toDouble() ?? 0.0;
+    var reviews = (_bundle['trainerReviews'] as num?)?.toInt() ?? 0;
+
+    final api = _bundle['_apiBundle'];
+    if (api is Map) {
+      final review = MarketplaceRepository.trainerReviewFromApiNode(Map<String, dynamic>.from(api)['trainer']);
+      if (review != null) {
+        rating = (review['ratingAvg'] as num?)?.toDouble() ?? rating;
+        reviews = (review['ratingCount'] as num?)?.toInt() ?? reviews;
+      }
+    }
+
+    final trainerNode = _bundle['trainer'];
+    if (trainerNode is Map) {
+      final review = MarketplaceRepository.trainerReviewFromApiNode(trainerNode);
+      if (review != null) {
+        rating = (review['ratingAvg'] as num?)?.toDouble() ?? rating;
+        reviews = (review['ratingCount'] as num?)?.toInt() ?? reviews;
+      }
+    }
+
+    return {
+      'trainerRating': rating,
+      'rating': rating,
+      'trainerReviews': reviews,
+      'totalReviews': reviews,
+    };
+  }
+
   Map<String, dynamic> _resolveBundleTrainer(List<Map<String, dynamic>> programs) {
     var trainerId = (_bundle['trainerId'] ?? '').toString().trim();
     var name = (_bundle['trainer'] ?? '').toString().trim();
@@ -213,12 +246,10 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     if (name.isEmpty) name = 'Trainer';
     if (initials.isEmpty) initials = name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'T';
 
-    var rating = 0.0;
-    var students = 0;
+    final reviewFields = _trainerReviewFieldsFromBundle();
+
     var certified = isCertifiedFromUiMap(_bundle);
     if (programs.isNotEmpty) {
-      rating = programs.map((p) => ((p['rating'] as num?) ?? 0).toDouble()).fold<double>(0, (a, b) => a + b) / programs.length;
-      students = programs.map((p) => ((p['students'] as num?) ?? 0).toInt()).fold<int>(0, (a, b) => a + b);
       certified = certified || programs.every((p) => isCertifiedFromUiMap(Map<String, dynamic>.from(p)));
     }
 
@@ -227,8 +258,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
       'name': name,
       'initials': initials,
       if (avatarUrl != null) 'avatarUrl': avatarUrl,
-      'rating': rating,
-      'students': students,
+      ...reviewFields,
       'certified': certified,
       'role': 'Trainer',
       'isTrainer': true,
@@ -251,8 +281,8 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     final name = (trainer['name'] ?? 'Trainer').toString();
     final initials = (trainer['initials'] ?? 'T').toString();
     final avatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(trainer['avatarUrl']?.toString());
-    final rating = ((trainer['rating'] as num?) ?? 0).toDouble();
-    final students = ((trainer['students'] as num?) ?? 0).toInt();
+    final rating = ((trainer['trainerRating'] ?? trainer['rating']) as num?)?.toDouble() ?? 0.0;
+    final reviewCount = ((trainer['trainerReviews'] ?? trainer['totalReviews']) as num?)?.toInt() ?? 0;
     final certified = isCertifiedFromUiMap(trainer);
 
     return GestureDetector(
@@ -302,11 +332,17 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.star, size: 15, color: Color(0xFFF6A623)),
+                      Icon(Icons.star, color: AppColors.upcoming, size: 16),
                       const SizedBox(width: 4),
-                      Text(rating.toStringAsFixed(1), style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
-                      const SizedBox(width: 10),
-                      Text('$students students', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark)),
+                      Text(
+                        rating.toStringAsFixed(1),
+                        style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$reviewCount ${reviewCount == 1 ? 'review' : 'reviews'}',
+                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
+                      ),
                     ],
                   ),
                   if (certified) ...[
