@@ -176,6 +176,12 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
           }
         }
       }
+      if (m['rating'] == null && m['trainerRating'] != null) {
+        m['rating'] = m['trainerRating'];
+      }
+      if (m['totalReviews'] == null && m['trainerReviews'] != null) {
+        m['totalReviews'] = m['trainerReviews'];
+      }
       return m;
     }
     return Map<String, dynamic>.from(_getMockTrainerData());
@@ -275,6 +281,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       if (mounted) {
         setState(() {
           _posts = _parsePostsResponse(postsRaw);
+          _mergeReviewFromResponse(postsRaw);
         });
       }
     } catch (_) {
@@ -352,6 +359,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
 
     final contactFields = _extractProfileContactFields(profile: profile, user: user);
     final certificationsVerified = isCertificationsVerifiedFromApiNodes([user, profile]);
+    final reviewFields = _reviewFieldsFromUserNode(user);
 
     trainer = {
       ...trainer,
@@ -373,6 +381,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       'bundleCount': user['bundleCount'],
       'role': _normalizeRole(user['role'] ?? profile['role'] ?? data['role']) ?? trainer['role'],
       ...contactFields,
+      ...reviewFields,
     };
 
     _isBlockedByMe = user['isBlockedByMe'] == true || user['blockedByMe'] == true || data['isBlockedByMe'] == true || data['blockedByMe'] == true;
@@ -387,6 +396,28 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
               .where((r) => r.isPublic && r.id.isNotEmpty && r.liftName.isNotEmpty)
               .toList()
         : [];
+  }
+
+  Map<String, dynamic> _reviewFieldsFromUserNode(Map<String, dynamic> user) {
+    final review = user['review'];
+    if (review is! Map) return const {};
+    final rating = (review['ratingAvg'] as num?)?.toDouble();
+    final count = (review['ratingCount'] as num?)?.toInt();
+    return {
+      if (rating != null) 'rating': rating,
+      if (count != null) 'totalReviews': count,
+    };
+  }
+
+  void _mergeReviewFromResponse(dynamic raw) {
+    if (raw is! Map) return;
+    final data = raw['data'];
+    if (data is! Map) return;
+    final user = data['user'];
+    if (user is! Map<String, dynamic>) return;
+    final reviewFields = _reviewFieldsFromUserNode(user);
+    if (reviewFields.isEmpty) return;
+    trainer = {...trainer, ...reviewFields};
   }
 
   static String? _nonEmptyString(dynamic value) {
@@ -1557,6 +1588,30 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     return int.tryParse(v?.toString() ?? '') ?? 0;
   }
 
+  double _trainerRatingValue() => (trainer['rating'] as num?)?.toDouble() ?? 0.0;
+
+  int _trainerReviewCount() => _statInt('totalReviews');
+
+  Widget _buildTrainerRatingRow() {
+    final rating = _trainerRatingValue();
+    final reviews = _trainerReviewCount();
+    return Row(
+      children: [
+        Icon(Icons.star, color: AppColors.upcoming, size: 16),
+        const SizedBox(width: 4),
+        Text(
+          rating.toStringAsFixed(1),
+          style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$reviews ${reviews == 1 ? 'review' : 'reviews'}',
+          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
+        ),
+      ],
+    );
+  }
+
   @override
   void reassemble() {
     super.reassemble();
@@ -1737,6 +1792,10 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold, fontSize: 17.sp),
                 ),
+                if (_mongoUserId != null || _trainerRatingValue() > 0 || _trainerReviewCount() > 0) ...[
+                  const SizedBox(height: 6),
+                  _buildTrainerRatingRow(),
+                ],
                 if (isCertifiedFromUiMap(trainer)) ...[
                   const SizedBox(height: 8),
                   verifiedTrainerChip(),
