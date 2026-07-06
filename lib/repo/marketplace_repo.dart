@@ -411,6 +411,42 @@ class MarketplaceRepository {
     return fallback;
   }
 
+  /// Trainer aggregate review from API `trainer.review` node.
+  static Map<String, dynamic>? trainerReviewFromApiNode(dynamic trainer) {
+    if (trainer is! Map) return null;
+    final review = Map<String, dynamic>.from(trainer)['review'];
+    if (review is! Map) return null;
+    return Map<String, dynamic>.from(review);
+  }
+
+  static double trainerReviewRatingAvgFromProgramApi(Map<String, dynamic> program) {
+    if (program.containsKey('trainerRating')) {
+      return (program['trainerRating'] as num?)?.toDouble() ?? 0.0;
+    }
+    final direct = trainerReviewFromApiNode(program['trainer']);
+    if (direct != null) return (direct['ratingAvg'] as num?)?.toDouble() ?? 0.0;
+    final raw = program['_apiProgram'];
+    if (raw is Map) {
+      final nested = trainerReviewFromApiNode(Map<String, dynamic>.from(raw)['trainer']);
+      if (nested != null) return (nested['ratingAvg'] as num?)?.toDouble() ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  static int trainerReviewCountFromProgramApi(Map<String, dynamic> program) {
+    if (program.containsKey('trainerReviews')) {
+      return (program['trainerReviews'] as num?)?.toInt() ?? 0;
+    }
+    final direct = trainerReviewFromApiNode(program['trainer']);
+    if (direct != null) return (direct['ratingCount'] as num?)?.toInt() ?? 0;
+    final raw = program['_apiProgram'];
+    if (raw is Map) {
+      final nested = trainerReviewFromApiNode(Map<String, dynamic>.from(raw)['trainer']);
+      if (nested != null) return (nested['ratingCount'] as num?)?.toInt() ?? 0;
+    }
+    return 0;
+  }
+
   static String initialsFromName(String name) => _initials(name);
 
   /// Parses week count from num or strings like `"12 weeks"`.
@@ -659,6 +695,16 @@ class MarketplaceRepository {
 
     final verified = isCertificationsVerifiedFromProgramApi(p);
 
+    var trainerRating = 0.0;
+    var trainerReviews = 0;
+    if (t is Map) {
+      final review = t['review'];
+      if (review is Map) {
+        trainerRating = (review['ratingAvg'] as num?)?.toDouble() ?? 0.0;
+        trainerReviews = (review['ratingCount'] as num?)?.toInt() ?? 0;
+      }
+    }
+
     return {
       'id': p['_id']?.toString(),
       'title': p['title']?.toString() ?? '',
@@ -680,6 +726,8 @@ class MarketplaceRepository {
       'isCertified': verified,
       'rating': rating,
       'reviews': reviews,
+      'trainerRating': trainerRating,
+      'trainerReviews': trainerReviews,
       'students': students,
       'difficulty': level.isNotEmpty ? _titleCaseSlug(level) : 'All',
       '_apiProgram': p,

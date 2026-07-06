@@ -1362,6 +1362,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return fromCard ?? 0.0;
   }
 
+  double _programTrainerRatingValue(Map<String, dynamic> program) => MarketplaceRepository.trainerReviewRatingAvgFromProgramApi(program);
+
+  int _programTrainerReviewCount(Map<String, dynamic> program) => MarketplaceRepository.trainerReviewCountFromProgramApi(program);
+
   static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
 
   String? _programMongoId(Map<String, dynamic> program) {
@@ -1543,7 +1547,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final exercisePreview = _programExercisePreview(program);
     final trainerAvatar = _programTrainerAvatarUrl(program);
     final initials = (program['trainerImage'] ?? 'T').toString();
-    final ratingVal = _programRatingValue(program);
+    final trainerRating = _programTrainerRatingValue(program);
+    final trainerReviewCount = _programTrainerReviewCount(program);
 
     final chipRows = <Widget>[
       _buildInfoChip(Icons.schedule, '${program['duration']}'),
@@ -1583,7 +1588,23 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('${program['trainer']}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-                       Text('Trainer', style: AppTextStyles.labelSmall.copyWith(color: AppColors.black)),
+                      Row(
+                        children: [
+                          Icon(Icons.star, color: AppColors.accent, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            trainerRating.toStringAsFixed(1),
+                            style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                          ),
+                          if (trainerReviewCount > 0) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              '($trainerReviewCount ${trainerReviewCount == 1 ? 'review' : 'reviews'})',
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
+                            ),
+                          ],
+                        ],
+                      ),
                       if (program['certified'] == true)
                         Row(
                           children: [

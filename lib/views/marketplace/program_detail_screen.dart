@@ -424,6 +424,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       'rating': (program['rating'] as num?)?.toDouble() ?? 0.0,
       'students': (program['students'] as num?)?.toInt() ?? 0,
       'reviews': (program['reviews'] as num?)?.toInt() ?? 0,
+      'trainerRating': (program['trainerRating'] as num?)?.toDouble() ?? MarketplaceRepository.trainerReviewRatingAvgFromProgramApi(program),
+      'trainerReviews': (program['trainerReviews'] as num?)?.toInt() ?? MarketplaceRepository.trainerReviewCountFromProgramApi(program),
       'description': program['description'] ?? 'No description available',
       'status': program['status'],
       'review': program['review'],
@@ -495,6 +497,10 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   String? _trainerAvatarUrl() => _resolveTrainerAvatarUrlFromMap(_safeProgram);
 
   String _trainerInitials() => (_safeProgram['trainerImage'] ?? 'UT').toString();
+
+  double _trainerRatingValue() => MarketplaceRepository.trainerReviewRatingAvgFromProgramApi(_safeProgram);
+
+  int _trainerReviewCount() => MarketplaceRepository.trainerReviewCountFromProgramApi(_safeProgram);
 
   Widget _buildTrainerAvatar({double radius = 30, TextStyle? fallbackStyle}) {
     final style = fallbackStyle ?? AppTextStyles.titleMedium.copyWith(color: AppColors.onAccent);
@@ -1424,9 +1430,15 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                                     children: [
                                       Icon(Icons.star, color: AppColors.upcoming, size: 16),
                                       const SizedBox(width: 4),
-                                      Text('${_safeProgram['rating']}', style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface)),
+                                      Text(
+                                        _trainerRatingValue().toStringAsFixed(1),
+                                        style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface),
+                                      ),
                                       const SizedBox(width: 8),
-                                      Text('${_safeProgram['students']} students', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                                      Text(
+                                        '${_trainerReviewCount()} ${_trainerReviewCount() == 1 ? 'review' : 'reviews'}',
+                                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
+                                      ),
                                     ],
                                   ),
                                   if (_safeProgram['certified'] == true)

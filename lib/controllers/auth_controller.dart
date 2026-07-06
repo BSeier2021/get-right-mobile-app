@@ -1205,6 +1205,17 @@ class AuthController extends GetxController {
     final progressPct = (enrollment['progress'] as num?)?.toDouble();
     final enrollmentStatus = enrollment['status']?.toString();
 
+    var trainerRating = 0.0;
+    var trainerReviews = 0;
+    final trainerNode = trainerRef is Map ? trainerRef : inner['trainer'];
+    if (trainerNode is Map) {
+      final review = trainerNode['review'];
+      if (review is Map) {
+        trainerRating = (review['ratingAvg'] as num?)?.toDouble() ?? 0.0;
+        trainerReviews = (review['ratingCount'] as num?)?.toInt() ?? 0;
+      }
+    }
+
     return {
       'id': inner['_id']?.toString() ?? '',
       '_id': inner['_id']?.toString() ?? '',
@@ -1236,6 +1247,8 @@ class AuthController extends GetxController {
       'rating': 0.0,
       'students': 0,
       'reviews': 0,
+      'trainerRating': trainerRating,
+      'trainerReviews': trainerReviews,
       'description': inner['description']?.toString() ?? '',
       'status': enrollmentStatus ?? inner['status']?.toString(),
       'purchased': true,
@@ -1396,7 +1409,15 @@ class AuthController extends GetxController {
     }
     final reviewCount =
         (stats['review_count'] as num?)?.toInt() ?? (inner['ratingCount'] as num?)?.toInt() ?? (prSum['review_count'] as num?)?.toInt() ?? 0;
-    final students = (stats['enrollment_count'] as num?)?.toInt() ?? (ext['student_count'] as num?)?.toInt() ?? 0;
+    final students = (stats['enrollment_count'] as num?)?.toInt() ?? (ext['student_count'] as num?)?.toInt() ?? (inner['totalEnrollments'] as num?)?.toInt() ?? 0;
+
+    var trainerRating = 0.0;
+    var trainerReviews = 0;
+    final trainerReview = trainerRaw['review'];
+    if (trainerReview is Map) {
+      trainerRating = (trainerReview['ratingAvg'] as num?)?.toDouble() ?? 0.0;
+      trainerReviews = (trainerReview['ratingCount'] as num?)?.toInt() ?? 0;
+    }
 
     String? img = ImageUrlSanitizer.asHttpUrlOrNull(inner['coverImageUrl']?.toString());
     img ??= ImageUrlSanitizer.asHttpUrlOrNull(hero['thumbnail_url']?.toString());
@@ -1454,6 +1475,8 @@ class AuthController extends GetxController {
       'rating': rating,
       'students': students,
       'reviews': reviewCount,
+      'trainerRating': trainerRating,
+      'trainerReviews': trainerReviews,
       'description': inner['description']?.toString() ?? '',
       'status': inner['status']?.toString(),
       'purchased': purchased,
