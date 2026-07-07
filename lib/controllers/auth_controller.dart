@@ -18,6 +18,7 @@ import 'package:get_right/models/food_log_detail.dart';
 import 'package:get_right/models/nutrition_custom_foods_page.dart';
 import 'package:get_right/models/nutrition_meal_type_option.dart';
 import 'package:get_right/constants/app_constants.dart';
+import 'package:get_right/controllers/chat_controller.dart';
 import 'package:get_right/repo/auth_repo.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -47,6 +48,15 @@ bool _apiEnvelopeSuccess(Map<String, dynamic> root) {
   return false;
 }
 
+/// Result of [AuthController.login] for UI handling (e.g. blocked-account dialog).
+enum LoginStatus { success, failed, accountBlocked }
+
+bool _isAccountBlockedMessage(String? message) {
+  final m = message?.trim().toLowerCase() ?? '';
+  if (m.isEmpty) return false;
+  return m.contains('blocked') || m.contains('administrator');
+}
+
 /// Auth controller: signup, OTP, and login flows (signup uses live API).
 class AuthController extends GetxController {
   static const _deviceTokenStorageKey = 'app_install_device_token';
@@ -58,6 +68,9 @@ class AuthController extends GetxController {
 
   StreamSubscription<Map<String, dynamic>>? _accountBlockedSub;
   bool _accountBlockLogoutInProgress = false;
+
+  /// True while admin block or logout is clearing the session — skip authenticated API calls.
+  bool get isSessionInvalidating => _accountBlockLogoutInProgress;
 
   @override
   void onInit() {
@@ -81,15 +94,32 @@ class AuthController extends GetxController {
   Future<void> _handleAccountBlockedByAdmin(Map<String, dynamic> payload) async {
     if (_accountBlockLogoutInProgress || !isLoggedIn()) return;
     _accountBlockLogoutInProgress = true;
+
     final message = payload['message']?.toString().trim();
-    Get.snackbar(
-      'Account blocked',
-      message != null && message.isNotEmpty ? message : 'Your account has been blocked by an administrator.',
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    final email = _storageService.getEmail()?.trim().isNotEmpty == true
+        ? _storageService.getEmail()!.trim()
+        : (_customerProfile?.email.trim().isNotEmpty == true ? _customerProfile!.email.trim() : '');
+
     try {
-      _disconnectChatSocket();
-      await logout(skipRemoteLogout: true);
+      if (email.isNotEmpty) {
+        await _storageService.saveSupportTicketEmail(email);
+      }
+      await _purgeLocalSession();
+      Get.offAllNamed(
+        AppRoutes.login,
+        arguments: {
+          'accountBlocked': true,
+          if (email.isNotEmpty) 'email': email,
+          if (message != null && message.isNotEmpty) 'blockedMessage': message,
+        },
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Get.snackbar(
+          'Account blocked',
+          message != null && message.isNotEmpty ? message : 'Your account has been blocked by an administrator.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      });
     } finally {
       _accountBlockLogoutInProgress = false;
     }
@@ -247,6 +277,23 @@ class AuthController extends GetxController {
     } catch (e) {
       debugPrint('[Auth] chat socket disconnect failed: $e');
     }
+  }
+
+  /// Clears JWT, login flag, chat socket, and controllers that refetch authenticated APIs.
+  Future<void> _purgeLocalSession() async {
+    _customerProfile = null;
+    _customerProfileError = null;
+    _disconnectChatSocket();
+
+    if (Get.isRegistered<LocalStorage>()) {
+      Get.find<LocalStorage>().deleteAccessToken();
+    }
+    await _storageService.logout();
+
+    if (Get.isRegistered<ChatController>()) {
+      await Get.delete<ChatController>(force: true);
+    }
+    update();
   }
 
   /// Removes only JWT storage so a stale token cannot be sent after OTP until a new token is saved.
@@ -658,6 +705,7 @@ class AuthController extends GetxController {
 
   /// Loads `GET /customer/profile` and parses into [customerProfile]; syncs key fields to [StorageService].
   Future<void> fetchCustomerProfile() async {
+    if (!isLoggedIn() || _accountBlockLogoutInProgress) return;
     try {
       _customerProfileLoading = true;
       _customerProfileError = null;
@@ -694,6 +742,7 @@ class AuthController extends GetxController {
     } on UnauthorizedException catch (e) {
       _customerProfileError = e.message;
     } on ForbiddenException catch (e) {
+      if (!isLoggedIn() || _accountBlockLogoutInProgress) return;
       _customerProfileError = e.message;
     } on NotFoundException catch (e) {
       // Common when the account exists but customer profile hasn't been created yet.
@@ -1508,7 +1557,7 @@ class AuthController extends GetxController {
 
   /// Login via `POST /user/auth/login` with email, password, deviceType, deviceToken.
   /// When [rememberMe] is true, email and password are stored in [LocalStorage] for the next visit.
-  Future<void> login({required String email, required String password, bool rememberMe = false}) async {
+  Future<LoginStatus> login({required String email, required String password, bool rememberMe = false}) async {
     try {
       _isLoading = true;
       update();
@@ -1518,19 +1567,23 @@ class AuthController extends GetxController {
 
       if (response is! Map<String, dynamic>) {
         _snackError('Login', 'Unexpected response from server');
-        return;
+        return LoginStatus.failed;
       }
 
       if (response['success'] != true) {
         final message = response['message']?.toString() ?? 'Login failed';
+        if (_isAccountBlockedMessage(message)) {
+          await _storageService.saveSupportTicketEmail(email.trim());
+          return LoginStatus.accountBlocked;
+        }
         _snackError('Login', message);
-        return;
+        return LoginStatus.failed;
       }
 
       final data = response['data'];
       if (data is Map<String, dynamic> && _loginDataIsTrainerRole(data)) {
         _snackError('Login', 'Trainer accounts cannot sign in here. Please use a customer account.');
-        return;
+        return LoginStatus.failed;
       }
 
       String? emailToStore;
@@ -1564,27 +1617,29 @@ class AuthController extends GetxController {
         }
       }
       final resolvedEmail = emailToStore?.trim();
-      await _storageService.saveEmail((resolvedEmail != null && resolvedEmail.isNotEmpty) ? resolvedEmail : email);
+      final emailForStorage = (resolvedEmail != null && resolvedEmail.isNotEmpty) ? resolvedEmail : email;
+      await _storageService.saveEmail(emailForStorage);
+      await _storageService.saveSupportTicketEmail(emailForStorage);
 
       if (needsEmailVerification) {
         final uid = _storageService.getUserId();
         if (uid == null || uid.isEmpty) {
           _snackError('Login', 'This account needs email verification, but user id is missing. Please try again.');
           Get.offAllNamed(AppRoutes.home);
-          return;
+          return LoginStatus.success;
         }
         final em = (resolvedEmail != null && resolvedEmail.isNotEmpty) ? resolvedEmail : email.trim();
         _tempEmail = em;
         _pendingSignupUserId = uid;
         _persistRememberMeCredentials(rememberMe, em, password);
         Get.offAllNamed(AppRoutes.otp, arguments: {'email': em, 'userId': uid, 'fromSignup': false});
-        return;
+        return LoginStatus.success;
       }
 
       final token = _tokenFromVerifyResponse(response);
       if (token == null || token.isEmpty) {
         _snackError('Login', 'No access token in response');
-        return;
+        return LoginStatus.failed;
       }
       await _persistAccessToken(token);
       _persistRememberMeCredentials(rememberMe, (resolvedEmail != null && resolvedEmail.isNotEmpty) ? resolvedEmail : email.trim(), password);
@@ -1596,23 +1651,43 @@ class AuthController extends GetxController {
 
       if (needsProfileSetup) {
         Get.offAllNamed(AppRoutes.profileSetup);
-        return;
+        return LoginStatus.success;
       }
       Get.offAllNamed(AppRoutes.home);
+      return LoginStatus.success;
     } on BadRequestException catch (e) {
+      if (_isAccountBlockedMessage(e.message)) {
+        await _storageService.saveSupportTicketEmail(email.trim());
+        return LoginStatus.accountBlocked;
+      }
       _snackError('Login', e.message);
+      return LoginStatus.failed;
     } on UnauthorizedException catch (e) {
+      if (_isAccountBlockedMessage(e.message)) {
+        await _storageService.saveSupportTicketEmail(email.trim());
+        return LoginStatus.accountBlocked;
+      }
       _snackError('Login', e.message);
+      return LoginStatus.failed;
     } on ForbiddenException catch (e) {
+      if (_isAccountBlockedMessage(e.message)) {
+        await _storageService.saveSupportTicketEmail(email.trim());
+        return LoginStatus.accountBlocked;
+      }
       _snackError('Login', e.message);
+      return LoginStatus.failed;
     } on NoInternetException catch (e) {
       _snackError('No connection', e.message);
+      return LoginStatus.failed;
     } on RequestTimeoutException catch (e) {
       _snackError('Login', e.message);
+      return LoginStatus.failed;
     } on ServerException catch (e) {
       _snackError('Login', e.message);
+      return LoginStatus.failed;
     } catch (e) {
       _snackError('Login', e);
+      return LoginStatus.failed;
     } finally {
       _isLoading = false;
       update();
@@ -2669,40 +2744,43 @@ class AuthController extends GetxController {
 
   /// `POST /user/auth/logout` with [deviceToken], then clear local session and go to login.
   /// When [skipRemoteLogout] is true (e.g. admin `account-blocked`), only local session is cleared.
-  Future<void> logout({bool skipRemoteLogout = false}) async {
-    if (!skipRemoteLogout) {
-      try {
-        _syncNetworkBearerFromStorage();
-        final deviceToken = await _ensureDeviceToken();
-        await _authRepo.logoutRepo(deviceToken: deviceToken);
-      } on BadRequestException catch (e) {
-        debugPrint('Logout API: ${e.message}');
-      } on UnauthorizedException catch (e) {
-        debugPrint('Logout API: ${e.message}');
-      } on ForbiddenException catch (e) {
-        debugPrint('Logout API: ${e.message}');
-      } on NoInternetException catch (e) {
-        debugPrint('Logout API: ${e.message}');
-      } on RequestTimeoutException catch (e) {
-        debugPrint('Logout API: ${e.message}');
-      } on ServerException catch (e) {
-        debugPrint('Logout API: ${e.message}');
-      } catch (e) {
-        debugPrint('Logout API: $e');
+  /// [redirectRoute] overrides the post-logout destination (defaults to login).
+  Future<void> logout({
+    bool skipRemoteLogout = false,
+    String? redirectRoute,
+    Map<String, dynamic>? redirectArguments,
+  }) async {
+    if (_accountBlockLogoutInProgress) return;
+    _accountBlockLogoutInProgress = true;
+    try {
+      if (!skipRemoteLogout && isLoggedIn()) {
+        try {
+          _syncNetworkBearerFromStorage();
+          final deviceToken = await _ensureDeviceToken();
+          await _authRepo.logoutRepo(deviceToken: deviceToken);
+        } on BadRequestException catch (e) {
+          debugPrint('Logout API: ${e.message}');
+        } on UnauthorizedException catch (e) {
+          debugPrint('Logout API: ${e.message}');
+        } on ForbiddenException catch (e) {
+          debugPrint('Logout API: ${e.message}');
+        } on NoInternetException catch (e) {
+          debugPrint('Logout API: ${e.message}');
+        } on RequestTimeoutException catch (e) {
+          debugPrint('Logout API: ${e.message}');
+        } on ServerException catch (e) {
+          debugPrint('Logout API: ${e.message}');
+        } catch (e) {
+          debugPrint('Logout API: $e');
+        }
       }
-    }
 
-    _customerProfile = null;
-    _customerProfileError = null;
-    if (!skipRemoteLogout) {
-      _disconnectChatSocket();
+      await _purgeLocalSession();
+      final destination = redirectRoute ?? AppRoutes.login;
+      _scheduleGetNavigation(() => Get.offAllNamed(destination, arguments: redirectArguments));
+    } finally {
+      _accountBlockLogoutInProgress = false;
     }
-    await _storageService.logout();
-    if (Get.isRegistered<LocalStorage>()) {
-      Get.find<LocalStorage>().deleteAccessToken();
-    }
-    update();
-    _scheduleGetNavigation(() => Get.offAllNamed(AppRoutes.login));
   }
 
   /// Sign in with Apple - DEMO VERSION

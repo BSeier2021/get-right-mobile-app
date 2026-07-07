@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:get_right/constants/app_constants.dart';
+import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/repo/chat_repo.dart';
@@ -563,9 +564,24 @@ class ChatController extends GetxController {
 
   /// `GET /user/chat/conversations/unread-count`
   Future<void> loadUnreadCount() async {
+    if (!_storageService.isLoggedIn()) {
+      totalUnreadCount.value = 0;
+      return;
+    }
+    if (Get.isRegistered<AuthController>()) {
+      final auth = Get.find<AuthController>();
+      if (auth.isSessionInvalidating) {
+        totalUnreadCount.value = 0;
+        return;
+      }
+    }
     try {
       totalUnreadCount.value = await _chatRepo.fetchUnreadCount();
     } catch (_) {
+      if (!_storageService.isLoggedIn()) {
+        totalUnreadCount.value = 0;
+        return;
+      }
       totalUnreadCount.value = conversations.fold(0, (sum, c) => sum + c.unreadCount);
     }
   }

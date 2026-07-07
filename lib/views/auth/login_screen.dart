@@ -81,7 +81,70 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       return;
     }
     final authController = Get.find<AuthController>();
-    await authController.login(email: email, password: password, rememberMe: _rememberMe);
+    final status = await authController.login(email: email, password: password, rememberMe: _rememberMe);
+    if (!mounted) return;
+    if (status == LoginStatus.accountBlocked) {
+      _showAccountBlockedDialog();
+    }
+  }
+
+  void _showAccountBlockedDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        icon: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFE0B2),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.block, color: Color(0xFFE65100), size: 28),
+        ),
+        title: Text(
+          'Account Blocked',
+          style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800),
+          textAlign: TextAlign.center,
+        ),
+        content: Text(
+          'Your account has been blocked by an administrator. You cannot sign in right now. If you believe this is a mistake, open a support ticket and our team will help you.',
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray, height: 1.45),
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actionsPadding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 16.h),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text('Close', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.primaryGray)),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              Get.toNamed(
+                AppRoutes.supportTickets,
+                arguments: {
+                  'email': _emailController.text.trim(),
+                  'accountBlocked': true,
+                },
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+            ),
+            icon: const Icon(Icons.support_agent_outlined, size: 20),
+            label: Text('Support Ticket', style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

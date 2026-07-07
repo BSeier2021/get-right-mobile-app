@@ -31,6 +31,7 @@ class _AppDrawerState extends State<AppDrawer> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!Get.isRegistered<AuthController>()) return;
       final auth = Get.find<AuthController>();
+      if (!auth.isLoggedIn() || auth.isSessionInvalidating) return;
       if (auth.customerProfile == null && !auth.customerProfileLoading) {
         auth.fetchCustomerProfile();
       }
@@ -61,6 +62,10 @@ class _AppDrawerState extends State<AppDrawer> {
 
   Future<void> _ensureChatUnreadCountLoaded() async {
     try {
+      if (!Get.isRegistered<AuthController>()) return;
+      final auth = Get.find<AuthController>();
+      if (!auth.isLoggedIn() || auth.isSessionInvalidating) return;
+
       ChatController controller;
       if (Get.isRegistered<ChatController>()) {
         controller = Get.find<ChatController>();
@@ -236,6 +241,14 @@ class _AppDrawerState extends State<AppDrawer> {
                     onTap: () {
                       Get.back();
                       Get.toNamed(AppRoutes.settings);
+                    },
+                  ),
+                  _drawerItem(
+                    fallbackIcon: Icons.support_agent_outlined,
+                    title: 'Support Tickets',
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed(AppRoutes.supportTickets);
                     },
                   ),
                   _drawerItem(

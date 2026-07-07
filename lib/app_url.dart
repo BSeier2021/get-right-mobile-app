@@ -419,4 +419,39 @@ class AppUrl {
   /// `GET /customer/transactions/:transactionId` → `data.transaction`.
   static String customerTransactionById(String transactionId) =>
       '$baseUrl/customer/transactions/${Uri.encodeComponent(transactionId.trim())}';
+
+  /// `POST /user/support-tickets` — create ticket (default token, no Bearer prefix).
+  static String get userSupportTickets => '$baseUrl/user/support-tickets';
+
+  /// `GET /user/support-tickets?email=&page=&limit=&status=`
+  static String userSupportTicketsList({
+    required String email,
+    int page = 1,
+    int limit = 10,
+    String? status,
+  }) {
+    final params = <String, String>{
+      'email': email.trim(),
+      'page': '$page',
+      'limit': '$limit',
+    };
+    if (status != null && status.trim().isNotEmpty) {
+      params['status'] = status.trim();
+    }
+    return '$baseUrl/user/support-tickets?${Uri(queryParameters: params).query}';
+  }
+
+  /// `GET /user/support-tickets/{ticketId}`
+  static String userSupportTicketById(String ticketId) =>
+      '$baseUrl/user/support-tickets/${Uri.encodeComponent(ticketId.trim())}';
+
+  /// `GET|POST /user/support-tickets/{ticketId}/messages`
+  static String userSupportTicketMessages(String ticketId, {int page = 1, int limit = 20}) {
+    final q = Uri(queryParameters: {'page': '$page', 'limit': '$limit'}).query;
+    return '$baseUrl/user/support-tickets/${Uri.encodeComponent(ticketId.trim())}/messages?$q';
+  }
+
+  /// `POST /user/support-tickets/{ticketId}/messages` (no query params).
+  static String userSupportTicketReply(String ticketId) =>
+      '$baseUrl/user/support-tickets/${Uri.encodeComponent(ticketId.trim())}/messages';
 }

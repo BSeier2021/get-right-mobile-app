@@ -53,6 +53,9 @@ import 'package:get_right/views/settings/notifications_screen.dart';
 import 'package:get_right/views/settings/help_feedback_screen.dart';
 import 'package:get_right/views/settings/about_screen.dart';
 import 'package:get_right/views/discover/discover_screen.dart';
+import 'package:get_right/views/support/create_support_ticket_screen.dart';
+import 'package:get_right/views/support/support_ticket_detail_screen.dart';
+import 'package:get_right/views/support/support_tickets_screen.dart';
 import 'package:get_right/views/settings/blocked_users_screen.dart';
 import 'package:get_right/views/settings/reports_screen.dart';
 import 'package:get_right/views/chat/chat_list_screen.dart';
@@ -217,6 +220,9 @@ class AppPages {
     GetPage(name: AppRoutes.helpFeedback, page: () => const HelpFeedbackScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.about, page: () => const AboutScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.discover, page: () => const DiscoverScreen(), transition: Transition.rightToLeft),
+    GetPage(name: AppRoutes.supportTickets, page: () => const SupportTicketsScreen(), transition: Transition.rightToLeft),
+    GetPage(name: AppRoutes.createSupportTicket, page: () => const CreateSupportTicketScreen(), transition: Transition.rightToLeft),
+    GetPage(name: AppRoutes.supportTicketDetail, page: () => const SupportTicketDetailScreen(), transition: Transition.rightToLeft),
     // GetPage(name: AppRoutes.createTrainerProfile, page: () => const CreateTrainerProfileScreen(), transition: Transition.rightToLeft),
   ];
 }

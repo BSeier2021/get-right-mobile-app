@@ -128,5 +128,8 @@ class AppRoutes {
   static const String privacyPolicy = '/privacy-policy';
   static const String about = '/about';
   static const String discover = '/discover';
+  static const String supportTickets = '/support-tickets';
+  static const String createSupportTicket = '/support-tickets/create';
+  static const String supportTicketDetail = '/support-ticket-detail';
   static const String createTrainerProfile = '/create-trainer-profile';
 }

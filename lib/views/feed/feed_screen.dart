@@ -470,6 +470,14 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: Obx(() {
+            if (!Get.isRegistered<NotificationController>()) {
+              return IconButton(
+                icon: Image.asset('assets/images/humburger.png', width: 25.w),
+                onPressed: _openHomeDrawer,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ).paddingOnly(left: 10);
+            }
             final notificationController = Get.find<NotificationController>();
             final unreadCount = notificationController.unreadCount;
             return Stack(

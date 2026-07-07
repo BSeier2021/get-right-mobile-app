@@ -126,6 +126,15 @@ class StorageService {
     return getString(AppConstants.keyUserEmail);
   }
 
+  /// Email kept for support tickets after logout (e.g. admin block).
+  Future<bool> saveSupportTicketEmail(String email) async {
+    return await saveString(AppConstants.keySupportTicketEmail, email.trim());
+  }
+
+  String? getSupportTicketEmail() {
+    return getString(AppConstants.keySupportTicketEmail);
+  }
+
   /// Save user name
   Future<bool> saveName(String name) async {
     return await saveString(AppConstants.keyUserName, name);
