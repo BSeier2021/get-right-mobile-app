@@ -454,4 +454,28 @@ class AppUrl {
   /// `POST /user/support-tickets/{ticketId}/messages` (no query params).
   static String userSupportTicketReply(String ticketId) =>
       '$baseUrl/user/support-tickets/${Uri.encodeComponent(ticketId.trim())}/messages';
+
+  /// `GET /user/notifications/unread-count` — inbox badge (excludes chat).
+  static String get userNotificationsUnreadCount => '$baseUrl/user/notifications/unread-count';
+
+  /// `GET /user/notifications` — paginated inbox.
+  static String userNotificationsList({
+    int page = 1,
+    int limit = 20,
+    bool unreadOnly = false,
+  }) {
+    final params = <String, String>{
+      'page': '$page',
+      'limit': '$limit',
+    };
+    if (unreadOnly) params['unreadOnly'] = 'true';
+    return '$baseUrl/user/notifications?${Uri(queryParameters: params).query}';
+  }
+
+  /// `POST /user/notifications/{notificationId}/read`
+  static String userNotificationRead(String notificationId) =>
+      '$baseUrl/user/notifications/${Uri.encodeComponent(notificationId.trim())}/read';
+
+  /// `POST /user/notifications/read-all`
+  static String get userNotificationsReadAll => '$baseUrl/user/notifications/read-all';
 }

@@ -55,7 +55,7 @@ class _NutritionScreenState extends State<NutritionScreen> with SingleTickerProv
         clipBehavior: Clip.none,
         leading: Obx(() {
           final notificationController = Get.find<NotificationController>();
-          final unreadCount = notificationController.unreadCount;
+          final unreadCount = notificationController.unreadCount.value;
           return Stack(
             clipBehavior: Clip.none,
             children: [

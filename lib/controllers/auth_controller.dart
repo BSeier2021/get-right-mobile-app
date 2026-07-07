@@ -19,6 +19,7 @@ import 'package:get_right/models/nutrition_custom_foods_page.dart';
 import 'package:get_right/models/nutrition_meal_type_option.dart';
 import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/controllers/chat_controller.dart';
+import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/repo/auth_repo.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -266,6 +267,9 @@ class AuthController extends GetxController {
   Future<void> _connectChatSocketAfterAuth() async {
     try {
       await ChatSocketService.instance.connectAfterAuth();
+      if (Get.isRegistered<NotificationController>()) {
+        unawaited(Get.find<NotificationController>().bootstrapInbox());
+      }
     } catch (e) {
       debugPrint('[Auth] chat socket connect failed: $e');
     }

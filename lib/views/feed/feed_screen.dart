@@ -479,7 +479,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
               ).paddingOnly(left: 10);
             }
             final notificationController = Get.find<NotificationController>();
-            final unreadCount = notificationController.unreadCount;
+            final unreadCount = notificationController.unreadCount.value;
             return Stack(
               clipBehavior: Clip.none,
               children: [

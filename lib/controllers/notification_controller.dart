@@ -1,88 +1,213 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
+import 'package:get_right/controllers/chat_controller.dart';
+import 'package:get_right/models/app_notification.dart';
+import 'package:get_right/repo/notification_repo.dart';
+import 'package:get_right/services/chat_socket_service.dart';
+import 'package:get_right/services/storage_service.dart';
+import 'package:get_right/utils/notification_navigator.dart';
+import 'package:intl/intl.dart';
 
-/// Controller for managing notifications
+/// In-app notification inbox — REST + socket (`README-user.md`).
 class NotificationController extends GetxController {
-  // Observable list of notifications
-  final RxList<Map<String, dynamic>> _notifications = <Map<String, dynamic>>[].obs;
+  final NotificationRepository _repo = NotificationRepository();
 
-  // Mock notification data - in production, this would come from an API
+  final RxList<AppNotification> notifications = <AppNotification>[].obs;
+  final RxInt unreadCount = 0.obs;
+  final RxBool loading = false.obs;
+  final RxBool loadingMore = false.obs;
+  final RxnString error = RxnString();
+
+  StreamSubscription<Map<String, dynamic>>? _socketSub;
+  bool _hasNextPage = true;
+  int _page = 1;
+  static const int _limit = 20;
+
+  StorageService? _storage;
+
   @override
   void onInit() {
     super.onInit();
-    _loadNotifications();
+    _attachSocketListener();
+    WidgetsBinding.instance.addPostFrameCallback((_) => bootstrapInbox());
   }
 
-  // Load notifications (mock data for now)
-  void _loadNotifications() {
-    _notifications.value = [
-      {
-        'id': 1,
-        'type': 'reminder',
-        'title': 'Workout Reminder',
-        'message': 'Time for your Upper Body workout! Let\'s crush it 💪',
-        'time': '10 minutes ago',
-        'isRead': false,
-        'icon': 'fitness_center',
-      },
-      {
-        'id': 2,
-        'type': 'achievement',
-        'title': 'Achievement Unlocked! 🏆',
-        'message': 'You\'ve completed 10 workouts this month. Keep going!',
-        'time': '2 hours ago',
-        'isRead': false,
-        'icon': 'emoji_events',
-      },
-      {
-        'id': 3,
-        'type': 'streak',
-        'title': 'Streak Alert! 🔥',
-        'message': 'You\'re on a 7-day workout streak. Don\'t break it!',
-        'time': '5 hours ago',
-        'isRead': false,
-        'icon': 'local_fire_department',
-      },
-      {
-        'id': 4,
-        'type': 'program',
-        'title': 'New Program Available',
-        'message': 'Check out "Advanced Strength Training" by Coach Sarah',
-        'time': 'Yesterday',
-        'isRead': true,
-        'icon': 'library_books',
-      },
-      {'id': 5, 'type': 'social', 'title': 'Friend Activity', 'message': 'Mike completed a 10K run. Send some motivation!', 'time': 'Yesterday', 'isRead': true, 'icon': 'people'},
-    ];
+  @override
+  void onClose() {
+    _socketSub?.cancel();
+    super.onClose();
   }
 
-  // Get all notifications
-  List<Map<String, dynamic>> get notifications => _notifications;
+  void _attachSocketListener() {
+    _socketSub?.cancel();
+    _socketSub = ChatSocketService.instance.onNotification.listen(_onSocketNotification);
+  }
 
-  // Get unread notifications count
-  int get unreadCount => _notifications.where((n) => n['isRead'] == false).length;
+  StorageService? _tryStorage() {
+    if (_storage != null) return _storage;
+    if (Get.isRegistered<StorageService>()) {
+      _storage = Get.find<StorageService>();
+      return _storage;
+    }
+    return null;
+  }
 
-  // Check if there are unread notifications
-  bool get hasUnreadNotifications => unreadCount > 0;
+  String? _currentUserId() => _tryStorage()?.getUserId();
 
-  // Mark notification as read
-  void markAsRead(int id) {
-    final index = _notifications.indexWhere((n) => n['id'] == id);
-    if (index != -1) {
-      _notifications[index]['isRead'] = true;
-      _notifications.refresh();
+  bool _canSyncInbox() {
+    final storage = _tryStorage();
+    if (storage == null || !storage.isLoggedIn()) return false;
+    if (Get.isRegistered<AuthController>()) {
+      final auth = Get.find<AuthController>();
+      if (auth.isSessionInvalidating) return false;
+    }
+    return true;
+  }
+
+  /// After login / home entry: unread count + first inbox page.
+  Future<void> bootstrapInbox() async {
+    if (!_canSyncInbox()) return;
+    await fetchUnreadCount();
+    await loadNotifications(reset: true, showLoading: notifications.isEmpty);
+  }
+
+  Future<void> fetchUnreadCount() async {
+    if (!_canSyncInbox()) {
+      unreadCount.value = 0;
+      return;
+    }
+    try {
+      unreadCount.value = await _repo.fetchUnreadCount();
+    } catch (_) {
+      unreadCount.value = notifications.where((n) => !n.isRead).length;
     }
   }
 
-  // Mark all notifications as read
-  void markAllAsRead() {
-    for (var notification in _notifications) {
-      notification['isRead'] = true;
+  Future<void> loadNotifications({required bool reset, bool showLoading = true}) async {
+    if (!_canSyncInbox()) return;
+    if (reset) {
+      if (loadingMore.value) return;
+    } else {
+      if (loadingMore.value || !_hasNextPage) return;
     }
-    _notifications.refresh();
+
+    if (reset) {
+      if (showLoading) loading.value = true;
+      error.value = null;
+      _page = 1;
+      _hasNextPage = true;
+    } else {
+      loadingMore.value = true;
+    }
+
+    final pageToFetch = reset ? 1 : _page;
+
+    try {
+      final page = await _repo.fetchNotifications(
+        page: pageToFetch,
+        limit: _limit,
+        currentUserId: _currentUserId(),
+      );
+      if (reset) {
+        notifications.assignAll(page.notifications);
+      } else {
+        final existing = notifications.map((n) => n.id).toSet();
+        for (final n in page.notifications) {
+          if (!existing.contains(n.id)) notifications.add(n);
+        }
+      }
+      _hasNextPage = page.hasNextPage;
+      _page = pageToFetch + 1;
+    } catch (e) {
+      if (reset) {
+        error.value = e.toString().replaceFirst('Exception: ', '');
+        notifications.clear();
+      }
+    } finally {
+      loading.value = false;
+      loadingMore.value = false;
+    }
   }
 
-  // Refresh notifications (in production, would fetch from API)
-  void refreshNotifications() {
-    _loadNotifications();
+  Future<void> refreshInbox() async {
+    await fetchUnreadCount();
+    await loadNotifications(reset: true);
+  }
+
+  void _onSocketNotification(Map<String, dynamic> payload) {
+    if (!_canSyncInbox()) return;
+
+    final notification = AppNotification.tryParseSocket(payload, currentUserId: _currentUserId());
+    if (notification == null) return;
+    if (notification.isTrainerOnly) return;
+
+    if (notification.data.kind == NotificationKind.newMessage) {
+      if (Get.isRegistered<ChatController>()) {
+        unawaited(Get.find<ChatController>().loadUnreadCount());
+      }
+      return;
+    }
+
+    if (!notification.isInboxEligible) return;
+
+    final existingIndex = notifications.indexWhere((n) => n.id == notification.id);
+    if (existingIndex >= 0) {
+      notifications[existingIndex] = notification;
+    } else {
+      notifications.insert(0, notification);
+      if (!notification.isRead) unreadCount.value++;
+    }
+
+    if (notification.data.kind == NotificationKind.feedProcessingCompleted) {
+      Get.snackbar('Post live', notification.body.trim().isNotEmpty ? notification.body : 'Your post is now live.', snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  Future<void> onNotificationTap(AppNotification notification) async {
+    if (!notification.isRead) {
+      await markAsRead(notification.id);
+    }
+    await NotificationNavigator.open(notification);
+  }
+
+  Future<void> markAsRead(String notificationId) async {
+    final id = notificationId.trim();
+    if (id.isEmpty) return;
+    final index = notifications.indexWhere((n) => n.id == id);
+    if (index >= 0 && !notifications[index].isRead) {
+      notifications[index] = notifications[index].copyWith(isRead: true);
+      if (unreadCount.value > 0) unreadCount.value--;
+    }
+    try {
+      await _repo.markAsRead(id);
+      await fetchUnreadCount();
+    } catch (_) {}
+  }
+
+  Future<void> markAllAsRead() async {
+    for (var i = 0; i < notifications.length; i++) {
+      if (!notifications[i].isRead) {
+        notifications[i] = notifications[i].copyWith(isRead: true);
+      }
+    }
+    unreadCount.value = 0;
+    try {
+      await _repo.markAllAsRead();
+    } catch (_) {}
+  }
+
+  static String formatTimeAgo(DateTime? date) {
+    if (date == null) return '';
+    final now = DateTime.now();
+    final local = date.toLocal();
+    final diff = now.difference(local);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return DateFormat('MMM d').format(local);
   }
 }

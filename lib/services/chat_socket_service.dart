@@ -45,6 +45,7 @@ class ChatSocketService {
   final StreamController<Map<String, dynamic>> _conversationBlockController = StreamController.broadcast();
   final StreamController<Map<String, dynamic>> _conversationUpdatedController = StreamController.broadcast();
   final StreamController<Map<String, dynamic>> _accountBlockedController = StreamController.broadcast();
+  final StreamController<Map<String, dynamic>> _notificationController = StreamController.broadcast();
   final StreamController<bool> _connectionController = StreamController.broadcast();
 
   /// Direct handler — always invoked before the stream (avoids missed broadcast events).
@@ -57,6 +58,7 @@ class ChatSocketService {
   Stream<Map<String, dynamic>> get onConversationBlockChanged => _conversationBlockController.stream;
   Stream<Map<String, dynamic>> get onConversationUpdated => _conversationUpdatedController.stream;
   Stream<Map<String, dynamic>> get onAccountBlocked => _accountBlockedController.stream;
+  Stream<Map<String, dynamic>> get onNotification => _notificationController.stream;
   Stream<bool> get onConnectionChanged => _connectionController.stream;
 
   bool get isConnected => _socket?.connected == true;
@@ -258,10 +260,22 @@ class ChatSocketService {
       });
     }
 
+    for (final event in const ['notification', 'notifications', 'new-notification', 'newNotification']) {
+      _socket!.on(event, (data) {
+        final map = _asMap(data);
+        if (map == null) return;
+        debugPrint('[ChatSocket] $event: $data');
+        if (!_notificationController.isClosed) {
+          _notificationController.add(map);
+        }
+      });
+    }
+
     _socket!.onAny((event, data) {
       debugPrint('[ChatSocket] onAny: $event');
       if (event == 'new-message' || event == 'newMessage' || event == 'message') return;
       if (event == 'account-blocked' || event == 'accountBlocked') return;
+      if (event == 'notification' || event == 'notifications' || event == 'new-notification' || event == 'newNotification') return;
       final map = _asMap(data);
       if (map == null) return;
       _dispatchConversationBlockIfPresent(map, source: event);

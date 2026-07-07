@@ -203,7 +203,7 @@ class _AppDrawerState extends State<AppDrawer> {
                     () => _drawerItemWithBadge(
                       fallbackIcon: Icons.notifications_none_rounded,
                       title: 'Notifications',
-                      unreadCount: notificationController.unreadCount,
+                      unreadCount: notificationController.unreadCount.value,
                       onTap: () {
                         Get.back();
                         Get.toNamed(AppRoutes.notifications);

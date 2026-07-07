@@ -254,7 +254,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               iconTheme: const IconThemeData(color: _kProfileForestGreen),
               leading: Obx(() {
                 final notificationController = Get.find<NotificationController>();
-                final unreadCount = notificationController.unreadCount;
+                final unreadCount = notificationController.unreadCount.value;
                 return Stack(
                   clipBehavior: Clip.none,
                   children: [

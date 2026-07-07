@@ -71,7 +71,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               elevation: 0,
               leading: Obx(() {
                 final notificationController = Get.find<NotificationController>();
-                final unreadCount = notificationController.unreadCount;
+                final unreadCount = notificationController.unreadCount.value;
                 return Stack(
                   clipBehavior: Clip.none,
                   children: [
