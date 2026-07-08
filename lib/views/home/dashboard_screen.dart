@@ -785,6 +785,7 @@ class HomeNavigationController extends GetxController {
   final startFreshJournal = false.obs;
   final plannedRouteIdForSession = Rxn<String>();
   final journalPlannerReloadNonce = 0.obs;
+  final workoutJournalRefreshNonce = 0.obs;
   GlobalKey<ScaffoldState>? scaffoldKey;
 
   int get currentIndex => _currentIndex.value;
@@ -820,6 +821,12 @@ class HomeNavigationController extends GetxController {
     preferredJournalId.value = null;
     startFreshJournal.value = false;
     plannedRouteIdForSession.value = null;
+  }
+
+  void openWorkoutJournalFromNav() {
+    clearJournalPlannerContext();
+    changeTab(2, journalTab: 0);
+    workoutJournalRefreshNonce.value++;
   }
 
   void changeTab(int index, {int? journalTab}) {

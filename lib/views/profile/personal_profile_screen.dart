@@ -255,7 +255,6 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                   _sectionLabel('Menu'),
                   const SizedBox(height: 12),
                   _menuRow(icon: Icons.favorite_outline, title: 'Favorites', subtitle: 'View your favorite posts and users', onTap: () => Get.toNamed(AppRoutes.favorites)),
-                  _menuRow(icon: Icons.bookmark_outline, title: 'Saved Posts', subtitle: 'Access your saved posts', onTap: () => Get.toNamed(AppRoutes.savedPosts)),
                   _menuRow(icon: Icons.chat_bubble_outline, title: 'Chat', subtitle: 'View your conversations', onTap: () => Get.to(() => const ChatListScreen())),
                   _menuRow(
                     icon: Icons.receipt_long_outlined,

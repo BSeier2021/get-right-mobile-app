@@ -731,6 +731,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final selectedType = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (sheetContext) => Container(
         decoration: const BoxDecoration(
           color: AppColors.surface,
@@ -738,7 +739,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         ),
         child: SafeArea(
           top: false,
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -795,6 +796,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   subtitle: 'Planned recovery with no workout logged',
                   onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeRest),
                 ),
+
+                const SizedBox(height: 20),
+                const SizedBox(height: 20),
+
               ],
             ),
           ),

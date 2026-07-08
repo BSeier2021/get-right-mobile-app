@@ -162,7 +162,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          _navController.changeTab(index);
+          if (index == 2) {
+            _navController.openWorkoutJournalFromNav();
+          } else {
+            _navController.changeTab(index);
+          }
           if (index == 3) {
             _refreshNutritionAnalytics();
           }

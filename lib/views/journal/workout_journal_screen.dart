@@ -48,6 +48,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   int _calories = 0;
   DateTime? _startTime;
   Worker? _plannerReloadWorker;
+  Worker? _journalRefreshWorker;
 
   @override
   void initState() {
@@ -58,6 +59,10 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         if (!mounted || nav.journalAnchorDate.value == null) return;
         _loadWorkoutJournal();
       });
+      _journalRefreshWorker = ever<int>(nav.workoutJournalRefreshNonce, (_) {
+        if (!mounted) return;
+        _loadWorkoutJournal();
+      });
     }
     _load();
   }
@@ -66,6 +71,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   void dispose() {
     _timer?.cancel();
     _plannerReloadWorker?.dispose();
+    _journalRefreshWorker?.dispose();
     super.dispose();
   }
 
