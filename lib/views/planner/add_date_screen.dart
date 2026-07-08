@@ -36,6 +36,7 @@ class AddDateScreen extends StatefulWidget {
 class _AddDateScreenState extends State<AddDateScreen> {
   final CalendarRepository _calendarRepo = CalendarRepository();
   final RunningLogRepository _runningLogRepo = RunningLogRepository();
+  final WorkoutRepository _workoutRepo = WorkoutRepository();
   bool _isSaving = false;
 
   bool get _hasExistingEntry {
@@ -76,12 +77,18 @@ class _AddDateScreenState extends State<AddDateScreen> {
     }
   }
 
-  void _handleAddWorkout() {
+  Future<void> _handleAddWorkout() async {
     if (_reuseOptions.any((o) => o.kind == PlannerReuseKind.warmup || o.kind == PlannerReuseKind.workout)) {
       _showReuseSheet(forWorkout: true);
       return;
     }
-    _openWorkoutJournal(startFresh: true);
+    final existingJournalId = await _workoutRepo.findWorkoutJournalIdForToday(date: widget.selectedDate);
+    if (!mounted) return;
+    if (WorkoutRepository.isValidMongoId(existingJournalId)) {
+      _openWorkoutJournal(startFresh: false, journalId: existingJournalId);
+    } else {
+      _openWorkoutJournal(startFresh: true);
+    }
   }
 
   void _handleAddRun() {

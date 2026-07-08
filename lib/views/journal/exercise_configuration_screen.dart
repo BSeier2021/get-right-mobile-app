@@ -8,6 +8,7 @@ import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/models/journal_exercise_type.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/repo/calendar_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -31,7 +32,9 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   String? _workoutJournalId;
   List<String> _journalWorkoutIds = const [];
   List<String> _addedExerciseIds = const [];
+  DateTime? _journalDay;
   final WorkoutRepository _workoutRepo = WorkoutRepository();
+  final CalendarRepository _calendarRepo = CalendarRepository();
   final TextEditingController _nameController = TextEditingController();
   List<_Config> _configs = [];
   String? _focusedFieldType; // 'reps' or 'weight'
@@ -57,6 +60,10 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       final rawAddedExerciseIds = args['addedExerciseIds'];
       if (rawAddedExerciseIds is List) {
         _addedExerciseIds = rawAddedExerciseIds.map((e) => e.toString()).where((id) => id.isNotEmpty).toList();
+      }
+      final rawJournalDay = args['journalDay'];
+      if (rawJournalDay is DateTime) {
+        _journalDay = rawJournalDay;
       }
 
       // Handle editing existing exercise
@@ -231,6 +238,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         'workoutJournalId': _workoutJournalId,
         'journalWorkoutIds': _journalWorkoutIds,
         'addedExerciseIds': _addedExerciseIds,
+        if (_journalDay != null) 'journalDay': _journalDay,
       },
     )?.then((result) {
       if (result != null && result['exercise'] != null) {
@@ -359,8 +367,10 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       setState(() => _isSaving = true);
       try {
         // One journal id per day — always attach warmups and workouts to the same entry.
+        final journalDay = _journalDay ?? HomeNavigationController.journalDayOrNow();
         var journalId = WorkoutRepository.isValidMongoId(_workoutJournalId) ? _workoutJournalId!.trim() : null;
-        journalId ??= await _workoutRepo.findWorkoutJournalIdForToday(date: HomeNavigationController.journalDayOrNow());
+        journalId ??= await _workoutRepo.findWorkoutJournalIdForToday(date: journalDay);
+        final hadJournalBeforeSave = WorkoutRepository.isValidMongoId(journalId);
 
         for (var i = 0; i < _configs.length; i++) {
           final cfg = _configs[i];
@@ -373,6 +383,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
             refExercise: refId.isNotEmpty && !refId.startsWith('manual_') ? refId : null,
             supersetIdentifier: _isSuperset ? 'A${i + 1}' : null,
             workoutJournal: journalId,
+            date: journalId == null ? WorkoutRepository.toJournalDate(journalDay) : null,
           );
           final response = await _workoutRepo.createWorkout(body);
           final apiId = WorkoutRepository.createdWorkoutId(response);
@@ -387,6 +398,16 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         }
 
         _workoutJournalId = journalId;
+        if (!hadJournalBeforeSave && WorkoutRepository.isValidMongoId(journalId)) {
+          final anchor = Get.isRegistered<HomeNavigationController>() ? Get.find<HomeNavigationController>().journalAnchorDate.value : null;
+          if (anchor != null) {
+            try {
+              await _calendarRepo.attachWorkoutJournalToCalendar(date: anchor, workoutJournalId: journalId!);
+            } catch (_) {
+              /* journal saved; calendar link is best-effort */
+            }
+          }
+        }
       } catch (e) {
         if (mounted) setState(() => _isSaving = false);
         Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
@@ -937,6 +958,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         'workoutJournalId': _workoutJournalId,
         'journalWorkoutIds': _journalWorkoutIds,
         'addedExerciseIds': _addedExerciseIds,
+        if (_journalDay != null) 'journalDay': _journalDay,
       },
     );
     if (result != null && result['exercise'] != null) {

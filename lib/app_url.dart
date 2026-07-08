@@ -299,22 +299,22 @@ class AppUrl {
     return '$path?$q';
   }
 
-  /// `GET /customer/workout-journal` — query: `page`, `limit`, `dateFrom` (`YYYY-MM-DD`), optional `date`.
-  static String customerWorkoutJournalList({int page = 1, int limit = 10, String? dateFrom, String? date}) {
+  /// `GET /customer/workout-journal` — query: `page`, `limit`, `dateFrom`, `dateTo` (ISO UTC midnight).
+  static String customerWorkoutJournalList({int page = 1, int limit = 10, String? dateFrom, String? dateTo}) {
     final params = <String, String>{'page': '$page', 'limit': '$limit'};
     if (dateFrom != null && dateFrom.trim().isNotEmpty) params['dateFrom'] = dateFrom.trim();
-    if (date != null && date.trim().isNotEmpty) params['date'] = date.trim();
+    if (dateTo != null && dateTo.trim().isNotEmpty) params['dateTo'] = dateTo.trim();
     final q = Uri(queryParameters: params).query;
     return '$baseUrl/customer/workout-journal?$q';
   }
 
-  /// `POST /customer/workout-journal` — body: `date`, `workout` (id[]), `duration`, `notes`, optional `type`.
+  /// `POST /customer/workout-journal` — body: `date` (ISO), `workout` (id[]), `duration`, `notes`, optional `type`.
   static String get customerWorkoutJournalCreate => '$baseUrl/customer/workout-journal';
 
-  /// `PUT /customer/workout-journal/:journalId` — body: `workout` (id[]), `duration`, `notes`.
+  /// `PUT /customer/workout-journal/:journalId` — partial body: `workout`, `duration`, `notes`, `isComplete`.
   static String customerWorkoutJournalById(String journalId) => '$baseUrl/customer/workout-journal/${journalId.trim()}';
 
-  /// `POST /customer/workout` — body: `type`, `name`, `exercise[]`, optional `refExercise`, `supersetIdentifier`, optional `workoutJournal`.
+  /// `POST /customer/workout` — body: `type`, `name`, `exercise[]`, optional `refExercise`, `supersetIdentifier`, `workoutJournal`, `date`.
   static String get customerWorkout => '$baseUrl/customer/workout';
 
   /// `PUT /customer/workout/:workoutId` — body: `name`, `exercise[]`.

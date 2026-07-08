@@ -28,9 +28,10 @@ class WorkoutRepository {
     return trimmed != null && trimmed.isNotEmpty && _mongoIdRe.hasMatch(trimmed);
   }
 
-  static String _dateKey(DateTime date) => '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-
   static bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+
+  /// Normalizes a calendar day to UTC midnight ISO — required for journal date matching.
+  static String toJournalDate(DateTime date) => DateTime.utc(date.year, date.month, date.day).toIso8601String();
 
   /// API stores timed sets in `reps` (same field as rep count). Values >= [timedRepsOffset] encode seconds.
   static const int timedRepsOffset = 10000;
@@ -111,16 +112,16 @@ class WorkoutRepository {
     return id;
   }
 
-  /// `GET /customer/workout-journal?page=&limit=&dateFrom=` → journal entry list.
+  /// `GET /customer/workout-journal?page=&limit=&dateFrom=&dateTo=` → journal entry list.
   ///
+  /// When [dateFrom] is set without [dateTo], both bounds use the same normalized day.
   /// Returns an empty page with [WorkoutJournalListPage.syncFailed] when the server
   /// responds with 5xx (e.g. invalid Mongoose populate on `workout.refExercise.thumbnail`).
-  Future<WorkoutJournalListPage> fetchWorkoutJournalEntries({int page = 1, int limit = 10, DateTime? dateFrom}) async {
-    final anchor = dateFrom ?? DateTime.now();
-    // Include yesterday so UTC-stored journals still match the user's local "today".
-    final fromKey = _dateKey(anchor.subtract(const Duration(days: 1)));
+  Future<WorkoutJournalListPage> fetchWorkoutJournalEntries({int page = 1, int limit = 10, DateTime? dateFrom, DateTime? dateTo}) async {
+    final fromIso = dateFrom != null ? toJournalDate(dateFrom) : null;
+    final toIso = dateTo != null ? toJournalDate(dateTo) : fromIso;
     try {
-      final raw = await _network.get(AppUrl.customerWorkoutJournalList(page: page, limit: limit, dateFrom: fromKey));
+      final raw = await _network.get(AppUrl.customerWorkoutJournalList(page: page, limit: limit, dateFrom: fromIso, dateTo: toIso));
       if (!_isOk(raw)) {
         throw Exception(_messageFrom(raw) ?? 'Could not load workout journal');
       }
@@ -392,28 +393,32 @@ class WorkoutRepository {
   }
 
   /// Earliest journal entry id for [day] — one canonical journal per day for new workouts.
-  static String? primaryJournalIdForDay(List<WorkoutJournalModel> entries, {DateTime? day}) {
+  static String? primaryJournalIdForDay(List<WorkoutJournalModel> entries, {DateTime? day, bool strict = false}) {
     if (entries.isEmpty) return null;
     final target = day ?? DateTime.now();
     final matching = entries.where((e) => _isSameDay(e.date, target)).toList();
-    final pool = matching.isNotEmpty ? matching : entries;
+    final pool = matching.isNotEmpty ? matching : (strict ? const <WorkoutJournalModel>[] : entries);
+    if (pool.isEmpty) return null;
     final sorted = List<WorkoutJournalModel>.from(pool)..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     final id = sorted.first.id;
     return isValidMongoId(id) ? id : null;
   }
 
   /// Merges all journal entries for [day] (default today) into one model for the UI.
-  static WorkoutJournalModel? todayEntryFrom(WorkoutJournalListPage page, {DateTime? day}) {
-    final entries = entriesForDay(page, day: day);
+  static WorkoutJournalModel? todayEntryFrom(WorkoutJournalListPage page, {DateTime? day, bool strict = false}) {
+    final entries = entriesForDay(page, day: day, strict: strict);
     if (entries.isEmpty) return null;
     return _mergeJournalEntries(entries);
   }
 
   /// Raw journal entries for [day] (default today), without merging.
-  static List<WorkoutJournalModel> entriesForDay(WorkoutJournalListPage page, {DateTime? day}) {
+  ///
+  /// When [strict] is true, returns only entries matching [day] (empty if none).
+  static List<WorkoutJournalModel> entriesForDay(WorkoutJournalListPage page, {DateTime? day, bool strict = false}) {
     final target = day ?? DateTime.now();
     final matching = page.entries.where((e) => _isSameDay(e.date, target)).toList();
     if (matching.isNotEmpty) return matching;
+    if (strict) return const [];
     return List<WorkoutJournalModel>.from(page.entries);
   }
 
@@ -475,8 +480,8 @@ class WorkoutRepository {
   Future<List<String>> findNewWorkoutIdsAfterCreate({required List<String> beforeIds, DateTime? date}) async {
     final day = date ?? DateTime.now();
     final before = beforeIds.where(isValidMongoId).map((id) => id.trim()).toSet();
-    final page = await fetchWorkoutJournalEntries(dateFrom: day);
-    final entries = entriesForDay(page, day: day);
+    final page = await fetchWorkoutJournalEntries(dateFrom: day, dateTo: day);
+    final entries = entriesForDay(page, day: day, strict: true);
     final found = <String>[];
     for (final entry in entries) {
       for (final id in workoutIdsFrom(entry)) {
@@ -496,8 +501,8 @@ class WorkoutRepository {
     String notes = '',
   }) async {
     final day = date ?? DateTime.now();
-    final page = await fetchWorkoutJournalEntries(dateFrom: day);
-    final entries = entriesForDay(page, day: day);
+    final page = await fetchWorkoutJournalEntries(dateFrom: day, dateTo: day);
+    final entries = entriesForDay(page, day: day, strict: true);
 
     var canonicalId = isValidMongoId(preferredJournalId) ? preferredJournalId!.trim() : null;
     canonicalId ??= primaryJournalIdForDay(entries, day: day);
@@ -543,7 +548,7 @@ class WorkoutRepository {
       return canonicalId;
     }
 
-    return createWorkoutJournalEntry(date: _dateKey(day), workoutIds: deduped, duration: resolvedDuration, notes: notes);
+    return createWorkoutJournalEntry(date: toJournalDate(day), workoutIds: deduped, duration: resolvedDuration, notes: notes);
   }
 
   /// API requires journal `duration` >= 1 second.
@@ -572,19 +577,36 @@ class WorkoutRepository {
     return 1;
   }
 
-  /// Builds `PUT /customer/workout-journal/:id` body.
-  static Map<String, dynamic> updateJournalBody({required List<String> workout, required int duration, required String notes}) {
-    return {'workout': workout, 'duration': duration, 'notes': notes};
+  /// Builds `PUT /customer/workout-journal/:id` body (partial update).
+  static Map<String, dynamic> updateJournalBody({List<String>? workout, int? duration, String? notes, bool? isComplete}) {
+    final body = <String, dynamic>{};
+    if (workout != null) body['workout'] = workout;
+    if (duration != null) body['duration'] = journalDurationForApi(duration);
+    if (notes != null) body['notes'] = notes;
+    if (isComplete != null) body['isComplete'] = isComplete;
+    return body;
   }
 
   /// Updates an existing journal entry (`PUT /customer/workout-journal/:journalId`).
-  Future<Map<String, dynamic>> updateWorkoutJournal({required String journalId, required List<String> workoutIds, required int duration, required String notes}) async {
-    final safeDuration = journalDurationForApi(duration);
-    final raw = await _network.put(AppUrl.customerWorkoutJournalById(journalId), updateJournalBody(workout: workoutIds, duration: safeDuration, notes: notes));
+  Future<Map<String, dynamic>> updateWorkoutJournal({
+    required String journalId,
+    List<String>? workoutIds,
+    int? duration,
+    String? notes,
+    bool? isComplete,
+  }) async {
+    final body = updateJournalBody(workout: workoutIds, duration: duration, notes: notes, isComplete: isComplete);
+    if (body.isEmpty) throw Exception('Nothing to update');
+    final raw = await _network.put(AppUrl.customerWorkoutJournalById(journalId), body);
     if (!_isOk(raw)) {
       throw Exception(_messageFrom(raw) ?? 'Could not update workout journal');
     }
     return Map<String, dynamic>.from(raw as Map);
+  }
+
+  /// Marks a journal complete — syncs to calendar via `isComplete: true`.
+  Future<Map<String, dynamic>> completeWorkoutJournal({required String journalId, required int duration}) async {
+    return updateWorkoutJournal(journalId: journalId, duration: duration, isComplete: true);
   }
 
   /// Builds `POST /customer/workout-journal` body (all of `workout`, `duration`, `notes` are required).
@@ -596,9 +618,9 @@ class WorkoutRepository {
   Future<String?> findWorkoutJournalIdForToday({DateTime? date}) async {
     final day = date ?? DateTime.now();
     try {
-      final page = await fetchWorkoutJournalEntries(dateFrom: day);
-      final entries = entriesForDay(page, day: day);
-      return primaryJournalIdForDay(entries, day: day);
+      final page = await fetchWorkoutJournalEntries(dateFrom: day, dateTo: day);
+      final entries = entriesForDay(page, day: day, strict: true);
+      return primaryJournalIdForDay(entries, day: day, strict: true);
     } catch (_) {
       return null;
     }
@@ -665,6 +687,9 @@ class WorkoutRepository {
     String? refExercise,
     String? supersetIdentifier,
     String? workoutJournal,
+    String? date,
+    int? duration,
+    String? notes,
   }) {
     final body = <String, dynamic>{'type': type, 'name': name, 'exercise': exercise};
     if (refExercise != null && refExercise.trim().isNotEmpty) {
@@ -675,6 +700,15 @@ class WorkoutRepository {
     }
     if (workoutJournal != null && isValidMongoId(workoutJournal)) {
       body['workoutJournal'] = workoutJournal.trim();
+    }
+    if (date != null && date.trim().isNotEmpty) {
+      body['date'] = date.trim();
+    }
+    if (duration != null && duration >= 1) {
+      body['duration'] = duration;
+    }
+    if (notes != null && notes.trim().isNotEmpty) {
+      body['notes'] = notes.trim();
     }
     return body;
   }

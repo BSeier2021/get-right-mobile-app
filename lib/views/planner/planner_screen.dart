@@ -2505,7 +2505,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     ),
                   ],
                 )
-              : Column(
+              : Column(g
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(icon, size: 36, color: AppColors.primaryGray),

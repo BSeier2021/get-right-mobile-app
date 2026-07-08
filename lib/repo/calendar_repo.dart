@@ -975,14 +975,25 @@ class CalendarRepository {
     return Map<String, dynamic>.from(raw as Map);
   }
 
-  static Map<String, dynamic> updateEntryBody({String? notes, String? type, String? runningLog}) {
+  static Map<String, dynamic> updateEntryBody({String? notes, String? type, String? runningLog, String? workoutJournal}) {
     final body = <String, dynamic>{};
     if (notes != null) body['notes'] = notes.trim();
     if (type != null && type.trim().isNotEmpty) body['type'] = type.trim();
     if (runningLog != null && WorkoutRepository.isValidMongoId(runningLog)) {
       body['runningLog'] = runningLog.trim();
     }
+    if (workoutJournal != null && WorkoutRepository.isValidMongoId(workoutJournal)) {
+      body['workoutJournal'] = workoutJournal.trim();
+    }
     return body;
+  }
+
+  static String? workoutJournalIdFromDayData(Map<String, dynamic>? dayData) {
+    if (dayData == null) return null;
+    final workout = dayData['workout'];
+    if (workout is! Map) return null;
+    final journalId = Map<String, dynamic>.from(workout)['journalId']?.toString().trim();
+    return WorkoutRepository.isValidMongoId(journalId) ? journalId : null;
   }
 
   /// `PUT /customer/calendar/:id` — update notes, type, runningLog, remove/replace progress photos.
@@ -992,6 +1003,7 @@ class CalendarRepository {
     String? notes,
     String? type,
     String? runningLog,
+    String? workoutJournal,
     List<File>? progressPhotoFiles,
     String? progressPhotoType,
     List<String>? removeProgressPhotoIds,
@@ -1001,7 +1013,7 @@ class CalendarRepository {
       throw Exception('Invalid calendar entry id');
     }
 
-    final body = updateEntryBody(notes: notes, type: type, runningLog: runningLog);
+    final body = updateEntryBody(notes: notes, type: type, runningLog: runningLog, workoutJournal: workoutJournal);
     if (progressPhotoType != null && progressPhotoType.trim().isNotEmpty) {
       body['progressPhotoType'] = progressPhotoType.trim().toLowerCase();
     }
@@ -1109,6 +1121,41 @@ class CalendarRepository {
       throw Exception(_messageFrom(raw) ?? 'Could not move program workout');
     }
     return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+  }
+
+  /// Links a workout journal to the calendar day (`PUT` or `POST /customer/calendar` with `workoutJournal`).
+  Future<Map<String, dynamic>> attachWorkoutJournalToCalendar({
+    required DateTime date,
+    required String workoutJournalId,
+    String type = typeIncomplete,
+  }) async {
+    final journalId = workoutJournalId.trim();
+    if (!WorkoutRepository.isValidMongoId(journalId)) {
+      throw Exception('Invalid workout journal id');
+    }
+
+    final day = normalizedDate(date);
+    final month = await fetchCalendarMonth(year: day.year, month: day.month);
+    final dayData = dayDataForDate(month, day);
+    final existingJournalId = workoutJournalIdFromDayData(dayData);
+    if (existingJournalId == journalId) {
+      return <String, dynamic>{};
+    }
+
+    final entryId = entryIdForDate(month, day);
+    if (entryId != null) {
+      return updateCalendarEntry(
+        calendarEntryId: entryId,
+        type: type,
+        workoutJournal: journalId,
+      );
+    }
+
+    return createCalendarEntry(
+      date: day,
+      type: type,
+      workoutJournal: journalId,
+    );
   }
 
   /// Links a completed run log to the calendar day (`PUT` or `POST /customer/calendar` with `runningLog`).

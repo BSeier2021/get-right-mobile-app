@@ -11,6 +11,7 @@ import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/models/exercise_set_model.dart';
 import 'package:get_right/models/journal_exercise_type.dart';
 import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/repo/calendar_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -40,6 +41,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   bool _isSavingJournal = false;
   String? _loadError;
   final WorkoutRepository _workoutRepo = WorkoutRepository();
+  final CalendarRepository _calendarRepo = CalendarRepository();
   bool _isStarted = false;
   bool _isPaused = false;
   // Dialog is now used instead of inline add-exercise content
@@ -186,16 +188,18 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     try {
       final day = _journalDay;
-      var page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: day);
-      var rawEntries = WorkoutRepository.entriesForDay(page, day: day);
+      final fromPlanner = _navController?.journalAnchorDate.value != null;
+      final strictDay = fromPlanner;
+      var page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: day, dateTo: day);
+      var rawEntries = WorkoutRepository.entriesForDay(page, day: day, strict: strictDay);
 
       if (rawEntries.length > 1) {
-        final canonicalId = WorkoutRepository.primaryJournalIdForDay(rawEntries, day: day);
+        final canonicalId = WorkoutRepository.primaryJournalIdForDay(rawEntries, day: day, strict: strictDay);
         if (canonicalId != null) {
           try {
             await _workoutRepo.consolidateDayJournal(preferredJournalId: canonicalId, date: day);
-            page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: day);
-            rawEntries = WorkoutRepository.entriesForDay(page, day: day);
+            page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: day, dateTo: day);
+            rawEntries = WorkoutRepository.entriesForDay(page, day: day, strict: strictDay);
           } catch (_) {
             /* keep merged UI view if consolidate fails */
           }
@@ -203,9 +207,13 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       }
 
       final nav = _navController;
-      final startFresh = nav?.startFreshJournal.value == true;
+      final hasJournalForDay = rawEntries.isNotEmpty;
+      if (hasJournalForDay && nav != null) {
+        nav.startFreshJournal.value = false;
+      }
+      final startFresh = !hasJournalForDay && nav?.startFreshJournal.value == true;
       final preferredId = nav?.preferredJournalId.value;
-      final today = startFresh ? null : WorkoutRepository.todayEntryFrom(page, day: day);
+      final today = startFresh ? null : WorkoutRepository.todayEntryFrom(page, day: day, strict: strictDay);
       if (!mounted) return;
 
       final previousWorkout = _workout;
@@ -213,7 +221,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         _journalEntries = rawEntries;
         _workoutJournalByExerciseId = WorkoutRepository.exerciseJournalMapFrom(rawEntries);
         _workoutJournalId =
-            WorkoutRepository.primaryJournalIdForDay(rawEntries, day: day) ??
+            WorkoutRepository.primaryJournalIdForDay(rawEntries, day: day, strict: strictDay) ??
             (WorkoutRepository.isValidMongoId(preferredId) ? preferredId : null) ??
             _workoutJournalId;
         if (today != null && today.id.isNotEmpty) {
@@ -438,6 +446,14 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     final workoutIds = _workout!.allExercises.where((e) => WorkoutRepository.isValidMongoId(e.id)).map((e) => e.id).toList();
     if (workoutIds.isEmpty) {
       await _refreshWorkoutJournalFromApi();
+      if (WorkoutRepository.isValidMongoId(_workoutJournalId) && _seconds >= 1) {
+        try {
+          await _workoutRepo.completeWorkoutJournal(journalId: _workoutJournalId!, duration: _seconds);
+        } catch (e) {
+          if (!mounted) return;
+          Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+        }
+      }
       return;
     }
 
@@ -449,6 +465,9 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         notes: '',
         date: _journalDay,
       );
+      if (WorkoutRepository.isValidMongoId(_workoutJournalId) && _seconds >= 1) {
+        await _workoutRepo.completeWorkoutJournal(journalId: _workoutJournalId!, duration: _seconds);
+      }
       await _refreshWorkoutJournalFromApi();
     } catch (e) {
       if (!mounted) return;
@@ -493,6 +512,16 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     _workoutJournalId = await _workoutRepo.findWorkoutJournalIdForToday(date: _journalDay) ?? _workoutJournalId;
   }
 
+  Future<void> _linkJournalToPlannerCalendar(String journalId) async {
+    final anchor = _navController?.journalAnchorDate.value;
+    if (anchor == null || !WorkoutRepository.isValidMongoId(journalId)) return;
+    try {
+      await _calendarRepo.attachWorkoutJournalToCalendar(date: anchor, workoutJournalId: journalId);
+    } catch (_) {
+      /* non-blocking — exercises are saved even if calendar link fails */
+    }
+  }
+
   List<String> _currentJournalWorkoutIds() {
     if (_workout == null) return const [];
     return _workout!.allExercises.where((e) => WorkoutRepository.isValidMongoId(e.id)).map((e) => e.id).toList();
@@ -520,12 +549,14 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         'workoutJournalId': _workoutJournalId,
         'journalWorkoutIds': _currentJournalWorkoutIds(),
         'addedExerciseIds': _currentAddedLibraryExerciseIds(),
+        'journalDay': _journalDay,
       },
     )?.then((r) async {
       if (r is! Map || r['exercises'] == null) return;
       final returnedJournalId = r['workoutJournalId']?.toString();
       if (WorkoutRepository.isValidMongoId(returnedJournalId)) {
         _workoutJournalId = returnedJournalId;
+        await _linkJournalToPlannerCalendar(returnedJournalId!);
       }
       final type = r['exerciseType'] is JournalExerciseType
           ? r['exerciseType'] as JournalExerciseType

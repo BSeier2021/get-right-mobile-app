@@ -1,9 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get_right/repo/calendar_repo.dart';
-import 'package:get_right/repo/workout_repo.dart';
-import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 
@@ -25,7 +22,6 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
-  final CalendarRepository _calendarRepo = CalendarRepository();
 
   final List<String> _motivationalQuotes = [
     "You showed up—and that's what counts. Keep going!",
@@ -48,20 +44,6 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     _controller.forward();
-    _addWorkoutJournalToCalendar();
-  }
-
-  Future<void> _addWorkoutJournalToCalendar() async {
-    final journalId = widget.workoutJournalId?.trim();
-    if (!WorkoutRepository.isValidMongoId(journalId)) return;
-
-    try {
-      final journalDay = HomeNavigationController.journalDayOrNow();
-      await _calendarRepo.createCalendarEntry(date: journalDay, type: CalendarRepository.typeCompleted, workoutJournal: journalId);
-    } catch (e) {
-      if (!mounted) return;
-      Get.snackbar('Calendar', CalendarRepository.errorMessageFrom(e), backgroundColor: AppColors.error, colorText: AppColors.onError);
-    }
   }
 
   @override
