@@ -393,7 +393,7 @@ class AppUrl {
   }
 
   /// `GET /customer/calendar/:calendarEntryId` → `data.entry`, `data.nutrition`.
-  /// `PUT /customer/calendar/:calendarEntryId` — body: `notes`, `type`, `runningLog`, optional `progressPhotos` (multipart file).
+  /// `PUT /customer/calendar/:calendarEntryId` — body: `notes`, `type`, `runningLog`, optional `removeProgressPhotosIds` + `progressPhotos` (multipart file).
   /// `DELETE /customer/calendar/:calendarEntryId` — remove calendar entry.
   static String customerCalendarById(String calendarEntryId) => '$baseUrl/customer/calendar/${Uri.encodeComponent(calendarEntryId.trim())}';
 

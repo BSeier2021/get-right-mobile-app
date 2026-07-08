@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:get_right/app_url.dart';
@@ -365,28 +366,61 @@ class CalendarRepository {
     return RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(value.trim());
   }
 
-  static String? photoTypeKeyFrom(dynamic photo) {
+  static bool isGenericMediaLabel(String? raw) {
+    final value = raw?.trim().toLowerCase() ?? '';
+    if (value.isEmpty) return false;
+    const generic = {'image', 'video', 'audio', 'file', 'document', 'photo'};
+    return generic.contains(value);
+  }
+
+  static String? photoIdFrom(dynamic photo) {
     if (photo is! Map) return null;
     final map = Map<String, dynamic>.from(photo);
-    for (final field in ['type', 'photoType', 'progressPhotoType', 'label']) {
-      final raw = map[field]?.toString().trim().toLowerCase() ?? '';
-      if (raw.isEmpty) continue;
-      if (raw == 'side' || raw.contains('side')) return 'side';
-      if (raw == 'front' || raw.contains('front')) return 'front';
-    }
+    final id = map['_id']?.toString() ?? map['id']?.toString();
+    if (id != null && _looksLikeMongoId(id)) return id.trim();
     return null;
   }
 
-  static String normalizePhotoType(
+  /// Front/side slot for a progress photo (`front` | `side`).
+  static String? photoSlotFrom(dynamic photo, {int? index}) {
+    if (photo is! Map) {
+      if (index == null) return null;
+      return index == 0 ? 'front' : index == 1 ? 'side' : null;
+    }
+
+    final map = Map<String, dynamic>.from(photo);
+    final slot = map['slot']?.toString().trim().toLowerCase();
+    if (slot == 'front' || slot == 'side') return slot;
+
+    for (final field in ['photoType', 'progressPhotoType', 'label']) {
+      final raw = map[field]?.toString().trim().toLowerCase() ?? '';
+      if (raw.isEmpty || isGenericMediaLabel(raw)) continue;
+      if (raw.contains('side')) return 'side';
+      if (raw.contains('front')) return 'front';
+    }
+
+    final legacyType = map['type']?.toString().trim().toLowerCase() ?? '';
+    if (!isGenericMediaLabel(legacyType)) {
+      if (legacyType.contains('side')) return 'side';
+      if (legacyType.contains('front')) return 'front';
+    }
+
+    if (index != null && index <= 1) return index == 0 ? 'front' : 'side';
+    return null;
+  }
+
+  static String normalizePhotoSlot(
     String? raw, {
     required int index,
     String? entryNotes,
     int? totalPhotos,
     String? entryPhotoType,
   }) {
-    final value = raw?.trim().toLowerCase() ?? '';
-    if (value.contains('side')) return 'side';
-    if (value.contains('front')) return 'front';
+    if (!isGenericMediaLabel(raw)) {
+      final value = raw?.trim().toLowerCase() ?? '';
+      if (value.contains('side')) return 'side';
+      if (value.contains('front')) return 'front';
+    }
 
     final count = totalPhotos ?? 1;
     if (count == 1) {
@@ -400,6 +434,29 @@ class CalendarRepository {
     }
 
     return index == 0 ? 'front' : 'side';
+  }
+
+  static List<Map<String, dynamic>> _orderedProgressPhotos(Map<String, Map<String, dynamic>> bySlot) {
+    final ordered = <Map<String, dynamic>>[];
+    if (bySlot.containsKey('front')) ordered.add(bySlot['front']!);
+    if (bySlot.containsKey('side')) ordered.add(bySlot['side']!);
+    for (final entry in bySlot.entries) {
+      if (entry.key == 'front' || entry.key == 'side') continue;
+      ordered.add(entry.value);
+    }
+    return ordered;
+  }
+
+  static String? progressPhotoIdForSlot(dynamic photosRaw, String slot) {
+    if (photosRaw is! List) return null;
+    final target = slot.toLowerCase();
+    for (var i = 0; i < photosRaw.length; i++) {
+      final photo = photosRaw[i];
+      if (photoSlotFrom(photo, index: i) != target) continue;
+      final id = photoIdFrom(photo);
+      if (id != null) return id;
+    }
+    return null;
   }
 
   static List<Map<String, dynamic>> progressPhotosFromEntry(Map<String, dynamic> entry) {
@@ -417,7 +474,7 @@ class CalendarRepository {
         if (url == null) continue;
         result.add({
           'url': url,
-          'type': normalizePhotoType(
+          'slot': normalizePhotoSlot(
             null,
             index: i,
             entryNotes: entryNotes,
@@ -432,21 +489,18 @@ class CalendarRepository {
         final map = Map<String, dynamic>.from(photo);
         final url = photoUrlFrom(map);
         if (url == null) continue;
-        final explicitType = photoTypeKeyFrom(map);
+        final slot = photoSlotFrom(map, index: i) ??
+            normalizePhotoSlot(
+              map['photoType']?.toString() ?? map['progressPhotoType']?.toString() ?? map['label']?.toString(),
+              index: i,
+              entryNotes: entryNotes,
+              totalPhotos: photos.length,
+              entryPhotoType: entryPhotoType,
+            );
         result.add({
           ...map,
           'url': url,
-          'type': explicitType ??
-              normalizePhotoType(
-                map['type']?.toString() ??
-                    map['photoType']?.toString() ??
-                    map['progressPhotoType']?.toString() ??
-                    map['label']?.toString(),
-                index: i,
-                entryNotes: entryNotes,
-                totalPhotos: photos.length,
-                entryPhotoType: entryPhotoType,
-              ),
+          'slot': slot,
         });
       }
     }
@@ -466,24 +520,15 @@ class CalendarRepository {
 
     final target = type.toLowerCase();
     String? lastMatch;
-    var hasExplicitType = false;
 
-    for (final photo in photosRaw) {
-      final key = photoTypeKeyFrom(photo is Map ? photo : null);
-      if (key == null) continue;
-      hasExplicitType = true;
-      if (key != target) continue;
+    for (var i = 0; i < photosRaw.length; i++) {
+      final photo = photosRaw[i];
+      if (photoSlotFrom(photo, index: i) != target) continue;
       final url = photoUrlFrom(photo);
       if (url != null) lastMatch = url;
     }
-    if (lastMatch != null) return lastMatch;
-    if (hasExplicitType) return null;
 
-    final fallbackIndex = target == 'front' ? 0 : 1;
-    if (fallbackIndex < photosRaw.length) {
-      return photoUrlFrom(photosRaw[fallbackIndex]);
-    }
-    return null;
+    return lastMatch;
   }
 
   static Map<String, dynamic>? dayDataFromMutationResponse(dynamic raw) {
@@ -540,24 +585,24 @@ class CalendarRepository {
           final key = isIncoming && incomingPhotoType != null && raw.length == 1
               ? incomingPhotoType.toLowerCase()
               : (i == 0 ? 'front' : i == 1 ? 'side' : 'photo_$i');
-          put(key, {'url': url, 'type': key == 'side' ? 'side' : 'front'});
+          put(key, {'url': url, 'slot': key});
           continue;
         }
 
         if (photo is! Map) continue;
         final map = Map<String, dynamic>.from(photo);
-        final explicitKey = photoTypeKeyFrom(map);
+        final explicitKey = photoSlotFrom(map, index: i);
         final key = explicitKey ??
             (isIncoming && incomingPhotoType != null && raw.length == 1
                 ? incomingPhotoType.toLowerCase()
                 : (i == 0 ? 'front' : i == 1 ? 'side' : 'photo_$i'));
-        put(key, {...map, 'type': key});
+        put(key, {...map, 'slot': key});
       }
     }
 
     absorb(existingRaw, isIncoming: false);
     absorb(incomingRaw, isIncoming: true);
-    return byType.values.toList();
+    return _orderedProgressPhotos(byType);
   }
 
   static List<Map<String, dynamic>> upsertProgressPhoto({
@@ -566,12 +611,14 @@ class CalendarRepository {
     required Map<String, dynamic> replacement,
   }) {
     final target = type.toLowerCase();
-    final next = photos
-        .where((item) => photoTypeKeyFrom(item) != target)
-        .map((item) => Map<String, dynamic>.from(item))
-        .toList();
-    next.add({...replacement, 'type': target});
-    return next;
+    final bySlot = <String, Map<String, dynamic>>{};
+    for (var i = 0; i < photos.length; i++) {
+      final slot = photoSlotFrom(photos[i], index: i);
+      if (slot == null || slot == target) continue;
+      bySlot[slot] = Map<String, dynamic>.from(photos[i]);
+    }
+    bySlot[target] = {...replacement, 'slot': target};
+    return _orderedProgressPhotos(bySlot);
   }
 
   static bool hasResolvableProgressPhotos(dynamic photosRaw) {
@@ -938,7 +985,8 @@ class CalendarRepository {
     return body;
   }
 
-  /// `PUT /customer/calendar/:id` — update notes, type, runningLog, and/or append progress photos.
+  /// `PUT /customer/calendar/:id` — update notes, type, runningLog, remove/replace progress photos.
+  /// Multipart replace: `removeProgressPhotosIds` (JSON array string) + `progressPhotos` (file).
   Future<Map<String, dynamic>> updateCalendarEntry({
     required String calendarEntryId,
     String? notes,
@@ -946,6 +994,7 @@ class CalendarRepository {
     String? runningLog,
     List<File>? progressPhotoFiles,
     String? progressPhotoType,
+    List<String>? removeProgressPhotoIds,
   }) async {
     final id = calendarEntryId.trim();
     if (!WorkoutRepository.isValidMongoId(id)) {
@@ -955,6 +1004,10 @@ class CalendarRepository {
     final body = updateEntryBody(notes: notes, type: type, runningLog: runningLog);
     if (progressPhotoType != null && progressPhotoType.trim().isNotEmpty) {
       body['progressPhotoType'] = progressPhotoType.trim().toLowerCase();
+    }
+    final removeIds = removeProgressPhotoIds?.map((e) => e.trim()).where(WorkoutRepository.isValidMongoId).toList() ?? const <String>[];
+    if (removeIds.isNotEmpty) {
+      body['removeProgressPhotosIds'] = jsonEncode(removeIds);
     }
     final files = progressPhotoFiles?.where((f) => f.path.isNotEmpty).toList() ?? const <File>[];
 

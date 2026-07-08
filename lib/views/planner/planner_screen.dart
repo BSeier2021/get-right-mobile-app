@@ -504,6 +504,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
     }
     final userNotes = CalendarRepository.displayNotesFrom(_getDataForDate(_selectedDate)?['notes']?.toString());
     final key = CalendarRepository.normalizedDate(_selectedDate);
+    final existingPhotos = _getDataForDate(_selectedDate)?['progressPhotos'];
+    final replacePhotoId = CalendarRepository.progressPhotoIdForSlot(existingPhotos, type);
+    final removePhotoIds = replacePhotoId != null ? [replacePhotoId] : null;
 
     try {
       Map<String, dynamic> response;
@@ -513,6 +516,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           notes: userNotes.isEmpty ? null : userNotes,
           progressPhotoFiles: [photo],
           progressPhotoType: type,
+          removeProgressPhotoIds: removePhotoIds,
         );
       } else {
         final entryType = await showCalendarTypeDialog(context);
@@ -550,7 +554,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             'progressPhotos': CalendarRepository.upsertProgressPhoto(
               photos: photos,
               type: type,
-              replacement: {'url': photo.path, 'type': type, 'local': true},
+              replacement: {'url': photo.path, 'slot': type, 'local': true},
             ),
             if (userNotes.isNotEmpty) 'notes': userNotes,
           });
