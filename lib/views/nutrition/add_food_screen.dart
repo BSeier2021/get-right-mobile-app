@@ -594,9 +594,23 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
     );
   }
 
+  String _formatServingQuantity(double value) {
+    final rounded = (value * 10).round() / 10;
+    if (rounded % 1 == 0) return rounded.toStringAsFixed(0);
+    return rounded.toStringAsFixed(1);
+  }
+
+  void _syncQuantityController(TextEditingController controller, double value) {
+    final text = _formatServingQuantity(value);
+    controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
   void _showQuantityDialog(FoodItem item) {
     double quantity = item.isNutritionApiCustom ? 1.0 : item.defaultServingSize;
-    final quantityController = TextEditingController(text: quantity.toString());
+    final quantityController = TextEditingController(text: _formatServingQuantity(quantity));
     var isSubmitting = false;
 
     showDialog(
@@ -629,42 +643,60 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.remove_circle, color: AppColors.accent, size: 32),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      icon: const Icon(Icons.remove_circle, color: AppColors.accent, size: 24),
                       onPressed: isSubmitting
                           ? null
                           : () {
                               if (quantity > 0.5) {
                                 setDialogState(() {
                                   quantity -= 0.5;
-                                  quantityController.text = quantity.toString();
+                                  _syncQuantityController(quantityController, quantity);
                                 });
                               }
                             },
                     ),
                     SizedBox(
-                      width: 80,
+                      width: 48.w,
+                      height: 36,
                       child: TextField(
                         controller: quantityController,
                         enabled: !isSubmitting,
                         textAlign: TextAlign.center,
-                        keyboardType: TextInputType.number,
-                        style: AppTextStyles.headlineMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        style: AppTextStyles.titleMedium.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.onSurface,
+                          fontSize: 18.sp,
+                          height: 1.1,
+                        ),
                         onChanged: (value) {
-                          quantity = double.tryParse(value) ?? quantity;
+                          final parsed = double.tryParse(value);
+                          if (parsed != null && parsed > 0) {
+                            setDialogState(() => quantity = parsed);
+                          }
                         },
-                        decoration: const InputDecoration(border: InputBorder.none),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                        ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.add_circle, color: AppColors.accent, size: 32),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      icon: const Icon(Icons.add_circle, color: AppColors.accent, size: 24),
                       onPressed: isSubmitting
                           ? null
                           : () {
                               setDialogState(() {
                                 quantity += 0.5;
-                                quantityController.text = quantity.toString();
+                                _syncQuantityController(quantityController, quantity);
                               });
                             },
                     ),

@@ -7,6 +7,7 @@ import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/trainer_certification_helper.dart';
 import 'package:get_right/utils/feed_post_mapper.dart';
 import 'package:get_right/views/feed/feed_reel_overlay.dart';
+import 'package:get_right/views/home/dashboard_screen.dart';
 
 List<Map<String, dynamic>> _mapSavedFeedsToPosts(List<dynamic> savedFeedsRaw) {
   final out = <Map<String, dynamic>>[];
@@ -150,6 +151,15 @@ class _SavedReelsScreenState extends State<SavedReelsScreen> {
     Get.toNamed(AppRoutes.feedSingleReel, arguments: <String, dynamic>{'feedId': id});
   }
 
+  void _openFeedTab() {
+    if (Get.isRegistered<HomeNavigationController>()) {
+      Get.find<HomeNavigationController>().changeTab(1);
+      Get.back();
+      return;
+    }
+    Get.offNamed(AppRoutes.home, arguments: {'navigateToTab': 1});
+  }
+
   Widget _buildGridItem(Map<String, dynamic> post, int index) {
     final showVerified = showFeedCreatorVerifiedBadge(post);
     final isVideo = post['isVideo'] == true;
@@ -268,10 +278,7 @@ class _SavedReelsScreenState extends State<SavedReelsScreen> {
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
-              onPressed: () {
-                Get.back();
-                Get.toNamed(AppRoutes.feed);
-              },
+              onPressed: _openFeedTab,
               icon: const Icon(Icons.play_circle_outline),
               label: const Text('Browse feed'),
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),

@@ -21,6 +21,7 @@ import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/controllers/chat_controller.dart';
 import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/repo/auth_repo.dart';
+import 'package:get_right/repo/favourites_repo.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
@@ -1042,6 +1043,7 @@ class AuthController extends GetxController {
         };
       }(),
       '_apiBundle': inner,
+      'isFavourite': FavouritesRepository.isFavouriteFlag(inner['isFavourite']),
     };
   }
 
@@ -1343,6 +1345,7 @@ class AuthController extends GetxController {
         'bundleTitle': bundleRaw['title']?.toString(),
         'bundlePrice': (bundleRaw['bundlePrice'] as num?)?.toDouble() ?? (bundleRaw['price'] as num?)?.toDouble(),
       },
+      'isFavourite': FavouritesRepository.isFavouriteFlag(inner['isFavourite']),
     };
   }
 
@@ -1556,6 +1559,7 @@ class AuthController extends GetxController {
       'catalog_extensions': ext,
       'marketplace_detail': md,
       '_apiProgram': inner,
+      'isFavourite': FavouritesRepository.isFavouriteFlag(inner['isFavourite']),
     };
   }
 
@@ -2743,6 +2747,73 @@ class AuthController extends GetxController {
     } finally {
       _isLoading = false;
       update();
+    }
+  }
+
+  /// `DELETE /user/auth/account` with password confirmation, then clear local session.
+  Future<bool> deleteAccount({required String password}) async {
+    final pw = password.trim();
+    if (pw.isEmpty) {
+      Get.snackbar('Delete account', 'Please enter your current password', snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+
+    try {
+      _syncNetworkBearerFromStorage();
+      final deviceToken = await _ensureDeviceToken();
+      final response = await _authRepo.deleteAccountRepo(password: pw, deviceToken: deviceToken);
+
+      if (response is! Map<String, dynamic>) {
+        _snackError('Delete account', 'Unexpected response from server');
+        return false;
+      }
+
+      if (response['success'] != true) {
+        final msg = response['message']?.toString() ?? 'Could not delete account';
+        _snackError('Delete account', msg);
+        return false;
+      }
+
+      if (Get.isRegistered<LocalStorage>()) {
+        Get.find<LocalStorage>().clearSavedCredentials();
+        Get.find<LocalStorage>().setRememberMe(false);
+      }
+
+      await _purgeLocalSession();
+
+      final message = response['message']?.toString();
+      _scheduleGetNavigation(() {
+        Get.offAllNamed(AppRoutes.welcome);
+        final snackMessage = message?.isNotEmpty == true ? message! : 'Your account has been permanently deleted';
+        Get.snackbar(
+          'Account Deleted',
+          snackMessage,
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
+        );
+      });
+      return true;
+    } on BadRequestException catch (e) {
+      _snackError('Delete account', e.message);
+      return false;
+    } on UnauthorizedException catch (e) {
+      _snackError('Delete account', e.message);
+      return false;
+    } on ForbiddenException catch (e) {
+      _snackError('Delete account', e.message);
+      return false;
+    } on NoInternetException catch (e) {
+      _snackError('No connection', e.message);
+      return false;
+    } on RequestTimeoutException catch (e) {
+      _snackError('Delete account', e.message);
+      return false;
+    } on ServerException catch (e) {
+      _snackError('Delete account', e.message);
+      return false;
+    } catch (e) {
+      _snackError('Delete account', e);
+      return false;
     }
   }
 

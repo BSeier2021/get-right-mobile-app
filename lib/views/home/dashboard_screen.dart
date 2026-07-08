@@ -823,6 +823,9 @@ class HomeNavigationController extends GetxController {
   }
 
   void changeTab(int index, {int? journalTab}) {
+    if (_currentIndex.value == 2 && index != 2) {
+      clearJournalPlannerContext();
+    }
     if (journalTab != null) {
       journalTabIndex.value = journalTab.clamp(0, 1);
     }

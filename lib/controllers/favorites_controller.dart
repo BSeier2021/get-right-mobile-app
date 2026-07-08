@@ -1,127 +1,180 @@
 import 'package:get/get.dart';
-import 'package:get_right/services/storage_service.dart';
+import 'package:get_right/repo/favourites_repo.dart';
 
-/// Controller for managing favorite programs and workouts
+/// Customer favourites for programs and bundles (`/customer/favourites`).
 class FavoritesController extends GetxController {
-  late final StorageService _storage;
+  final FavouritesRepository _repo = FavouritesRepository();
 
-  // Observable list of favorite program/workout IDs
-  final RxList<String> _favoriteIds = <String>[].obs;
+  final RxList<Map<String, dynamic>> _programFavourites = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> _bundleFavourites = <Map<String, dynamic>>[].obs;
+  final RxSet<String> _favouriteProgramIds = <String>{}.obs;
+  final RxSet<String> _favouriteBundleIds = <String>{}.obs;
 
-  // Observable list of full favorite items
-  final RxList<Map<String, dynamic>> _favorites = <Map<String, dynamic>>[].obs;
+  final RxBool programsLoading = false.obs;
+  final RxBool bundlesLoading = false.obs;
+  final RxBool programsLoadingMore = false.obs;
+  final RxBool bundlesLoadingMore = false.obs;
+  final RxnString programsError = RxnString();
+  final RxnString bundlesError = RxnString();
 
-  List<String> get favoriteIds => _favoriteIds;
-  List<Map<String, dynamic>> get favorites => _favorites;
+  int _programsPage = 1;
+  int _bundlesPage = 1;
+  bool _programsHasNext = true;
+  bool _bundlesHasNext = true;
+
+  static const int _pageSize = 20;
+
+  List<Map<String, dynamic>> get programFavourites => _programFavourites;
+  List<Map<String, dynamic>> get bundleFavourites => _bundleFavourites;
 
   @override
   void onInit() {
     super.onInit();
-    try {
-      _storage = Get.find<StorageService>();
-      _loadFavorites();
-    } catch (e) {
-      print('Error initializing FavoritesController: $e');
-      // Initialize with empty storage if not available
-    }
+    loadFavourites(type: 'program', refresh: true);
+    loadFavourites(type: 'bundle', refresh: true);
   }
 
-  /// Load favorites from storage
-  Future<void> _loadFavorites() async {
-    try {
-      if (!Get.isRegistered<StorageService>()) {
-        print('StorageService not registered, skipping load');
-        return;
-      }
+  String _normalizeType(String type) => FavouritesRepository.normalizeType(type);
 
-      final savedIds = _storage.getString('favorite_ids');
-      if (savedIds != null && savedIds.isNotEmpty) {
-        _favoriteIds.value = savedIds.split(',').where((id) => id.isNotEmpty).toList();
-      }
-
-      final savedFavorites = _storage.getString('favorites_data');
-      if (savedFavorites != null) {
-        // In a real app, you'd deserialize from JSON
-        // For now, we'll load empty and populate as items are favorited
-      }
-    } catch (e) {
-      print('Error loading favorites: $e');
-    }
+  RxSet<String> _idsForType(String type) {
+    return _normalizeType(type) == 'bundle' ? _favouriteBundleIds : _favouriteProgramIds;
   }
 
-  /// Check if an item is favorited
-  bool isFavorite(String id) {
-    return _favoriteIds.contains(id);
+  RxList<Map<String, dynamic>> _listForType(String type) {
+    return _normalizeType(type) == 'bundle' ? _bundleFavourites : _programFavourites;
   }
 
-  /// Toggle favorite status
-  Future<void> toggleFavorite(String id, Map<String, dynamic> item) async {
-    if (isFavorite(id)) {
-      // Remove from favorites
-      _favoriteIds.remove(id);
-      _favorites.removeWhere((fav) => fav['id'] == id);
+  bool isFavorite(String id, {String type = 'program'}) {
+    final trimmed = id.trim();
+    if (trimmed.isEmpty) return false;
+    return _idsForType(type).contains(trimmed);
+  }
+
+  void syncFavoriteFromDetail({required String itemId, required String type, required bool isFavourite}) {
+    final id = itemId.trim();
+    if (id.isEmpty) return;
+    final ids = _idsForType(type);
+    if (isFavourite) {
+      ids.add(id);
     } else {
-      // Add to favorites
-      _favoriteIds.add(id);
-      _favorites.add(item);
+      ids.remove(id);
     }
-
-    // Save to storage
-    await _saveFavorites();
   }
 
-  /// Save favorites to storage
-  Future<void> _saveFavorites() async {
-    try {
-      if (!Get.isRegistered<StorageService>()) {
-        print('StorageService not registered, skipping save');
-        return;
+  Future<void> loadFavourites({required String type, bool refresh = false}) async {
+    final normalized = _normalizeType(type);
+    final loadingFlag = normalized == 'bundle' ? bundlesLoading : programsLoading;
+    final loadingMoreFlag = normalized == 'bundle' ? bundlesLoadingMore : programsLoadingMore;
+    final errorFlag = normalized == 'bundle' ? bundlesError : programsError;
+    final list = _listForType(normalized);
+    final ids = _idsForType(normalized);
+
+    if (refresh) {
+      if (normalized == 'bundle') {
+        _bundlesPage = 1;
+        _bundlesHasNext = true;
+      } else {
+        _programsPage = 1;
+        _programsHasNext = true;
       }
-
-      // Save IDs as comma-separated string
-      await _storage.saveString('favorite_ids', _favoriteIds.join(','));
-
-      // In a real app, you'd serialize _favorites to JSON and save
-      // For now, we'll just save the IDs
-    } catch (e) {
-      print('Error saving favorites: $e');
+      loadingFlag.value = true;
+      errorFlag.value = null;
+    } else {
+      final hasNext = normalized == 'bundle' ? _bundlesHasNext : _programsHasNext;
+      if (!hasNext || loadingFlag.value || loadingMoreFlag.value) return;
+      loadingMoreFlag.value = true;
     }
-  }
 
-  /// Add a favorite programmatically
-  Future<void> addFavorite(String id, Map<String, dynamic> item) async {
-    if (!isFavorite(id)) {
-      _favoriteIds.add(id);
-      _favorites.add(item);
-      await _saveFavorites();
-    }
-  }
-
-  /// Remove a favorite programmatically
-  Future<void> removeFavorite(String id) async {
-    if (isFavorite(id)) {
-      _favoriteIds.remove(id);
-      _favorites.removeWhere((fav) => fav['id'] == id);
-      await _saveFavorites();
-    }
-  }
-
-  /// Clear all favorites
-  Future<void> clearFavorites() async {
-    _favoriteIds.clear();
-    _favorites.clear();
+    final page = normalized == 'bundle' ? _bundlesPage : _programsPage;
 
     try {
-      if (Get.isRegistered<StorageService>()) {
-        await _storage.saveString('favorite_ids', '');
+      final result = await _repo.fetchFavourites(type: normalized, page: page, limit: _pageSize);
+      if (refresh) {
+        list.clear();
+        ids.clear();
       }
+      list.addAll(result.items);
+      for (final item in result.items) {
+        final id = item['id']?.toString();
+        if (id != null && id.isNotEmpty) ids.add(id);
+      }
+      if (normalized == 'bundle') {
+        _bundlesHasNext = result.hasNextPage;
+        _bundlesPage = page + 1;
+      } else {
+        _programsHasNext = result.hasNextPage;
+        _programsPage = page + 1;
+      }
+      errorFlag.value = null;
     } catch (e) {
-      print('Error clearing favorites: $e');
+      errorFlag.value = e.toString();
+    } finally {
+      loadingFlag.value = false;
+      loadingMoreFlag.value = false;
     }
   }
 
-  /// Get favorites by type
   List<Map<String, dynamic>> getFavoritesByType(String type) {
-    return _favorites.where((item) => item['type'] == type).toList();
+    return List<Map<String, dynamic>>.from(_listForType(type));
+  }
+
+  Future<bool> toggleFavorite(
+    String itemId, {
+    required String type,
+    Map<String, dynamic>? itemSnapshot,
+  }) async {
+    final id = itemId.trim();
+    if (id.isEmpty) return false;
+
+    final normalized = _normalizeType(type);
+    final wasFavorite = isFavorite(id, type: normalized);
+    final list = _listForType(normalized);
+    final ids = _idsForType(normalized);
+    Map<String, dynamic>? removedItem;
+    int removedIndex = -1;
+
+    if (wasFavorite) {
+      removedIndex = list.indexWhere((e) => (e['id'] ?? '').toString() == id);
+      if (removedIndex >= 0) removedItem = Map<String, dynamic>.from(list[removedIndex]);
+      ids.remove(id);
+      list.removeWhere((e) => (e['id'] ?? '').toString() == id);
+    } else {
+      ids.add(id);
+      if (itemSnapshot != null) {
+        final snap = Map<String, dynamic>.from(itemSnapshot);
+        snap['id'] = id;
+        snap['type'] = normalized;
+        snap['isFavourite'] = true;
+        list.add(snap);
+      }
+    }
+
+    try {
+      if (wasFavorite) {
+        await _repo.removeFavourite(itemId: id, type: normalized);
+      } else {
+        await _repo.addFavourite(itemId: id, type: normalized);
+      }
+      return true;
+    } catch (e) {
+      if (wasFavorite) {
+        ids.add(id);
+        if (removedItem != null) {
+          if (removedIndex >= 0 && removedIndex <= list.length) {
+            list.insert(removedIndex, removedItem);
+          } else {
+            list.add(removedItem);
+          }
+        }
+      } else {
+        ids.remove(id);
+        list.removeWhere((item) => (item['id'] ?? '').toString() == id);
+      }
+      rethrow;
+    }
+  }
+
+  Future<bool> removeFavorite(String itemId, {String type = 'program'}) {
+    return toggleFavorite(itemId, type: type);
   }
 }

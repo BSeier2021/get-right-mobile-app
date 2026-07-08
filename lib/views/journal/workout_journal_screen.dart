@@ -227,10 +227,6 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         _loadError = null;
       });
 
-      if (nav?.journalTabIndex.value == 0) {
-        nav?.clearJournalPlannerContext();
-      }
-
       if (page.syncFailed && mounted) {
         Get.snackbar(
           'Sync unavailable',

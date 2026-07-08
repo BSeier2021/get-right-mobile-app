@@ -641,6 +641,14 @@ class MarketplaceRepository {
     return card;
   }
 
+  /// Public mapper for favourites / trainer profile program cards.
+  static Map<String, dynamic> programCardFromApi(Map<String, dynamic> p) => _cardFromBrowseProgram(p);
+
+  /// Public mapper for favourites bundle cards.
+  static Map<String, dynamic> bundleCardFromApi(Map<String, dynamic> b, {List<Map<String, dynamic>> programCatalog = const []}) {
+    return _bundleCardFromApi(b, programCatalog);
+  }
+
   static bool _isOk(dynamic response) {
     if (response is! Map) return false;
     final m = Map<String, dynamic>.from(response);

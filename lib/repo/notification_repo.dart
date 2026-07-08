@@ -30,17 +30,17 @@ class NotificationRepository {
     return AppNotificationsPage.fromApi(raw, currentUserId: currentUserId);
   }
 
-  /// `POST /user/notifications/{notificationId}/read`
+  /// `PATCH /user/notifications/{notificationId}/read`
   Future<void> markAsRead(String notificationId) async {
-    final raw = await _network.post(AppUrl.userNotificationRead(notificationId), <String, dynamic>{});
+    final raw = await _network.patch(AppUrl.userNotificationRead(notificationId), <String, dynamic>{});
     if (!_isOk(raw)) {
       throw Exception(_messageFrom(raw) ?? 'Could not mark notification as read');
     }
   }
 
-  /// `POST /user/notifications/read-all`
+  /// `PATCH /user/notifications/read-all`
   Future<void> markAllAsRead() async {
-    final raw = await _network.post(AppUrl.userNotificationsReadAll, <String, dynamic>{});
+    final raw = await _network.patch(AppUrl.userNotificationsReadAll, <String, dynamic>{});
     if (!_isOk(raw)) {
       throw Exception(_messageFrom(raw) ?? 'Could not mark all notifications as read');
     }

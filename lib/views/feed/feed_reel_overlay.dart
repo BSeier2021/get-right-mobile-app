@@ -759,10 +759,10 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
                   shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
                 ),
               ),
-              if (showFeedCreatorVerifiedBadge(_post)) ...[
-                const SizedBox(width: 6),
-                verifiedBadgeIcon(size: 16),
-              ],
+              // if (showFeedCreatorVerifiedBadge(_post)) ...[
+              //   const SizedBox(width: 6),
+              //   verifiedBadgeIcon(size: 16),
+              // ],
             ],
           ),
         ),
@@ -809,11 +809,13 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        GestureDetector(
-          onTap: () {},
-          child: Image.asset('assets/images/verify.png', width: 35.w),
-        ),
-        const SizedBox(height: 20),
+        if (showFeedCreatorVerifiedBadge(_post)) ...[
+          GestureDetector(
+            onTap: () {},
+            child: Image.asset('assets/images/verify.png', width: 35.w),
+          ),
+          const SizedBox(height: 20),
+        ],
         _likeButton(context),
         const SizedBox(height: 20),
         _commentButton(context),

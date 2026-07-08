@@ -60,7 +60,7 @@ class TrainerProfileScreen extends StatefulWidget {
   State<TrainerProfileScreen> createState() => _TrainerProfileScreenState();
 }
 
-class _TrainerProfileScreenState extends State<TrainerProfileScreen> with SingleTickerProviderStateMixin {
+class _TrainerProfileScreenState extends State<TrainerProfileScreen> with TickerProviderStateMixin {
   static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
 
   late TabController _tabController;
@@ -78,6 +78,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   String? _loadError;
 
   bool _isFollowedByMe = false;
+  bool _isFollowingMe = false;
   bool _isBlockedByMe = false;
   bool _followActionLoading = false;
   bool _blockInFlight = false;
@@ -129,6 +130,12 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   }
 
   int _tabLengthForRole() => _showProgramsTrainingTabs ? 2 : 1;
+
+  /// Rating/reviews only for trainers; hidden when API role is `Customer`.
+  bool get _showTrainerRating {
+    final role = _normalizeRole(trainer['role']);
+    return role == null || role.toLowerCase() != 'customer';
+  }
 
   @override
   void initState() {
@@ -184,7 +191,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       }
       return m;
     }
-    return Map<String, dynamic>.from(_getMockTrainerData());
+    return <String, dynamic>{};
   }
 
   String? _extractMongoUserId(dynamic args) {
@@ -387,6 +394,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     _isBlockedByMe = user['isBlockedByMe'] == true || user['blockedByMe'] == true || data['isBlockedByMe'] == true || data['blockedByMe'] == true;
     _syncBlockStateFromControllers();
     _isFollowedByMe = !_isBlockedByMe && (user['isFollowedByMe'] == true || user['isFollowing'] == true || data['isFollowing'] == true);
+    _isFollowingMe = user['isFollowingMe'] == true || data['isFollowingMe'] == true;
 
     final recordsRaw = user['personalRecords'];
     _personalRecords = recordsRaw is List
@@ -1460,9 +1468,15 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
     }
   }
 
+  String _followButtonLabel() {
+    if (_isFollowedByMe) return 'Unfollow';
+    if (_isFollowingMe) return 'Follow Back';
+    return 'Follow';
+  }
+
   Widget _buildFollowButton({bool compact = false}) {
-    // Set a fixed width for both buttons
-    final buttonWidth = 110.0;
+    final label = _followButtonLabel();
+    final buttonWidth = label == 'Follow Back' ? 124.0 : 110.0;
     if (_isBlockedByMe) {
       return SizedBox(
         width: buttonWidth,
@@ -1499,7 +1513,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         child: _followActionLoading
             ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _isFollowedByMe ? AppColors.accent : AppColors.onAccent))
             : Text(
-                _isFollowedByMe ? 'Unfollow' : 'Follow',
+                label,
                 style: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
               ),
       ),
@@ -1792,7 +1806,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold, fontSize: 17.sp),
                 ),
-                if (_mongoUserId != null || _trainerRatingValue() > 0 || _trainerReviewCount() > 0) ...[
+                if (_showTrainerRating && (_mongoUserId != null || _trainerRatingValue() > 0 || _trainerReviewCount() > 0)) ...[
                   const SizedBox(height: 6),
                   _buildTrainerRatingRow(),
                 ],
@@ -1867,7 +1881,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
   }
 
   Widget _buildPostsGrid() {
-    final posts = _mongoUserId != null ? _posts : _getMockPosts();
+    final posts = _mongoUserId != null ? _posts : const <Map<String, dynamic>>[];
     if (posts.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 24),
@@ -1947,8 +1961,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
       );
     }
 
-    final programsToShow = id != null ? _programs : _getMockPrograms('all');
-    final bundlesToShow = id != null ? _bundles : _getMockBundles();
+    final programsToShow = id != null ? _programs : const <Map<String, dynamic>>[];
+    final bundlesToShow = id != null ? _bundles : const <Map<String, dynamic>>[];
 
     return _wrapTabRefresh(
       onRefresh: () async {
@@ -2138,98 +2152,5 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Single
         ),
       ),
     );
-  }
-
-  // Mock data
-  static Map<String, dynamic> _getMockTrainerData() {
-    return {
-      'id': '1',
-      'name': 'Sarah Johnson',
-      'initials': 'SJ',
-      'bio':
-          'Certified personal trainer with over 8 years of experience helping clients achieve their fitness goals. Specializing in strength training, weight loss, and functional fitness. Passionate about creating sustainable lifestyle changes.',
-      'specialties': ['Strength Training', 'Weight Loss', 'Functional Fitness', 'Nutrition Coaching'],
-      'yearsOfExperience': 8,
-      'certified': true,
-      'certifications': ['NASM Certified Personal Trainer', 'Precision Nutrition Level 1', 'CrossFit Level 2 Trainer'],
-      'hourlyRate': 75.0,
-      'rating': 4.8,
-      'totalReviews': 127,
-      'students': 1250,
-      'activePrograms': 5,
-      'completedPrograms': 12,
-      'totalPrograms': 17,
-      'location': '123 Fitness Street, Gym City, GC 12345',
-      'role': 'Trainer',
-    };
-  }
-
-  List<Map<String, dynamic>> _getMockPosts() {
-    return [
-      {'id': '1', 'isVideo': true, 'thumbnail': 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400'},
-      {'id': '2', 'isVideo': false, 'thumbnail': 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400'},
-      {'id': '3', 'isVideo': true, 'thumbnail': 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400'},
-      {'id': '4', 'isVideo': false, 'thumbnail': 'https://images.unsplash.com/photo-1532029837206-abbe2b7620e3?w=400'},
-      {'id': '5', 'isVideo': true, 'thumbnail': 'https://images.unsplash.com/photo-1549576490-b0b4831ef60a?w=400'},
-      {'id': '6', 'isVideo': false, 'thumbnail': 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400'},
-    ];
-  }
-
-  List<Map<String, dynamic>> _getMockBundles() {
-    return [
-      {'id': '1', 'title': 'Strength & Conditioning Bundle', 'price': 49.99, 'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop'},
-      {'id': '2', 'title': 'Complete Fitness Package', 'price': 79.99, 'imageUrl': 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=300&fit=crop'},
-    ];
-  }
-
-  static List<Map<String, dynamic>> _getMockPrograms(String type) {
-    final allPrograms = [
-      {
-        'title': 'Complete Strength Program',
-        'description': 'Build muscle and strength with this comprehensive 12-week program',
-        'trainer': 'Sarah Johnson',
-        'price': 49.99,
-        'duration': '12 weeks',
-        'students': 1250,
-        'rating': 4.8,
-        'category': 'Strength',
-        'certified': true,
-        'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
-        'status': 'active',
-      },
-      {
-        'title': 'Weight Loss Challenge',
-        'description': 'Transform your body with this intensive 8-week weight loss program',
-        'trainer': 'Sarah Johnson',
-        'price': 39.99,
-        'duration': '8 weeks',
-        'students': 890,
-        'rating': 4.9,
-        'category': 'Weight Loss',
-        'certified': true,
-        'imageUrl': 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=300&fit=crop',
-        'status': 'active',
-      },
-      {
-        'title': 'Functional Fitness',
-        'description': 'Improve everyday movement and build practical strength',
-        'trainer': 'Sarah Johnson',
-        'price': 44.99,
-        'duration': '10 weeks',
-        'students': 650,
-        'rating': 4.7,
-        'category': 'Functional',
-        'certified': true,
-        'imageUrl': 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=400&h=300&fit=crop',
-        'status': 'active',
-      },
-    ];
-
-    if (type == 'active') {
-      return allPrograms.where((p) => p['status'] == 'active').toList();
-    } else if (type == 'completed') {
-      return allPrograms.where((p) => p['status'] == 'completed').toList();
-    }
-    return allPrograms;
   }
 }

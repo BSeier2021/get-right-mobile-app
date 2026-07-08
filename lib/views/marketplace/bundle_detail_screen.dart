@@ -3,6 +3,8 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_right/controllers/auth_controller.dart';
+import 'package:get_right/controllers/favorites_controller.dart';
+import 'package:get_right/repo/favourites_repo.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -21,6 +23,7 @@ class BundleDetailScreen extends StatefulWidget {
 }
 
 class _BundleDetailScreenState extends State<BundleDetailScreen> {
+  final FavoritesController _favoritesController = Get.put(FavoritesController());
   Map<String, dynamic> _bundle = {};
   bool _loading = true;
   String? _error;
@@ -102,6 +105,47 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
       }
       _loading = false;
     });
+    _syncFavoriteFromBundleDetail();
+  }
+
+  void _syncFavoriteFromBundleDetail() {
+    final id = (_bundleId ?? _bundle['id'])?.toString().trim();
+    if (id == null || id.isEmpty) return;
+    _favoritesController.syncFavoriteFromDetail(
+      itemId: id,
+      type: 'bundle',
+      isFavourite: FavouritesRepository.isFavouriteFlag(_bundle['isFavourite']),
+    );
+  }
+
+  Future<void> _toggleBundleFavorite() async {
+    final bundleId = (_bundleId ?? _bundle['id'])?.toString().trim();
+    if (bundleId == null || bundleId.isEmpty) return;
+    final wasFavorite = _favoritesController.isFavorite(bundleId, type: 'bundle');
+    try {
+      await _favoritesController.toggleFavorite(
+        bundleId,
+        type: 'bundle',
+        itemSnapshot: {..._bundle, 'type': 'bundle'},
+      );
+      if (!mounted) return;
+      setState(() => _bundle['isFavourite'] = !wasFavorite);
+      Get.snackbar(
+        wasFavorite ? 'Removed' : 'Added',
+        wasFavorite ? 'Removed from favorites' : 'Added to favorites',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: wasFavorite ? AppColors.error : AppColors.completed,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Favorites',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+      );
+    }
   }
 
   void _mergeEnrolledPrograms(List<Map<String, dynamic>> enrolledPrograms) {
@@ -482,14 +526,39 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
   }
 
   Widget _buildHeroImage(String url) {
+    final bundleId = (_bundleId ?? _bundle['id'])?.toString().trim();
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: SafeNetworkImage(
-        url: url,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: 200,
-        fallback: Image.asset('assets/images/demo.png', fit: BoxFit.cover, width: double.infinity, height: 200),
+      child: Stack(
+        children: [
+          SafeNetworkImage(
+            url: url,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: 200,
+            fallback: Image.asset('assets/images/demo.png', fit: BoxFit.cover, width: double.infinity, height: 200),
+          ),
+          if (bundleId != null && bundleId.isNotEmpty)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Obx(() {
+                final isFavorite = _favoritesController.isFavorite(bundleId, type: 'bundle');
+                return Material(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: _toggleBundleFavorite,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: isFavorite ? Colors.red : AppColors.accent, size: 20),
+                    ),
+                  ),
+                );
+              }),
+            ),
+        ],
       ),
     );
   }

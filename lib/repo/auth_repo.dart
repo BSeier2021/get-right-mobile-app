@@ -68,6 +68,16 @@ class AuthRepository {
     return _network.post(AppUrl.logout, {'deviceToken': deviceToken.trim()});
   }
 
+  /// `DELETE /user/auth/account` — body: `password`, optional `deviceToken` (Bearer).
+  Future<dynamic> deleteAccountRepo({required String password, String? deviceToken}) async {
+    final body = <String, dynamic>{'password': password.trim()};
+    final token = deviceToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      body['deviceToken'] = token;
+    }
+    return _network.delete(AppUrl.deleteAccount, data: body);
+  }
+
   /// `POST /user/auth/forget` with `{ "email": "..." }`.
   Future<dynamic> forgotPasswordRepo({required String email}) async {
     final response = await _network.post(AppUrl.forgotPassword, {"email": email.trim()}, headers: {"Authorization": "yNaHwJpGFSquIkXP"});

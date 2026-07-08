@@ -1135,6 +1135,15 @@ class _PlannerScreenState extends State<PlannerScreen> {
       await _loadCalendarMonth();
       if (!mounted) return;
       await _loadSelectedDayDetail();
+      if (result == 'manual_run') {
+        Get.snackbar(
+          'Saved',
+          'Run added to your calendar',
+          backgroundColor: AppColors.completed,
+          colorText: AppColors.onError,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
     });
   }
 

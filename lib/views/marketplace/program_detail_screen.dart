@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:get_right/app_url.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/favorites_controller.dart';
+import 'package:get_right/repo/favourites_repo.dart';
 import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/repo/calendar_repo.dart';
 import 'package:get_right/repo/feed_repo.dart';
@@ -71,6 +72,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       _apiProgramId = null;
     }
     _fillSafeProgramFrom(program);
+    _syncFavoriteFromProgramDetail();
     final loadEnrolled = _enrollmentDetailId != null && _mongoIdRe.hasMatch(_enrollmentDetailId!);
     final loadCatalog = !loadEnrolled && _apiProgramId != null && _apiProgramId!.isNotEmpty;
     if (loadEnrolled || loadCatalog) {
@@ -609,6 +611,53 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     }
   }
 
+  void _syncFavoriteFromProgramDetail() {
+    final pid = _apiProgramId;
+    if (pid == null || !_mongoIdRe.hasMatch(pid)) return;
+    _favoritesController.syncFavoriteFromDetail(
+      itemId: pid,
+      type: 'program',
+      isFavourite: FavouritesRepository.isFavouriteFlag(_safeProgram['isFavourite']),
+    );
+  }
+
+  String? get _favoriteProgramId {
+    final id = (_apiProgramId ?? _safeProgram['id'])?.toString().trim();
+    if (id != null && _mongoIdRe.hasMatch(id)) return id;
+    return null;
+  }
+
+  Future<void> _toggleProgramFavorite() async {
+    final programId = _favoriteProgramId;
+    if (programId == null) return;
+    final wasFavorite = _favoritesController.isFavorite(programId, type: 'program');
+    try {
+      await _favoritesController.toggleFavorite(
+        programId,
+        type: 'program',
+        itemSnapshot: {..._safeProgram, 'type': 'program'},
+      );
+      if (!mounted) return;
+      setState(() => _safeProgram['isFavourite'] = !wasFavorite);
+      Get.snackbar(
+        wasFavorite ? 'Removed' : 'Added',
+        wasFavorite ? 'Removed from favorites' : 'Added to favorites',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: wasFavorite ? AppColors.error : AppColors.completed,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Favorites',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+      );
+    }
+  }
+
   Future<void> _loadProgramDetail() async {
     if (!Get.isRegistered<AuthController>()) {
       if (mounted) setState(() => _loadingDetail = false);
@@ -671,6 +720,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
           _hasSubmittedRating = true;
           if (keepMyReviewRating != null) _safeProgram['myReviewRating'] = keepMyReviewRating;
         }
+        _syncFavoriteFromProgramDetail();
       }
     });
   }
@@ -1342,28 +1392,20 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                             ),
                           ),
                           // Favorite icon at top-left
-                          Positioned(
-                            top: 10,
-                            right: 10,
-                            child: Obx(() {
-                              final isFavorite = _favoritesController.isFavorite(programId);
-                              return InkWell(
-                                onTap: () {
-                                  _favoritesController.toggleFavorite(programId, {..._safeProgram, 'type': 'program'});
-                                  Get.snackbar(
-                                    isFavorite ? 'Removed' : 'Added',
-                                    isFavorite ? 'Removed from favorites' : 'Added to favorites',
-                                    snackPosition: SnackPosition.BOTTOM,
-                                    backgroundColor: isFavorite ? AppColors.error : AppColors.completed,
-                                    colorText: Colors.white,
-                                    duration: const Duration(seconds: 2),
-                                  );
-                                },
-                                borderRadius: BorderRadius.circular(10),
-                                child: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: isFavorite ? Colors.red : AppColors.white, size: 20),
-                              );
-                            }),
-                          ),
+                          if (_favoriteProgramId != null)
+                            Positioned(
+                              top: 10,
+                              right: 10,
+                              child: Obx(() {
+                                final programId = _favoriteProgramId!;
+                                final isFavorite = _favoritesController.isFavorite(programId, type: 'program');
+                                return InkWell(
+                                  onTap: _toggleProgramFavorite,
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: isFavorite ? Colors.red : AppColors.white, size: 20),
+                                );
+                              }),
+                            ),
                         ],
                       ),
                     ),

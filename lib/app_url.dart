@@ -168,6 +168,9 @@ class AppUrl {
   /// `POST /user/auth/logout` — body: `{ "deviceToken": "..." }` (Bearer).
   static String get logout => '$baseUrl/user/auth/logout';
 
+  /// `DELETE /user/auth/account` — body: `{ "password": "...", "deviceToken": "..." }` (Bearer).
+  static String get deleteAccount => '$baseUrl/user/auth/account';
+
   /// `GET /customer/program` — paginated customer programs with optional filters.
   static String customerPrograms({
     required int page,
@@ -240,6 +243,16 @@ class AppUrl {
 
   /// `GET /customer/bundle/:bundleId` — full bundle (`data.bundle`) with nested programs.
   static String customerBundleDetail(String bundleId) => '$baseUrl/customer/bundle/${Uri.encodeComponent(bundleId.trim())}';
+
+  /// `GET /customer/favourites` — query: `page`, `limit`, optional `type` (`program` | `bundle`).
+  static String customerFavourites({int page = 1, int limit = 10, String? type}) {
+    final params = <String, String>{'page': '$page', 'limit': '$limit'};
+    if (type != null && type.trim().isNotEmpty) params['type'] = type.trim();
+    return '$baseUrl/customer/favourites?${Uri(queryParameters: params).query}';
+  }
+
+  /// `POST` / `DELETE /customer/favourites` — body: `{ itemId, type }`.
+  static String get customerFavouritesMutate => '$baseUrl/customer/favourites';
 
   /// `GET /marketplace/bundles` — paginated bundles (`programs` may be program id strings).
   static String marketplaceBundles({required int page, required int perPage}) {
@@ -472,10 +485,10 @@ class AppUrl {
     return '$baseUrl/user/notifications?${Uri(queryParameters: params).query}';
   }
 
-  /// `POST /user/notifications/{notificationId}/read`
+  /// `PATCH /user/notifications/{notificationId}/read`
   static String userNotificationRead(String notificationId) =>
       '$baseUrl/user/notifications/${Uri.encodeComponent(notificationId.trim())}/read';
 
-  /// `POST /user/notifications/read-all`
+  /// `PATCH /user/notifications/read-all`
   static String get userNotificationsReadAll => '$baseUrl/user/notifications/read-all';
 }

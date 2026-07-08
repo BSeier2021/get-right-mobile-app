@@ -276,11 +276,20 @@ class NetworkApiService extends GetxService {
     );
   }
 
-  Future<dynamic> delete(String url, {Map<String, String>? headers, Map<String, dynamic>? params}) async {
+  Future<dynamic> delete(String url, {dynamic data, Map<String, String>? headers, Map<String, dynamic>? params}) async {
     Utils.logInfo("Preparing DELETE request to: $url", name: "NetworkApiService");
+    if (data != null) {
+      Utils.logInfo("Request payload: $data", name: "NetworkApiService");
+    }
 
     final uri = Uri.parse(url).replace(queryParameters: _normalizeQueryParameters(params));
-    return _sendRequest(() => http.delete(uri, headers: _defaultHeaders(customHeaders: headers)));
+    return _sendRequest(() {
+      final requestHeaders = _defaultHeaders(customHeaders: headers);
+      if (data == null) {
+        return http.delete(uri, headers: requestHeaders);
+      }
+      return http.delete(uri, headers: requestHeaders, body: jsonEncode(data));
+    });
   }
 
   /// Multipart POST request

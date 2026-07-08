@@ -61,7 +61,28 @@ class RunningLogRepository {
       case 'jog':
         return 'Jog';
       case 'bike':
+      case 'cycle':
+        return 'Cycle';
+      case 'other':
+        return 'Other';
+      case 'run':
+      default:
+        return 'Run';
+    }
+  }
+
+  /// Maps API `runningType` values back to local UI activity labels.
+  static String activityTypeFromRunningType(String runningType) {
+    switch (runningType.toLowerCase()) {
+      case 'walk':
+        return 'Walk';
+      case 'jog':
+        return 'Jog';
+      case 'cycle':
+      case 'bike':
         return 'Bike';
+      case 'other':
+        return 'Other';
       case 'run':
       default:
         return 'Run';
@@ -238,7 +259,7 @@ class RunningLogRepository {
   static RunModel runModelFromApiLog(Map<String, dynamic> json) {
     final id = json['_id']?.toString() ?? '';
     final userId = json['user']?.toString() ?? '';
-    final activityType = json['runningType']?.toString() ?? 'Run';
+    final activityType = activityTypeFromRunningType(json['runningType']?.toString() ?? 'Run');
     var distanceMeters = (json['distance'] as num?)?.toDouble() ?? 0.0;
     final durationSeconds = (json['duration'] as num?)?.toInt() ?? 0;
     final startTime = DateTime.tryParse(json['startTime']?.toString() ?? '') ?? DateTime.now();

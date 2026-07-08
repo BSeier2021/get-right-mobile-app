@@ -100,7 +100,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
     );
     if (!mounted || !ok) return;
 
-    Get.back(result: true);
+    Get.close(1);
   }
 
   @override

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:get_right/controllers/favorites_controller.dart';
 import 'package:get_right/models/exercise_detail.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -18,7 +17,6 @@ class ExerciseDetailScreen extends StatefulWidget {
 
 class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   final MarketplaceRepository _repo = MarketplaceRepository();
-  final FavoritesController _favoritesController = Get.put(FavoritesController());
 
   late Map<String, dynamic> _routeArgs;
   late String _exerciseId;
@@ -67,8 +65,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   }
 
   String get _displayName => _detail?.name ?? _routeArgs['name']?.toString() ?? '';
-
-  bool get isFavorite => _favoritesController.isFavorite(_exerciseId);
 
   bool get _showAddToWorkout {
     if (_routeArgs['fromLibrary'] == true) return false;
@@ -144,24 +140,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         ),
         centerTitle: true,
         actions: [
-          if (_detail != null)
-            Obx(() {
-              final fav = _favoritesController.isFavorite(_exerciseId);
-              return IconButton(
-                icon: Icon(fav ? Icons.favorite : Icons.favorite_border, color: fav ? AppColors.error : AppColors.onPrimary),
-                onPressed: () {
-                  _favoritesController.toggleFavorite(_exerciseId, _detail!.toFavoritePayload());
-                  Get.snackbar(
-                    fav ? 'Removed from Favorites' : 'Added to Favorites',
-                    _displayName,
-                    backgroundColor: fav ? AppColors.primaryGray : AppColors.completed,
-                    colorText: Colors.white,
-                    snackPosition: SnackPosition.BOTTOM,
-                    duration: const Duration(seconds: 2),
-                  );
-                },
-              );
-            }),
           IconButton(
             icon: const Icon(Icons.share_outlined, color: AppColors.onPrimary),
             onPressed: () {},

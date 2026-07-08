@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:get_right/app_url.dart';
 import 'package:get_right/network/network_services.dart';
+import 'package:get_right/repo/running_log_repo.dart';
 import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
@@ -172,7 +173,7 @@ class CalendarRepository {
       }
     }
 
-    final activityType = log['runningType']?.toString() ?? 'Run';
+    final activityType = RunningLogRepository.activityTypeFromRunningType(log['runningType']?.toString() ?? 'Run');
     final isPlannedRoute = routeId != null && durationSeconds <= 0 && distanceMeters <= 0;
 
     return {

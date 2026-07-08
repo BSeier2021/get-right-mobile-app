@@ -51,6 +51,7 @@ class _CustomTextFieldState extends State<CustomTextField> with SingleTickerProv
   late FocusNode _focusNode;
   bool _isFocused = false;
   bool _hasError = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -103,6 +104,7 @@ class _CustomTextFieldState extends State<CustomTextField> with SingleTickerProv
                 final error = widget.validator?.call(value);
                 setState(() {
                   _hasError = error != null;
+                  _errorMessage = error;
                 });
                 return error;
               },
@@ -164,7 +166,7 @@ class _CustomTextFieldState extends State<CustomTextField> with SingleTickerProv
           Padding(
             padding: const EdgeInsets.only(left: 16, top: 8),
             child: Text(
-              _hasError ? 'Invalid input' : '',
+              _errorMessage ?? 'Invalid input',
               style: AppTextStyles.labelSmall.copyWith(color: AppColors.error, fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ),

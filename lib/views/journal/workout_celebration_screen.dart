@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_right/repo/calendar_repo.dart';
 import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 
@@ -55,8 +56,8 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
     if (!WorkoutRepository.isValidMongoId(journalId)) return;
 
     try {
-      final now = DateTime.now();
-      await _calendarRepo.createCalendarEntry(date: DateTime(now.year, now.month, now.day), type: CalendarRepository.typeCompleted, workoutJournal: journalId);
+      final journalDay = HomeNavigationController.journalDayOrNow();
+      await _calendarRepo.createCalendarEntry(date: journalDay, type: CalendarRepository.typeCompleted, workoutJournal: journalId);
     } catch (e) {
       if (!mounted) return;
       Get.snackbar('Calendar', CalendarRepository.errorMessageFrom(e), backgroundColor: AppColors.error, colorText: AppColors.onError);

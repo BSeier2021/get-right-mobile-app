@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 
 /// Controller for managing settings
@@ -101,36 +102,21 @@ class SettingsController extends GetxController {
     final confirm = await _showConfirmDialog(
       title: 'Delete Account',
       message: 'Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently deleted.',
-      confirmText: 'Delete',
+      confirmText: 'Continue',
       isDangerous: true,
     );
 
-    if (confirm == true) {
-      // Show loading
-      Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
+    if (confirm != true) return;
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
+    final context = Get.context;
+    if (context == null || !context.mounted) return;
 
-      // Close loading dialog
-      Get.back();
-
-      // In production, call API to delete account
-      // await authService.deleteAccount();
-
-      // Show success message
-      Get.snackbar(
-        'Account Deleted',
-        'Your account has been permanently deleted',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2),
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-
-      // Navigate to welcome screen
-      Get.offAllNamed(AppRoutes.welcome);
-    }
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => const _DeleteAccountPasswordDialog(),
+    );
   }
 
   // Save settings to storage (mock - replace with actual storage)
@@ -142,14 +128,19 @@ class SettingsController extends GetxController {
 
   // Show confirmation dialog
   Future<bool?> _showConfirmDialog({required String title, required String message, String confirmText = 'Confirm', bool isDangerous = false}) {
-    return Get.dialog<bool>(
-      AlertDialog(
+    final context = Get.context;
+    if (context == null || !context.mounted) return Future.value(false);
+
+    return showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (dialogContext) => AlertDialog(
         title: Text(title),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: () => Get.back(result: true),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: isDangerous ? Colors.red : null,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
@@ -174,5 +165,89 @@ class SettingsController extends GetxController {
       // Navigate to welcome screen
       Get.offAllNamed(AppRoutes.welcome);
     }
+  }
+}
+
+class _DeleteAccountPasswordDialog extends StatefulWidget {
+  const _DeleteAccountPasswordDialog();
+
+  @override
+  State<_DeleteAccountPasswordDialog> createState() => _DeleteAccountPasswordDialogState();
+}
+
+class _DeleteAccountPasswordDialogState extends State<_DeleteAccountPasswordDialog> {
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isDeleting = false;
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _cancel() {
+    if (_isDeleting) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _submit() async {
+    if (_isDeleting) return;
+
+    final password = _passwordController.text.trim();
+    if (password.isEmpty) return;
+
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    setState(() => _isDeleting = true);
+
+    final ok = await Get.find<AuthController>().deleteAccount(password: password);
+
+    if (!mounted) return;
+
+    if (ok) return;
+
+    setState(() => _isDeleting = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !_isDeleting,
+      child: AlertDialog(
+        title: Text(_isDeleting ? 'Deleting Account' : 'Confirm Password'),
+        content: _isDeleting
+            ? const SizedBox(
+                height: 72,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : TextField(
+                controller: _passwordController,
+                obscureText: true,
+                autocorrect: false,
+                enableSuggestions: false,
+                textInputAction: TextInputAction.done,
+                decoration: const InputDecoration(
+                  labelText: 'Current password',
+                  hintText: 'Enter your current password',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (_) => _submit(),
+              ),
+        actions: _isDeleting
+            ? null
+            : [
+                TextButton(onPressed: _cancel, child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                  ),
+                  child: const Text('Delete Account'),
+                ),
+              ],
+      ),
+    );
   }
 }

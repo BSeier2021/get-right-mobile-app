@@ -179,13 +179,6 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
       );
 
       if (!mounted) return;
-      Get.snackbar(
-        'Saved',
-        'Run added to your calendar',
-        backgroundColor: AppColors.completed,
-        colorText: AppColors.onError,
-        snackPosition: SnackPosition.BOTTOM,
-      );
       Get.back(result: 'manual_run');
     } catch (e) {
       if (!mounted) return;
