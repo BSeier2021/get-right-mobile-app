@@ -532,7 +532,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
       final mutationDay = CalendarRepository.dayDataFromMutationResponse(response);
       if (mutationDay != null) {
         setState(() {
-          _dayData[key] = CalendarRepository.mergeDayData(_dayData[key], mutationDay);
+          _dayData[key] = CalendarRepository.mergeDayData(
+            _dayData[key],
+            mutationDay,
+            incomingProgressPhotoType: type,
+          );
         });
       } else {
         setState(() {
@@ -540,12 +544,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
           final photos = existing?['progressPhotos'] is List
               ? List<Map<String, dynamic>>.from((existing!['progressPhotos'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)))
               : <Map<String, dynamic>>[];
-          photos.removeWhere((item) => item['type']?.toString().toLowerCase().contains(type) == true);
-          photos.add({'url': photo.path, 'type': type, 'local': true});
           _dayData[key] = CalendarRepository.mergeDayData(existing, {
             'calendarEntryId': entryId ?? CalendarRepository.entryIdFrom(response),
             'hasProgressPhoto': true,
-            'progressPhotos': photos,
+            'progressPhotos': CalendarRepository.upsertProgressPhoto(
+              photos: photos,
+              type: type,
+              replacement: {'url': photo.path, 'type': type, 'local': true},
+            ),
             if (userNotes.isNotEmpty) 'notes': userNotes,
           });
         });

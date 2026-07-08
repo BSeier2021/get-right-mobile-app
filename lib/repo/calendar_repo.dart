@@ -365,14 +365,39 @@ class CalendarRepository {
     return RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(value.trim());
   }
 
-  static String normalizePhotoType(String? raw, {required int index, String? entryNotes}) {
-    final value = raw?.trim().toLowerCase() ?? '';
-    if (value.contains('front')) return 'front';
-    if (value.contains('side')) return 'side';
+  static String? photoTypeKeyFrom(dynamic photo) {
+    if (photo is! Map) return null;
+    final map = Map<String, dynamic>.from(photo);
+    for (final field in ['type', 'photoType', 'progressPhotoType', 'label']) {
+      final raw = map[field]?.toString().trim().toLowerCase() ?? '';
+      if (raw.isEmpty) continue;
+      if (raw == 'side' || raw.contains('side')) return 'side';
+      if (raw == 'front' || raw.contains('front')) return 'front';
+    }
+    return null;
+  }
 
-    final notes = entryNotes?.toLowerCase() ?? '';
-    if (notes.contains('front')) return 'front';
-    if (notes.contains('side')) return 'side';
+  static String normalizePhotoType(
+    String? raw, {
+    required int index,
+    String? entryNotes,
+    int? totalPhotos,
+    String? entryPhotoType,
+  }) {
+    final value = raw?.trim().toLowerCase() ?? '';
+    if (value.contains('side')) return 'side';
+    if (value.contains('front')) return 'front';
+
+    final count = totalPhotos ?? 1;
+    if (count == 1) {
+      final entryType = entryPhotoType?.trim().toLowerCase() ?? '';
+      if (entryType.contains('side')) return 'side';
+      if (entryType.contains('front')) return 'front';
+
+      final notes = entryNotes?.toLowerCase() ?? '';
+      if (notes.contains('side')) return 'side';
+      if (notes.contains('front')) return 'front';
+    }
 
     return index == 0 ? 'front' : 'side';
   }
@@ -382,6 +407,7 @@ class CalendarRepository {
     if (photos is! List || photos.isEmpty) return const [];
 
     final entryNotes = entry['notes']?.toString();
+    final entryPhotoType = entry['progressPhotoType']?.toString();
     final result = <Map<String, dynamic>>[];
 
     for (var i = 0; i < photos.length; i++) {
@@ -391,7 +417,13 @@ class CalendarRepository {
         if (url == null) continue;
         result.add({
           'url': url,
-          'type': normalizePhotoType(null, index: i, entryNotes: entryNotes),
+          'type': normalizePhotoType(
+            null,
+            index: i,
+            entryNotes: entryNotes,
+            totalPhotos: photos.length,
+            entryPhotoType: entryPhotoType,
+          ),
         });
         continue;
       }
@@ -400,14 +432,21 @@ class CalendarRepository {
         final map = Map<String, dynamic>.from(photo);
         final url = photoUrlFrom(map);
         if (url == null) continue;
+        final explicitType = photoTypeKeyFrom(map);
         result.add({
           ...map,
           'url': url,
-          'type': normalizePhotoType(
-            map['type']?.toString() ?? map['photoType']?.toString() ?? map['progressPhotoType']?.toString() ?? map['label']?.toString(),
-            index: i,
-            entryNotes: entryNotes,
-          ),
+          'type': explicitType ??
+              normalizePhotoType(
+                map['type']?.toString() ??
+                    map['photoType']?.toString() ??
+                    map['progressPhotoType']?.toString() ??
+                    map['label']?.toString(),
+                index: i,
+                entryNotes: entryNotes,
+                totalPhotos: photos.length,
+                entryPhotoType: entryPhotoType,
+              ),
         });
       }
     }
@@ -427,16 +466,18 @@ class CalendarRepository {
 
     final target = type.toLowerCase();
     String? lastMatch;
+    var hasExplicitType = false;
 
     for (final photo in photosRaw) {
-      if (photo is! Map) continue;
-      final map = Map<String, dynamic>.from(photo);
-      final photoType = map['type']?.toString().toLowerCase() ?? '';
-      if (!photoType.contains(target)) continue;
-      final url = photoUrlFrom(map);
+      final key = photoTypeKeyFrom(photo is Map ? photo : null);
+      if (key == null) continue;
+      hasExplicitType = true;
+      if (key != target) continue;
+      final url = photoUrlFrom(photo);
       if (url != null) lastMatch = url;
     }
     if (lastMatch != null) return lastMatch;
+    if (hasExplicitType) return null;
 
     final fallbackIndex = target == 'front' ? 0 : 1;
     if (fallbackIndex < photosRaw.length) {
@@ -472,7 +513,11 @@ class CalendarRepository {
     return null;
   }
 
-  static List<Map<String, dynamic>> mergeProgressPhotoLists(dynamic existingRaw, dynamic incomingRaw) {
+  static List<Map<String, dynamic>> mergeProgressPhotoLists(
+    dynamic existingRaw,
+    dynamic incomingRaw, {
+    String? incomingPhotoType,
+  }) {
     final byType = <String, Map<String, dynamic>>{};
 
     void put(String key, Map<String, dynamic> map) {
@@ -485,33 +530,48 @@ class CalendarRepository {
       byType[key] = map;
     }
 
-    void absorb(dynamic raw) {
+    void absorb(dynamic raw, {required bool isIncoming}) {
       if (raw is! List) return;
       for (var i = 0; i < raw.length; i++) {
         final photo = raw[i];
         if (photo is String) {
           final url = photoUrlFrom(photo);
           if (url == null) continue;
-          final key = i == 0 ? 'front' : i == 1 ? 'side' : 'photo_$i';
+          final key = isIncoming && incomingPhotoType != null && raw.length == 1
+              ? incomingPhotoType.toLowerCase()
+              : (i == 0 ? 'front' : i == 1 ? 'side' : 'photo_$i');
           put(key, {'url': url, 'type': key == 'side' ? 'side' : 'front'});
           continue;
         }
 
         if (photo is! Map) continue;
         final map = Map<String, dynamic>.from(photo);
-        final typeRaw = map['type']?.toString().toLowerCase() ?? '';
-        final key = typeRaw.contains('side')
-            ? 'side'
-            : typeRaw.contains('front')
-            ? 'front'
-            : 'photo_$i';
-        put(key, map);
+        final explicitKey = photoTypeKeyFrom(map);
+        final key = explicitKey ??
+            (isIncoming && incomingPhotoType != null && raw.length == 1
+                ? incomingPhotoType.toLowerCase()
+                : (i == 0 ? 'front' : i == 1 ? 'side' : 'photo_$i'));
+        put(key, {...map, 'type': key});
       }
     }
 
-    absorb(existingRaw);
-    absorb(incomingRaw);
+    absorb(existingRaw, isIncoming: false);
+    absorb(incomingRaw, isIncoming: true);
     return byType.values.toList();
+  }
+
+  static List<Map<String, dynamic>> upsertProgressPhoto({
+    required List<Map<String, dynamic>> photos,
+    required String type,
+    required Map<String, dynamic> replacement,
+  }) {
+    final target = type.toLowerCase();
+    final next = photos
+        .where((item) => photoTypeKeyFrom(item) != target)
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+    next.add({...replacement, 'type': target});
+    return next;
   }
 
   static bool hasResolvableProgressPhotos(dynamic photosRaw) {
@@ -522,7 +582,11 @@ class CalendarRepository {
     return false;
   }
 
-  static Map<String, dynamic> mergeDayData(Map<String, dynamic>? existing, Map<String, dynamic> incoming) {
+  static Map<String, dynamic> mergeDayData(
+    Map<String, dynamic>? existing,
+    Map<String, dynamic> incoming, {
+    String? incomingProgressPhotoType,
+  }) {
     if (existing == null) return incoming;
 
     final merged = Map<String, dynamic>.from(existing)..addAll(incoming);
@@ -530,7 +594,11 @@ class CalendarRepository {
     final incomingPhotos = incoming['progressPhotos'];
 
     if (existingPhotos is List || incomingPhotos is List) {
-      final combined = mergeProgressPhotoLists(existingPhotos, incomingPhotos);
+      final combined = mergeProgressPhotoLists(
+        existingPhotos,
+        incomingPhotos,
+        incomingPhotoType: incomingProgressPhotoType,
+      );
       if (combined.isNotEmpty) {
         merged['progressPhotos'] = combined;
       }
