@@ -480,7 +480,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                   const SizedBox(height: 8),
                   _buildActionTile(
                     context: context,
-                    imagePath: 'assets/images/Vector.png',
+                    imagePath: 'assets/images/add workout.png',
                     iconBg: const Color(0xFFDFF1D3),
                     title: 'Add Workout',
                     subtitle: reuseOptions.any((o) => o.kind == PlannerReuseKind.warmup || o.kind == PlannerReuseKind.workout)
@@ -491,7 +491,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                   const SizedBox(height: 12),
                   _buildActionTile(
                     context: context,
-                    imagePath: 'assets/images/runing.png',
+                    imagePath: 'assets/images/add run.png',
                     iconBg: const Color(0xFFFFE8D1),
                     title: 'Add Run',
                     subtitle: reuseOptions.any((o) => o.kind == PlannerReuseKind.plannedRoute || o.kind == PlannerReuseKind.savedActivity)
@@ -502,7 +502,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                   const SizedBox(height: 12),
                   _buildActionTile(
                     context: context,
-                    imagePath: 'assets/images/camera.png',
+                    imagePath: 'assets/images/camera0000.png',
                     iconBg: const Color(0xFFF6E6FF),
                     title: 'Add Progress Photo',
                     subtitle: 'Front or side progress photo',
@@ -518,7 +518,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                   const SizedBox(height: 12),
                   _buildActionTile(
                     context: context,
-                    imagePath: 'assets/images/note-2.png',
+                    imagePath: 'assets/images/note.png',
                     iconBg: const Color(0xFFDDECF7),
                     title: 'Add Notes',
                     subtitle: 'Add notes for this day',

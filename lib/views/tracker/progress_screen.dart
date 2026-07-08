@@ -5,6 +5,7 @@ import 'package:get_right/models/customer_progress.dart';
 import 'package:get_right/repo/progress_repo.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:intl/intl.dart';
 
 /// Progress Tracking Screen — `GET /customer/profile/progress`.
 class ProgressScreen extends StatefulWidget {
@@ -21,10 +22,49 @@ class _ProgressScreenState extends State<ProgressScreen> {
   bool _loading = true;
   String? _error;
 
+  late DateTime _selectedMonth;
+  late int _selectedWeekIndex;
+
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _selectedMonth = DateTime(now.year, now.month, 1);
+    _selectedWeekIndex = _weekIndexForDay(now.day);
     _loadProgress();
+  }
+
+  int _weekIndexForDay(int day) => (day - 1) ~/ 7;
+
+  int _weekCountInMonth(DateTime month) {
+    final lastDay = DateTime(month.year, month.month + 1, 0).day;
+    return _weekIndexForDay(lastDay) + 1;
+  }
+
+  (DateTime start, DateTime end) _selectedWeekRange() {
+    final startDay = _selectedWeekIndex * 7 + 1;
+    final lastDayOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day;
+    final endDay = (startDay + 6).clamp(1, lastDayOfMonth);
+    return (
+      DateTime(_selectedMonth.year, _selectedMonth.month, startDay),
+      DateTime(_selectedMonth.year, _selectedMonth.month, endDay),
+    );
+  }
+
+  bool get _isCurrentWeek {
+    final now = DateTime.now();
+    return _selectedMonth.year == now.year &&
+        _selectedMonth.month == now.month &&
+        _selectedWeekIndex == _weekIndexForDay(now.day);
+  }
+
+  String get _periodLabel {
+    final (start, end) = _selectedWeekRange();
+    final sameMonth = start.month == end.month;
+    if (sameMonth) {
+      return '${DateFormat('MMM d').format(start)} – ${DateFormat('d, yyyy').format(end)}';
+    }
+    return '${DateFormat('MMM d').format(start)} – ${DateFormat('MMM d, yyyy').format(end)}';
   }
 
   Future<void> _loadProgress() async {
@@ -33,7 +73,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
       _error = null;
     });
     try {
-      final progress = await _repo.fetchCustomerProgress();
+      final (start, end) = _selectedWeekRange();
+      final progress = await _repo.fetchCustomerProgress(startDate: start, endDate: end);
       if (!mounted) return;
       setState(() {
         _progress = progress;
@@ -48,6 +89,44 @@ class _ProgressScreenState extends State<ProgressScreen> {
     }
   }
 
+  void _shiftMonth(int delta) {
+    final next = DateTime(_selectedMonth.year, _selectedMonth.month + delta, 1);
+    final now = DateTime.now();
+    if (next.isAfter(DateTime(now.year, now.month + 1, 0))) return;
+
+    setState(() {
+      _selectedMonth = next;
+      final maxWeek = _weekCountInMonth(_selectedMonth) - 1;
+      if (_selectedWeekIndex > maxWeek) _selectedWeekIndex = maxWeek;
+    });
+    _loadProgress();
+  }
+
+  Future<void> _pickMonth() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedMonth,
+      firstDate: DateTime(2020, 1, 1),
+      lastDate: DateTime(now.year, now.month + 1, 0),
+      initialDatePickerMode: DatePickerMode.year,
+    );
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      _selectedMonth = DateTime(picked.year, picked.month, 1);
+      final maxWeek = _weekCountInMonth(_selectedMonth) - 1;
+      if (_selectedWeekIndex > maxWeek) _selectedWeekIndex = maxWeek;
+    });
+    _loadProgress();
+  }
+
+  void _selectWeek(int index) {
+    if (index == _selectedWeekIndex) return;
+    setState(() => _selectedWeekIndex = index);
+    _loadProgress();
+  }
+
   CustomerProgressSummary get _summary => _progress?.summary ?? CustomerProgressSummary.empty;
 
   String _formatDistance(double km) {
@@ -59,6 +138,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final weekCount = _weekCountInMonth(_selectedMonth);
+    final canGoNextMonth = _selectedMonth.year < DateTime.now().year ||
+        (_selectedMonth.year == DateTime.now().year && _selectedMonth.month < DateTime.now().month);
+
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
@@ -90,11 +173,16 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 children: [
+                  _buildPeriodFilter(weekCount: weekCount, canGoNextMonth: canGoNextMonth),
+                  if (_loading) ...[
+                    const SizedBox(height: 16),
+                    const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2))),
+                  ],
                   if (_error != null) ...[
+                    const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
-                      margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
                         color: AppColors.error.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(12),
@@ -112,6 +200,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       ),
                     ),
                   ],
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
@@ -130,7 +219,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                           iconBg: const Color(0xFFE3F2FD),
                           value: _formatWeekCount(_summary.workoutsThisWeek),
                           valueColor: const Color(0xFF1976D2),
-                          label: 'This Week',
+                          label: _isCurrentWeek ? 'This Week' : 'Workouts',
                         ),
                       ),
                     ],
@@ -164,11 +253,151 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     'Weekly Activity',
                     style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.onBackground),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _periodLabel,
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                  ),
                   const SizedBox(height: 12),
                   _buildWeeklyActivityChart(_progress?.weeklyActivity ?? const []),
                   const SizedBox(height: 24),
                 ],
               ),
+      ),
+    );
+  }
+
+  Widget _buildPeriodFilter({required int weekCount, required bool canGoNextMonth}) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFCDE7C8)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Time Period',
+            style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _filterIconButton(
+                icon: Icons.chevron_left,
+                onPressed: () => _shiftMonth(-1),
+              ),
+              Expanded(
+                child: InkWell(
+                  onTap: _pickMonth,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
+                      children: [
+                        Text(
+                          DateFormat.yMMMM().format(_selectedMonth),
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.bold, color: AppColors.accent),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Tap to change month',
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              _filterIconButton(
+                icon: Icons.chevron_right,
+                onPressed: canGoNextMonth ? () => _shiftMonth(1) : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Week',
+            style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (var i = 0; i < weekCount; i++) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  _weekChip(index: i),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterIconButton({required IconData icon, VoidCallback? onPressed}) {
+    return Material(
+      color: AppColors.accent.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(icon, color: onPressed == null ? AppColors.primaryGray : AppColors.accent, size: 22),
+        ),
+      ),
+    );
+  }
+
+  Widget _weekChip({required int index}) {
+    final selected = index == _selectedWeekIndex;
+    final startDay = index * 7 + 1;
+    final lastDayOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day;
+    final endDay = (startDay + 6).clamp(1, lastDayOfMonth);
+    final label = startDay == endDay ? '$startDay' : '$startDay–$endDay';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _selectWeek(index),
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.accent : AppColors.accent.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: selected ? AppColors.accent : AppColors.accent.withOpacity(0.25)),
+          ),
+          child: Column(
+            children: [
+              Text(
+                'Week ${index + 1}',
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: selected ? AppColors.onAccent : AppColors.accent,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: selected ? AppColors.onAccent.withOpacity(0.85) : AppColors.primaryGray,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -181,7 +410,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         decoration: _chartDecoration,
         child: Center(
           child: Text(
-            'No activity recorded this week',
+            'No activity recorded for this period',
             style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
           ),
         ),

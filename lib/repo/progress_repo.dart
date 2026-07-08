@@ -5,9 +5,9 @@ import 'package:get_right/network/network_services.dart';
 class ProgressRepository {
   final _network = NetworkApiService();
 
-  /// `GET /customer/profile/progress` — summary stats + weekly activity.
-  Future<CustomerProgress> fetchCustomerProgress() async {
-    final raw = await _network.get(AppUrl.customerProfileProgress);
+  /// `GET /customer/profile/progress` — summary stats + weekly activity for [startDate]…[endDate].
+  Future<CustomerProgress> fetchCustomerProgress({DateTime? startDate, DateTime? endDate}) async {
+    final raw = await _network.get(AppUrl.customerProfileProgress(startDate: startDate, endDate: endDate));
     if (!_isOk(raw)) {
       throw Exception(_messageFrom(raw) ?? 'Could not load progress');
     }

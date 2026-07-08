@@ -32,8 +32,17 @@ class AppUrl {
   static String updateProfile = '$baseUrl/customer/profile/update';
   static String getProfile = '$baseUrl/customer/profile';
 
-  /// `GET /customer/profile/progress` — summary + weekly activity for progress screen.
-  static String get customerProfileProgress => '$baseUrl/customer/profile/progress';
+  /// `GET /customer/profile/progress` — optional `startDate` / `endDate` (`yyyy-MM-dd`).
+  static String customerProfileProgress({DateTime? startDate, DateTime? endDate}) {
+    final params = <String, String>{};
+    if (startDate != null) params['startDate'] = _apiDateKey(startDate);
+    if (endDate != null) params['endDate'] = _apiDateKey(endDate);
+    if (params.isEmpty) return '$baseUrl/customer/profile/progress';
+    return '$baseUrl/customer/profile/progress?${Uri(queryParameters: params).query}';
+  }
+
+  static String _apiDateKey(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
   /// `GET /user/discover` — search users (`search`, `role`, `sort`, `page`, `limit`).
   static String usersDiscover({

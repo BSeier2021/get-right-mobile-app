@@ -310,7 +310,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SvgPicture.asset('assets/icons/time.svg', width: 12, height: 12),
+            SvgPicture.asset('assets/icons/time.svg', width: 18, ),
             const SizedBox(width: 4),
             Text(timeText, style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontSize: 12)),
           ],
