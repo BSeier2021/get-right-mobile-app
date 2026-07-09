@@ -161,6 +161,8 @@ class WorkoutRepository {
     final createdAt = DateTime.tryParse(entry['createdAt']?.toString() ?? '') ?? date;
     final updatedAt = DateTime.tryParse(entry['updatedAt']?.toString() ?? '');
     final duration = (entry['duration'] as num?)?.toInt();
+    final caloriesRaw = entry['caloriesBurned'];
+    final caloriesBurned = caloriesRaw is num ? caloriesRaw.round() : int.tryParse(caloriesRaw?.toString() ?? '');
     final journalType = entry['type']?.toString();
 
     final warmupExercises = <WorkoutExerciseModel>[];
@@ -193,6 +195,7 @@ class WorkoutRepository {
       createdAt: createdAt,
       updatedAt: updatedAt,
       durationSeconds: duration,
+      caloriesBurned: caloriesBurned,
     );
   }
 
@@ -473,6 +476,7 @@ class WorkoutRepository {
       createdAt: earliest.createdAt,
       updatedAt: latest.updatedAt,
       durationSeconds: totalDuration > 0 ? totalDuration : latest.durationSeconds,
+      caloriesBurned: latest.caloriesBurned,
     );
   }
 

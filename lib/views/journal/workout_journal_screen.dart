@@ -230,7 +230,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               startedAt: previousWorkout?.startedAt,
               completedAt: previousWorkout?.completedAt,
               durationSeconds: previousWorkout?.durationSeconds ?? today.durationSeconds,
-              caloriesBurned: previousWorkout?.caloriesBurned,
+              caloriesBurned: today.caloriesBurned ?? previousWorkout?.caloriesBurned,
             ),
           );
         } else if (_workout == null || startFresh) {
@@ -421,10 +421,12 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     if (!mounted) return;
 
+    final celebrationCalories = _workout?.caloriesBurned ?? _calories;
+
     Get.to(
       () => WorkoutCelebrationScreen(
         duration: _formatTime(_seconds),
-        calories: _calories,
+        calories: celebrationCalories,
         workoutName: _getWorkoutName(),
         workoutJournalId: _workoutJournalId,
       ),
@@ -445,7 +447,6 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     final workoutIds = _workout!.allExercises.where((e) => WorkoutRepository.isValidMongoId(e.id)).map((e) => e.id).toList();
     if (workoutIds.isEmpty) {
-      await _refreshWorkoutJournalFromApi();
       if (WorkoutRepository.isValidMongoId(_workoutJournalId) && _seconds >= 1) {
         try {
           await _workoutRepo.completeWorkoutJournal(journalId: _workoutJournalId!, duration: _seconds);
@@ -454,6 +455,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
           Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
         }
       }
+      await _refreshWorkoutJournalFromApi();
       return;
     }
 
@@ -1221,17 +1223,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                       ),
                     ],
                   ),
-                  Container(width: 1, height: 20, color: AppColors.primaryGrayLight),
-                  Row(
-                    children: [
-                      Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$_calories',
-                        style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
+                
                 ],
               ),
             ),

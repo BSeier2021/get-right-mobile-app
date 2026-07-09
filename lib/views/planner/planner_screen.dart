@@ -97,7 +97,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     return data?['program'] != null;
   }
 
-  bool get _canSetDayStatus => !_isSelectedDateInFuture;
+  bool get _canSetDayStatus => true;
 
   String? _calendarEntryStatus(Map<String, dynamic>? data) {
     if (data == null) return null;
@@ -727,17 +727,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<void> _showSetDayStatusSheet() async {
-    if (_isSelectedDateInFuture) {
-      Get.snackbar(
-        'Invalid date',
-        'Future days cannot be updated',
-        backgroundColor: AppColors.error,
-        colorText: AppColors.onError,
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
     final selectedType = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -766,44 +755,48 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Choose how this day appears on your calendar',
+                  _isSelectedDateInFuture
+                      ? 'Plan a rest day on your calendar'
+                      : 'Choose how this day appears on your calendar',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
                 ),
                 const SizedBox(height: 24),
-                _buildStatusOptionTile(
-                  icon: Icons.check_circle_outline,
-                  iconBg: const Color(0xFFDFF1D3),
-                  iconColor: const Color(0xFF6FCF97),
-                  title: 'Completed',
-                  subtitle: 'Finished activity for this day',
-                  onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeCompleted),
-                ),
-                const SizedBox(height: 12),
-                _buildStatusOptionTile(
-                  icon: Icons.timelapse,
-                  iconBg: const Color(0xFFFFF0D8),
-                  iconColor: AppColors.accent,
-                  title: 'In Progress',
-                  subtitle: 'Still working on this day\'s activity',
-                  onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeInProgress),
-                ),
-                const SizedBox(height: 12),
-                _buildStatusOptionTile(
-                  icon: Icons.pending_outlined,
-                  iconBg: const Color(0xFFFFE8E8),
-                  iconColor: const Color(0xFFE74C3C),
-                  title: 'Incomplete',
-                  subtitle: 'Did not finish or skipped this activity',
-                  onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeIncomplete),
-                ),
-                const SizedBox(height: 12),
+                if (!_isSelectedDateInFuture) ...[
+                  _buildStatusOptionTile(
+                    icon: Icons.check_circle_outline,
+                    iconBg: const Color(0xFFDFF1D3),
+                    iconColor: const Color(0xFF6FCF97),
+                    title: 'Completed',
+                    subtitle: 'Finished activity for this day',
+                    onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeCompleted),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildStatusOptionTile(
+                    icon: Icons.timelapse,
+                    iconBg: const Color(0xFFFFF0D8),
+                    iconColor: AppColors.accent,
+                    title: 'In Progress',
+                    subtitle: 'Still working on this day\'s activity',
+                    onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeInProgress),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildStatusOptionTile(
+                    icon: Icons.pending_outlined,
+                    iconBg: const Color(0xFFFFE8E8),
+                    iconColor: const Color(0xFFE74C3C),
+                    title: 'Incomplete',
+                    subtitle: 'Did not finish or skipped this activity',
+                    onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeIncomplete),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 _buildStatusOptionTile(
                   icon: Icons.hotel_outlined,
                   iconBg: const Color(0xFFDCEBFA),
                   iconColor: const Color(0xFF4A90E2),
                   title: 'Rest Day',
-                  subtitle: 'Planned recovery with no workout logged',
+                  subtitle: _isSelectedDateInFuture ? 'Schedule recovery for this upcoming day' : 'Planned recovery with no workout logged',
                   onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeRest),
                 ),
 
@@ -871,10 +864,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<void> _applyDayStatus(String type) async {
-    if (_isSelectedDateInFuture) {
+    if (_isSelectedDateInFuture && type != CalendarRepository.typeRest) {
       Get.snackbar(
         'Invalid date',
-        'Future days cannot be updated',
+        'Only Rest Day can be set for future dates',
         backgroundColor: AppColors.error,
         colorText: AppColors.onError,
         snackPosition: SnackPosition.BOTTOM,
@@ -904,6 +897,15 @@ class _PlannerScreenState extends State<PlannerScreen> {
       if (!mounted) return;
       await _loadCalendarMonth();
       if (!mounted) return;
+      if (type == CalendarRepository.typeInProgress) {
+        final key = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+        final data = _getDataForDate(_selectedDate);
+        if (data != null) {
+          setState(() {
+            _dayData[key] = Map<String, dynamic>.from(data)..['workoutStatus'] = 'inprogress';
+          });
+        }
+      }
       final label = switch (type) {
         CalendarRepository.typeCompleted => 'Completed',
         CalendarRepository.typeIncomplete => 'Incomplete',
@@ -2505,7 +2507,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     ),
                   ],
                 )
-              : Column(g
+              : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(icon, size: 36, color: AppColors.primaryGray),

@@ -12,8 +12,31 @@ class CalendarRepository {
 
   static const String typeCompleted = 'Completed';
   static const String typeIncomplete = 'Incomplete';
+  /// UI-only; API accepts only Completed | Incomplete | Rest Day — persisted as [typeIncomplete].
   static const String typeInProgress = 'InProgress';
-  static const String typeRest = 'Rest';
+  static const String typeRest = 'Rest Day';
+
+  /// Maps app / legacy calendar types to API enum values.
+  static String calendarTypeForApi(String type) {
+    switch (type.trim()) {
+      case typeCompleted:
+        return typeCompleted;
+      case typeIncomplete:
+        return typeIncomplete;
+      case typeRest:
+        return typeRest;
+      case typeInProgress:
+        return typeIncomplete;
+      default:
+        final lower = type.trim().toLowerCase();
+        if (lower == 'rest') return typeRest;
+        if (lower == 'rest day') return typeRest;
+        if (lower == 'inprogress' || lower == 'in progress') return typeIncomplete;
+        if (lower == 'completed') return typeCompleted;
+        if (lower == 'incomplete') return typeIncomplete;
+        return type.trim();
+    }
+  }
 
   /// Readable API / network error for UI.
   static String errorMessageFrom(Object error) {
@@ -41,7 +64,7 @@ class CalendarRepository {
   }) {
     final body = <String, dynamic>{
       'date': dateToApiIso(date),
-      'type': type.trim(),
+      'type': calendarTypeForApi(type),
     };
     if (notes != null && notes.trim().isNotEmpty) body['notes'] = notes.trim();
     if (workoutJournal != null && WorkoutRepository.isValidMongoId(workoutJournal)) {
@@ -126,6 +149,7 @@ class CalendarRepository {
       case 'in progress':
         return 'inprogress';
       case 'rest':
+      case 'rest day':
         return 'rest';
       default:
         return 'completed';
@@ -978,7 +1002,7 @@ class CalendarRepository {
   static Map<String, dynamic> updateEntryBody({String? notes, String? type, String? runningLog, String? workoutJournal}) {
     final body = <String, dynamic>{};
     if (notes != null) body['notes'] = notes.trim();
-    if (type != null && type.trim().isNotEmpty) body['type'] = type.trim();
+    if (type != null && type.trim().isNotEmpty) body['type'] = calendarTypeForApi(type);
     if (runningLog != null && WorkoutRepository.isValidMongoId(runningLog)) {
       body['runningLog'] = runningLog.trim();
     }
