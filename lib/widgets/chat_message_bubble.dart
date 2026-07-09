@@ -2,11 +2,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get_right/models/chat_message_model.dart';
+import 'package:get_right/models/shared_content_model.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 import 'package:get_right/views/chat/chat_image_viewer_screen.dart';
 import 'package:get_right/views/chat/chat_video_player_screen.dart';
+import 'package:get_right/widgets/chat/shared_content_card.dart';
 import 'package:get_right/widgets/chat_audio_message.dart';
 import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 import 'package:get_right/widgets/safe_network_image.dart';
@@ -84,9 +86,15 @@ class ChatMessageBubble extends StatelessWidget {
   }
 
   Widget _buildMessageContent(BuildContext context) {
+    final sharedType = SharedContentType.fromApi(message.sharedContentType);
+    final sharedWidget = sharedType != null && message.sharedContent != null
+        ? SharedContentCard(type: sharedType, data: message.sharedContent!, isCurrentUser: isCurrentUser)
+        : null;
+
+    Widget? body;
     switch (message.type) {
       case 'image':
-        return Column(
+        body = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (message.hasMediaAttachments) _buildImageAttachments(context),
@@ -96,8 +104,9 @@ class ChatMessageBubble extends StatelessWidget {
             ],
           ],
         );
+        break;
       case 'video':
-        return Column(
+        body = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (message.fileUrl != null)
@@ -125,14 +134,32 @@ class ChatMessageBubble extends StatelessWidget {
             ],
           ],
         );
+        break;
       case 'audio':
-        return ChatAudioMessage(message: message, isCurrentUser: isCurrentUser);
+        body = ChatAudioMessage(message: message, isCurrentUser: isCurrentUser);
+        break;
       default:
-        return Text(
-          message.displayCaption.isNotEmpty ? message.displayCaption : message.message,
-          style: AppTextStyles.bodyMedium.copyWith(color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface),
-        );
+        final text = message.displayCaption.isNotEmpty ? message.displayCaption : message.message;
+        body = text.trim().isNotEmpty
+            ? Text(text, style: AppTextStyles.bodyMedium.copyWith(color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface))
+            : null;
     }
+
+    if (sharedWidget == null) return body ?? const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (body != null && message.displayCaption.isNotEmpty && message.type != 'image' && message.type != 'video') ...[
+          body,
+          const SizedBox(height: 8),
+        ] else if (body != null && (message.type == 'image' || message.type == 'video' || message.type == 'audio')) ...[
+          body,
+          const SizedBox(height: 8),
+        ],
+        sharedWidget,
+      ],
+    );
   }
 
   Widget _buildImageAttachments(BuildContext context) {

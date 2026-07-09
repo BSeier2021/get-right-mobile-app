@@ -4,7 +4,10 @@ import 'package:get/get.dart';
 import 'package:get_right/controllers/nutrition_controller.dart';
 import 'package:get_right/models/meal_entry.dart';
 import 'package:get_right/models/recipe.dart';
+import 'package:get_right/models/shared_content_model.dart';
 import 'package:get_right/repo/recipe_repo.dart';
+import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/marketplace/program_hls_player_screen.dart';
@@ -87,6 +90,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           onPressed: () => Get.back(),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined, color: AppColors.accent),
+            onPressed: () {
+              final recipeId = recipe.id.trim();
+              if (!WorkoutRepository.isValidMongoId(recipeId)) return;
+              ShareToChatService.share(context: context, type: SharedContentType.recipe, contentId: recipeId);
+            },
+          ),
           if (!_loading && recipe.isPremium)
             Container(
               margin: const EdgeInsets.only(right: 16),

@@ -5,7 +5,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/run_model.dart';
+import 'package:get_right/models/shared_content_model.dart';
 import 'package:get_right/repo/calendar_repo.dart';
+import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -1525,6 +1528,33 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
+  void _shareSelectedDayToChat() {
+    final data = _getDataForDate(_selectedDate);
+    final workout = data?['workout'];
+    if (workout is Map) {
+      final journalId = workout['journalId']?.toString().trim();
+      if (WorkoutRepository.isValidMongoId(journalId)) {
+        ShareToChatService.share(context: context, type: SharedContentType.workoutJournal, contentId: journalId!);
+        return;
+      }
+    }
+    final run = data?['run'];
+    if (run is Map) {
+      final runId = run['id']?.toString().trim();
+      if (WorkoutRepository.isValidMongoId(runId)) {
+        ShareToChatService.share(context: context, type: SharedContentType.runningLog, contentId: runId!);
+        return;
+      }
+    }
+    Get.snackbar(
+      'Nothing to share',
+      'Add a workout or run to this day first',
+      backgroundColor: AppColors.error,
+      colorText: AppColors.onError,
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
   void _showShareOptions() {
     showDialog(
       context: context,
@@ -1564,6 +1594,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
               const SizedBox(height: 6),
               Text('Choose how you want to share your activity', style: AppTextStyles.bodySmall.copyWith(color: AppColors.black)),
               const SizedBox(height: 20),
+              _buildShareOptionTile(
+                icon: Icons.message_outlined,
+                title: 'Share to Chat',
+                subtitle: 'Send workout or run to a conversation',
+                onTap: () {
+                  Navigator.pop(context);
+                  _shareSelectedDayToChat();
+                },
+              ),
+              const SizedBox(height: 12),
               // Share Summary tile
               _buildShareOptionTile(
                 icon: Icons.assignment_outlined,

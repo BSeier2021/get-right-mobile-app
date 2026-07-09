@@ -4,6 +4,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/hls_video_quality.dart';
+import 'package:get_right/models/shared_content_model.dart';
+import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -727,11 +730,13 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
   }
 
   void _showShareOptions(Map<String, dynamic> post) {
+    final hostContext = context;
+    final feedId = (post['id'] ?? post['_id'] ?? post['feedId'] ?? '').toString().trim();
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Padding(
+      builder: (sheetContext) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -740,7 +745,15 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [_buildShareIcon(Icons.message, 'Message', () {}), _buildShareIcon(Icons.link, 'Copy Link', () {}), _buildShareIcon(Icons.share, 'More', () {})],
+              children: [
+                _buildShareIcon(Icons.message, 'Message', () {
+                  Navigator.pop(sheetContext);
+                  if (!WorkoutRepository.isValidMongoId(feedId)) return;
+                  ShareToChatService.share(context: hostContext, type: SharedContentType.feed, contentId: feedId);
+                }),
+                _buildShareIcon(Icons.link, 'Copy Link', () => Navigator.pop(sheetContext)),
+                _buildShareIcon(Icons.share, 'More', () => Navigator.pop(sheetContext)),
+              ],
             ),
             const SizedBox(height: 16),
           ],

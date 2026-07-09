@@ -384,6 +384,22 @@ class MarketplaceRepository {
 
   static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');
 
+  /// Resolves a trainer/user Mongo id from a populated node, plain ObjectId string, or id field.
+  static String? trainerMongoIdFromRef(dynamic ref) {
+    if (ref == null) return null;
+    if (ref is Map) {
+      final m = Map<String, dynamic>.from(ref);
+      for (final key in ['_id', 'id', 'userId', 'trainerId']) {
+        final id = m[key]?.toString().trim();
+        if (id != null && id.isNotEmpty && _mongoIdRe.hasMatch(id)) return id;
+      }
+      return null;
+    }
+    final s = ref.toString().trim();
+    if (s.isNotEmpty && _mongoIdRe.hasMatch(s)) return s;
+    return null;
+  }
+
   /// Trainer display name from API trainer node, optional `display` map, or plain string.
   static String trainerDisplayName({
     dynamic trainer,
@@ -576,8 +592,9 @@ class MarketplaceRepository {
     }
     final trainerNode = b['trainer'];
     if (trainerNode is Map) {
-      trainerId = trainerNode['_id']?.toString().trim();
-      if (trainerId != null && trainerId.isEmpty) trainerId = null;
+      trainerId = trainerMongoIdFromRef(trainerNode);
+    } else {
+      trainerId = trainerMongoIdFromRef(trainerNode) ?? trainerMongoIdFromRef(b['trainerId']);
     }
 
     return {

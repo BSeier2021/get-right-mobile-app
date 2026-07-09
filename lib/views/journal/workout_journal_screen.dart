@@ -10,8 +10,10 @@ import 'package:get_right/models/workout_journal_model.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/models/exercise_set_model.dart';
 import 'package:get_right/models/journal_exercise_type.dart';
+import 'package:get_right/models/shared_content_model.dart';
 import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/repo/calendar_repo.dart';
+import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -1009,88 +1011,16 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     );
   }
 
-  void _showShareDialog() {
-    Get.dialog(
-      Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Share Post',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Get.back(),
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.08),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.red.withOpacity(0.25)),
-                      ),
-                      child: const Icon(Icons.close, size: 16, color: Colors.red),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text('Choose how you want to share your activity', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark)),
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildShareOption(icon: Icons.message_outlined, label: 'Message', onTap: () => _shareVia('message')),
-                  _buildShareOption(icon: Icons.link, label: 'Copy Link', onTap: () => _shareVia('copy')),
-                  _buildShareOption(icon: Icons.share_outlined, label: 'More', onTap: () => _shareVia('more')),
-                ],
-              ),
-              const SizedBox(height: 6),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: true,
-    );
-  }
-
-  Widget _buildShareOption({required IconData icon, required String label, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.12),
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.accent.withOpacity(0.25)),
-            ),
-            child: Icon(icon, color: const Color(0xFF1E5B2E)),
-          ),
-          const SizedBox(height: 8),
-          Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface)),
-        ],
-      ),
-    );
-  }
-
   void _shareVia(String method) {
-    Get.back();
+    if (Get.isDialogOpen == true) Get.back();
     switch (method) {
       case 'message':
-        Get.snackbar('Share', 'Open messages to share', backgroundColor: AppColors.accent, colorText: AppColors.onAccent);
+        final journalId = _workoutJournalId?.trim();
+        if (!WorkoutRepository.isValidMongoId(journalId)) {
+          Get.snackbar('Cannot share', 'Save at least one exercise first', backgroundColor: AppColors.error, colorText: AppColors.onError);
+          return;
+        }
+        ShareToChatService.share(context: context, type: SharedContentType.workoutJournal, contentId: journalId!);
         break;
       case 'copy':
         Get.snackbar('Link Copied', 'Workout link copied to clipboard', backgroundColor: AppColors.completed, colorText: AppColors.onError);
@@ -1144,7 +1074,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                       colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
                     ).paddingAll(5),
                   ),
-                  onPressed: _showShareDialog,
+                  onPressed: () => _shareVia('message'),
                 ),
                 ElevatedButton.icon(
                   onPressed: _startWorkout,

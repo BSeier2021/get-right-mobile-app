@@ -34,7 +34,20 @@ class _ReorderExercisesScreenState extends State<ReorderExercisesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(backgroundColor: AppColors.primary, elevation: 0, leading: IconButton(icon: const Icon(Icons.menu, color: AppColors.accent, size: 24), onPressed: () {}), title: Row(mainAxisSize: MainAxisSize.min, children: [Text('Workout Journal', style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)), const SizedBox(width: 16), Text('Runner Log', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGrayDark))])),
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+          ),
+          onPressed: () => Get.back(),
+        ),
+        title: Text('Reorder Exercises', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
+        centerTitle: true,
+      ),
       body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(padding: const EdgeInsets.all(16), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [ElevatedButton(onPressed: _onDone, style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.onAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)), child: Text('Done', style: AppTextStyles.buttonMedium)), Text('Drag to reorder', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark))])),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Row(children: [const Icon(Icons.fitness_center, color: AppColors.accent, size: 18), const SizedBox(width: 8), Text('Workout', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold))])),

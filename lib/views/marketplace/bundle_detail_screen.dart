@@ -217,10 +217,134 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     return ImageUrlSanitizer.asHttpUrlOrNull(t['profilePictureUrl']?.toString());
   }
 
-  String? _trainerIdFromNode(dynamic node) {
-    if (node is! Map) return null;
-    final id = (node['_id'] ?? node['id'] ?? '').toString().trim();
-    return id.isEmpty ? null : id;
+  String? _trainerIdFromNode(dynamic node) => MarketplaceRepository.trainerMongoIdFromRef(node);
+
+  String? _resolveTrainerMongoId({List<Map<String, dynamic>>? programs}) {
+    final programRows = programs ?? _programsList();
+
+    final topLevel = MarketplaceRepository.trainerMongoIdFromRef(_bundle['trainerId']);
+    if (topLevel != null) return topLevel;
+
+    final fromTrainerField = MarketplaceRepository.trainerMongoIdFromRef(_bundle['trainer']);
+    if (fromTrainerField != null) return fromTrainerField;
+
+    final api = _bundle['_apiBundle'];
+    if (api is Map) {
+      final apiMap = Map<String, dynamic>.from(api);
+      final fromApiTrainerId = MarketplaceRepository.trainerMongoIdFromRef(apiMap['trainerId']);
+      if (fromApiTrainerId != null) return fromApiTrainerId;
+
+      final fromApiTrainer = MarketplaceRepository.trainerMongoIdFromRef(apiMap['trainer']);
+      if (fromApiTrainer != null) return fromApiTrainer;
+
+      for (final key in ['createdBy', 'user', 'owner']) {
+        final fromRelated = MarketplaceRepository.trainerMongoIdFromRef(apiMap[key]);
+        if (fromRelated != null) return fromRelated;
+      }
+
+      final md = apiMap['marketplace_detail'];
+      if (md is Map) {
+        final fromMarketplaceDetail = MarketplaceRepository.trainerMongoIdFromRef(Map<String, dynamic>.from(md)['trainer']);
+        if (fromMarketplaceDetail != null) return fromMarketplaceDetail;
+      }
+    }
+
+    for (final program in programRows) {
+      final programTrainerId = MarketplaceRepository.trainerMongoIdFromRef(program['trainerId']);
+      if (programTrainerId != null) return programTrainerId;
+
+      final fromProgramTrainer = MarketplaceRepository.trainerMongoIdFromRef(program['trainer']);
+      if (fromProgramTrainer != null) return fromProgramTrainer;
+
+      final apiProgram = program['_apiProgram'] ?? program;
+      if (apiProgram is Map) {
+        final apiProgramMap = Map<String, dynamic>.from(apiProgram);
+        final fromApiProgramTrainerId = MarketplaceRepository.trainerMongoIdFromRef(apiProgramMap['trainerId']);
+        if (fromApiProgramTrainerId != null) return fromApiProgramTrainerId;
+
+        final fromApiProgramTrainer = MarketplaceRepository.trainerMongoIdFromRef(apiProgramMap['trainer']);
+        if (fromApiProgramTrainer != null) return fromApiProgramTrainer;
+      }
+    }
+
+    return null;
+  }
+
+  String _resolveTrainerName({String? fallbackId}) {
+    final trainerNode = _bundle['trainer'];
+    if (trainerNode is Map) {
+      final prof = trainerNode['profile'];
+      if (prof is Map) {
+        final fn = prof['fullName']?.toString().trim();
+        if (fn != null && fn.isNotEmpty) return fn;
+      }
+      final direct = trainerNode['fullName']?.toString().trim() ?? trainerNode['name']?.toString().trim();
+      if (direct != null && direct.isNotEmpty) return direct;
+    }
+
+    final flatName = (_bundle['trainer'] ?? '').toString().trim();
+    if (flatName.isNotEmpty && !flatName.startsWith('{')) return flatName;
+
+    final api = _bundle['_apiBundle'];
+    if (api is Map) {
+      final tr = Map<String, dynamic>.from(api)['trainer'];
+      if (tr is Map) {
+        final prof = tr['profile'];
+        if (prof is Map) {
+          final fn = prof['fullName']?.toString().trim();
+          if (fn != null && fn.isNotEmpty) return fn;
+        }
+      }
+    }
+
+    for (final program in _programsList()) {
+      final programTrainer = program['trainer'];
+      if (programTrainer is Map) {
+        final prof = programTrainer['profile'];
+        if (prof is Map) {
+          final fn = prof['fullName']?.toString().trim();
+          if (fn != null && fn.isNotEmpty) return fn;
+        }
+      } else {
+        final name = programTrainer?.toString().trim() ?? '';
+        if (name.isNotEmpty) return name;
+      }
+    }
+
+    return fallbackId ?? 'Trainer';
+  }
+
+  Map<String, dynamic>? _nestedTrainerNodeForProfile() {
+    final trainerNode = _bundle['trainer'];
+    if (trainerNode is Map) return Map<String, dynamic>.from(trainerNode);
+
+    final api = _bundle['_apiBundle'];
+    if (api is Map) {
+      final apiMap = Map<String, dynamic>.from(api);
+      final tr = apiMap['trainer'];
+      if (tr is Map) return Map<String, dynamic>.from(tr);
+
+      for (final key in ['createdBy', 'user', 'owner']) {
+        final related = apiMap[key];
+        if (related is Map) return Map<String, dynamic>.from(related);
+      }
+
+      final md = apiMap['marketplace_detail'];
+      if (md is Map) {
+        final mdTrainer = Map<String, dynamic>.from(md)['trainer'];
+        if (mdTrainer is Map) return Map<String, dynamic>.from(mdTrainer);
+      }
+    }
+
+    for (final program in _programsList()) {
+      final apiProgram = program['_apiProgram'] ?? program;
+      if (apiProgram is! Map) continue;
+      final apiProgramMap = Map<String, dynamic>.from(apiProgram);
+      final tr = apiProgramMap['trainer'];
+      if (tr is Map) return Map<String, dynamic>.from(tr);
+    }
+
+    return null;
   }
 
   Map<String, dynamic> _trainerReviewFieldsFromBundle() {
@@ -254,37 +378,26 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
   }
 
   Map<String, dynamic> _resolveBundleTrainer(List<Map<String, dynamic>> programs) {
-    var trainerId = (_bundle['trainerId'] ?? '').toString().trim();
-    var name = (_bundle['trainer'] ?? '').toString().trim();
+    final trainerId = _resolveTrainerMongoId(programs: programs);
+    var name = _resolveTrainerName();
     var initials = (_bundle['trainerImage'] ?? 'T').toString().trim();
     var avatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(_bundle['trainerImageUrl']?.toString());
 
     final api = _bundle['_apiBundle'];
     if (api is Map) {
-      final apiMap = Map<String, dynamic>.from(api);
-      trainerId = trainerId.isNotEmpty ? trainerId : (_trainerIdFromNode(apiMap['trainer']) ?? '');
-      if (name.isEmpty) {
-        final tr = apiMap['trainer'];
-        if (tr is Map) {
-          final prof = tr['profile'];
-          if (prof is Map) {
-            final fn = prof['fullName']?.toString().trim();
-            if (fn != null && fn.isNotEmpty) name = fn;
-          }
-        }
-      }
-      avatarUrl ??= _trainerAvatarUrlFromBundleApi(apiMap);
+      avatarUrl ??= _trainerAvatarUrlFromBundleApi(Map<String, dynamic>.from(api));
     }
 
     if (programs.isNotEmpty) {
       final primary = programs.first;
-      if (trainerId.isEmpty) {
-        trainerId = (primary['trainerId'] ?? '').toString().trim();
-        if (trainerId.isEmpty) trainerId = _trainerIdFromNode(primary['trainer']) ?? '';
-      }
-      if (name.isEmpty) name = (primary['trainer'] ?? '').toString().trim();
       if (initials == 'T') initials = (primary['trainerImage'] ?? initials).toString().trim();
       avatarUrl ??= ImageUrlSanitizer.asHttpUrlOrNull(primary['trainerImageUrl']?.toString());
+      if (name == 'Trainer') {
+        final programTrainer = primary['trainer'];
+        if (programTrainer is String && programTrainer.trim().isNotEmpty) {
+          name = programTrainer.trim();
+        }
+      }
     }
 
     if (name.isEmpty) name = 'Trainer';
@@ -297,11 +410,14 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
       certified = certified || programs.every((p) => isCertifiedFromUiMap(Map<String, dynamic>.from(p)));
     }
 
+    final nestedTrainer = _nestedTrainerNodeForProfile();
+
     return {
-      if (trainerId.isNotEmpty) ...{'id': trainerId, '_id': trainerId, 'trainerId': trainerId},
+      if (trainerId != null && trainerId.isNotEmpty) ...{'id': trainerId, '_id': trainerId, 'trainerId': trainerId},
       'name': name,
       'initials': initials,
       if (avatarUrl != null) 'avatarUrl': avatarUrl,
+      if (nestedTrainer != null) 'trainer': nestedTrainer,
       ...reviewFields,
       'certified': certified,
       'role': 'Trainer',
@@ -309,15 +425,49 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
     };
   }
 
-  void _openTrainerProfile(Map<String, dynamic> trainer) {
-    final tid = (trainer['id'] ?? trainer['_id'] ?? trainer['trainerId'] ?? '').toString().trim();
+  Future<String?> _resolveTrainerMongoIdFromProgramDetail() async {
+    if (!Get.isRegistered<AuthController>()) return null;
+    for (final program in _programsList()) {
+      final programId = (program['id'] ?? program['_id'])?.toString().trim();
+      if (programId == null || programId.isEmpty) continue;
+      final detail = await Get.find<AuthController>().fetchMarketplaceProgramDetail(programId);
+      if (detail == null) continue;
+      final tid = MarketplaceRepository.trainerMongoIdFromRef(detail['trainerId']) ?? MarketplaceRepository.trainerMongoIdFromRef(detail['trainer']);
+      if (tid != null) {
+        if (mounted) {
+          setState(() => _bundle['trainerId'] = tid);
+        } else {
+          _bundle['trainerId'] = tid;
+        }
+        return tid;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _openTrainerProfile(Map<String, dynamic> trainer) async {
+    var tid = (trainer['id'] ?? trainer['_id'] ?? trainer['trainerId'] ?? '').toString().trim();
+    if (tid.isEmpty) tid = _resolveTrainerMongoId() ?? '';
+
+    if (tid.isEmpty) {
+      tid = await _resolveTrainerMongoIdFromProgramDetail() ?? '';
+    }
+
     if (tid.isEmpty) {
       Get.snackbar('Trainer', 'Trainer profile is not available.', snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.error, colorText: Colors.white);
       return;
     }
+
+    if (!mounted) return;
+
     final args = Map<String, dynamic>.from(trainer);
     args['id'] = tid;
     args['_id'] = tid;
+    args['trainerId'] = tid;
+
+    final nestedTrainer = trainer['trainer'] is Map ? Map<String, dynamic>.from(trainer['trainer'] as Map) : _nestedTrainerNodeForProfile();
+    if (nestedTrainer != null) args['trainer'] = nestedTrainer;
+
     Get.toNamed(AppRoutes.trainerProfile, arguments: args);
   }
 

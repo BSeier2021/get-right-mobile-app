@@ -5,6 +5,9 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/nutrition_controller.dart';
 import 'package:get_right/models/food_item.dart';
 import 'package:get_right/models/meal_entry.dart';
+import 'package:get_right/models/shared_content_model.dart';
+import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 
@@ -387,11 +390,29 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
       onSelected: (value) {
         if (value == 'edit') {
           _showEditFoodDialog(item);
+        } else if (value == 'share') {
+          final foodId = item.id.trim();
+          if (!WorkoutRepository.isValidMongoId(foodId)) return;
+          ShareToChatService.share(context: context, type: SharedContentType.foodSave, contentId: foodId);
         } else if (value == 'delete') {
           _showDeleteConfirmationDialog(item);
         }
       },
       itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'share',
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                child: const Icon(Icons.share_outlined, color: AppColors.accent, size: 16),
+              ),
+              const SizedBox(width: 12),
+              Text('Share', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+            ],
+          ),
+        ),
         PopupMenuItem(
           value: 'edit',
           child: Row(

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get_right/models/run_activity_model.dart';
+import 'package:get_right/models/shared_content_model.dart';
+import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -66,8 +69,12 @@ class _RunSummaryDetailScreenState extends State<RunSummaryDetailScreen> {
               IconButton(
                 icon: const Icon(Icons.share, color: AppColors.accent),
                 onPressed: () {
-                  // TODO: Implement share functionality
-                  Get.snackbar('Share', 'Share feature coming soon!');
+                  final runId = _activity?.id.trim() ?? '';
+                  if (!WorkoutRepository.isValidMongoId(runId)) {
+                    Get.snackbar('Cannot share', 'Run is not saved yet', backgroundColor: AppColors.error, colorText: AppColors.onError);
+                    return;
+                  }
+                  ShareToChatService.share(context: context, type: SharedContentType.runningLog, contentId: runId);
                 },
               ),
             ],
@@ -415,8 +422,12 @@ class _RunSummaryDetailScreenState extends State<RunSummaryDetailScreen> {
             height: 56,
             child: OutlinedButton.icon(
               onPressed: () {
-                // TODO: Implement share functionality
-                Get.snackbar('Share', 'Share feature coming soon!');
+                final runId = _activity?.id.trim() ?? '';
+                if (!WorkoutRepository.isValidMongoId(runId)) {
+                  Get.snackbar('Cannot share', 'Run is not saved yet', backgroundColor: AppColors.error, colorText: AppColors.onError);
+                  return;
+                }
+                ShareToChatService.share(context: context, type: SharedContentType.runningLog, contentId: runId);
               },
               icon: const Icon(Icons.share, size: 24),
               label: Text('Share Activity', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.accent)),

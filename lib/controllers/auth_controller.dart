@@ -983,13 +983,12 @@ class AuthController extends GetxController {
 
     var trainerName = 'Trainer';
     var trainerInitials = 'T';
-    String? trainerId;
+    String? trainerId = MarketplaceRepository.trainerMongoIdFromRef(inner['trainerId']);
     String? trainerAvatarUrl;
     final tr = inner['trainer'];
     if (tr is Map) {
+      trainerId ??= MarketplaceRepository.trainerMongoIdFromRef(tr);
       final tm = Map<String, dynamic>.from(tr);
-      trainerId = tm['_id']?.toString().trim();
-      if (trainerId != null && trainerId.isEmpty) trainerId = null;
       final prof = tm['profile'];
       if (prof is Map) {
         final fn = prof['fullName']?.toString().trim();
@@ -1000,6 +999,16 @@ class AuthController extends GetxController {
         }
       }
       trainerAvatarUrl ??= ImageUrlSanitizer.asHttpUrlOrNull(tm['profilePictureUrl']?.toString());
+    } else {
+      trainerId ??= MarketplaceRepository.trainerMongoIdFromRef(tr);
+      for (final key in ['createdBy', 'user', 'owner']) {
+        trainerId ??= MarketplaceRepository.trainerMongoIdFromRef(inner[key]);
+        if (trainerId != null) break;
+      }
+      final md = inner['marketplace_detail'];
+      if (trainerId == null && md is Map) {
+        trainerId = MarketplaceRepository.trainerMongoIdFromRef(Map<String, dynamic>.from(md)['trainer']);
+      }
     }
     if (trainerName.isNotEmpty) {
       trainerInitials = trainerName.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2).map((p) => p[0].toUpperCase()).join();
@@ -1051,16 +1060,19 @@ class AuthController extends GetxController {
   Map<String, dynamic> _bundleDetailProgramRowMarketplace(Map<String, dynamic> p) {
     final disp = p['display'] is Map ? Map<String, dynamic>.from(p['display'] as Map) : <String, dynamic>{};
     final instructor = (disp['instructor_name'] ?? 'Trainer').toString().trim();
+    final trainerId = MarketplaceRepository.trainerMongoIdFromRef(p['trainerId']) ?? MarketplaceRepository.trainerMongoIdFromRef(p['trainer']);
     final weeks = disp['duration_weeks'] ?? p['durationWeeks'];
     final rating = (disp['average_rating'] as num?)?.toDouble() ?? 0.0;
     final price = (p['price'] as num?)?.toDouble() ?? 0.0;
     final initial = instructor.isNotEmpty ? instructor.substring(0, 1).toUpperCase() : 'T';
     return {
       ...p,
+      '_apiProgram': p,
       'id': p['_id']?.toString() ?? '',
       'title': p['title']?.toString() ?? 'Program',
       'trainer': instructor,
       'trainerImage': initial,
+      if (trainerId != null) 'trainerId': trainerId,
       'trainerImageUrl': disp['instructor_avatar_url']?.toString(),
       'price': price,
       'duration': weeks != null ? '${weeks} weeks' : '—',
@@ -1083,8 +1095,10 @@ class AuthController extends GetxController {
   Map<String, dynamic> _bundleDetailProgramRowCustomer(Map<String, dynamic> p) {
     var instructor = 'Trainer';
     String? trainerAvatarUrl;
+    String? trainerId = MarketplaceRepository.trainerMongoIdFromRef(p['trainerId']);
     final tr = p['trainer'];
     if (tr is Map) {
+      trainerId ??= MarketplaceRepository.trainerMongoIdFromRef(tr);
       final prof = tr['profile'];
       if (prof is Map) {
         final fn = prof['fullName']?.toString().trim();
@@ -1094,6 +1108,8 @@ class AuthController extends GetxController {
           trainerAvatarUrl = ImageUrlSanitizer.asHttpUrlOrNull(pic['url']?.toString());
         }
       }
+    } else {
+      trainerId ??= MarketplaceRepository.trainerMongoIdFromRef(tr);
     }
     final weeks = p['durationWeeks'] ?? p['duration'];
     final durationStr = weeks != null ? '${weeks is num ? weeks.toInt() : weeks} weeks' : '—';
@@ -1110,10 +1126,12 @@ class AuthController extends GetxController {
 
     return {
       ...p,
+      '_apiProgram': p,
       'id': p['_id']?.toString() ?? '',
       'title': p['title']?.toString() ?? 'Program',
       'trainer': instructor,
       'trainerImage': initial,
+      if (trainerId != null && trainerId.isNotEmpty) 'trainerId': trainerId,
       if (trainerAvatarUrl != null) 'trainerImageUrl': trainerAvatarUrl,
       'price': price,
       'duration': durationStr,

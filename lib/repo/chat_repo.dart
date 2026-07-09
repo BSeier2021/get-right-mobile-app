@@ -4,6 +4,8 @@ import 'package:get_right/app_url.dart';
 import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/models/chat_message_model.dart';
+import 'package:get_right/models/shared_content_model.dart';
+import 'package:get_right/repo/workout_repo.dart';
 
 class ConversationBlockStatus {
   const ConversationBlockStatus({
@@ -176,6 +178,30 @@ class ChatRepository {
       fields: <String, dynamic>{'content': trimmedContent.isEmpty ? ' ' : trimmedContent},
       files: files,
     );
+    return _parseSendMessageResponse(raw, fallbackConversationId: id);
+  }
+
+  /// `POST /user/chat/conversations/:conversationId/messages` — JSON body with `sharedContent`.
+  Future<ChatMessageModel> sendSharedContentMessage({
+    required String conversationId,
+    required SharedContentType type,
+    required String contentId,
+    String? content,
+  }) async {
+    final id = conversationId.trim();
+    final sharedId = contentId.trim();
+    if (id.isEmpty) throw ArgumentError('conversationId is required');
+    if (!WorkoutRepository.isValidMongoId(sharedId)) {
+      throw ArgumentError('Invalid shared content id');
+    }
+
+    final body = <String, dynamic>{
+      'sharedContent': SharedContentPayload(type: type, id: sharedId).toJson(),
+    };
+    final caption = content?.trim();
+    if (caption != null && caption.isNotEmpty) body['content'] = caption;
+
+    final raw = await _network.post(AppUrl.chatConversationMessages(id), body);
     return _parseSendMessageResponse(raw, fallbackConversationId: id);
   }
 

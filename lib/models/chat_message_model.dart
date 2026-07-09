@@ -77,7 +77,7 @@ class ChatMessageModel {
   final String senderId;
   final String receiverId;
   final String message;
-  final String type; // 'text', 'image', 'video', 'audio'
+  final String type; // 'text', 'image', 'video', 'audio', 'shared', ...
   final String? fileUrl;
   final String? fileName;
   final String? thumbnailUrl;
@@ -87,6 +87,8 @@ class ChatMessageModel {
   final String? senderImage;
   final bool isRead;
   final DateTime timestamp;
+  final String? sharedContentType;
+  final Map<String, dynamic>? sharedContent;
 
   ChatMessageModel({
     required this.id,
@@ -104,7 +106,11 @@ class ChatMessageModel {
     this.senderImage,
     this.isRead = false,
     required this.timestamp,
+    this.sharedContentType,
+    this.sharedContent,
   });
+
+  bool get hasSharedContent => sharedContentType != null && sharedContent != null && sharedContent!.isNotEmpty;
 
   List<ChatAttachment> get displayAttachments {
     if (attachments.isNotEmpty) return attachments;
@@ -230,6 +236,8 @@ class ChatMessageModel {
       senderImage: senderImage,
       isRead: json['isRead'] == true || json['read'] == true,
       timestamp: _chatDate(json['timestamp'] ?? json['createdAt'] ?? json['updatedAt']),
+      sharedContentType: _chatStr(json['sharedContentType']).isEmpty ? null : _chatStr(json['sharedContentType']),
+      sharedContent: json['sharedContent'] is Map ? Map<String, dynamic>.from(json['sharedContent'] as Map) : null,
     );
   }
 
@@ -251,6 +259,8 @@ class ChatMessageModel {
       'senderImage': senderImage,
       'isRead': isRead,
       'timestamp': timestamp.toIso8601String(),
+      if (sharedContentType != null) 'sharedContentType': sharedContentType,
+      if (sharedContent != null) 'sharedContent': sharedContent,
     };
   }
 
@@ -271,6 +281,8 @@ class ChatMessageModel {
     String? senderImage,
     bool? isRead,
     DateTime? timestamp,
+    String? sharedContentType,
+    Map<String, dynamic>? sharedContent,
   }) {
     return ChatMessageModel(
       id: id ?? this.id,
@@ -288,6 +300,8 @@ class ChatMessageModel {
       senderImage: senderImage ?? this.senderImage,
       isRead: isRead ?? this.isRead,
       timestamp: timestamp ?? this.timestamp,
+      sharedContentType: sharedContentType ?? this.sharedContentType,
+      sharedContent: sharedContent ?? this.sharedContent,
     );
   }
 }

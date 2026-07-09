@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:get_right/models/shared_content_model.dart';
+import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -671,7 +674,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
                 children: [
                   _buildShareOption(Icons.message_outlined, 'Message', () {
                     Navigator.pop(context);
-                    // TODO: Share via message
+                    final feedId = (_post['id'] ?? _post['_id'] ?? '').toString().trim();
+                    if (!WorkoutRepository.isValidMongoId(feedId)) return;
+                    ShareToChatService.share(context: context, type: SharedContentType.feed, contentId: feedId);
                   }),
                   _buildShareOption(Icons.link, 'Copy Link', () {
                     Navigator.pop(context);

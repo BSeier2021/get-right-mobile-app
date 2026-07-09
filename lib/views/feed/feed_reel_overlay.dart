@@ -5,8 +5,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/report_block_model.dart';
+import 'package:get_right/models/shared_content_model.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/repo/feed_repo.dart';
+import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/views/feed/feed_comments_sheet.dart';
 import 'package:get_right/services/storage_service.dart';
@@ -672,45 +675,24 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     }
   }
 
-  void _showShareOptions(BuildContext ctx) {
-    if (!ctx.mounted) return;
-    showModalBottomSheet(
-      context: ctx,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Share Post', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [_buildShareIcon(Icons.message, 'Message', () {}), _buildShareIcon(Icons.link, 'Copy Link', () {}), _buildShareIcon(Icons.share, 'More', () {})],
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
+  String? _feedIdForShare() {
+    final id = (_post['id'] ?? _post['_id'] ?? _post['feedId'] ?? '').toString().trim();
+    return WorkoutRepository.isValidMongoId(id) ? id : null;
   }
 
-  Widget _buildShareIcon(IconData icon, String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), shape: BoxShape.circle),
-            child: Icon(icon, color: AppColors.accent, size: 28),
-          ),
-          const SizedBox(height: 8),
-          Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface)),
-        ],
-      ),
-    );
+  void _shareFeedToChat(BuildContext hostContext) {
+    final feedId = _feedIdForShare();
+    if (feedId == null) {
+      Get.snackbar(
+        'Cannot share',
+        'This post is not ready to share yet',
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+    ShareToChatService.share(context: hostContext, type: SharedContentType.feed, contentId: feedId);
   }
 
   Widget _playbackDurationBadge() {
@@ -822,7 +804,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
         const SizedBox(height: 20),
         _saveButton(context),
         const SizedBox(height: 20),
-        _buildVerticalInteractionSvgButton(assetPath: 'assets/icons/share.svg', count: _post['shares'] ?? 0, onTap: () => _showShareOptions(context)),
+        _buildVerticalInteractionSvgButton(assetPath: 'assets/icons/share.svg', count: _post['shares'] ?? 0, onTap: () => _shareFeedToChat(context)),
       ],
     );
   }
