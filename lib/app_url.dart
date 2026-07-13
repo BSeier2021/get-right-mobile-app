@@ -135,6 +135,14 @@ class AppUrl {
   /// `POST /user/feed/:feedId/repost` — repost reel to current user's feed.
   static String feedRepost(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/repost';
 
+  /// `POST /user/feed/:feedId/share` — share analytics (`channel`: `copy_link` | `native_share` | `chat`).
+  static String feedShareAnalytics(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/share';
+
+  /// Public web app origin for reel deep links (`/reels/:feedId`).
+  static const String webAppBaseUrl = 'http://getright.prodservers.com:8011';
+
+  static String reelShareLink(String feedId) => '$webAppBaseUrl/reels/${Uri.encodeComponent(feedId.trim())}';
+
   /// `GET /user/feed/save` — paginated saved reels (`data.savedFeeds[]` with nested `feed`, `hasNextPage`, …).
   static String get feedSavedList => '$baseUrl/user/feed/save';
 

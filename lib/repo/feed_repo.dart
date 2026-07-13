@@ -155,6 +155,17 @@ class FeedRepository {
     return _network.post(AppUrl.feedRepost(feedId), <String, dynamic>{});
   }
 
+  /// `POST /user/feed/:feedId/share` — records share channel for analytics.
+  Future<void> recordFeedShareRepo(String feedId, {required String channel}) async {
+    final id = feedId.trim();
+    if (id.isEmpty) return;
+    try {
+      await _network.post(AppUrl.feedShareAnalytics(id), <String, dynamic>{'channel': channel});
+    } catch (_) {
+      // Analytics must not block share UX.
+    }
+  }
+
   /// `GET /user/feed/save` — paginated saved reels (`data.savedFeeds[].feed`, `hasNextPage`, …).
   Future<dynamic> getSavedFeedsRepo({required int page, required int limit}) async {
     return _network.get(

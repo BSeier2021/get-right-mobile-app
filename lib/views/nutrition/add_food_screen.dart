@@ -136,11 +136,11 @@ class _AddFoodScreenState extends State<AddFoodScreen> with SingleTickerProvider
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
-        leading: IconButton(
+         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 18),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
         ),
