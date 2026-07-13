@@ -56,7 +56,14 @@ class _AddDateScreenState extends State<AddDateScreen> {
       } else {
         final type = await showCalendarTypeDialog(context);
         if (type == null || !mounted) return false;
-        await _calendarRepo.createCalendarEntry(date: widget.selectedDate, type: type, notes: notes);
+        await _calendarRepo.createCalendarEntry(
+          date: widget.selectedDate,
+          type: type,
+          notes: notes,
+          durationInSeconds: CalendarRepository.typeRequiresDuration(type)
+              ? CalendarRepository.durationSecondsForDayComplete(widget.dayData)
+              : null,
+        );
       }
 
       if (!mounted) return false;

@@ -468,7 +468,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
       } else {
         final type = await showCalendarTypeDialog(context);
         if (type == null || !mounted) return;
-        await _calendarRepo.createCalendarEntry(date: _selectedDate, type: type, notes: notes);
+        await _calendarRepo.createCalendarEntry(
+          date: _selectedDate,
+          type: type,
+          notes: notes,
+          durationInSeconds: CalendarRepository.typeRequiresDuration(type)
+              ? CalendarRepository.durationSecondsForDayComplete(_getDataForDate(_selectedDate))
+              : null,
+        );
       }
 
       if (!mounted) return;
@@ -902,11 +909,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
     setState(() => _isMarkingComplete = true);
     try {
+      final dayData = _getDataForDate(_selectedDate);
+      final durationInSeconds = CalendarRepository.typeRequiresDuration(type)
+          ? CalendarRepository.durationSecondsForDayComplete(dayData)
+          : null;
       final entryId = _calendarEntryIdForSelectedDate();
       if (entryId != null) {
-        await _calendarRepo.updateCalendarEntry(calendarEntryId: entryId, type: type);
+        await _calendarRepo.updateCalendarEntry(
+          calendarEntryId: entryId,
+          type: type,
+          durationInSeconds: durationInSeconds,
+        );
       } else {
-        await _calendarRepo.createCalendarEntry(date: _selectedDate, type: type);
+        await _calendarRepo.createCalendarEntry(
+          date: _selectedDate,
+          type: type,
+          durationInSeconds: durationInSeconds,
+        );
       }
       if (!mounted) return;
       await _loadCalendarMonth();

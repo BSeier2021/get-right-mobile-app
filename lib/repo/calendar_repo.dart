@@ -92,12 +92,45 @@ class CalendarRepository {
   /// Calendar day at midnight UTC — matches `2026-07-27T00:00:00.000Z`.
   static String dateToApiIso(DateTime date) => DateTime.utc(date.year, date.month, date.day).toIso8601String();
 
+  static bool typeRequiresDuration(String? type) {
+    if (type == null) return false;
+    return calendarTypeForApi(type).toLowerCase() == 'completed';
+  }
+
+  /// Seconds to send when marking a calendar day `Completed` (workout journal, run, or fallback).
+  static int durationSecondsForDayComplete(Map<String, dynamic>? dayData) {
+    if (dayData != null) {
+      final workout = dayData['workout'];
+      if (workout is Map) {
+        final secs = _intFrom(workout['durationSeconds']);
+        if (secs != null && secs > 0) return secs;
+      }
+
+      final run = dayData['run'];
+      if (run is Map) {
+        final secs = _intFrom(run['durationSeconds']);
+        if (secs != null && secs > 0) return secs;
+      }
+    }
+    return 60;
+  }
+
+  static void applyDurationForCompletedType(Map<String, dynamic> body, String? type, int? durationInSeconds) {
+    if (!typeRequiresDuration(type)) return;
+    final secs = durationInSeconds ?? 0;
+    if (secs <= 0) {
+      throw Exception('Duration in seconds is required when marking workout as complete');
+    }
+    body['durationInSeconds'] = secs;
+  }
+
   static Map<String, dynamic> createEntryBody({
     required DateTime date,
     required String type,
     String? notes,
     String? workoutJournal,
     String? runningLog,
+    int? durationInSeconds,
   }) {
     final body = <String, dynamic>{
       'date': dateToApiIso(date),
@@ -110,6 +143,7 @@ class CalendarRepository {
     if (runningLog != null && WorkoutRepository.isValidMongoId(runningLog)) {
       body['runningLog'] = runningLog.trim();
     }
+    applyDurationForCompletedType(body, type, durationInSeconds);
     return body;
   }
 
@@ -242,6 +276,7 @@ class CalendarRepository {
       'id': log['_id']?.toString(),
       'distance': '${(distanceMeters / 1000).toStringAsFixed(2)} km',
       'time': formatDurationSeconds(durationSeconds),
+      'durationSeconds': durationSeconds,
       'pace': formatPaceMinPerKm(averagePace),
       'calories': (log['caloriesBurned'] as num?)?.toInt() ?? 0,
       'activityType': activityType,
@@ -1075,10 +1110,18 @@ class CalendarRepository {
     String? notes,
     String? workoutJournal,
     String? runningLog,
+    int? durationInSeconds,
     List<File>? progressPhotoFiles,
     String? progressPhotoType,
   }) async {
-    final body = createEntryBody(date: date, type: type, notes: notes, workoutJournal: workoutJournal, runningLog: runningLog);
+    final body = createEntryBody(
+      date: date,
+      type: type,
+      notes: notes,
+      workoutJournal: workoutJournal,
+      runningLog: runningLog,
+      durationInSeconds: durationInSeconds,
+    );
     final files = progressPhotoFiles?.where((f) => f.path.isNotEmpty).toList() ?? const <File>[];
     final multipartFiles = progressPhotoType != null && files.isNotEmpty
         ? progressPhotoMultipartFiles(files: files, slot: progressPhotoType)
@@ -1101,7 +1144,13 @@ class CalendarRepository {
     return Map<String, dynamic>.from(raw as Map);
   }
 
-  static Map<String, dynamic> updateEntryBody({String? notes, String? type, String? runningLog, String? workoutJournal}) {
+  static Map<String, dynamic> updateEntryBody({
+    String? notes,
+    String? type,
+    String? runningLog,
+    String? workoutJournal,
+    int? durationInSeconds,
+  }) {
     final body = <String, dynamic>{};
     if (notes != null) body['notes'] = notes.trim();
     if (type != null && type.trim().isNotEmpty) body['type'] = calendarTypeForApi(type);
@@ -1111,6 +1160,7 @@ class CalendarRepository {
     if (workoutJournal != null && WorkoutRepository.isValidMongoId(workoutJournal)) {
       body['workoutJournal'] = workoutJournal.trim();
     }
+    applyDurationForCompletedType(body, type, durationInSeconds);
     return body;
   }
 
@@ -1130,6 +1180,7 @@ class CalendarRepository {
     String? type,
     String? runningLog,
     String? workoutJournal,
+    int? durationInSeconds,
     List<File>? progressPhotoFiles,
     String? progressPhotoType,
     List<String>? removeProgressPhotoIds,
@@ -1139,7 +1190,13 @@ class CalendarRepository {
       throw Exception('Invalid calendar entry id');
     }
 
-    final body = updateEntryBody(notes: notes, type: type, runningLog: runningLog, workoutJournal: workoutJournal);
+    final body = updateEntryBody(
+      notes: notes,
+      type: type,
+      runningLog: runningLog,
+      workoutJournal: workoutJournal,
+      durationInSeconds: durationInSeconds,
+    );
     final removeIds = removeProgressPhotoIds?.map((e) => e.trim()).where(WorkoutRepository.isValidMongoId).toList() ?? const <String>[];
     if (removeIds.isNotEmpty) {
       body['removeProgressPhotosIds'] = jsonEncode(removeIds);
@@ -1254,6 +1311,7 @@ class CalendarRepository {
     required DateTime date,
     required String workoutJournalId,
     String type = typeIncomplete,
+    int? durationInSeconds,
   }) async {
     final journalId = workoutJournalId.trim();
     if (!WorkoutRepository.isValidMongoId(journalId)) {
@@ -1274,6 +1332,7 @@ class CalendarRepository {
         calendarEntryId: entryId,
         type: type,
         workoutJournal: journalId,
+        durationInSeconds: typeRequiresDuration(type) ? (durationInSeconds ?? durationSecondsForDayComplete(dayData)) : null,
       );
     }
 
@@ -1281,6 +1340,7 @@ class CalendarRepository {
       date: day,
       type: type,
       workoutJournal: journalId,
+      durationInSeconds: typeRequiresDuration(type) ? (durationInSeconds ?? durationSecondsForDayComplete(dayData)) : null,
     );
   }
 
@@ -1290,6 +1350,7 @@ class CalendarRepository {
     required String runningLogId,
     String? calendarEntryId,
     String type = typeCompleted,
+    int? durationInSeconds,
   }) async {
     final logId = runningLogId.trim();
     if (!WorkoutRepository.isValidMongoId(logId)) {
@@ -1309,6 +1370,7 @@ class CalendarRepository {
         calendarEntryId: entryId,
         type: type,
         runningLog: logId,
+        durationInSeconds: typeRequiresDuration(type) ? durationInSeconds : null,
       );
     }
 
@@ -1316,6 +1378,7 @@ class CalendarRepository {
       date: runDate,
       type: type,
       runningLog: logId,
+      durationInSeconds: typeRequiresDuration(type) ? durationInSeconds : null,
     );
   }
 

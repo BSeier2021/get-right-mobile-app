@@ -580,6 +580,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
         date: run.startTime,
         runningLogId: logId,
         calendarEntryId: _calendarEntryIdFromArguments(),
+        durationInSeconds: run.duration.inSeconds,
       );
 
       if (!mounted) return;

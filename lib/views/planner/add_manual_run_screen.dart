@@ -152,12 +152,14 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
         throw Exception('Could not save running log');
       }
 
+      final durationSeconds = duration.inSeconds;
       final existingEntryId = widget.calendarEntryId?.trim();
       if (existingEntryId != null && WorkoutRepository.isValidMongoId(existingEntryId)) {
         await _calendarRepo.attachRunningLogToCalendar(
           date: widget.selectedDate,
           runningLogId: logId,
           calendarEntryId: existingEntryId,
+          durationInSeconds: durationSeconds,
         );
       } else {
         final type = await showCalendarTypeDialog(context);
@@ -166,6 +168,7 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
           date: widget.selectedDate,
           type: type,
           runningLog: logId,
+          durationInSeconds: CalendarRepository.typeRequiresDuration(type) ? durationSeconds : null,
         );
       }
 

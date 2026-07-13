@@ -1347,6 +1347,25 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return fromCard;
   }
 
+  int _programEnrollmentCount(Map<String, dynamic> program) {
+    final fromCard = (program['students'] as num?)?.toInt();
+    if (fromCard != null) return fromCard;
+
+    final p = _programRaw(program);
+    if (p != null) {
+      final total = (p['totalEnrollments'] as num?)?.toInt();
+      if (total != null) return total;
+      final d = p['display'];
+      if (d is Map) {
+        final fromDisplay = (d['enrollment_count'] as num?)?.toInt();
+        if (fromDisplay != null) return fromDisplay;
+      }
+      final students = (p['students'] as num?)?.toInt();
+      if (students != null) return students;
+    }
+    return 0;
+  }
+
   double _programRatingValue(Map<String, dynamic> program) {
     final fromCard = (program['rating'] as num?)?.toDouble();
     final p = _programRaw(program);
@@ -2374,7 +2393,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 3.w),
                           Flexible(
                             child: Text(
-                              '${_formatNumber(_programReviewCount(program) ?? (program['students'] as num?)?.toInt() ?? 0)}',
+                              '${_formatNumber(_programEnrollmentCount(program))}',
                               style: TextStyle(color: Colors.black, fontSize: 13.sp),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -2642,7 +2661,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           SizedBox(width: 2.w),
                           Flexible(
                             child: Text(
-                              '${_formatNumber(_programReviewCount(program) ?? (program['students'] as num?)?.toInt() ?? 0)}',
+                              '${_formatNumber(_programEnrollmentCount(program))}',
                               style: TextStyle(color: Colors.black, fontSize: 11.sp),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -2688,7 +2707,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
     // Calculate average rating from programs
     final avgRating = programs.isNotEmpty ? programs.map((p) => ((p['rating'] as num?) ?? 0).toDouble()).reduce((a, b) => a + b) / programs.length : 0.0;
-    final totalRatings = programs.isNotEmpty ? programs.map((p) => ((p['students'] as num?) ?? 0).toInt()).reduce((a, b) => a + b) : 0;
+    final totalEnrollments = programs.isNotEmpty ? programs.map((p) => _programEnrollmentCount(p)).reduce((a, b) => a + b) : 0;
 
     // Get primary trainer (bundle API trainer, else first program)
     final primaryProgram = programs.isNotEmpty ? programs[0] : null;
@@ -2824,7 +2843,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             Icon(Icons.people, color: Colors.black, size: 13.sp),
                             SizedBox(width: 3.w),
                             Text(
-                              '${_formatNumber(totalRatings)}',
+                              '${_formatNumber(totalEnrollments)}',
                               style: TextStyle(color: Colors.black, fontSize: 13.sp),
                             ),
                           ],
@@ -3040,7 +3059,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         SizedBox(width: 3.w),
                         Flexible(
                           child: Text(
-                            '${_formatNumber(_programReviewCount(program) ?? (program['students'] as num?)?.toInt() ?? 0)}',
+                            '${_formatNumber(_programEnrollmentCount(program))}',
                             style: TextStyle(color: Colors.black, fontSize: 13.sp),
                             overflow: TextOverflow.ellipsis,
                           ),
