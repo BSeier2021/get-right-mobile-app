@@ -16,6 +16,43 @@ class CalendarRepository {
   static const String typeInProgress = 'InProgress';
   static const String typeRest = 'Rest Day';
 
+  static const String progressPhotoFrontField = 'progressPhotoFront';
+  static const String progressPhotoBackField = 'progressPhotoBack';
+
+  /// UI slot (`front` | `side`) → multipart field name on calendar API.
+  static String progressPhotoFieldForSlot(String slot) {
+    switch (slot.trim().toLowerCase()) {
+      case 'front':
+        return progressPhotoFrontField;
+      case 'side':
+      case 'back':
+        return progressPhotoBackField;
+      default:
+        return progressPhotoFrontField;
+    }
+  }
+
+  /// API `fieldName` / multipart key → UI slot (`front` | `side`).
+  static String? progressPhotoSlotFromFieldName(String? raw) {
+    final value = raw?.trim() ?? '';
+    if (value.isEmpty) return null;
+    final lower = value.toLowerCase();
+    if (lower == progressPhotoFrontField.toLowerCase() || lower.contains('front')) return 'front';
+    if (lower == progressPhotoBackField.toLowerCase() || lower.contains('back') || lower.contains('side')) {
+      return 'side';
+    }
+    return null;
+  }
+
+  static Map<String, List<File>> progressPhotoMultipartFiles({
+    required List<File> files,
+    required String slot,
+  }) {
+    final valid = files.where((f) => f.path.isNotEmpty).toList();
+    if (valid.isEmpty) return const {};
+    return {progressPhotoFieldForSlot(slot): valid};
+  }
+
   /// Maps app / legacy calendar types to API enum values.
   static String calendarTypeForApi(String type) {
     switch (type.trim()) {
@@ -351,6 +388,7 @@ class CalendarRepository {
   }
 
   static bool hasProgressPhotosInEntry(Map<String, dynamic> entry) {
+    if (entry[progressPhotoFrontField] != null || entry[progressPhotoBackField] != null) return true;
     final photos = entry['progressPhotos'];
     return photos is List && photos.isNotEmpty;
   }
@@ -413,19 +451,22 @@ class CalendarRepository {
     }
 
     final map = Map<String, dynamic>.from(photo);
+    final fromFieldName = progressPhotoSlotFromFieldName(map['fieldName']?.toString());
+    if (fromFieldName != null) return fromFieldName;
+
     final slot = map['slot']?.toString().trim().toLowerCase();
-    if (slot == 'front' || slot == 'side') return slot;
+    if (slot == 'front' || slot == 'side' || slot == 'back') return slot == 'back' ? 'side' : slot;
 
     for (final field in ['photoType', 'progressPhotoType', 'label']) {
       final raw = map[field]?.toString().trim().toLowerCase() ?? '';
       if (raw.isEmpty || isGenericMediaLabel(raw)) continue;
-      if (raw.contains('side')) return 'side';
+      if (raw.contains('back') || raw.contains('side')) return 'side';
       if (raw.contains('front')) return 'front';
     }
 
     final legacyType = map['type']?.toString().trim().toLowerCase() ?? '';
     if (!isGenericMediaLabel(legacyType)) {
-      if (legacyType.contains('side')) return 'side';
+      if (legacyType.contains('back') || legacyType.contains('side')) return 'side';
       if (legacyType.contains('front')) return 'front';
     }
 
@@ -442,18 +483,18 @@ class CalendarRepository {
   }) {
     if (!isGenericMediaLabel(raw)) {
       final value = raw?.trim().toLowerCase() ?? '';
-      if (value.contains('side')) return 'side';
+      if (value.contains('back') || value.contains('side')) return 'side';
       if (value.contains('front')) return 'front';
     }
 
     final count = totalPhotos ?? 1;
     if (count == 1) {
       final entryType = entryPhotoType?.trim().toLowerCase() ?? '';
-      if (entryType.contains('side')) return 'side';
+      if (entryType.contains('back') || entryType.contains('side')) return 'side';
       if (entryType.contains('front')) return 'front';
 
       final notes = entryNotes?.toLowerCase() ?? '';
-      if (notes.contains('side')) return 'side';
+      if (notes.contains('back') || notes.contains('side')) return 'side';
       if (notes.contains('front')) return 'front';
     }
 
@@ -483,29 +524,84 @@ class CalendarRepository {
     return null;
   }
 
+  static String? progressPhotoIdFromDayData(Map<String, dynamic>? dayData, String slot) {
+    if (dayData == null) return null;
+    final fromList = progressPhotoIdForSlot(dayData['progressPhotos'], slot);
+    if (fromList != null) return fromList;
+
+    final fieldKey = progressPhotoFieldForSlot(slot);
+    return photoIdFrom(dayData[fieldKey]);
+  }
+
+  static void _putProgressPhotoInSlot(
+    Map<String, Map<String, dynamic>> bySlot,
+    dynamic photo, {
+    required String defaultSlot,
+    String? fieldName,
+  }) {
+    if (photo is String) {
+      final url = photoUrlFrom(photo);
+      if (url == null) return;
+      final slot = progressPhotoSlotFromFieldName(fieldName) ?? defaultSlot;
+      bySlot[slot] = {
+        'url': url,
+        'slot': slot,
+        if (fieldName != null) 'fieldName': fieldName,
+      };
+      return;
+    }
+
+    if (photo is! Map) return;
+    final map = Map<String, dynamic>.from(photo);
+    final url = photoUrlFrom(map);
+    if (url == null) return;
+    final slot = photoSlotFrom(map) ?? progressPhotoSlotFromFieldName(map['fieldName']?.toString() ?? fieldName) ?? defaultSlot;
+    bySlot[slot] = {
+      ...map,
+      'url': url,
+      'slot': slot,
+      'fieldName': map['fieldName'] ?? fieldName ?? progressPhotoFieldForSlot(slot),
+    };
+  }
+
   static List<Map<String, dynamic>> progressPhotosFromEntry(Map<String, dynamic> entry) {
+    final bySlot = <String, Map<String, dynamic>>{};
+
+    _putProgressPhotoInSlot(
+      bySlot,
+      entry[progressPhotoFrontField],
+      defaultSlot: 'front',
+      fieldName: progressPhotoFrontField,
+    );
+    _putProgressPhotoInSlot(
+      bySlot,
+      entry[progressPhotoBackField],
+      defaultSlot: 'side',
+      fieldName: progressPhotoBackField,
+    );
+
     final photos = entry['progressPhotos'];
-    if (photos is! List || photos.isEmpty) return const [];
+    if (photos is! List || photos.isEmpty) {
+      return _orderedProgressPhotos(bySlot);
+    }
 
     final entryNotes = entry['notes']?.toString();
     final entryPhotoType = entry['progressPhotoType']?.toString();
-    final result = <Map<String, dynamic>>[];
 
     for (var i = 0; i < photos.length; i++) {
       final photo = photos[i];
       if (photo is String) {
         final url = photoUrlFrom(photo);
         if (url == null) continue;
-        result.add({
-          'url': url,
-          'slot': normalizePhotoSlot(
-            null,
-            index: i,
-            entryNotes: entryNotes,
-            totalPhotos: photos.length,
-            entryPhotoType: entryPhotoType,
-          ),
-        });
+        final slot = normalizePhotoSlot(
+          null,
+          index: i,
+          entryNotes: entryNotes,
+          totalPhotos: photos.length,
+          entryPhotoType: entryPhotoType,
+        );
+        if (bySlot.containsKey(slot)) continue;
+        bySlot[slot] = {'url': url, 'slot': slot};
         continue;
       }
 
@@ -521,20 +617,22 @@ class CalendarRepository {
               totalPhotos: photos.length,
               entryPhotoType: entryPhotoType,
             );
-        result.add({
+        bySlot[slot] = {
           ...map,
           'url': url,
           'slot': slot,
-        });
+          'fieldName': map['fieldName'] ?? progressPhotoFieldForSlot(slot),
+        };
       }
     }
 
-    return result;
+    return _orderedProgressPhotos(bySlot);
   }
 
   static bool dayHasProgressPhotos(Map<String, dynamic>? data) {
     if (data == null) return false;
     if (data['hasProgressPhoto'] == true) return true;
+    if (data[progressPhotoFrontField] != null || data[progressPhotoBackField] != null) return true;
     final photos = data['progressPhotos'];
     return photos is List && photos.isNotEmpty;
   }
@@ -641,7 +739,11 @@ class CalendarRepository {
       if (slot == null || slot == target) continue;
       bySlot[slot] = Map<String, dynamic>.from(photos[i]);
     }
-    bySlot[target] = {...replacement, 'slot': target};
+    bySlot[target] = {
+      ...replacement,
+      'slot': target,
+      'fieldName': replacement['fieldName'] ?? progressPhotoFieldForSlot(target),
+    };
     return _orderedProgressPhotos(bySlot);
   }
 
@@ -966,7 +1068,7 @@ class CalendarRepository {
     return map;
   }
 
-  /// `POST /customer/calendar` — JSON when no files; multipart when [progressPhotoFiles] is set.
+  /// `POST /customer/calendar` — JSON when no files; multipart uses `progressPhotoFront` / `progressPhotoBack`.
   Future<Map<String, dynamic>> createCalendarEntry({
     required DateTime date,
     required String type,
@@ -977,17 +1079,17 @@ class CalendarRepository {
     String? progressPhotoType,
   }) async {
     final body = createEntryBody(date: date, type: type, notes: notes, workoutJournal: workoutJournal, runningLog: runningLog);
-    if (progressPhotoType != null && progressPhotoType.trim().isNotEmpty) {
-      body['progressPhotoType'] = progressPhotoType.trim().toLowerCase();
-    }
     final files = progressPhotoFiles?.where((f) => f.path.isNotEmpty).toList() ?? const <File>[];
+    final multipartFiles = progressPhotoType != null && files.isNotEmpty
+        ? progressPhotoMultipartFiles(files: files, slot: progressPhotoType)
+        : const <String, List<File>>{};
 
     final dynamic raw;
-    if (files.isNotEmpty) {
+    if (multipartFiles.isNotEmpty) {
       raw = await _network.postMultipart(
         url: AppUrl.customerCalendarCreate,
         fields: body,
-        files: {'progressPhotos': files},
+        files: multipartFiles,
       );
     } else {
       raw = await _network.post(AppUrl.customerCalendarCreate, body);
@@ -1021,7 +1123,7 @@ class CalendarRepository {
   }
 
   /// `PUT /customer/calendar/:id` — update notes, type, runningLog, remove/replace progress photos.
-  /// Multipart replace: `removeProgressPhotosIds` (JSON array string) + `progressPhotos` (file).
+  /// Multipart replace: `removeProgressPhotosIds` + `progressPhotoFront` or `progressPhotoBack` file field.
   Future<Map<String, dynamic>> updateCalendarEntry({
     required String calendarEntryId,
     String? notes,
@@ -1038,21 +1140,21 @@ class CalendarRepository {
     }
 
     final body = updateEntryBody(notes: notes, type: type, runningLog: runningLog, workoutJournal: workoutJournal);
-    if (progressPhotoType != null && progressPhotoType.trim().isNotEmpty) {
-      body['progressPhotoType'] = progressPhotoType.trim().toLowerCase();
-    }
     final removeIds = removeProgressPhotoIds?.map((e) => e.trim()).where(WorkoutRepository.isValidMongoId).toList() ?? const <String>[];
     if (removeIds.isNotEmpty) {
       body['removeProgressPhotosIds'] = jsonEncode(removeIds);
     }
     final files = progressPhotoFiles?.where((f) => f.path.isNotEmpty).toList() ?? const <File>[];
+    final multipartFiles = progressPhotoType != null && files.isNotEmpty
+        ? progressPhotoMultipartFiles(files: files, slot: progressPhotoType)
+        : const <String, List<File>>{};
 
     final dynamic raw;
-    if (files.isNotEmpty) {
+    if (multipartFiles.isNotEmpty) {
       raw = await _network.putMultipart(
         url: AppUrl.customerCalendarById(id),
         fields: body,
-        files: {'progressPhotos': files},
+        files: multipartFiles,
       );
     } else {
       raw = await _network.put(AppUrl.customerCalendarById(id), body);

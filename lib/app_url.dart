@@ -391,7 +391,7 @@ class AppUrl {
   /// `DELETE /user/chat/messages/:messageId` — delete a chat message.
   static String chatMessageDelete(String messageId) => '$baseUrl/user/chat/messages/${Uri.encodeComponent(messageId.trim())}';
 
-  /// `POST /customer/calendar` — body: `date`, `type`, optional `notes`, `workoutJournal`, `progressPhotos` (multipart file).
+  /// `POST /customer/calendar` — body: `date`, `type`, optional `notes`, `workoutJournal`; multipart: `progressPhotoFront` / `progressPhotoBack`.
   static String get customerCalendarCreate => '$baseUrl/customer/calendar';
 
   /// `GET /customer/calendar` — query: `year`, `month` → `data.entries[]`.
@@ -401,7 +401,7 @@ class AppUrl {
   }
 
   /// `GET /customer/calendar/:calendarEntryId` → `data.entry`, `data.nutrition`.
-  /// `PUT /customer/calendar/:calendarEntryId` — body: `notes`, `type`, `runningLog`, optional `removeProgressPhotosIds` + `progressPhotos` (multipart file).
+  /// `PUT /customer/calendar/:calendarEntryId` — body: `notes`, `type`, `runningLog`, optional `removeProgressPhotosIds` + `progressPhotoFront` / `progressPhotoBack` (multipart file).
   /// `DELETE /customer/calendar/:calendarEntryId` — remove calendar entry.
   static String customerCalendarById(String calendarEntryId) => '$baseUrl/customer/calendar/${Uri.encodeComponent(calendarEntryId.trim())}';
 

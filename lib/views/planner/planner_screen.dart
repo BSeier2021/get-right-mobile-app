@@ -508,7 +508,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final userNotes = CalendarRepository.displayNotesFrom(_getDataForDate(_selectedDate)?['notes']?.toString());
     final key = CalendarRepository.normalizedDate(_selectedDate);
     final existingPhotos = _getDataForDate(_selectedDate)?['progressPhotos'];
-    final replacePhotoId = CalendarRepository.progressPhotoIdForSlot(existingPhotos, type);
+    final replacePhotoId = CalendarRepository.progressPhotoIdFromDayData(_getDataForDate(_selectedDate), type) ??
+        CalendarRepository.progressPhotoIdForSlot(existingPhotos, type);
     final removePhotoIds = replacePhotoId != null ? [replacePhotoId] : null;
 
     try {
@@ -557,7 +558,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
             'progressPhotos': CalendarRepository.upsertProgressPhoto(
               photos: photos,
               type: type,
-              replacement: {'url': photo.path, 'slot': type, 'local': true},
+              replacement: {
+                'url': photo.path,
+                'slot': type,
+                'fieldName': CalendarRepository.progressPhotoFieldForSlot(type),
+                'local': true,
+              },
             ),
             if (userNotes.isNotEmpty) 'notes': userNotes,
           });
