@@ -695,7 +695,10 @@ class MarketplaceRepository {
         (display['review_count'] as num?)?.toInt() ??
         (p['reviews'] as num?)?.toInt() ??
         0;
-    final students = (display['enrollment_count'] as num?)?.toInt() ?? (p['students'] as num?)?.toInt() ?? 0;
+    final students = (display['enrollment_count'] as num?)?.toInt() ??
+        (p['totalEnrollments'] as num?)?.toInt() ??
+        (p['students'] as num?)?.toInt() ??
+        0;
     final pricing = resolveProgramPricingFromApi(p);
     final price = (pricing['listPrice'] as num?)?.toDouble() ?? 0.0;
     final netPrice = (pricing['netPrice'] as num?)?.toDouble() ?? price;

@@ -396,7 +396,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
       fallback: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400',
     );
     final rating = item['rating'] is num ? (item['rating'] as num).toDouble() : double.tryParse('${item['rating'] ?? '0'}') ?? 0.0;
-    final enrolled = _formatEnrolled(item['students']);
+    final enrolled = _formatEnrolled(item['students'] ?? item['totalEnrollments']);
     final price = _formatPrice(item['netPrice'] ?? item['price']);
     final showHot = item['hot'] == true || item['isHot'] == true;
     final showCertified = isCertifiedFromUiMap(Map<String, dynamic>.from(item));

@@ -136,8 +136,8 @@ class _AppDrawerState extends State<AppDrawer> {
                 final name = storage != null ? _displayName(p, storage) : (p?.fullName?.trim().isNotEmpty == true ? p!.fullName!.trim() : 'Demo User');
                 final email = storage != null ? _displayEmail(p, storage) : (p?.email.trim().isNotEmpty == true ? p!.email.trim() : 'demo@getright.com');
                 final photo = _photoUrl(p, storage);
-                final loadingHeader = auth.customerProfileLoading && p == null && (storage?.getName()?.trim().isEmpty ?? true);
-                return _buildUserHeader(name, email, photo, loadingHeader);
+                final loadingProfile = auth.customerProfileLoading && p == null;
+                return _buildUserHeader(name, email, photo, loadingProfile);
               },
             ),
 
@@ -301,34 +301,7 @@ class _AppDrawerState extends State<AppDrawer> {
               SizedBox(
                 width: 70.w,
                 height: 70.w,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    ClipOval(
-                      child: SafeNetworkImage(
-                        url: photoUrl,
-                        width: 70.w,
-                        height: 70.w,
-                        fit: BoxFit.cover,
-                        fallback: Image.asset('assets/images/Ellipse 8.png', width: 70.w, fit: BoxFit.cover),
-                      ),
-                    ),
-                    if (loadingProfile)
-                      Positioned.fill(
-                        child: ClipOval(
-                          child: Container(
-                            color: Colors.black26,
-                            alignment: Alignment.center,
-                            child: SizedBox(
-                              width: 22.w,
-                              height: 22.w,
-                              child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                child: ClipOval(child: _buildDrawerProfileAvatar(photoUrl, loadingProfile)),
               ),
               const SizedBox(height: 14),
               Text(
@@ -347,6 +320,36 @@ class _AppDrawerState extends State<AppDrawer> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerProfileAvatar(String? photoUrl, bool loadingProfile) {
+    final hasPhotoUrl = photoUrl != null && photoUrl.trim().isNotEmpty;
+    if (loadingProfile && !hasPhotoUrl) {
+      return _buildDrawerProfileLoader();
+    }
+
+    return SafeNetworkImage(
+      url: photoUrl,
+      width: 70.w,
+      height: 70.w,
+      fit: BoxFit.cover,
+      placeholder: hasPhotoUrl ? _buildDrawerProfileLoader() : null,
+      fallback: Image.asset('assets/images/Ellipse 8.png', width: 70.w, fit: BoxFit.cover),
+    );
+  }
+
+  Widget _buildDrawerProfileLoader() {
+    return Container(
+      width: 70.w,
+      height: 70.w,
+      color: AppColors.primaryGrayLight.withOpacity(0.35),
+      alignment: Alignment.center,
+      child: SizedBox(
+        width: 22.w,
+        height: 22.w,
+        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
       ),
     );
   }

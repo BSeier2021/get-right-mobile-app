@@ -431,7 +431,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
       child: busy
           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
           : Text(
-              'Follow',
+              'Follow Back',
               style: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.w600, color: AppColors.onAccent),
             ),
     );

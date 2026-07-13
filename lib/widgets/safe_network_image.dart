@@ -20,6 +20,7 @@ class SafeNetworkImage extends StatelessWidget {
     this.height,
     this.fit = BoxFit.contain,
     required this.fallback,
+    this.placeholder,
   });
 
   final String? url;
@@ -27,6 +28,7 @@ class SafeNetworkImage extends StatelessWidget {
   final double? height;
   final BoxFit fit;
   final Widget fallback;
+  final Widget? placeholder;
 
   @override
   Widget build(BuildContext context) {
@@ -42,12 +44,20 @@ class SafeNetworkImage extends StatelessWidget {
       fit: fit,
       fadeInDuration: Duration.zero,
       fadeOutDuration: Duration.zero,
-      placeholder: (_, __) => _sizedFallback(),
+      placeholder: (_, __) => _sizedPlaceholder(),
       errorWidget: (_, __, ___) {
         FailedNetworkImageUrls.markFailed(resolved);
         return _sizedFallback();
       },
     );
+  }
+
+  Widget _sizedPlaceholder() {
+    final child = placeholder ?? fallback;
+    if (width != null || height != null) {
+      return SizedBox(width: width, height: height, child: child);
+    }
+    return child;
   }
 
   Widget _sizedFallback() {

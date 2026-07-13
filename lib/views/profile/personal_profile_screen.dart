@@ -237,7 +237,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                     _infoRow('assets/images/calendar-222.png', 'Date of Birth', _displayDob(p)),
                     _infoRow('assets/images/call.png', 'Contact Number', _displayPhone(p)),
                     _infoRow('assets/images/people22.png', 'Gender', _displayGender(p)),
-                    _infoRow('assets/images/weight.png', 'Weight', _displayWeight(p)),
+                    _infoRow('assets/images/Vector.png', 'Weight', _displayWeight(p)),
                     _infoRow('assets/images/clipboard-text.png', 'Bio', _displayBio(p)),
                   ]),
                   if (_onboardingSectionHasAnyValue(p)) ...[
@@ -245,7 +245,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                     _sectionLabel('Onboarding Preferences'),
                     const SizedBox(height: 12),
                     _infoCard([
-                      _infoRow('assets/images/Vector.png', 'Preferences', _displayPreference(p)),
+                      _infoRow('assets/images/runing.png', 'Preferences', _displayPreference(p)),
                       _infoRow('assets/images/flag.png', 'Main goals', _displayGoals(p)),
                       _infoRow('assets/images/diagram.png', 'Fitness level', _displayFitness(p)),
                       _infoRow('assets/images/calendar-222.png', 'Exercise frequency', _displayExerciseFreq(p)),
