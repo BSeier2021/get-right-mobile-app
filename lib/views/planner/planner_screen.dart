@@ -43,6 +43,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   bool _isMovingProgramWorkout = false;
   late final PageController _progressPhotoPageController;
   int _progressPhotoPageIndex = 0;
+  String? _uploadingProgressPhotoType;
   bool _pendingDayDetailLoad = false;
   final Map<String, Map<String, String>> _localProgressPhotoPathsByDate = {};
 
@@ -500,19 +501,20 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<void> _persistProgressPhoto(File photo, String type) async {
-    var entryId = _calendarEntryIdForSelectedDate();
-    if (entryId == null) {
-      await _resolveCalendarEntryIdForSelectedDate();
-      entryId = _calendarEntryIdForSelectedDate();
-    }
-    final userNotes = CalendarRepository.displayNotesFrom(_getDataForDate(_selectedDate)?['notes']?.toString());
-    final key = CalendarRepository.normalizedDate(_selectedDate);
-    final existingPhotos = _getDataForDate(_selectedDate)?['progressPhotos'];
-    final replacePhotoId = CalendarRepository.progressPhotoIdFromDayData(_getDataForDate(_selectedDate), type) ??
-        CalendarRepository.progressPhotoIdForSlot(existingPhotos, type);
-    final removePhotoIds = replacePhotoId != null ? [replacePhotoId] : null;
-
+    setState(() => _uploadingProgressPhotoType = type);
     try {
+      var entryId = _calendarEntryIdForSelectedDate();
+      if (entryId == null) {
+        await _resolveCalendarEntryIdForSelectedDate();
+        entryId = _calendarEntryIdForSelectedDate();
+      }
+      final userNotes = CalendarRepository.displayNotesFrom(_getDataForDate(_selectedDate)?['notes']?.toString());
+      final key = CalendarRepository.normalizedDate(_selectedDate);
+      final existingPhotos = _getDataForDate(_selectedDate)?['progressPhotos'];
+      final replacePhotoId = CalendarRepository.progressPhotoIdFromDayData(_getDataForDate(_selectedDate), type) ??
+          CalendarRepository.progressPhotoIdForSlot(existingPhotos, type);
+      final removePhotoIds = replacePhotoId != null ? [replacePhotoId] : null;
+
       Map<String, dynamic> response;
       if (entryId != null) {
         response = await _calendarRepo.updateCalendarEntry(
@@ -571,10 +573,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
       }
 
       await _refreshSelectedDayProgressPhotos();
+      if (!mounted) return;
       Get.snackbar('Success', '$type photo added successfully', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       if (!mounted) return;
       await showCalendarErrorDialog(context, e);
+    } finally {
+      if (mounted) setState(() => _uploadingProgressPhotoType = null);
     }
   }
 
@@ -1424,11 +1429,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
           Row(
             children: [
               Expanded(
-                child: _buildProgressPhotoTile(type: 'front', photoUrl: frontUrl, height: 150, onTap: () => _handleProgressPhotoTap(date, 'front')),
+                child: _buildProgressPhotoTile(
+                  type: 'front',
+                  photoUrl: frontUrl,
+                  height: 150,
+                  isLoading: _uploadingProgressPhotoType == 'front',
+                  onTap: () => _handleProgressPhotoTap(date, 'front'),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildProgressPhotoTile(type: 'side', photoUrl: sideUrl, height: 150, onTap: () => _handleProgressPhotoTap(date, 'side')),
+                child: _buildProgressPhotoTile(
+                  type: 'side',
+                  photoUrl: sideUrl,
+                  height: 150,
+                  isLoading: _uploadingProgressPhotoType == 'side',
+                  onTap: () => _handleProgressPhotoTap(date, 'side'),
+                ),
               ),
             ],
           ),
@@ -2519,7 +2536,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
-  Widget _buildProgressPhotoTile({required String type, required String? photoUrl, required double height, required VoidCallback onTap}) {
+  Widget _buildProgressPhotoTile({
+    required String type,
+    required String? photoUrl,
+    required double height,
+    required VoidCallback onTap,
+    bool isLoading = false,
+  }) {
     final label = type == 'front' ? 'Front Photo' : 'Side Photo';
     final icon = type == 'front' ? Icons.camera_front_rounded : Icons.camera_alt_rounded;
     final hasPhoto = photoUrl != null;
@@ -2527,7 +2550,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: isLoading ? null : onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           height: height,
@@ -2537,8 +2560,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
             border: Border.all(color: hasPhoto ? AppColors.accent.withOpacity(0.4) : AppColors.primaryGray.withOpacity(0.3)),
           ),
           clipBehavior: Clip.antiAlias,
-          child: hasPhoto
-              ? Stack(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (hasPhoto)
+                Stack(
                   fit: StackFit.expand,
                   children: [
                     _buildProgressPhotoImage(photoUrl: photoUrl, icon: icon, height: height),
@@ -2553,7 +2579,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     ),
                   ],
                 )
-              : Column(
+              else
+                Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(icon, size: 36, color: AppColors.primaryGray),
@@ -2563,6 +2590,29 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     Text(hasPhoto ? 'Tap for options' : 'Tap to add', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontSize: 11)),
                   ],
                 ),
+              if (isLoading)
+                Container(
+                  color: Colors.black.withOpacity(0.45),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.accent),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Updating photo...',
+                          style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -2596,7 +2646,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               Row(
                 children: [
                   TextButton.icon(
-                    onPressed: _addProgressPhoto,
+                    onPressed: _uploadingProgressPhotoType != null ? null : _addProgressPhoto,
                     icon: const Icon(Icons.add_a_photo_outlined, size: 16),
                     label: const Text('Add'),
                     style: TextButton.styleFrom(foregroundColor: AppColors.accent, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
@@ -2638,7 +2688,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   icon: const Icon(Icons.chevron_left),
                   color: AppColors.accent,
                 ),
-                
+
                 Expanded(
                   child: NotificationListener<ScrollNotification>(
                     onNotification: (notification) => notification.metrics.axis == Axis.horizontal,
@@ -2654,7 +2704,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
                         final photoUrl = type == 'front' ? frontUrl : sideUrl;
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: _buildProgressPhotoTile(type: type, photoUrl: photoUrl, height: 220, onTap: () => _handleProgressPhotoTap(_selectedDate, type)),
+                          child: _buildProgressPhotoTile(
+                            type: type,
+                            photoUrl: photoUrl,
+                            height: 220,
+                            isLoading: _uploadingProgressPhotoType == type,
+                            onTap: () => _handleProgressPhotoTap(_selectedDate, type),
+                          ),
                         );
                       },
                     ),
