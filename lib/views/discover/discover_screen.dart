@@ -408,10 +408,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       Row(
                         children: [
                           _metaChip(user.role.isNotEmpty ? user.role : 'User'),
-                          const SizedBox(width: 8),
-                          Icon(Icons.people_outline, size: 14, color: AppColors.primaryGray),
-                          const SizedBox(width: 2),
-                          Text('${user.followersCount}', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                          if (user.isTrainer) ...[
+                            const SizedBox(width: 8),
+                            Icon(Icons.people_outline, size: 14, color: AppColors.primaryGray),
+                            const SizedBox(width: 2),
+                            Text('${user.followersCount}', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                          ],
                         ],
                       ),
                       if (user.avgRating > 0 || user.totalReviews > 0) ...[

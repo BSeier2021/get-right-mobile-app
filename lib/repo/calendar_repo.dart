@@ -269,7 +269,9 @@ class CalendarRepository {
       }
     }
 
-    final activityType = RunningLogRepository.activityTypeFromRunningType(log['runningType']?.toString() ?? 'Run');
+    final activityType = RunningLogRepository.activityTypeFromRunningType(
+      log['runningType']?.toString() ?? log['activityType']?.toString() ?? 'Run',
+    );
     final isPlannedRoute = routeId != null && durationSeconds <= 0 && distanceMeters <= 0;
 
     return {

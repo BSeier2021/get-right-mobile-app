@@ -1,13 +1,19 @@
 class AppUrl {
   // development url
-  static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
-  static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
-  static const String socketUrl = 'http://getright.prodservers.com:8003';
+  // static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
+  // static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
+  // static const String socketUrl = 'http://getright.prodservers.com:8003';
 
   // client url
   // static const String baseUrl = 'http://getright.prodservers.com:8004/api/v1';
   // static const String imnageUrl = 'http://getright.prodservers.com:8004/api/v1';
   // static const String socketUrl = 'http://getright.prodservers.com:8004';
+
+//  port url
+  static const String baseUrl = 'https://5c8zvt4q-8001.inc1.devtunnels.ms/api/v1';
+  static const String imnageUrl = 'https://5c8zvt4q-8001.inc1.devtunnels.ms/api/v1';
+  static const String socketUrl = 'https://5c8zvt4q-8001.inc1.devtunnels.ms/';
+  
 
   static String signUp = '$baseUrl/user/auth/signup';
   static String verifyOTP = '$baseUrl/user/auth/verify-otp';
@@ -307,11 +313,18 @@ class AppUrl {
     return '$path?$q';
   }
 
-  /// `GET /customer/workout-journal` — query: `page`, `limit`, `dateFrom`, `dateTo` (ISO UTC midnight).
-  static String customerWorkoutJournalList({int page = 1, int limit = 10, String? dateFrom, String? dateTo}) {
+  /// `GET /customer/workout-journal` — query: `page`, `limit`, `dateFrom`, `dateTo`, optional `status` (e.g. `completed`).
+  static String customerWorkoutJournalList({
+    int page = 1,
+    int limit = 10,
+    String? dateFrom,
+    String? dateTo,
+    String? status,
+  }) {
     final params = <String, String>{'page': '$page', 'limit': '$limit'};
     if (dateFrom != null && dateFrom.trim().isNotEmpty) params['dateFrom'] = dateFrom.trim();
     if (dateTo != null && dateTo.trim().isNotEmpty) params['dateTo'] = dateTo.trim();
+    if (status != null && status.trim().isNotEmpty) params['status'] = status.trim();
     final q = Uri(queryParameters: params).query;
     return '$baseUrl/customer/workout-journal?$q';
   }

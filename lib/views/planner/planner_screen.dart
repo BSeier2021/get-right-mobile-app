@@ -8,6 +8,8 @@ import 'package:get_right/models/run_model.dart';
 import 'package:get_right/models/shared_content_model.dart';
 import 'package:get_right/repo/calendar_repo.dart';
 import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/repo/running_log_repo.dart';
+import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -20,7 +22,9 @@ import 'package:intl/intl.dart';
 
 /// Planner screen - workout plans and calendar with color-coded entries
 class PlannerScreen extends StatefulWidget {
-  const PlannerScreen({super.key});
+  const PlannerScreen({super.key, this.initialDate});
+
+  final DateTime? initialDate;
 
   @override
   State<PlannerScreen> createState() => _PlannerScreenState();
@@ -146,9 +150,31 @@ class _PlannerScreenState extends State<PlannerScreen> {
     return selected.isAfter(today);
   }
 
+  DateTime? _resolveInitialDate() {
+    if (widget.initialDate != null) {
+      final d = widget.initialDate!;
+      return DateTime(d.year, d.month, d.day);
+    }
+    final args = Get.arguments;
+    if (args is Map) {
+      final raw = args['selectedDate'];
+      if (raw is DateTime) return DateTime(raw.year, raw.month, raw.day);
+      if (raw is String) {
+        final parsed = DateTime.tryParse(raw);
+        if (parsed != null) return DateTime(parsed.year, parsed.month, parsed.day);
+      }
+    }
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
+    final initial = _resolveInitialDate();
+    if (initial != null) {
+      _selectedDate = DateTime(initial.year, initial.month, initial.day);
+      _focusedMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
+    }
     _progressPhotoPageController = PageController();
     _loadCalendarMonth();
   }
@@ -3354,7 +3380,28 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
+  String _runActivityLabel(Map<String, dynamic> run) {
+    final raw = run['activityType']?.toString().trim();
+    if (raw == null || raw.isEmpty) return 'Run';
+    return RunningLogRepository.activityTypeFromRunningType(raw);
+  }
+
+  IconData _runActivityIcon(String activityLabel) {
+    switch (activityLabel.toLowerCase()) {
+      case 'walk':
+        return Icons.directions_walk;
+      case 'jog':
+        return Icons.directions_walk_outlined;
+      case 'bike':
+        return Icons.directions_bike;
+      case 'run':
+      default:
+        return Icons.directions_run;
+    }
+  }
+
   Widget _buildRunSummarySection(Map<String, dynamic> run) {
+    final activityLabel = _runActivityLabel(run);
     return GestureDetector(
       onTap: () => _viewRunDetails(run),
       child: Container(
@@ -3374,12 +3421,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                  child: const Icon(Icons.directions_run, color: AppColors.accent, size: 22),
+                  child: Icon(_runActivityIcon(activityLabel), color: AppColors.accent, size: 22),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Running Summary',
+                    '$activityLabel Summary',
                     style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -3397,6 +3444,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
               ],
             ),
             const SizedBox(height: 16),
+            _buildDetailRow(Icons.category_outlined, 'Activity', activityLabel),
+            const SizedBox(height: 8),
             _buildDetailRow(Icons.route, 'Distance', run['distance'] ?? '0 km'),
             const SizedBox(height: 8),
             _buildDetailRow(Icons.timer, 'Time', run['time'] ?? '0:00'),
@@ -3410,12 +3459,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
-  void _viewRunDetails(Map<String, dynamic> runData) {
+  Future<void> _viewRunDetails(Map<String, dynamic> runData) async {
     try {
       // If we have the actual RunModel stored, use it directly
       if (runData['runModel'] != null && runData['runModel'] is RunModel) {
         Get.toNamed(AppRoutes.runDetail, arguments: runData['runModel'] as RunModel);
         return;
+      }
+
+      final runId = runData['id']?.toString().trim();
+      if (runId != null && runId.isNotEmpty && Get.isRegistered<StorageService>()) {
+        final runs = await Get.find<StorageService>().getRuns();
+        for (final stored in runs) {
+          if (stored.id == runId || stored.backendLogId == runId) {
+            Get.toNamed(AppRoutes.runDetail, arguments: stored);
+            return;
+          }
+        }
       }
 
       // Otherwise, parse the run data from planner format to RunModel
@@ -3442,11 +3502,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
       // Get calories
       final calories = runData['calories'] is int ? runData['calories'] as int : (runData['calories'] is String ? int.tryParse(runData['calories'].toString()) ?? 0 : 0);
 
+      final activityType = _runActivityLabel(runData);
+
       // Create RunModel from parsed data
       final runModel = RunModel(
         id: runData['id'] ?? 'planner_${_selectedDate.millisecondsSinceEpoch}',
         userId: 'current_user',
-        activityType: 'run',
+        activityType: activityType,
         distanceMeters: distanceMeters,
         duration: duration,
         startTime: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, DateTime.now().hour, DateTime.now().minute),

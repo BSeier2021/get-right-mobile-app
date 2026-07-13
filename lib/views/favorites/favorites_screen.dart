@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/favorites_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/trainer_certification_helper.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
@@ -490,11 +491,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.star_rounded, size: 14, color: _kCertifiedGreen),
-                      Text(rating.toStringAsFixed(1), style: AppTextStyles.labelSmall.copyWith(color: _kFavoritesForestGreen, fontWeight: FontWeight.w600, fontSize: 11)),
+                      Icon(Icons.star_rounded, size: 14, color: AppColors.accent),
+                      Text(
+                        rating.toStringAsFixed(1),
+                        style: AppTextStyles.labelSmall.copyWith(color: Colors.black, fontWeight: FontWeight.w600, fontSize: 11),
+                      ),
                       const SizedBox(width: 8),
-                      Icon(Icons.people_alt_rounded, size: 14, color: _kCertifiedGreen),
-                      Text(enrolled, style: AppTextStyles.labelSmall.copyWith(color: _kFavoritesForestGreen, fontWeight: FontWeight.w600, fontSize: 11)),
+                      Icon(Icons.people_alt_rounded, size: 14, color: Colors.black),
+                      Text(
+                        enrolled,
+                        style: AppTextStyles.labelSmall.copyWith(color: Colors.black, fontWeight: FontWeight.w600, fontSize: 11),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 10),

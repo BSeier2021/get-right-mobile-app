@@ -3,6 +3,7 @@ import 'dart:async' show unawaited;
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:get_right/models/hls_video_quality.dart';
+import 'package:get_right/services/feed_playback_coordinator.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/feed_media_url.dart';
@@ -68,29 +69,46 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
     return 1;
   }
 
-  Future<void> _disposeControllerQuiet(VideoPlayerController? controller) async {
+  Future<void> _haltController(VideoPlayerController? controller) async {
     if (controller == null) return;
     try {
       if (controller.value.isInitialized) {
+        await controller.setLooping(false);
         await controller.pause();
+        await controller.setVolume(0);
       }
+    } catch (e, st) {
+      debugPrint('FeedReel: halt failed → $e\n$st');
+    }
+  }
+
+  Future<void> _disposeControllerQuiet(VideoPlayerController? controller) async {
+    if (controller == null) return;
+    try {
+      await _haltController(controller);
       await controller.dispose();
     } catch (e, st) {
       debugPrint('FeedReel: controller.dispose failed → $e\n$st');
     }
   }
 
-  /// Pause immediately; dispose after the overlay subtree drops listeners (avoids setState on deactivated widgets).
-  void _pauseAndScheduleDisposeAllControllers() {
+  void _onGlobalPauseRequest() {
+    _forceStopAllPlayback();
+  }
+
+  void _forceStopAllPlayback() {
     for (final c in _controllers.values) {
-      if (c.value.isInitialized) {
-        c.pause();
-      }
+      unawaited(_haltController(c));
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || widget.active) return;
+      if (!mounted) return;
       _disposeAllControllers();
     });
+  }
+
+  /// Pause immediately; dispose after the overlay subtree drops listeners (avoids setState on deactivated widgets).
+  void _pauseAndScheduleDisposeAllControllers() {
+    _forceStopAllPlayback();
   }
 
   Future<Uri> _resolveReelPlaybackUri(String rawUrl) async {
@@ -161,6 +179,7 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
   @override
   void initState() {
     super.initState();
+    FeedPlaybackCoordinator.instance.addListener(_onGlobalPauseRequest);
     _currentIndex = widget.pageController.initialPage.clamp(0, widget.posts.isEmpty ? 0 : widget.posts.length - 1);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || widget.posts.isEmpty || !widget.active) return;
@@ -195,6 +214,7 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
 
   @override
   void dispose() {
+    FeedPlaybackCoordinator.instance.removeListener(_onGlobalPauseRequest);
     final toClose = List<VideoPlayerController>.from(_controllers.values);
     _controllers.clear();
     for (final c in toClose) {
@@ -252,10 +272,11 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
     for (final e in _controllers.entries) {
       if (e.key == index) {
         e.value.setLooping(true);
+        e.value.setVolume(1);
         e.value.play();
         _isPlaying[e.key] = true;
       } else {
-        e.value.pause();
+        unawaited(_haltController(e.value));
         _isPlaying[e.key] = false;
       }
     }
@@ -319,6 +340,7 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
 
         _controllers[index] = controller;
         await controller.setLooping(true);
+        await controller.setVolume(1);
 
         final shouldPlay = widget.active && index == _currentIndex;
         _isPlaying[index] = shouldPlay;
@@ -355,7 +377,7 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
     _currentIndex = index;
 
     if (_controllers.containsKey(prev)) {
-      _controllers[prev]?.pause();
+      unawaited(_haltController(_controllers[prev]));
       _isPlaying[prev] = false;
     }
 
@@ -381,9 +403,11 @@ class _FeedVerticalReelsState extends State<FeedVerticalReels> {
     final controller = _controllers[index]!;
     if (!controller.value.isInitialized) return;
     if (controller.value.isPlaying) {
-      controller.pause();
+      unawaited(_haltController(controller));
       _isPlaying[index] = false;
     } else {
+      controller.setLooping(true);
+      controller.setVolume(1);
       controller.play();
       _isPlaying[index] = true;
     }

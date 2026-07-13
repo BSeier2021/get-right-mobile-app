@@ -13,6 +13,7 @@ import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/trainer_certification_helper.dart';
 import 'package:get_right/utils/feed_media_url.dart';
 import 'package:get_right/utils/feed_post_mapper.dart';
+import 'package:get_right/services/feed_playback_coordinator.dart';
 import 'package:get_right/views/feed/feed_reel_overlay.dart';
 import 'package:get_right/views/feed/feed_vertical_reels.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
@@ -26,7 +27,7 @@ class FeedScreen extends StatefulWidget {
   State<FeedScreen> createState() => _FeedScreenState();
 }
 
-class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateMixin, RouteAware {
+class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateMixin, RouteAware, WidgetsBindingObserver {
   late TabController _tabController;
   final FeedRepository _feedRepo = FeedRepository();
   final Map<int, PageController> _pageControllers = {};
@@ -62,6 +63,9 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   /// False when another route is pushed above the host route (e.g. profile, search from feed).
   bool _feedHostRouteVisible = true;
 
+  /// False when the app is backgrounded or inactive (iOS may keep AVPlayer audio without this).
+  bool _appInForeground = true;
+
   ModalRoute<dynamic>? _routeSubscription;
 
   bool _isHomeFeedTabSelected() {
@@ -80,7 +84,11 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
   /// Reels autoplay only when Feed tab + inner tab selected and this route is not covered.
   bool _reelsActiveForInnerTab(int innerTabIndex) {
-    return _feedHostRouteVisible && _isHomeFeedTabSelected() && _tabController.index == innerTabIndex;
+    return _appInForeground && _feedHostRouteVisible && _isHomeFeedTabSelected() && _tabController.index == innerTabIndex;
+  }
+
+  void _pauseFeedPlayback() {
+    FeedPlaybackCoordinator.instance.requestPause();
   }
 
   void _disposePageControllerForTab(int tabIndex) {
@@ -141,6 +149,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
 
     _tabController.addListener(() {
@@ -160,6 +169,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         _homeTabWorker = ever<int>(nav.currentIndexRx, (idx) {
           if (!mounted) return;
           if (idx != 1) {
+            _pauseFeedPlayback();
             _clearFeedReelCaches(clearFullImageCache: false);
           }
           setState(() {});
@@ -189,12 +199,28 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
   @override
   void didPushNext() {
+    _pauseFeedPlayback();
     if (mounted) setState(() => _feedHostRouteVisible = false);
   }
 
   @override
   void didPopNext() {
-    if (mounted) setState(() => _feedHostRouteVisible = true);
+    if (mounted) {
+      setState(() {
+        _feedHostRouteVisible = true;
+      });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final inForeground = state == AppLifecycleState.resumed;
+    if (_appInForeground == inForeground) return;
+    _appInForeground = inForeground;
+    if (!inForeground) {
+      _pauseFeedPlayback();
+    }
+    if (mounted) setState(() {});
   }
 
   /// First time user opens the Feed bottom tab: load only "For You". "Following" loads when that inner tab is selected.
@@ -211,6 +237,8 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    _pauseFeedPlayback();
+    WidgetsBinding.instance.removeObserver(this);
     _clearFeedReelCaches(clearFullImageCache: true);
     appRouteObserver.unsubscribe(this);
     _homeTabWorker?.dispose();
@@ -716,12 +744,17 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   }
 
   void _showSearchScreen() {
+    _pauseFeedPlayback();
+    setState(() => _feedHostRouteVisible = false);
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => _SearchScreen(allPosts: _feedPosts, mapFeedDocuments: _mapFeedDocuments, onPostTap: _openFeedReel, buildExploreGridItem: _buildExploreGridItem),
       ),
-    );
+    ).whenComplete(() {
+      if (!mounted) return;
+      setState(() => _feedHostRouteVisible = true);
+    });
   }
 
   Widget _buildExploreGridItem(Map<String, dynamic> post) {
@@ -778,7 +811,12 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       Get.snackbar('Feed', 'This post could not be opened.', snackPosition: SnackPosition.BOTTOM);
       return;
     }
-    Get.toNamed(AppRoutes.feedSingleReel, arguments: <String, dynamic>{'feedId': id});
+    _pauseFeedPlayback();
+    setState(() => _feedHostRouteVisible = false);
+    Get.toNamed(AppRoutes.feedSingleReel, arguments: <String, dynamic>{'feedId': id})?.whenComplete(() {
+      if (!mounted) return;
+      setState(() => _feedHostRouteVisible = true);
+    });
   }
 
   // ignore: unused_element

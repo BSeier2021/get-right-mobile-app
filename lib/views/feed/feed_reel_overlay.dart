@@ -9,6 +9,7 @@ import 'package:get_right/models/shared_content_model.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/repo/workout_repo.dart';
+import 'package:get_right/services/feed_playback_coordinator.dart';
 import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/views/feed/feed_comments_sheet.dart';
@@ -354,11 +355,13 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       'totalPrograms': 17,
     };
 
+    FeedPlaybackCoordinator.instance.requestPause();
     Get.toNamed(AppRoutes.trainerProfile, arguments: trainerData);
   }
 
   void _openCommentsSheet(BuildContext dialogContext) {
     if (!dialogContext.mounted) return;
+    FeedPlaybackCoordinator.instance.requestPause();
     final feedId = (_post['id'] ?? _post['_id'] ?? _post['feedId'] ?? '').toString().trim();
     if (feedId.isEmpty) return;
 
@@ -692,6 +695,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       );
       return;
     }
+    FeedPlaybackCoordinator.instance.requestPause();
     ShareToChatService.share(context: hostContext, type: SharedContentType.feed, contentId: feedId);
   }
 

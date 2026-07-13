@@ -25,6 +25,7 @@ import 'package:get_right/views/profile/edit_profile_screen.dart';
 import 'package:get_right/views/profile/followers_screen.dart';
 import 'package:get_right/views/profile/following_screen.dart';
 import 'package:get_right/views/journal/My_work_screen.dart';
+import 'package:get_right/views/journal/completed_workouts_screen.dart';
 import 'package:get_right/views/journal/workout_journal_screen.dart';
 import 'package:get_right/views/journal/workout_timer_screen.dart';
 import 'package:get_right/views/journal/add_workout_screen.dart';
@@ -132,6 +133,7 @@ class AppPages {
     // Journal Pages
     GetPage(name: AppRoutes.journal, page: () => const WorkoutScreen(), transition: Transition.fade),
     GetPage(name: AppRoutes.workoutJournal, page: () => const WorkoutJournalScreen(), transition: Transition.fade),
+    GetPage(name: AppRoutes.completedWorkouts, page: () => const CompletedWorkoutsScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.workoutTimer, page: () => const WorkoutTimerScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.addWorkout, page: () => const AddWorkoutScreen(), transition: Transition.downToUp),
     GetPage(name: AppRoutes.addExercise, page: () => const AddExerciseScreen(), transition: Transition.downToUp),
@@ -155,7 +157,19 @@ class AppPages {
     GetPage(name: AppRoutes.activityTypeSelection, page: () => const ActivityTypeSelectionScreen(), transition: Transition.rightToLeft),
 
     // Planner Pages
-    GetPage(name: AppRoutes.planner, page: () => const PlannerScreen(), transition: Transition.fade),
+    GetPage(name: AppRoutes.planner, page: () {
+      final args = Get.arguments;
+      DateTime? initialDate;
+      if (args is Map) {
+        final raw = args['selectedDate'];
+        if (raw is DateTime) {
+          initialDate = raw;
+        } else if (raw is String) {
+          initialDate = DateTime.tryParse(raw);
+        }
+      }
+      return PlannerScreen(initialDate: initialDate);
+    }, transition: Transition.fade),
     GetPage(name: AppRoutes.createPlan, page: () => const CreatePlanScreen(), transition: Transition.downToUp),
 
     // Marketplace Pages

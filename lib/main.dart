@@ -9,6 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:get_right/theme/app_theme.dart';
 import 'package:get_right/routes/app_pages.dart';
 import 'package:get_right/routes/app_route_observer.dart';
+import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/services/feed_playback_coordinator.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -209,6 +211,12 @@ class GetRightApp extends StatelessWidget {
             initialRoute: AppPages.initial,
             getPages: AppPages.routes,
             navigatorObservers: [appRouteObserver],
+            routingCallback: (routing) {
+              final current = routing?.current ?? '';
+              if (current != AppRoutes.home) {
+                FeedPlaybackCoordinator.instance.requestPause();
+              }
+            },
 
             // Default transition
             defaultTransition: Transition.cupertino,

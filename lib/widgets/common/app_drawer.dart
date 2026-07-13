@@ -152,6 +152,14 @@ class _AppDrawerState extends State<AppDrawer> {
                   const SizedBox(height: 4),
                   _drawerItem(asset: 'assets/images/Vector.png', fallbackIcon: Icons.fitness_center_outlined, title: 'Workout Journal', onTap: _navigateToWorkoutJournal),
                   _drawerItem(
+                    fallbackIcon: Icons.task_alt_outlined,
+                    title: 'Completed Workouts',
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed(AppRoutes.completedWorkouts);
+                    },
+                  ),
+                  _drawerItem(
                     asset: 'assets/images/diagram.png',
                     fallbackIcon: Icons.show_chart_rounded,
                     title: 'Progress',

@@ -7,11 +7,21 @@ import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
 class WorkoutJournalListPage {
-  const WorkoutJournalListPage({required this.entries, required this.page, required this.limit, this.syncFailed = false, this.syncError});
+  const WorkoutJournalListPage({
+    required this.entries,
+    required this.page,
+    required this.limit,
+    this.hasMore = false,
+    this.totalDocs = 0,
+    this.syncFailed = false,
+    this.syncError,
+  });
 
   final List<WorkoutJournalModel> entries;
   final int page;
   final int limit;
+  final bool hasMore;
+  final int totalDocs;
 
   /// True when the list API failed (e.g. backend populate error) — caller may keep local state.
   final bool syncFailed;
@@ -112,36 +122,98 @@ class WorkoutRepository {
     return id;
   }
 
-  /// `GET /customer/workout-journal?page=&limit=&dateFrom=&dateTo=` → journal entry list.
+  /// `GET /customer/workout-journal?page=&limit=&dateFrom=&dateTo=&status=` → journal entry list.
   ///
   /// When [dateFrom] is set without [dateTo], both bounds use the same normalized day.
-  /// Returns an empty page with [WorkoutJournalListPage.syncFailed] when the server
-  /// responds with 5xx (e.g. invalid Mongoose populate on `workout.refExercise.thumbnail`).
-  Future<WorkoutJournalListPage> fetchWorkoutJournalEntries({int page = 1, int limit = 10, DateTime? dateFrom, DateTime? dateTo}) async {
+  /// Pass [status] `completed` to load finished workouts only.
+  Future<WorkoutJournalListPage> fetchWorkoutJournalEntries({
+    int page = 1,
+    int limit = 10,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    String? status,
+  }) async {
     final fromIso = dateFrom != null ? toJournalDate(dateFrom) : null;
     final toIso = dateTo != null ? toJournalDate(dateTo) : fromIso;
     try {
-      final raw = await _network.get(AppUrl.customerWorkoutJournalList(page: page, limit: limit, dateFrom: fromIso, dateTo: toIso));
+      final raw = await _network.get(
+        AppUrl.customerWorkoutJournalList(
+          page: page,
+          limit: limit,
+          dateFrom: fromIso,
+          dateTo: toIso,
+          status: status,
+        ),
+      );
       if (!_isOk(raw)) {
         throw Exception(_messageFrom(raw) ?? 'Could not load workout journal');
       }
 
-      final entries = <WorkoutJournalModel>[];
-      if (raw is Map) {
-        final data = raw['data'];
-        if (data is List) {
-          for (final item in data) {
-            if (item is Map) {
-              entries.add(journalFromApiEntry(Map<String, dynamic>.from(item)));
-            }
-          }
-        }
-      }
-
-      return WorkoutJournalListPage(entries: entries, page: page, limit: limit);
+      return _parseJournalListResponse(raw, page: page, limit: limit);
     } on ServerException catch (e) {
       return WorkoutJournalListPage(entries: [], page: page, limit: limit, syncFailed: true, syncError: e.message);
     }
+  }
+
+  static WorkoutJournalListPage _parseJournalListResponse(dynamic raw, {required int page, required int limit}) {
+    final entries = <WorkoutJournalModel>[];
+    var totalDocs = 0;
+    var hasMore = false;
+
+    if (raw is Map) {
+      final data = raw['data'];
+      if (data is List) {
+        for (final item in data) {
+          if (item is Map) entries.add(journalFromApiEntry(Map<String, dynamic>.from(item)));
+        }
+        totalDocs = entries.length;
+        hasMore = entries.length >= limit;
+      } else if (data is Map) {
+        final dm = Map<String, dynamic>.from(data);
+        final list = dm['journals'] ?? dm['workoutJournals'] ?? dm['entries'] ?? dm['docs'];
+        if (list is List) {
+          for (final item in list) {
+            if (item is Map) entries.add(journalFromApiEntry(Map<String, dynamic>.from(item)));
+          }
+        }
+        totalDocs = (dm['totalDocs'] as num?)?.toInt() ?? entries.length;
+        if (dm['hasNextPage'] is bool) {
+          hasMore = dm['hasNextPage'] as bool;
+        } else {
+          final currentPage = (dm['currentPage'] as num?)?.toInt() ?? page;
+          final totalPages = (dm['totalPages'] as num?)?.toInt();
+          if (totalPages != null) {
+            hasMore = currentPage < totalPages;
+          } else {
+            hasMore = entries.length >= limit && (page * limit) < totalDocs;
+          }
+        }
+      }
+    }
+
+    return WorkoutJournalListPage(
+      entries: entries,
+      page: page,
+      limit: limit,
+      hasMore: hasMore,
+      totalDocs: totalDocs,
+    );
+  }
+
+  /// Completed workout journals for history screens (`status=completed`).
+  Future<WorkoutJournalListPage> fetchCompletedWorkoutJournals({
+    int page = 1,
+    int limit = 10,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+  }) {
+    return fetchWorkoutJournalEntries(
+      page: page,
+      limit: limit,
+      dateFrom: dateFrom,
+      dateTo: dateTo,
+      status: 'completed',
+    );
   }
 
   static JournalExerciseType? workoutItemTypeFromMap(Map<String, dynamic> map) => _workoutItemTypeFromMap(map);
@@ -164,6 +236,14 @@ class WorkoutRepository {
     final caloriesRaw = entry['caloriesBurned'];
     final caloriesBurned = caloriesRaw is num ? caloriesRaw.round() : int.tryParse(caloriesRaw?.toString() ?? '');
     final journalType = entry['type']?.toString();
+    final notes = entry['notes']?.toString().trim();
+    final isComplete = entry['isComplete'] == true || entry['status']?.toString().toLowerCase() == 'completed';
+    DateTime? completedAt;
+    if (isComplete) {
+      completedAt = DateTime.tryParse(entry['completedAt']?.toString() ?? '') ??
+          DateTime.tryParse(entry['updatedAt']?.toString() ?? '') ??
+          date;
+    }
 
     final warmupExercises = <WorkoutExerciseModel>[];
     final workoutExercises = <WorkoutExerciseModel>[];
@@ -194,8 +274,10 @@ class WorkoutRepository {
       workoutExercises: workoutExercises,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      completedAt: completedAt,
       durationSeconds: duration,
       caloriesBurned: caloriesBurned,
+      notes: notes?.isNotEmpty == true ? notes : null,
     );
   }
 
