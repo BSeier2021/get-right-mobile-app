@@ -2638,6 +2638,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   icon: const Icon(Icons.chevron_left),
                   color: AppColors.accent,
                 ),
+                
                 Expanded(
                   child: NotificationListener<ScrollNotification>(
                     onNotification: (notification) => notification.metrics.axis == Axis.horizontal,
