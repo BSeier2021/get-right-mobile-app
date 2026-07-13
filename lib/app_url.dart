@@ -313,7 +313,7 @@ class AppUrl {
     return '$path?$q';
   }
 
-  /// `GET /customer/workout-journal` — query: `page`, `limit`, `dateFrom`, `dateTo`, optional `status` (e.g. `completed`).
+  /// `GET /customer/workout-journal` — query: `page`, `limit`, `dateFrom`, `dateTo`, optional `status` (`Active` | `Completed` | `Incomplete`).
   static String customerWorkoutJournalList({
     int page = 1,
     int limit = 10,

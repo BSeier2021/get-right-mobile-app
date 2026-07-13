@@ -862,11 +862,19 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     return true;
   }
 
-  DateTime _defaultProgramCalendarStartDate() {
-    final start = _enrollmentStartDateValue();
-    if (start != null) return start;
+  DateTime _calendarMinStartDate() {
     final now = DateTime.now();
     return DateTime(now.year, now.month, now.day);
+  }
+
+  DateTime _defaultProgramCalendarStartDate() {
+    final today = _calendarMinStartDate();
+    final start = _enrollmentStartDateValue();
+    if (start != null) {
+      final normalized = DateTime(start.year, start.month, start.day);
+      return normalized.isBefore(today) ? today : normalized;
+    }
+    return today;
   }
 
   int get _programWorkoutDayCount => _workoutDaysList().length;
@@ -973,8 +981,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
-                          initialDate: selectedDate,
-                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                          initialDate: selectedDate.isBefore(_calendarMinStartDate()) ? _calendarMinStartDate() : selectedDate,
+                          firstDate: _calendarMinStartDate(),
                           lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
                         );
                         if (picked != null) {
@@ -1041,6 +1049,18 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     final enrollmentId = _enrollmentIdForCalendar();
     if (programId == null || enrollmentId == null) {
       Get.snackbar('Calendar', 'Enrollment information is missing.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    final normalizedStart = DateTime(startDate.year, startDate.month, startDate.day);
+    if (normalizedStart.isBefore(_calendarMinStartDate())) {
+      Get.snackbar(
+        'Calendar',
+        'You cannot schedule a program on a past date.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+      );
       return;
     }
 

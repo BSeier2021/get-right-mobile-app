@@ -125,7 +125,7 @@ class WorkoutRepository {
   /// `GET /customer/workout-journal?page=&limit=&dateFrom=&dateTo=&status=` → journal entry list.
   ///
   /// When [dateFrom] is set without [dateTo], both bounds use the same normalized day.
-  /// Pass [status] `completed` to load finished workouts only.
+  /// Pass [status] `Completed` to load finished workouts only.
   Future<WorkoutJournalListPage> fetchWorkoutJournalEntries({
     int page = 1,
     int limit = 10,
@@ -200,7 +200,7 @@ class WorkoutRepository {
     );
   }
 
-  /// Completed workout journals for history screens (`status=completed`).
+  /// Completed workout journals for history screens (`status=Completed`).
   Future<WorkoutJournalListPage> fetchCompletedWorkoutJournals({
     int page = 1,
     int limit = 10,
@@ -212,7 +212,7 @@ class WorkoutRepository {
       limit: limit,
       dateFrom: dateFrom,
       dateTo: dateTo,
-      status: 'completed',
+      status: 'Completed',
     );
   }
 

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -32,6 +33,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
   File? _profileImageFile;
   bool _agreedToTerms = false;
 
+  late final TapGestureRecognizer _termsTapRecognizer;
+  late final TapGestureRecognizer _privacyTapRecognizer;
+
   DateTime? _dateOfBirth;
   String? _selectedGender;
 
@@ -42,6 +46,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
   @override
   void initState() {
     super.initState();
+    _termsTapRecognizer = TapGestureRecognizer()..onTap = () => Get.toNamed(AppRoutes.termsConditions);
+    _privacyTapRecognizer = TapGestureRecognizer()..onTap = () => Get.toNamed(AppRoutes.privacyPolicy);
     _setupAnimations();
   }
 
@@ -54,6 +60,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
 
   @override
   void dispose() {
+    _termsTapRecognizer.dispose();
+    _privacyTapRecognizer.dispose();
     _fullNameController.dispose();
     _phoneController.dispose();
     _weightController.dispose();
@@ -334,18 +342,28 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                                   TextSpan(
                                     text: 'By continuing, you agree to GetRight\'s ',
                                     style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.75), fontSize: 13.sp, fontWeight: FontWeight.w400),
-                                    children: const [
+                                    children: [
                                       TextSpan(
                                         text: 'Terms &\nConditions',
-                                        style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700),
+                                        style: const TextStyle(
+                                          color: AppColors.accent,
+                                          fontWeight: FontWeight.w700,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                        recognizer: _termsTapRecognizer,
                                       ),
                                       TextSpan(
                                         text: ' and ',
-                                        style: TextStyle(color: AppColors.onBackground),
+                                        style: TextStyle(color: AppColors.onBackground.withOpacity(0.75)),
                                       ),
                                       TextSpan(
                                         text: 'Privacy Policy',
-                                        style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700),
+                                        style: const TextStyle(
+                                          color: AppColors.accent,
+                                          fontWeight: FontWeight.w700,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                        recognizer: _privacyTapRecognizer,
                                       ),
                                     ],
                                   ),

@@ -48,6 +48,13 @@ class _AddDateScreenState extends State<AddDateScreen> {
 
   String get _formattedDate => DateFormat.yMMMMd().format(widget.selectedDate);
 
+  bool get _isSelectedDateToday {
+    final selected = DateTime(widget.selectedDate.year, widget.selectedDate.month, widget.selectedDate.day);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return selected == today;
+  }
+
   Future<bool> _saveCalendarNotes(String notes) async {
     setState(() => _isSaving = true);
     try {
@@ -133,7 +140,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Log manually or track with GPS',
+                  _isSelectedDateToday ? 'Log manually or track with GPS' : 'Log run details manually',
                   style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
                 ),
                 const SizedBox(height: 16),
@@ -146,16 +153,18 @@ class _AddDateScreenState extends State<AddDateScreen> {
                     _openManualRunScreen();
                   },
                 ),
-                const SizedBox(height: 10),
-                _buildRunOptionTile(
-                  icon: Icons.gps_fixed,
-                  title: 'Track with GPS',
-                  subtitle: 'Use live tracking on the map',
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _openRunnerLog();
-                  },
-                ),
+                if (_isSelectedDateToday) ...[
+                  const SizedBox(height: 10),
+                  _buildRunOptionTile(
+                    icon: Icons.gps_fixed,
+                    title: 'Track with GPS',
+                    subtitle: 'Use live tracking on the map',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _openRunnerLog();
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -509,8 +518,8 @@ class _AddDateScreenState extends State<AddDateScreen> {
                     iconBg: const Color(0xFFFFE8D1),
                     title: 'Add Run',
                     subtitle: reuseOptions.any((o) => o.kind == PlannerReuseKind.plannedRoute || o.kind == PlannerReuseKind.savedActivity)
-                        ? 'Add another run, log manually, or track with GPS'
-                        : 'Log manually or track with GPS',
+                        ? (_isSelectedDateToday ? 'Add another run, log manually, or track with GPS' : 'Add another run or log manually')
+                        : (_isSelectedDateToday ? 'Log manually or track with GPS' : 'Log run details manually'),
                     onTap: _isSaving ? () {} : _handleAddRun,
                   ),
                   const SizedBox(height: 12),
