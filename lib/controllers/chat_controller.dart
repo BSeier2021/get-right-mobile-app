@@ -7,6 +7,7 @@ import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/network/network_services.dart';
 import 'package:get_right/repo/chat_repo.dart';
+import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/api_service.dart';
 import 'package:get_right/services/chat_audio_player_service.dart';
 import 'package:get_right/services/chat_socket_service.dart';
@@ -25,11 +26,13 @@ class ChatController extends GetxController {
   StreamSubscription<Map<String, dynamic>>? _userStatusSub;
   StreamSubscription<Map<String, dynamic>>? _conversationBlockSub;
   StreamSubscription<Map<String, dynamic>>? _conversationUpdatedSub;
+  StreamSubscription<Map<String, dynamic>>? _newMessageSub;
   StreamSubscription<bool>? _connectionSub;
   Timer? _typingIdleTimer;
   Timer? _remoteTypingClearTimer;
   bool _isLocalTyping = false;
   bool _socketListenersAttached = false;
+  bool _blockExitScheduled = false;
 
   // Observable lists
   final RxList<ConversationModel> conversations = <ConversationModel>[].obs;
@@ -49,10 +52,13 @@ class ChatController extends GetxController {
   final RxBool isBlockedByMe = false.obs;
   final RxBool isBlockedByOther = false.obs;
   final RxInt participantProfilesRevision = 0.obs;
+  final RxBool otherUserIsOnline = false.obs;
+  final RxInt userPresenceRevision = 0.obs;
   final Rxn<String> currentConversationId = Rxn<String>();
   final Rxn<String> currentTrainerId = Rxn<String>();
   final Rxn<String> currentProgramId = Rxn<String>();
   final Map<String, ChatParticipantProfile> _participantProfiles = {};
+  final Map<String, bool> _userOnlineById = {};
 
   static const int _pageLimit = 10;
   static const int _messagesPageLimit = 20;
@@ -86,6 +92,7 @@ class ChatController extends GetxController {
     _userStatusSub = _chatSocket.onUserStatusChanged.listen(_handleSocketUserStatusChanged);
     _conversationBlockSub = _chatSocket.onConversationBlockChanged.listen(_handleConversationBlockChanged);
     _conversationUpdatedSub = _chatSocket.onConversationUpdated.listen(_handleConversationUpdated);
+    _newMessageSub = _chatSocket.onNewMessage.listen(_handleSocketNewMessage);
     _connectionSub = _chatSocket.onConnectionChanged.listen((connected) {
       if (!connected) return;
       final conversationId = currentConversationId.value;
@@ -102,11 +109,13 @@ class ChatController extends GetxController {
     _userStatusSub?.cancel();
     _conversationBlockSub?.cancel();
     _conversationUpdatedSub?.cancel();
+    _newMessageSub?.cancel();
     _connectionSub?.cancel();
     _userTypingSub = null;
     _userStatusSub = null;
     _conversationBlockSub = null;
     _conversationUpdatedSub = null;
+    _newMessageSub = null;
     _connectionSub = null;
     _socketListenersAttached = false;
   }
@@ -177,6 +186,7 @@ class ChatController extends GetxController {
         );
         messages[tempIndex] = message;
         messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        messages.refresh();
         debugPrint('[Chat] socket replaced temp message: ${message.id}');
         return;
       }
@@ -189,7 +199,12 @@ class ChatController extends GetxController {
 
     messages.insert(0, message);
     messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    messages.refresh();
     debugPrint('[Chat] socket message added: ${message.id}');
+
+    if (me != null && message.senderId != me) {
+      unawaited(markAsRead(conversationId));
+    }
   }
 
   void _upsertMessage(ChatMessageModel message, {String? removeTempId}) {
@@ -289,7 +304,7 @@ class ChatController extends GetxController {
     final conversationId = _chatStr(root['conversationId'] ?? payload['conversationId']);
     if (conversationId.isEmpty || !_isSameConversation(currentConversationId.value, conversationId)) return;
 
-    final typingUserId = _chatStr(payload['userId'] ?? payload['user'] ?? payload['senderId'] ?? payload['sender']);
+    final typingUserId = ChatRepository.extractUserId(payload['userId'] ?? payload['user'] ?? payload['senderId'] ?? payload['sender']);
     final me = currentUserId;
     if (me != null && typingUserId.isNotEmpty && typingUserId == me) return;
 
@@ -315,45 +330,155 @@ class ChatController extends GetxController {
 
   void _handleSocketUserStatusChanged(Map<String, dynamic> payload) {
     _applyConversationBlockStatus(payload);
+    _applyPresenceUpdatesFromPayload(payload);
+  }
 
-    final root = _unwrapSocketPayload(payload);
-    final userId = _chatStr(
-      root['userId'] ??
-          root['user'] ??
-          root['_id'] ??
-          root['id'] ??
-          payload['userId'] ??
-          payload['user'] ??
-          payload['_id'] ??
-          payload['id'],
-    );
-    if (userId.isEmpty) return;
+  void _applyPresenceUpdatesFromPayload(Map<String, dynamic> payload) {
+    final updates = ChatRepository.parsePresenceUpdatesFromPayload(payload);
+    if (updates.isEmpty) {
+      debugPrint('[Chat] presence payload ignored: $payload');
+      return;
+    }
 
-    final isOnline = root['isOnline'] == true ||
-        root['online'] == true ||
-        root['status'] == 'online' ||
-        payload['isOnline'] == true ||
-        payload['online'] == true ||
-        payload['status'] == 'online';
+    for (final update in updates) {
+      _setUserPresence(update.userId, update.isOnline);
+    }
+  }
+
+  void _setUserPresence(String userId, bool isOnline) {
+    final id = userId.trim();
+    if (id.isEmpty) return;
+
+    final me = currentUserId?.trim();
+    if (me != null && id == me) return;
+
+    _userOnlineById[id] = isOnline;
+    userPresenceRevision.value++;
+    debugPrint('[Chat] presence → $id online=$isOnline');
+
+    _updateConversationsPresence(id, isOnline);
+    _updateActiveRoomPresence(id, isOnline);
+    _syncOtherUserOnlineState();
+  }
+
+  void _updateConversationsPresence(String userId, bool isOnline) {
+    var changed = false;
+    final updated = conversations.map((conversation) {
+      if (conversation.trainerId != userId) return conversation;
+      changed = true;
+      return conversation.copyWith(isOnline: isOnline);
+    }).toList();
+
+    if (changed) {
+      conversations.value = updated;
+      conversations.refresh();
+    }
+  }
+
+  void _updateActiveRoomPresence(String userId, bool isOnline) {
+    if (currentConversationId.value == null || currentConversationId.value!.isEmpty) return;
+    if (!_activeOtherUserIds().contains(userId)) return;
 
     final existing = _participantProfiles[userId];
     _participantProfiles[userId] = (existing ?? ChatParticipantProfile(id: userId, name: 'User')).copyWith(isOnline: isOnline);
-    _bumpParticipantProfiles();
+    participantProfilesRevision.value++;
+  }
+
+  Set<String> _activeOtherUserIds() {
+    final ids = <String>{};
+    final trainerId = currentTrainerId.value?.trim();
+    if (trainerId != null && trainerId.isNotEmpty) ids.add(trainerId);
+
+    final me = currentUserId?.trim();
+    for (final profile in _participantProfiles.values) {
+      if (me == null || profile.id != me) ids.add(profile.id);
+    }
+
+    return ids;
+  }
+
+  void _syncOtherUserOnlineState() {
+    for (final id in _activeOtherUserIds()) {
+      if (_userOnlineById.containsKey(id)) {
+        otherUserIsOnline.value = _userOnlineById[id]!;
+        return;
+      }
+    }
+    otherUserIsOnline.value = otherParticipant?.isOnlineNow ?? false;
+  }
+
+  bool isUserOnline(String? userId) {
+    final id = userId?.trim();
+    if (id == null || id.isEmpty) return false;
+    return _userOnlineById[id] ?? false;
+  }
+
+  bool isConversationPartnerOnline(ConversationModel conversation) {
+    final trainerId = conversation.trainerId.trim();
+    if (trainerId.isNotEmpty && _userOnlineById.containsKey(trainerId)) {
+      return _userOnlineById[trainerId]!;
+    }
+    return conversation.isOnline == true;
   }
 
   void _markParticipantOnline(String userId) {
     final id = userId.trim();
     if (id.isEmpty) return;
 
-    final existing = _participantProfiles[id];
-    if (existing?.isOnline == true) return;
-
-    _participantProfiles[id] = (existing ?? ChatParticipantProfile(id: id, name: existing?.name ?? 'User')).copyWith(isOnline: true);
-    _bumpParticipantProfiles();
+    if (_userOnlineById[id] == true) return;
+    _setUserPresence(id, true);
   }
 
   void _bumpParticipantProfiles() {
     participantProfilesRevision.value++;
+    _syncOtherUserOnlineState();
+  }
+
+  void _mergeParticipantProfiles(Map<String, ChatParticipantProfile> profiles) {
+    if (profiles.isEmpty) return;
+
+    for (final entry in profiles.entries) {
+      final existing = _participantProfiles[entry.key];
+      final incoming = entry.value;
+      final resolvedOnline = incoming.isOnline ?? existing?.isOnline ?? _userOnlineById[entry.key];
+      _participantProfiles[entry.key] = incoming.copyWith(
+        name: incoming.name.isNotEmpty ? incoming.name : (existing?.name ?? incoming.name),
+        imageUrl: incoming.imageUrl ?? existing?.imageUrl,
+        isOnline: resolvedOnline,
+      );
+      if (resolvedOnline != null) {
+        _userOnlineById[entry.key] = resolvedOnline;
+      }
+    }
+    _syncOtherUserIdFromProfiles();
+    _bumpParticipantProfiles();
+    userPresenceRevision.value++;
+  }
+
+  void _syncOtherUserIdFromProfiles() {
+    final other = otherParticipant;
+    if (other == null) return;
+
+    final resolvedId = other.id.trim();
+    if (resolvedId.isEmpty) return;
+
+    final current = currentTrainerId.value?.trim();
+    if (current == resolvedId) return;
+
+    if (current != null && current.isNotEmpty) {
+      final currentOnline = _userOnlineById[current];
+      if (currentOnline != null && !_userOnlineById.containsKey(resolvedId)) {
+        _userOnlineById[resolvedId] = currentOnline;
+      }
+
+      final currentProfile = _participantProfiles[current];
+      if (currentProfile != null && !_participantProfiles.containsKey(resolvedId)) {
+        _participantProfiles[resolvedId] = currentProfile.copyWith(id: resolvedId);
+        _participantProfiles.remove(current);
+      }
+    }
+
+    currentTrainerId.value = resolvedId;
   }
 
   void _handleConversationBlockChanged(Map<String, dynamic> payload) {
@@ -361,17 +486,94 @@ class ChatController extends GetxController {
   }
 
   void _handleConversationUpdated(Map<String, dynamic> payload) {
+    _maybeHandleMessageFromConversationUpdated(payload);
     _applyConversationUnreadFromPayload(payload);
+    _applyPresenceUpdatesFromPayload(payload);
     onConversationUpdated(payload);
     unawaited(loadUnreadCount());
   }
 
+  void _maybeHandleMessageFromConversationUpdated(Map<String, dynamic> payload) {
+    final updates = payload['updates'];
+    if (updates is! Map) return;
+
+    final type = updates['type']?.toString().trim().toLowerCase();
+    if (type != 'message' && type != 'new_message' && type != 'new-message') return;
+
+    final data = updates['data'];
+    if (data is! Map) return;
+
+    final dataMap = Map<String, dynamic>.from(data);
+    final messageRaw = dataMap['message'] is Map
+        ? Map<String, dynamic>.from(dataMap['message'] as Map)
+        : dataMap;
+    final conversationId = _extractConversationIdForUnread(payload);
+    if (conversationId.isEmpty) return;
+
+    _handleSocketNewMessage(<String, dynamic>{
+      'conversationId': conversationId,
+      'message': messageRaw,
+    });
+  }
+
+  bool _isExplicitReadReceipt(Map<String, dynamic> payload) {
+    final updates = payload['updates'];
+    if (updates is Map) {
+      final type = updates['type']?.toString().trim().toLowerCase();
+      if (type == 'read' || type == 'mark_read' || type == 'messages_read' || type == 'message_read') {
+        return true;
+      }
+    }
+    final type = payload['type']?.toString().trim().toLowerCase();
+    return type == 'read' || type == 'mark_read' || type == 'messages_read' || type == 'message_read';
+  }
+
+  String _extractConversationIdForUnread(Map<String, dynamic> payload) {
+    final direct = _chatStr(payload['conversationId']);
+    if (direct.isNotEmpty) return direct;
+
+    final conversation = payload['conversation'];
+    if (conversation is Map) {
+      final id = _chatStr(Map<String, dynamic>.from(conversation)['_id'] ?? Map<String, dynamic>.from(conversation)['id']);
+      if (id.isNotEmpty) return id;
+    }
+
+    final data = payload['data'];
+    if (data is Map) {
+      final dataMap = Map<String, dynamic>.from(data);
+      final nestedId = _chatStr(dataMap['conversationId']);
+      if (nestedId.isNotEmpty) return nestedId;
+      final nestedConversation = dataMap['conversation'];
+      if (nestedConversation is Map) {
+        final id = _chatStr(Map<String, dynamic>.from(nestedConversation)['_id'] ?? Map<String, dynamic>.from(nestedConversation)['id']);
+        if (id.isNotEmpty) return id;
+      }
+    }
+
+    final updates = payload['updates'];
+    if (updates is Map) {
+      final updateData = updates['data'];
+      if (updateData is Map) {
+        final updateMap = Map<String, dynamic>.from(updateData);
+        final nestedId = _chatStr(updateMap['conversationId']);
+        if (nestedId.isNotEmpty) return nestedId;
+      }
+    }
+
+    return '';
+  }
+
   void _applyConversationUnreadFromPayload(Map<String, dynamic> payload) {
-    final conversationId = _extractConversationId(payload, payload);
+    final conversationId = _extractConversationIdForUnread(payload);
     if (conversationId.isEmpty) return;
 
     final unreadCount = _extractUnreadCountFromPayload(payload);
     if (unreadCount == null) return;
+
+    final viewing = _isViewingConversation(conversationId);
+    if (unreadCount == 0 && !viewing && !_isExplicitReadReceipt(payload)) {
+      return;
+    }
 
     final index = _conversationIndexFor(conversationId);
     if (index < 0) return;
@@ -404,8 +606,7 @@ class ChatController extends GetxController {
 
     final profiles = ChatRepository.participantProfilesFromPayload(payload);
     if (profiles.isNotEmpty) {
-      _participantProfiles.addAll(profiles);
-      _bumpParticipantProfiles();
+      _mergeParticipantProfiles(profiles);
     }
   }
 
@@ -422,6 +623,31 @@ class ChatController extends GetxController {
     isBlockedByMe.value = status.isBlockedByMe;
     isBlockedByOther.value = status.isBlockedByOther || (status.isBlockedByBoth && !status.isBlockedByMe);
     debugPrint('[Chat] block status → me=${isBlockedByMe.value}, other=${isBlockedByOther.value}');
+
+    if (_isBlockSocketEvent(payload) && hasBlockRestriction) {
+      _exitToChatListOnBlock();
+    }
+  }
+
+  bool _isBlockSocketEvent(Map<String, dynamic> payload) {
+    final updates = payload['updates'];
+    if (updates is! Map) return false;
+    return updates['type']?.toString().trim().toLowerCase() == 'block';
+  }
+
+  void _exitToChatListOnBlock() {
+    if (_blockExitScheduled || Get.currentRoute != AppRoutes.chatRoom) return;
+    _blockExitScheduled = true;
+
+    leaveChatRoom();
+    unawaited(refreshConversations());
+
+    Future.microtask(() {
+      _blockExitScheduled = false;
+      if (Get.currentRoute == AppRoutes.chatRoom) {
+        Get.offNamed(AppRoutes.chatList);
+      }
+    });
   }
 
   /// Refresh only conversation block flags (e.g. after resume or socket reconnect).
@@ -558,15 +784,28 @@ class ChatController extends GetxController {
       id: id,
       name: (name?.trim().isNotEmpty ?? false) ? name!.trim() : (existing?.name ?? 'User'),
       imageUrl: imageUrl ?? existing?.imageUrl,
-      isOnline: existing?.isOnline,
+      isOnline: existing?.isOnline ?? _userOnlineById[id],
     );
     _bumpParticipantProfiles();
   }
 
+  void _seedPresenceFromConversations(Iterable<ConversationModel> items) {
+    var changed = false;
+    for (final conversation in items) {
+      final trainerId = conversation.trainerId.trim();
+      final isOnline = conversation.isOnline;
+      if (trainerId.isEmpty || isOnline == null) continue;
+      if (_userOnlineById[trainerId] != isOnline) {
+        _userOnlineById[trainerId] = isOnline;
+        changed = true;
+      }
+    }
+    if (changed) userPresenceRevision.value++;
+  }
+
   void _applyMessagesPage(ChatMessagesPage result) {
     if (result.participantProfiles.isNotEmpty) {
-      _participantProfiles.addAll(result.participantProfiles);
-      _bumpParticipantProfiles();
+      _mergeParticipantProfiles(result.participantProfiles);
     }
     messages.value = _enrichMessages(result.messages);
     hasNextMessagesPage.value = result.hasNextPage;
@@ -595,8 +834,24 @@ class ChatController extends GetxController {
       final result = await _chatRepo.fetchConversations(page: page, limit: _pageLimit, search: query, currentUserId: currentUserId);
       if (append && page > 1) {
         conversations.addAll(result.conversations);
+        _seedPresenceFromConversations(result.conversations);
       } else {
-        conversations.value = result.conversations;
+        final preservedUnread = <String, int>{
+          for (final c in conversations)
+            if (c.unreadCount > 0) c.id: c.unreadCount,
+        };
+        conversations.value = result.conversations.map((c) {
+          final localUnread = preservedUnread[c.id];
+          final presence = _userOnlineById[c.trainerId] ?? c.isOnline;
+          var next = presence != null ? c.copyWith(isOnline: presence) : c;
+          if (localUnread != null &&
+              localUnread > next.unreadCount &&
+              !_isSameConversation(currentConversationId.value, next.id)) {
+            return next.copyWith(unreadCount: localUnread);
+          }
+          return next;
+        }).toList();
+        _seedPresenceFromConversations(conversations);
       }
       hasNextPage.value = result.hasNextPage;
       await loadUnreadCount();
@@ -701,7 +956,7 @@ class ChatController extends GetxController {
     }
   }
 
-  /// Switch to a conversation — clears stale room state when the id changes.
+  /// Switch to a conversation — leaves the previous socket room without clearing other chats' unread state.
   Future<void> switchToConversation(
     String conversationId, {
     String? trainerId,
@@ -712,12 +967,29 @@ class ChatController extends GetxController {
     final id = conversationId.trim();
     if (id.isEmpty) return;
 
-    if (currentConversationId.value != id) {
-      clearConversation();
+    if (!_isSameConversation(currentConversationId.value, id)) {
+      _resetRoomStateForSwitch();
     }
 
+    currentConversationId.value = id;
+    if (trainerId != null) currentTrainerId.value = trainerId;
+    if (programId != null) currentProgramId.value = programId;
+
     _seedOtherParticipantProfile(userId: trainerId, name: trainerName, imageUrl: trainerImage);
+    _syncOtherUserOnlineState();
     await loadMessages(id, trainerId: trainerId, programId: programId);
+  }
+
+  void _resetRoomStateForSwitch() {
+    _leaveConversationSocket();
+    messages.clear();
+    _messagesPage = 1;
+    hasNextMessagesPage.value = false;
+    isBlockedByMe.value = false;
+    isBlockedByOther.value = false;
+    isOtherUserTyping.value = false;
+    _syncOtherUserOnlineState();
+    _participantProfiles.clear();
   }
 
   /// Load messages for a conversation
@@ -768,8 +1040,7 @@ class ChatController extends GetxController {
 
       final existingIds = messages.map((m) => m.id).toSet();
       if (result.participantProfiles.isNotEmpty) {
-        _participantProfiles.addAll(result.participantProfiles);
-        _bumpParticipantProfiles();
+        _mergeParticipantProfiles(result.participantProfiles);
       }
       final older = _enrichMessages(result.messages.where((m) => !existingIds.contains(m.id)).toList());
       if (older.isNotEmpty) {
@@ -937,17 +1208,22 @@ class ChatController extends GetxController {
     );
   }
 
-  /// Mark messages as read
+  /// Mark messages as read for a single conversation.
   Future<void> markAsRead(String conversationId) async {
+    final id = conversationId.trim();
+    if (id.isEmpty) return;
+
     try {
-      await _apiService.markMessagesAsRead(conversationId);
+      await _apiService.markMessagesAsRead(id);
       for (var i = 0; i < messages.length; i++) {
         final message = messages[i];
-        if (_isSameConversation(message.conversationId, conversationId) && !message.isRead) {
+        if (_isSameConversation(message.conversationId, id) && !message.isRead) {
           messages[i] = message.copyWith(isRead: true);
         }
       }
-      _clearLocalUnread(conversationId);
+      if (_isSameConversation(currentConversationId.value, id)) {
+        _clearLocalUnread(id);
+      }
       await loadUnreadCount();
     } catch (e) {
       // Silent fail
@@ -995,7 +1271,7 @@ class ChatController extends GetxController {
     }
   }
 
-  /// Block a trainer
+  /// Block another user in the active conversation.
   Future<void> blockTrainer(String trainerId, {String? reason}) async {
     try {
       isLoading.value = true;
@@ -1006,15 +1282,15 @@ class ChatController extends GetxController {
 
       rememberBlockedUser(trainerId);
       isBlockedByMe.value = true;
-      Get.snackbar('Success', 'Trainer blocked successfully.');
+      Get.snackbar('Success', 'User blocked successfully.');
     } catch (e) {
-      Get.snackbar('Error', 'Failed to block trainer: $e');
+      Get.snackbar('Error', 'Failed to block user: ${chatErrorMessage(e)}');
     } finally {
       isLoading.value = false;
     }
   }
 
-  /// Unblock a trainer
+  /// Unblock another user in the active conversation.
   Future<void> unblockTrainer(String trainerId) async {
     try {
       isLoading.value = true;
@@ -1027,7 +1303,7 @@ class ChatController extends GetxController {
       isBlockedByMe.value = false;
       Get.snackbar('Success', 'User unblocked successfully.');
     } catch (e) {
-      Get.snackbar('Error', 'Failed to unblock trainer: $e');
+      Get.snackbar('Error', 'Failed to unblock user: ${chatErrorMessage(e)}');
     } finally {
       isLoading.value = false;
     }

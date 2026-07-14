@@ -58,7 +58,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
   /// Home bottom nav uses IndexedStack — [initState] runs at app start. Defer API calls until Feed tab is selected (index 1).
   Worker? _homeTabWorker;
-  bool _feedTabLazyBootstrapped = false;
+  Worker? _feedRefreshWorker;
 
   /// False when another route is pushed above the host route (e.g. profile, search from feed).
   bool _feedHostRouteVisible = true;
@@ -173,13 +173,13 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
             _clearFeedReelCaches(clearFullImageCache: false);
           }
           setState(() {});
-          if (idx == 1) _bootstrapFeedWhenTabSelected();
         });
-        if (nav.currentIndex == 1) {
-          _bootstrapFeedWhenTabSelected();
-        }
+        _feedRefreshWorker = ever<int>(nav.feedRefreshNonce, (_) {
+          if (!mounted || nav.currentIndex != 1) return;
+          _onFeedTabSelected();
+        });
       } else {
-        _bootstrapFeedWhenTabSelected();
+        _onFeedTabSelected();
       }
     });
   }
@@ -209,6 +209,9 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       setState(() {
         _feedHostRouteVisible = true;
       });
+      if (_isHomeFeedTabSelected()) {
+        unawaited(_refreshActiveFeedTab());
+      }
     }
   }
 
@@ -223,16 +226,10 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     if (mounted) setState(() {});
   }
 
-  /// First time user opens the Feed bottom tab: load only "For You". "Following" loads when that inner tab is selected.
-  void _bootstrapFeedWhenTabSelected() {
-    if (_feedTabLazyBootstrapped) return;
-    _feedTabLazyBootstrapped = true;
+  /// Reload feed API whenever the user opens the Feed tab or returns to this screen.
+  void _onFeedTabSelected() {
     if (!mounted) return;
-    if (_tabController.index == 0 && _feedPosts.isEmpty && !_loadingForYou) {
-      _loadForYou(reset: true);
-    } else if (_tabController.index == 1 && _followingPosts.isEmpty && !_loadingFollowing) {
-      _loadFollowing(reset: true);
-    }
+    unawaited(_refreshActiveFeedTab());
   }
 
   @override
@@ -242,6 +239,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     _clearFeedReelCaches(clearFullImageCache: true);
     appRouteObserver.unsubscribe(this);
     _homeTabWorker?.dispose();
+    _feedRefreshWorker?.dispose();
     _tabController.dispose();
     for (var controller in _pageControllers.values) {
       controller.dispose();

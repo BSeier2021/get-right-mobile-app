@@ -211,7 +211,7 @@ class ChatSocketService {
       ..onConnectError(onConnectFailed)
       ..onError(onConnectFailed);
 
-    for (final event in const ['newMessage', 'message']) {
+    for (final event in const ['new-message', 'newMessage', 'message']) {
       _socket!.on(event, (data) {
         debugPrint('[ChatSocket] $event: $data');
         _dispatchNewMessage(event, data);
@@ -229,6 +229,7 @@ class ChatSocketService {
       _socket!.on(event, (data) {
         final map = _asMap(data);
         if (map != null) {
+          debugPrint('[ChatSocket] $event: $data');
           _userStatusController.add(map);
           _dispatchConversationBlockIfPresent(map, source: event);
         }
@@ -244,6 +245,7 @@ class ChatSocketService {
           _conversationUpdatedController.add(map);
         }
         _dispatchConversationBlockIfPresent(map, source: event);
+        _dispatchUserStatusIfPresent(map, source: event);
       });
     }
 
@@ -277,9 +279,11 @@ class ChatSocketService {
       if (event == 'new-message' || event == 'newMessage' || event == 'message') return;
       if (event == 'account-blocked' || event == 'accountBlocked') return;
       if (event == 'notification' || event == 'notifications' || event == 'new-notification' || event == 'newNotification') return;
+      if (event == 'user-status-changed' || event == 'userStatusChanged') return;
       final map = _asMap(data);
       if (map == null) return;
       _dispatchConversationBlockIfPresent(map, source: event);
+      _dispatchUserStatusIfPresent(map, source: event);
       final payload = _unwrapMessagePayload(map);
       if (payload != null) _publishMessage(payload, source: event);
     });
@@ -290,6 +294,14 @@ class ChatSocketService {
     debugPrint('[ChatSocket] $source → block status update');
     if (!_conversationBlockController.isClosed) {
       _conversationBlockController.add(map);
+    }
+  }
+
+  void _dispatchUserStatusIfPresent(Map<String, dynamic> map, {required String source}) {
+    if (!ChatRepository.payloadHasOnlineStatus(map)) return;
+    debugPrint('[ChatSocket] $source → user status update');
+    if (!_userStatusController.isClosed) {
+      _userStatusController.add(map);
     }
   }
 

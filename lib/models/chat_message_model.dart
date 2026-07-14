@@ -337,6 +337,7 @@ class ConversationModel {
   final String programTitle;
   final ChatMessageModel? lastMessage;
   final int unreadCount;
+  final bool? isOnline;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -350,6 +351,7 @@ class ConversationModel {
     required this.programTitle,
     this.lastMessage,
     this.unreadCount = 0,
+    this.isOnline,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -413,6 +415,7 @@ class ConversationModel {
       programTitle: _chatStr(json['programTitle'] ?? program?['title'] ?? program?['name']),
       lastMessage: lastMessage,
       unreadCount: _chatInt(json['unreadCount'] ?? json['unread']),
+      isOnline: contact != null ? _parseParticipantOnline(contact) : null,
       createdAt: _chatDate(json['createdAt']),
       updatedAt: _chatDate(json['updatedAt'] ?? json['createdAt']),
     );
@@ -429,6 +432,7 @@ class ConversationModel {
       'programTitle': programTitle,
       'lastMessage': lastMessage?.toJson(),
       'unreadCount': unreadCount,
+      'isOnline': isOnline,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -444,6 +448,7 @@ class ConversationModel {
     String? programTitle,
     ChatMessageModel? lastMessage,
     int? unreadCount,
+    bool? isOnline,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -457,10 +462,28 @@ class ConversationModel {
       programTitle: programTitle ?? this.programTitle,
       lastMessage: lastMessage ?? this.lastMessage,
       unreadCount: unreadCount ?? this.unreadCount,
+      isOnline: isOnline ?? this.isOnline,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+}
+
+bool? _parseParticipantOnline(Map<String, dynamic> participant) {
+  if (participant.containsKey('isOnline')) {
+    final value = participant['isOnline'];
+    if (value == true || value == 1) return true;
+    if (value == false || value == 0) return false;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true' || normalized == '1') return true;
+      if (normalized == 'false' || normalized == '0') return false;
+    }
+  }
+  final status = participant['status']?.toString().trim().toLowerCase();
+  if (status == 'online' || status == 'active') return true;
+  if (status == 'offline' || status == 'inactive' || status == 'away') return false;
+  return null;
 }
 
 Map<String, dynamic>? _resolveOtherParticipant(List<Map<String, dynamic>> participants, String? currentUserId) {

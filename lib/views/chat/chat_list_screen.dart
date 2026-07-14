@@ -100,8 +100,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
         'programTitle': conversation.programTitle,
       },
     );
-    _chatController?.leaveChatRoom();
-    await _chatController?.refreshConversations();
+    if (_chatController != null) {
+      _chatController!.leaveChatRoom();
+      await _chatController!.refreshConversations();
+    }
   }
 
   Future<void> _onRefreshConversations() async {
@@ -144,6 +146,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
               final conversations = _chatController!.conversations;
               final isLoading = _chatController!.isLoading.value;
               final isLoadingMore = _chatController!.isLoadingMore.value;
+              _chatController!.userPresenceRevision.value;
 
               return Column(
                 children: [
@@ -273,6 +276,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
           final conversation = conversations[index];
           final lastMessage = conversation.lastMessage;
           final displayTime = lastMessage?.timestamp ?? conversation.updatedAt;
+          final isOnline = _chatController!.isConversationPartnerOnline(conversation);
           final previewText = lastMessage == null
               ? 'No messages yet'
               : lastMessage.type == 'image'
@@ -293,14 +297,32 @@ class _ChatListScreenState extends State<ChatListScreen> {
             ),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              leading: SafeCircleNetworkAvatar(
-                radius: 24,
-                imageUrl: conversation.trainerImage,
-                backgroundColor: AppColors.accent,
-                fallback: Text(
-                  conversation.trainerName.isNotEmpty ? conversation.trainerName[0].toUpperCase() : 'T',
-                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onAccent),
-                ),
+              leading: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SafeCircleNetworkAvatar(
+                    radius: 24,
+                    imageUrl: conversation.trainerImage,
+                    backgroundColor: AppColors.accent,
+                    fallback: Text(
+                      conversation.trainerName.isNotEmpty ? conversation.trainerName[0].toUpperCase() : 'T',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onAccent),
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: isOnline ? Colors.green : AppColors.primaryGray,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.surface, width: 2),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               title: Text(
                 conversation.trainerName,

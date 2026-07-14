@@ -7,6 +7,13 @@ import 'package:get_right/models/chat_message_model.dart';
 import 'package:get_right/models/shared_content_model.dart';
 import 'package:get_right/repo/workout_repo.dart';
 
+class UserPresenceUpdate {
+  const UserPresenceUpdate({required this.userId, required this.isOnline});
+
+  final String userId;
+  final bool isOnline;
+}
+
 class ConversationBlockStatus {
   const ConversationBlockStatus({
     this.isBlockedByMe = false,
@@ -485,6 +492,137 @@ class ChatRepository {
     return false;
   }
 
+  static String extractUserId(dynamic value) {
+    if (value == null) return '';
+    if (value is Map) {
+      final map = Map<String, dynamic>.from(value);
+      for (final key in const ['_id', 'id', 'userId', 'authId']) {
+        final id = _chatStr(map[key]);
+        if (id.isNotEmpty) return id;
+      }
+      return '';
+    }
+    return _chatStr(value);
+  }
+
+  static bool? parseIsOnlineFromMap(Map<String, dynamic> source) {
+    if (source.containsKey('isOnline')) return _parseOnlineBool(source['isOnline']);
+    if (source.containsKey('online')) return _parseOnlineBool(source['online']);
+    if (source.containsKey('status')) return _parseOnlineFromStatus(source['status']);
+    return null;
+  }
+
+  static bool? _parseOnlineBool(dynamic value) {
+    if (value == true || value == 1) return true;
+    if (value == false || value == 0) return false;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true' || normalized == '1' || normalized == 'yes') return true;
+      if (normalized == 'false' || normalized == '0' || normalized == 'no') return false;
+      return _parseOnlineFromStatus(normalized);
+    }
+    return null;
+  }
+
+  static bool? _parseOnlineFromStatus(dynamic status) {
+    final normalized = status?.toString().trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty) return null;
+    if (normalized == 'online' || normalized == 'active') return true;
+    if (normalized == 'offline' || normalized == 'inactive' || normalized == 'away') return false;
+    return null;
+  }
+
+  static bool payloadHasOnlineStatus(Map<String, dynamic> map) {
+    for (final source in _onlineStatusSources(map)) {
+      if (_mapHasOnlineFlags(source)) return true;
+    }
+
+    final updates = map['updates'];
+    if (updates is Map) {
+      final type = updates['type']?.toString().trim().toLowerCase();
+      if (type == 'presence' ||
+          type == 'status' ||
+          type == 'online' ||
+          type == 'offline' ||
+          type == 'user-status') {
+        return true;
+      }
+      final updateData = updates['data'];
+      if (updateData is Map && _mapHasOnlineFlags(Map<String, dynamic>.from(updateData))) return true;
+    }
+
+    return false;
+  }
+
+  static List<UserPresenceUpdate> parsePresenceUpdatesFromPayload(Map<String, dynamic> payload) {
+    final updates = <UserPresenceUpdate>[];
+    final seen = <String>{};
+
+    for (final source in _onlineStatusSources(payload)) {
+      final isOnline = parseIsOnlineFromMap(source);
+      if (isOnline == null) continue;
+
+      final userId = extractUserId(
+        source['userId'] ?? source['user'] ?? source['participantId'] ?? source['participant'] ?? source['_id'] ?? source['id'],
+      );
+      if (userId.isEmpty || seen.contains(userId)) continue;
+
+      seen.add(userId);
+      updates.add(UserPresenceUpdate(userId: userId, isOnline: isOnline));
+    }
+
+    final envelope = payload['updates'];
+    if (envelope is Map && updates.isEmpty) {
+      final type = envelope['type']?.toString().trim().toLowerCase();
+      if (type == 'online' || type == 'offline') {
+        final data = envelope['data'];
+        if (data is Map) {
+          final dataMap = Map<String, dynamic>.from(data);
+          final userId = extractUserId(dataMap['userId'] ?? dataMap['user'] ?? dataMap['participantId'] ?? dataMap['participant']);
+          if (userId.isNotEmpty && !seen.contains(userId)) {
+            updates.add(UserPresenceUpdate(userId: userId, isOnline: type == 'online'));
+          }
+        }
+      }
+    }
+
+    return updates;
+  }
+
+  static bool _mapHasOnlineFlags(Map<String, dynamic> source) {
+    return source.containsKey('isOnline') ||
+        source.containsKey('online') ||
+        (source.containsKey('status') && _parseOnlineFromStatus(source['status']) != null);
+  }
+
+  static Iterable<Map<String, dynamic>> _onlineStatusSources(Map<String, dynamic> root) sync* {
+    yield root;
+
+    final user = root['user'];
+    if (user is Map) yield Map<String, dynamic>.from(user);
+
+    final conversation = root['conversation'];
+    if (conversation is Map) yield Map<String, dynamic>.from(conversation);
+
+    final data = root['data'];
+    if (data is Map) {
+      final dataMap = Map<String, dynamic>.from(data);
+      yield dataMap;
+
+      final nestedUser = dataMap['user'];
+      if (nestedUser is Map) yield Map<String, dynamic>.from(nestedUser);
+
+      final nestedConversation = dataMap['conversation'];
+      if (nestedConversation is Map) yield Map<String, dynamic>.from(nestedConversation);
+    }
+
+    final updates = root['updates'];
+    if (updates is Map) {
+      final updateData = updates['data'];
+      if (updateData is Map) yield Map<String, dynamic>.from(updateData);
+    }
+  }
+
   /// Participant profiles from messages API or socket `conversation-updated` payload.
   static Map<String, ChatParticipantProfile> participantProfilesFromPayload(Map<String, dynamic> payload) {
     final conversation = payload['conversation'];
@@ -537,7 +675,7 @@ class ChatRepository {
         id: id,
         name: name.isNotEmpty ? name : 'User',
         imageUrl: imageUrl,
-        isOnline: participant['isOnline'] == true,
+        isOnline: parseIsOnlineFromMap(participant),
       );
     }
     return profiles;

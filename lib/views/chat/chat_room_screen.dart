@@ -84,6 +84,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
     if (state == AppLifecycleState.resumed) {
       _chatController?.resumeActiveConversation();
       _chatController?.refreshConversationBlockStatus();
+      final conversationId = _chatController?.currentConversationId.value;
+      if (conversationId != null && conversationId.isNotEmpty) {
+        unawaited(_chatController!.markAsRead(conversationId));
+      }
     }
   }
 
@@ -638,8 +642,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
 
   void _showBlockDialog() {
     bool isBlocking = false;
-    // Capture the screen context before showing dialog
     final screenContext = context;
+    final otherName = _chatController?.otherParticipant?.name ?? _trainerName ?? 'this user';
+    final otherUserId = _chatController?.otherParticipant?.id ?? _trainerId;
 
     Get.dialog(
       Dialog(
@@ -652,10 +657,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Block Trainer?', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
+                  Text('Block $otherName?', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface)),
                   const SizedBox(height: 16),
                   Text(
-                    'You will no longer receive messages from this trainer. This action cannot be undone.',
+                    'You will no longer receive messages from this user. You can unblock them later if you change your mind.',
                     style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
                     textAlign: TextAlign.center,
                   ),
@@ -672,43 +677,32 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
                         onPressed: isBlocking
                             ? null
                             : () async {
-                                if (_trainerId != null && _chatController != null) {
+                                if (otherUserId != null && otherUserId.isNotEmpty && _chatController != null) {
                                   setDialogState(() {
                                     isBlocking = true;
                                   });
 
-                                  // Close dialog first to avoid snackbar conflict
                                   Navigator.of(dialogContext).pop();
-
-                                  // Wait for dialog to close
                                   await Future.delayed(const Duration(milliseconds: 100));
 
                                   try {
-                                    // Block the trainer (this will show a snackbar)
-                                    await _chatController!.blockTrainer(_trainerId!);
+                                    await _chatController!.blockTrainer(otherUserId);
 
-                                    // Wait for snackbar to appear and settle
                                     await Future.delayed(const Duration(milliseconds: 800));
 
-                                    // Navigate back from chat room using Navigator instead of Get.back()
-                                    // to avoid snackbar disposal issues
                                     if (mounted) {
                                       try {
                                         if (Navigator.of(screenContext).canPop()) {
                                           Navigator.of(screenContext).pop();
                                         }
                                       } catch (e) {
-                                        // Context might be invalid, try Get.back() as fallback
                                         try {
                                           Get.back();
-                                        } catch (_) {
-                                          // Ignore if navigation fails
-                                        }
+                                        } catch (_) {}
                                       }
                                     }
-                                  } catch (e) {
-                                    // Error is already shown by the controller
-                                    // If we need to show error, we can do it here
+                                  } catch (_) {
+                                    // Error snackbar is shown by the controller.
                                   }
                                 }
                               },
@@ -873,13 +867,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
     return Obx(() {
       // Rebuild when participant profiles, typing, or block status change.
       _chatController!.participantProfilesRevision.value;
+      _chatController!.otherUserIsOnline.value;
+      _chatController!.userPresenceRevision.value;
       _chatController!.isBlockedByMe.value;
       _chatController!.isBlockedByOther.value;
       _chatController!.isOtherUserTyping.value;
       final other = _chatController!.otherParticipant;
       final name = other?.name ?? _trainerName ?? 'User';
       final imageUrl = other?.imageUrl ?? _trainerImage;
-      final isOnline = other?.isOnlineNow ?? false;
+      final isOnline = _chatController!.otherUserIsOnline.value;
       final isTyping = _chatController!.isOtherUserTyping.value;
       final statusText = isTyping ? 'typing...' : (isOnline ? 'Online' : 'Offline');
       final statusColor = isTyping ? AppColors.accent : (isOnline ? Colors.green : AppColors.primaryGrayDark);

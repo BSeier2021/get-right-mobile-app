@@ -786,6 +786,7 @@ class HomeNavigationController extends GetxController {
   final plannedRouteIdForSession = Rxn<String>();
   final journalPlannerReloadNonce = 0.obs;
   final workoutJournalRefreshNonce = 0.obs;
+  final feedRefreshNonce = 0.obs;
   GlobalKey<ScaffoldState>? scaffoldKey;
 
   int get currentIndex => _currentIndex.value;
@@ -837,6 +838,9 @@ class HomeNavigationController extends GetxController {
       journalTabIndex.value = journalTab.clamp(0, 1);
     }
     _currentIndex.value = index;
+    if (index == 1) {
+      feedRefreshNonce.value++;
+    }
   }
 
   void triggerRefresh() {
