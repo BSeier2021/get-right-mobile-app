@@ -7,6 +7,7 @@ import 'package:get_right/Local%20Storage/local_storage.dart';
 import 'package:get_right/app_url.dart';
 import 'package:get_right/constants/app_constants.dart';
 import 'package:get_right/services/storage_service.dart';
+import 'package:get_right/repo/chat_repo.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
@@ -304,28 +305,7 @@ class ChatSocketService {
   }
 
   bool _containsBlockStatus(Map<String, dynamic> map) {
-    bool hasFlags(Map<String, dynamic> source) {
-      return source.containsKey('isBlockedByMe') ||
-          source.containsKey('isBlockedByOther') ||
-          source.containsKey('isBlockedByBoth') ||
-          source.containsKey('blockedByMe') ||
-          source.containsKey('blockedByOther');
-    }
-
-    if (hasFlags(map)) return true;
-
-    final conversation = map['conversation'];
-    if (conversation is Map && hasFlags(Map<String, dynamic>.from(conversation))) return true;
-
-    final data = map['data'];
-    if (data is Map) {
-      final dataMap = Map<String, dynamic>.from(data);
-      if (hasFlags(dataMap)) return true;
-      final nestedConversation = dataMap['conversation'];
-      if (nestedConversation is Map && hasFlags(Map<String, dynamic>.from(nestedConversation))) return true;
-    }
-
-    return false;
+    return ConversationBlockStatus.payloadHasBlockStatus(map);
   }
 
   void _dispatchNewMessage(String event, dynamic data) {

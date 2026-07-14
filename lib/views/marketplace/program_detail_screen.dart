@@ -1643,9 +1643,11 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                         ),
                       )
                     else if (_programReviews.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text('No reviews yet.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text('No reviews yet.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
+                        ),
                       )
                     else
                       ..._programReviews.map(_buildReviewCard),

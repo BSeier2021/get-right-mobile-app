@@ -647,8 +647,11 @@ class AuthController extends GetxController {
     if (dto.phoneNumber != null && dto.phoneNumber!.trim().isNotEmpty) {
       await _storageService.saveString('user_phone', dto.phoneNumber!.trim());
     }
-    if (dto.bio != null && dto.bio!.trim().isNotEmpty) {
-      await _storageService.saveString('user_bio', dto.bio!.trim());
+    final bio = dto.bio?.trim();
+    if (bio != null && bio.isNotEmpty) {
+      await _storageService.saveString('user_bio', bio);
+    } else {
+      await _storageService.remove('user_bio');
     }
     if (dto.weight != null && dto.weight! > 0) {
       await _storageService.saveString('user_weight', dto.weight!.toString());
@@ -2202,11 +2205,15 @@ class AuthController extends GetxController {
     required String gender,
     required String phoneNumber,
     required num weight,
+    String? bio,
     File? profilePicture,
   }) async {
     try {
       _isLoading = true;
       update();
+
+      final trimmedBio = bio?.trim();
+      await _storageService.remove('user_bio');
 
       final response = await _authRepo.createProfileRepo(
         fullName: fullName,
@@ -2214,6 +2221,7 @@ class AuthController extends GetxController {
         gender: gender,
         phoneNumber: phoneNumber,
         weight: weight,
+        bio: (trimmedBio != null && trimmedBio.isNotEmpty) ? trimmedBio : null,
         profilePicture: profilePicture,
       );
 
@@ -2260,6 +2268,9 @@ class AuthController extends GetxController {
       await _storageService.saveString('user_gender', gender);
       await _storageService.saveString('user_phone', phoneNumber.trim());
       await _storageService.saveString('user_weight', weight.toString());
+      if (trimmedBio != null && trimmedBio.isNotEmpty) {
+        await _storageService.saveString('user_bio', trimmedBio);
+      }
 
       final message = response['message']?.toString();
       if (message != null && message.isNotEmpty) {
@@ -2382,7 +2393,6 @@ class AuthController extends GetxController {
         dateofbirth: _storageService.getString('user_date_of_birth'),
         gender: _storageService.getString('user_gender'),
         phoneNumber: _storageService.getString('user_phone'),
-        bio: _storageService.getString('user_bio'),
         primaryFocus: primaryFocus,
         preferenceId: preferenceId,
         mainGoals: mainGoals,

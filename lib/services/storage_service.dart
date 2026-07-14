@@ -172,6 +172,7 @@ class StorageService {
     await remove(AppConstants.keyUserEmail);
     await remove(AppConstants.keyUserName);
     await remove(AppConstants.keyUserPhotoUrl);
+    await remove('user_bio');
     return await saveBool(AppConstants.keyIsLoggedIn, false);
   }
 

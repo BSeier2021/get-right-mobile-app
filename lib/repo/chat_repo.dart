@@ -23,28 +23,7 @@ class ConversationBlockStatus {
   }
 
   static bool payloadHasBlockStatus(Map<String, dynamic> map) {
-    bool hasFlags(Map<String, dynamic> source) {
-      return source.containsKey('isBlockedByMe') ||
-          source.containsKey('isBlockedByOther') ||
-          source.containsKey('isBlockedByBoth') ||
-          source.containsKey('blockedByMe') ||
-          source.containsKey('blockedByOther');
-    }
-
-    if (hasFlags(map)) return true;
-
-    final conversation = map['conversation'];
-    if (conversation is Map && hasFlags(Map<String, dynamic>.from(conversation))) return true;
-
-    final data = map['data'];
-    if (data is Map) {
-      final dataMap = Map<String, dynamic>.from(data);
-      if (hasFlags(dataMap)) return true;
-      final nestedConversation = dataMap['conversation'];
-      if (nestedConversation is Map && hasFlags(Map<String, dynamic>.from(nestedConversation))) return true;
-    }
-
-    return false;
+    return ChatRepository._payloadHasBlockStatus(map);
   }
 }
 
@@ -396,33 +375,48 @@ class ChatRepository {
     );
   }
 
-  /// Parses block flags from API `conversation`, `data`, or socket payloads.
+  /// Parses block flags from API `conversation`, `data`, socket `updates.data`, or root payloads.
   static ConversationBlockStatus parseBlockStatusFromPayload(dynamic raw) {
     if (raw is! Map) return const ConversationBlockStatus();
 
     final root = Map<String, dynamic>.from(raw);
-    Map<String, dynamic>? conversation;
-    Map<String, dynamic>? dataMap;
+    var isBlockedByMe = false;
+    var isBlockedByOther = false;
+    var isBlockedByBoth = false;
+    var found = false;
 
-    if (root['conversation'] is Map) {
-      conversation = Map<String, dynamic>.from(root['conversation'] as Map);
-    }
-    if (root['data'] is Map) {
-      dataMap = Map<String, dynamic>.from(root['data'] as Map);
-      conversation ??= dataMap['conversation'] is Map ? Map<String, dynamic>.from(dataMap['conversation'] as Map) : null;
+    for (final source in _blockStatusSources(root)) {
+      if (_mapHasBlockFlags(source)) {
+        isBlockedByMe = _parseBool(source['isBlockedByMe']) ||
+            _parseBool(source['blockedByMe']) ||
+            _parseBool(source['iBlockedThem']);
+        isBlockedByOther = _parseBool(source['isBlockedByOther']) ||
+            _parseBool(source['blockedByOther']) ||
+            _parseBool(source['theyBlockedMe']);
+        isBlockedByBoth = _parseBool(source['isBlockedByBoth']);
+        found = true;
+        break;
+      }
     }
 
-    var isBlockedByMe = _parseBool(conversation?['isBlockedByMe']) ||
-        _parseBool(dataMap?['isBlockedByMe']) ||
-        _parseBool(root['isBlockedByMe']) ||
-        _parseBool(root['blockedByMe']);
-    var isBlockedByOther = _parseBool(conversation?['isBlockedByOther']) ||
-        _parseBool(dataMap?['isBlockedByOther']) ||
-        _parseBool(root['isBlockedByOther']) ||
-        _parseBool(root['blockedByOther']);
-    var isBlockedByBoth = _parseBool(conversation?['isBlockedByBoth']) ||
-        _parseBool(dataMap?['isBlockedByBoth']) ||
-        _parseBool(root['isBlockedByBoth']);
+    if (!found) {
+      final updates = root['updates'];
+      if (updates is Map) {
+        final type = updates['type']?.toString().trim().toLowerCase();
+        if (type == 'block' || type == 'unblock') {
+          final updateData = updates['data'];
+          if (updateData is Map) {
+            final d = Map<String, dynamic>.from(updateData);
+            isBlockedByMe = _parseBool(d['iBlockedThem']) || _parseBool(d['isBlockedByMe']) || _parseBool(d['blockedByMe']);
+            isBlockedByOther = _parseBool(d['theyBlockedMe']) || _parseBool(d['isBlockedByOther']) || _parseBool(d['blockedByOther']);
+            isBlockedByBoth = _parseBool(d['isBlockedByBoth']);
+            found = true;
+          }
+        }
+      }
+    }
+
+    if (!found) return const ConversationBlockStatus();
 
     if (isBlockedByBoth && !isBlockedByMe && !isBlockedByOther) {
       isBlockedByOther = true;
@@ -433,6 +427,53 @@ class ChatRepository {
       isBlockedByOther: isBlockedByOther,
       isBlockedByBoth: isBlockedByBoth,
     );
+  }
+
+  static bool _payloadHasBlockStatus(Map<String, dynamic> map) {
+    for (final source in _blockStatusSources(map)) {
+      if (_mapHasBlockFlags(source)) return true;
+    }
+
+    final updates = map['updates'];
+    if (updates is Map) {
+      final type = updates['type']?.toString().trim().toLowerCase();
+      if (type == 'block' || type == 'unblock') return true;
+      final updateData = updates['data'];
+      if (updateData is Map && _mapHasBlockFlags(Map<String, dynamic>.from(updateData))) return true;
+    }
+
+    return false;
+  }
+
+  static bool _mapHasBlockFlags(Map<String, dynamic> source) {
+    return source.containsKey('isBlockedByMe') ||
+        source.containsKey('isBlockedByOther') ||
+        source.containsKey('isBlockedByBoth') ||
+        source.containsKey('blockedByMe') ||
+        source.containsKey('blockedByOther') ||
+        source.containsKey('iBlockedThem') ||
+        source.containsKey('theyBlockedMe');
+  }
+
+  static Iterable<Map<String, dynamic>> _blockStatusSources(Map<String, dynamic> root) sync* {
+    yield root;
+
+    final conversation = root['conversation'];
+    if (conversation is Map) yield Map<String, dynamic>.from(conversation);
+
+    final data = root['data'];
+    if (data is Map) {
+      final dataMap = Map<String, dynamic>.from(data);
+      yield dataMap;
+      final nestedConversation = dataMap['conversation'];
+      if (nestedConversation is Map) yield Map<String, dynamic>.from(nestedConversation);
+    }
+
+    final updates = root['updates'];
+    if (updates is Map) {
+      final updateData = updates['data'];
+      if (updateData is Map) yield Map<String, dynamic>.from(updateData);
+    }
   }
 
   static bool _parseBool(dynamic value) {

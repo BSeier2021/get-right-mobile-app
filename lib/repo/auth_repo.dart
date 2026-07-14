@@ -25,13 +25,14 @@ class AuthRepository {
     return response;
   }
 
-  /// `POST /customer/profile/create` — multipart form: fullName, dateofbirth, gender, phoneNumber, weight, optional profilePicture (file).
+  /// `POST /customer/profile/create` — multipart form: fullName, dateofbirth, gender, phoneNumber, weight, optional bio, optional profilePicture (file).
   Future<dynamic> createProfileRepo({
     required String fullName,
     required String dateofbirth,
     required String gender,
     required String phoneNumber,
     required num weight,
+    String? bio,
     File? profilePicture,
   }) async {
     final weightValue = weight % 1 == 0 ? weight.toInt() : weight;
@@ -42,6 +43,9 @@ class AuthRepository {
       'phoneNumber': phoneNumber.trim(),
       'weight': weightValue,
     };
+    if (bio != null && bio.trim().isNotEmpty) {
+      fields['bio'] = bio.trim();
+    }
     final files = <String, List<File>>{};
     if (profilePicture != null && profilePicture.path.isNotEmpty && await profilePicture.exists()) {
       files['profilePicture'] = [profilePicture];

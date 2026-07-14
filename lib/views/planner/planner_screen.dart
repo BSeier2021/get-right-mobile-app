@@ -185,10 +185,19 @@ class _PlannerScreenState extends State<PlannerScreen> {
     super.dispose();
   }
 
-  Future<void> _loadCalendarMonth() async {
+  Future<void> _onRefresh() async {
+    await _loadCalendarMonth(isRefresh: true);
+    if (_isCalendarCollapsed) {
+      await _loadSelectedDayDetail(isRefresh: true);
+    }
+  }
+
+  Future<void> _loadCalendarMonth({bool isRefresh = false}) async {
     if (!mounted) return;
     setState(() {
-      _isLoadingCalendar = true;
+      if (!isRefresh) {
+        _isLoadingCalendar = true;
+      }
       _calendarLoadError = null;
     });
     try {
@@ -245,7 +254,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     _loadSelectedDayDetail();
   }
 
-  Future<void> _loadSelectedDayDetail() async {
+  Future<void> _loadSelectedDayDetail({bool isRefresh = false}) async {
     if (_isLoadingCalendar) {
       _pendingDayDetailLoad = true;
       return;
@@ -264,7 +273,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
     if (!mounted) return;
 
     setState(() {
-      _isLoadingDayDetail = true;
+      if (!isRefresh) {
+        _isLoadingDayDetail = true;
+      }
       _dayDetailError = null;
     });
 
@@ -2137,76 +2148,60 @@ class _PlannerScreenState extends State<PlannerScreen> {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
+      body: RefreshIndicator(
+        color: AppColors.accent,
+        onRefresh: _onRefresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            if (!_isCalendarCollapsed) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildLegendItem(const Color(0xFFE74C3C), 'Incomplete'),
-                    const SizedBox(width: 12),
-                    _buildLegendItem(const Color(0xFF6FCF97), 'Completed'),
-                    const SizedBox(width: 12),
-                    _buildLegendItem(const Color(0xFF4A90E2), 'Rest Day'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            // Top: Year + Search
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left, color: AppColors.onSurface),
-                    onPressed: () => _changeFocusedMonth(DateTime(_focusedMonth.year - 1, _focusedMonth.month)),
-                  ),
-                  Text('${_focusedMonth.year}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right, color: AppColors.onSurface),
-                    onPressed: () => _changeFocusedMonth(DateTime(_focusedMonth.year + 1, _focusedMonth.month)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: AppColors.white,
-                        hintText: 'Search exercise',
-                        hintStyle: AppTextStyles.titleSmall.copyWith(color: AppColors.primaryGrayDark.withOpacity(0.6), fontSize: 14.sp),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(50),
-                          borderSide: BorderSide(color: AppColors.primaryGrayDark.withOpacity(0.3)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(50),
-                          borderSide: BorderSide(color: AppColors.primaryGrayDark.withOpacity(0.3)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(50),
-                          borderSide: BorderSide(color: AppColors.accent.withOpacity(0.3), width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        suffixIcon: IconButton(
-                          icon: SizedBox(width: 22, height: 22, child: SvgPicture.asset('assets/icons/search-normal.svg', width: 22, height: 22)),
-                          onPressed: () => () {},
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ).paddingOnly(right: 12),
+                  if (!_isCalendarCollapsed)
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _buildLegendItem(const Color(0xFFE74C3C), 'Incomplete'),
+                          const SizedBox(width: 8),
+                          _buildLegendItem(const Color(0xFF6FCF97), 'Completed'),
+                          const SizedBox(width: 8),
+                          _buildLegendItem(const Color(0xFF4A90E2), 'Rest Day'),
+                        ],
                       ),
-                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                    ),
+                    )
+               
+                  else
+                    const Spacer(),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                        icon: const Icon(Icons.chevron_left, color: AppColors.onSurface),
+                        onPressed: () => _changeFocusedMonth(DateTime(_focusedMonth.year - 1, _focusedMonth.month)),
+                      ),
+                      Text('${_focusedMonth.year}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface,fontSize: 15.sp)),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                        icon: const Icon(Icons.chevron_right, color: AppColors.onSurface),
+                        onPressed: () => _changeFocusedMonth(DateTime(_focusedMonth.year + 1, _focusedMonth.month)),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
 
             // Calendar
             Column(
@@ -2304,6 +2299,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             if (_isCalendarCollapsed) ...[_buildDayDetailView(), const SizedBox(height: 80)],
           ],
         ),
+        ),
       ),
     );
   }
@@ -2316,8 +2312,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
           height: 12,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 6),
-        Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+        const SizedBox(width: 5),
+        Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray,fontSize: 11.sp)),
       ],
     );
   }

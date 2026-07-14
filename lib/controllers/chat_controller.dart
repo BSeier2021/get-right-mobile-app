@@ -48,6 +48,7 @@ class ChatController extends GetxController {
   final RxBool isOtherUserTyping = false.obs;
   final RxBool isBlockedByMe = false.obs;
   final RxBool isBlockedByOther = false.obs;
+  final RxInt participantProfilesRevision = 0.obs;
   final Rxn<String> currentConversationId = Rxn<String>();
   final Rxn<String> currentTrainerId = Rxn<String>();
   final Rxn<String> currentProgramId = Rxn<String>();
@@ -157,9 +158,13 @@ class ChatController extends GetxController {
       return;
     }
 
+    final me = currentUserId;
+    if (me != null && message.senderId != me) {
+      _markParticipantOnline(message.senderId);
+    }
+
     if (messages.any((m) => m.id == message.id)) return;
 
-    final me = currentUserId;
     if (me != null && message.senderId == me) {
       final tempIndex = messages.indexWhere((m) => m.id.startsWith('temp_') && m.senderId == me);
       if (tempIndex != -1) {
@@ -288,6 +293,10 @@ class ChatController extends GetxController {
     final me = currentUserId;
     if (me != null && typingUserId.isNotEmpty && typingUserId == me) return;
 
+    if (typingUserId.isNotEmpty) {
+      _markParticipantOnline(typingUserId);
+    }
+
     if (payload.containsKey('isTyping') || payload.containsKey('typing') || payload.containsKey('status')) {
       final isTyping = payload['isTyping'] == true || payload['typing'] == true || payload['status'] == 'typing';
       isOtherUserTyping.value = isTyping;
@@ -307,19 +316,44 @@ class ChatController extends GetxController {
   void _handleSocketUserStatusChanged(Map<String, dynamic> payload) {
     _applyConversationBlockStatus(payload);
 
-    final userId = _chatStr(payload['userId'] ?? payload['user'] ?? payload['_id'] ?? payload['id']);
+    final root = _unwrapSocketPayload(payload);
+    final userId = _chatStr(
+      root['userId'] ??
+          root['user'] ??
+          root['_id'] ??
+          root['id'] ??
+          payload['userId'] ??
+          payload['user'] ??
+          payload['_id'] ??
+          payload['id'],
+    );
     if (userId.isEmpty) return;
 
-    final isOnline = payload['isOnline'] == true || payload['status'] == 'online' || payload['online'] == true;
-    final profile = _participantProfiles[userId];
-    if (profile != null) {
-      _participantProfiles[userId] = profile.copyWith(isOnline: isOnline);
-    }
+    final isOnline = root['isOnline'] == true ||
+        root['online'] == true ||
+        root['status'] == 'online' ||
+        payload['isOnline'] == true ||
+        payload['online'] == true ||
+        payload['status'] == 'online';
 
-    final me = currentUserId;
-    if (me != null && userId != me) {
-      messages.refresh();
-    }
+    final existing = _participantProfiles[userId];
+    _participantProfiles[userId] = (existing ?? ChatParticipantProfile(id: userId, name: 'User')).copyWith(isOnline: isOnline);
+    _bumpParticipantProfiles();
+  }
+
+  void _markParticipantOnline(String userId) {
+    final id = userId.trim();
+    if (id.isEmpty) return;
+
+    final existing = _participantProfiles[id];
+    if (existing?.isOnline == true) return;
+
+    _participantProfiles[id] = (existing ?? ChatParticipantProfile(id: id, name: existing?.name ?? 'User')).copyWith(isOnline: true);
+    _bumpParticipantProfiles();
+  }
+
+  void _bumpParticipantProfiles() {
+    participantProfilesRevision.value++;
   }
 
   void _handleConversationBlockChanged(Map<String, dynamic> payload) {
@@ -371,7 +405,7 @@ class ChatController extends GetxController {
     final profiles = ChatRepository.participantProfilesFromPayload(payload);
     if (profiles.isNotEmpty) {
       _participantProfiles.addAll(profiles);
-      messages.refresh();
+      _bumpParticipantProfiles();
     }
   }
 
@@ -526,11 +560,13 @@ class ChatController extends GetxController {
       imageUrl: imageUrl ?? existing?.imageUrl,
       isOnline: existing?.isOnline,
     );
+    _bumpParticipantProfiles();
   }
 
   void _applyMessagesPage(ChatMessagesPage result) {
     if (result.participantProfiles.isNotEmpty) {
       _participantProfiles.addAll(result.participantProfiles);
+      _bumpParticipantProfiles();
     }
     messages.value = _enrichMessages(result.messages);
     hasNextMessagesPage.value = result.hasNextPage;
@@ -733,6 +769,7 @@ class ChatController extends GetxController {
       final existingIds = messages.map((m) => m.id).toSet();
       if (result.participantProfiles.isNotEmpty) {
         _participantProfiles.addAll(result.participantProfiles);
+        _bumpParticipantProfiles();
       }
       final older = _enrichMessages(result.messages.where((m) => !existingIds.contains(m.id)).toList());
       if (older.isNotEmpty) {

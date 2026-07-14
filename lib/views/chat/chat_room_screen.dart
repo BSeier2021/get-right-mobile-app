@@ -871,8 +871,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
     }
 
     return Obx(() {
-      // Rebuild when messages load so participant profiles are available.
-      _chatController!.messages.length;
+      // Rebuild when participant profiles, typing, or block status change.
+      _chatController!.participantProfilesRevision.value;
+      _chatController!.isBlockedByMe.value;
+      _chatController!.isBlockedByOther.value;
       _chatController!.isOtherUserTyping.value;
       final other = _chatController!.otherParticipant;
       final name = other?.name ?? _trainerName ?? 'User';

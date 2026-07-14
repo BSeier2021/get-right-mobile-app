@@ -29,6 +29,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _weightController = TextEditingController();
+  final _bioController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   File? _profileImageFile;
   bool _agreedToTerms = false;
@@ -65,6 +66,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
     _fullNameController.dispose();
     _phoneController.dispose();
     _weightController.dispose();
+    _bioController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -139,12 +141,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
 
     final dob = DateFormat('yyyy-MM-dd').format(_dateOfBirth!);
     final authController = Get.find<AuthController>();
+    final bio = _bioController.text.trim();
     await authController.createProfile(
       fullName: name,
       dateofbirth: dob,
       gender: _selectedGender!,
       phoneNumber: phone,
       weight: weight % 1 == 0 ? weight.toInt() : weight,
+      bio: bio.isNotEmpty ? bio : null,
       profilePicture: _profileImageFile,
     );
   }
@@ -316,6 +320,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                               ...kNoEmojiInputFormatters,
                               FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                             ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildSimpleLabel('Bio (Optional)'),
+                          const SizedBox(height: 8),
+                          CustomTextField(
+                            controller: _bioController,
+                            hintText: 'Tell us about yourself...',
+                            maxLines: 3,
+                            inputFormatters: kNoEmojiInputFormatters,
                           ),
                           const SizedBox(height: 16),
                           Row(

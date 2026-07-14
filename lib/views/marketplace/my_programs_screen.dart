@@ -611,20 +611,6 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 24),
-          Center(
-            child: ElevatedButton(
-              onPressed: () => Get.toNamed(AppRoutes.marketplace),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentVariant,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                elevation: 0,
-              ),
-              child: const Text('Browse Programs'),
-            ),
-          ),
         ],
       );
     }

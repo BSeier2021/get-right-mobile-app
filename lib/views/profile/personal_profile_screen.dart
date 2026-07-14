@@ -92,8 +92,10 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
   }
 
   String _displayBio(CustomerProfileDto? p) {
-    final b = p?.bio?.trim();
-    if (b != null && b.isNotEmpty) return b;
+    if (p != null) {
+      final b = p.bio?.trim();
+      return (b != null && b.isNotEmpty) ? b : 'No Bio Added Yet';
+    }
     final local = _storageService.getString('user_bio');
     if (local != null && local.trim().isNotEmpty) return local.trim();
     return 'No Bio Added Yet';
