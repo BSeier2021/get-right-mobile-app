@@ -148,6 +148,8 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
   HomeNavigationController? get _navController => Get.isRegistered<HomeNavigationController>() ? Get.find<HomeNavigationController>() : null;
 
+  bool get _isWorkoutCompleted => _workout?.isCompleted == true;
+
   WorkoutJournalModel _applyStoredExerciseSections(WorkoutJournalModel fromApi) {
     final warmup = <WorkoutExerciseModel>[];
     final workout = <WorkoutExerciseModel>[];
@@ -229,9 +231,11 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         if (today != null && today.id.isNotEmpty) {
           _workout = _applyStoredExerciseSections(
             today.copyWith(
-              startedAt: previousWorkout?.startedAt,
-              completedAt: previousWorkout?.completedAt,
-              durationSeconds: previousWorkout?.durationSeconds ?? today.durationSeconds,
+              startedAt: _isStarted ? (previousWorkout?.startedAt ?? today.startedAt) : today.startedAt,
+              completedAt: today.completedAt ?? previousWorkout?.completedAt,
+              durationSeconds: _isStarted
+                  ? (previousWorkout?.durationSeconds ?? today.durationSeconds)
+                  : (today.durationSeconds ?? previousWorkout?.durationSeconds),
               caloriesBurned: today.caloriesBurned ?? previousWorkout?.caloriesBurned,
             ),
           );
@@ -383,6 +387,10 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   }
 
   void _startWorkout() {
+    if (_isWorkoutCompleted) {
+      Get.snackbar('Workout completed', 'This workout is already completed.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
     setState(() {
       _isStarted = true;
       _isPaused = false;
@@ -817,7 +825,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               decoration: BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
               child: const Icon(Icons.add, color: AppColors.onAccent, size: 20),
             ),
-            onPressed: _showAddExerciseDialog,
+            onPressed: _isWorkoutCompleted ? null : _showAddExerciseDialog,
           ),
         ],
       ),
@@ -889,7 +897,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
           right: 0,
           child: Center(
             child: GestureDetector(
-              onTap: _showAddExerciseDialog,
+              onTap: _isWorkoutCompleted ? null : _showAddExerciseDialog,
               child: Container(
                 width: 80,
                 height: 80,
@@ -930,6 +938,10 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   }
 
   void _showAddExerciseDialog() {
+    if (_isWorkoutCompleted) {
+      Get.snackbar('Workout completed', 'You cannot add more exercises to a completed workout.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
     Get.dialog(
       Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1057,51 +1069,85 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         if (!_isStarted && !_workout!.isEmpty)
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(
-                  icon: Container(
-                    padding: const EdgeInsets.all(10),
+                if (_isWorkoutCompleted) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color.fromARGB(33, 33, 78, 49),
-                      borderRadius: BorderRadius.circular(50),
-                      border: Border.all(color: AppColors.accentVariant.withOpacity(0.25), width: 2),
+                      color: AppColors.completed.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.completed.withOpacity(0.35)),
                     ),
-                    child: SvgPicture.asset(
-                      'assets/icons/share.svg',
-                      width: 22,
-                      colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
-                    ).paddingAll(5),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle_outline, color: AppColors.completed, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Workout completed',
+                          style: AppTextStyles.labelMedium.copyWith(color: AppColors.completed, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
                   ),
-                  onPressed: () => _shareVia('message'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _startWorkout,
-                  icon: Icon(Icons.play_arrow, color: AppColors.white, size: 25),
-
-                  label: Text('Start Workout', style: AppTextStyles.buttonMedium),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.onAccent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                    elevation: 2,
-                  ),
-                ),
-
-                if (_workout != null && !_workout!.isEmpty)
-                  IconButton(
-                    icon: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color.fromARGB(33, 33, 78, 49),
-                        borderRadius: BorderRadius.circular(50),
-                        border: Border.all(color: AppColors.accentVariant.withOpacity(0.25), width: 2),
+                  const SizedBox(height: 12),
+                ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color.fromARGB(33, 33, 78, 49),
+                          borderRadius: BorderRadius.circular(50),
+                          border: Border.all(color: AppColors.accentVariant.withOpacity(0.25), width: 2),
+                        ),
+                        child: SvgPicture.asset(
+                          'assets/icons/share.svg',
+                          width: 22,
+                          colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
+                        ).paddingAll(5),
                       ),
-                      child: Icon(Icons.add, color: AppColors.accentVariant, size: 30.sp),
+                      onPressed: () => _shareVia('message'),
                     ),
-                    onPressed: _showAddExerciseDialog,
-                  ),
+                    ElevatedButton.icon(
+                      onPressed: _isWorkoutCompleted ? null : _startWorkout,
+                      icon: Icon(Icons.play_arrow, color: AppColors.white, size: 25),
+
+                      label: Text('Start Workout', style: AppTextStyles.buttonMedium),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.onAccent,
+                        disabledBackgroundColor: AppColors.primaryGrayLight,
+                        disabledForegroundColor: AppColors.primaryGray,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                        elevation: 2,
+                      ),
+                    ),
+
+                    if (_workout != null && !_workout!.isEmpty)
+                      IconButton(
+                        icon: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color.fromARGB(33, 33, 78, 49),
+                            borderRadius: BorderRadius.circular(50),
+                            border: Border.all(color: AppColors.accentVariant.withOpacity(0.25), width: 2),
+                          ),
+                          child: Icon(
+                            Icons.add,
+                            color: _isWorkoutCompleted ? AppColors.primaryGray : AppColors.accentVariant,
+                            size: 30.sp,
+                          ),
+                        ),
+                        onPressed: _isWorkoutCompleted ? null : _showAddExerciseDialog,
+                      ),
+                  ],
+                ),
               ],
             ),
           ),

@@ -502,6 +502,11 @@ class ChatController extends GetxController {
   /// Other participant in the active conversation (not the logged-in user).
   ChatParticipantProfile? get otherParticipant {
     final me = currentUserId?.trim();
+    final otherUserId = currentTrainerId.value?.trim();
+    if (otherUserId != null && otherUserId.isNotEmpty) {
+      final profile = _participantProfiles[otherUserId];
+      if (profile != null) return profile;
+    }
     if (me == null || me.isEmpty) {
       return _participantProfiles.values.isNotEmpty ? _participantProfiles.values.first : null;
     }
@@ -509,6 +514,18 @@ class ChatController extends GetxController {
       if (profile.id != me) return profile;
     }
     return null;
+  }
+
+  void _seedOtherParticipantProfile({String? userId, String? name, String? imageUrl}) {
+    final id = userId?.trim();
+    if (id == null || id.isEmpty) return;
+    final existing = _participantProfiles[id];
+    _participantProfiles[id] = ChatParticipantProfile(
+      id: id,
+      name: (name?.trim().isNotEmpty ?? false) ? name!.trim() : (existing?.name ?? 'User'),
+      imageUrl: imageUrl ?? existing?.imageUrl,
+      isOnline: existing?.isOnline,
+    );
   }
 
   void _applyMessagesPage(ChatMessagesPage result) {
@@ -649,14 +666,21 @@ class ChatController extends GetxController {
   }
 
   /// Switch to a conversation — clears stale room state when the id changes.
-  Future<void> switchToConversation(String conversationId, {String? trainerId, String? programId}) async {
+  Future<void> switchToConversation(
+    String conversationId, {
+    String? trainerId,
+    String? programId,
+    String? trainerName,
+    String? trainerImage,
+  }) async {
     final id = conversationId.trim();
     if (id.isEmpty) return;
 
-    if (currentConversationId.value != null && currentConversationId.value != id) {
+    if (currentConversationId.value != id) {
       clearConversation();
     }
 
+    _seedOtherParticipantProfile(userId: trainerId, name: trainerName, imageUrl: trainerImage);
     await loadMessages(id, trainerId: trainerId, programId: programId);
   }
 
@@ -895,13 +919,8 @@ class ChatController extends GetxController {
 
   /// User left the chat room but may still be on the messages list or elsewhere.
   void leaveChatRoom() {
-    _leaveConversationSocket();
-    currentConversationId.value = null;
-    currentTrainerId.value = null;
-    currentProgramId.value = null;
+    clearConversation();
     isOtherUserTyping.value = false;
-    isBlockedByMe.value = false;
-    isBlockedByOther.value = false;
   }
 
   /// `DELETE /user/chat/messages/:messageId`

@@ -67,6 +67,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
   String? _conversationId;
   String? _trainerId;
   String? _trainerName;
+  String? _trainerImage;
   String? _programId;
   String? _programTitle;
 
@@ -133,11 +134,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
       _conversationId = (rawConversationId != null && rawConversationId.isNotEmpty) ? rawConversationId : null;
       _trainerId = args['trainerId']?.toString().trim();
       _trainerName = args['trainerName']?.toString();
+      _trainerImage = args['trainerImage']?.toString();
       _programId = args['programId']?.toString().trim();
       _programTitle = args['programTitle']?.toString();
 
       if (_conversationId != null && _chatController != null) {
-        await _chatController!.switchToConversation(_conversationId!, trainerId: _trainerId, programId: _programId);
+        await _chatController!.switchToConversation(
+          _conversationId!,
+          trainerId: _trainerId,
+          programId: _programId,
+          trainerName: _trainerName,
+          trainerImage: _trainerImage,
+        );
       } else if (_trainerId != null && _programId != null) {
         await _startNewConversation();
       } else if (_trainerId != null && _trainerId!.isNotEmpty) {
@@ -168,9 +176,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
 
     _conversationId = conversation.id;
     _trainerName ??= conversation.trainerName;
+    _trainerImage ??= conversation.trainerImage;
     _programId ??= conversation.programId.isNotEmpty ? conversation.programId : null;
     _programTitle ??= conversation.programTitle.isNotEmpty ? conversation.programTitle : null;
-    await _chatController!.switchToConversation(conversation.id, trainerId: _trainerId, programId: _programId);
+    await _chatController!.switchToConversation(
+      conversation.id,
+      trainerId: _trainerId,
+      programId: _programId,
+      trainerName: _trainerName,
+      trainerImage: _trainerImage,
+    );
   }
 
   Future<void> _startNewConversation() async {
@@ -186,7 +201,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
 
     if (conversationId != null && _chatController != null) {
       _conversationId = conversationId;
-      await _chatController!.switchToConversation(conversationId, trainerId: _trainerId, programId: _programId);
+      await _chatController!.switchToConversation(
+        conversationId,
+        trainerId: _trainerId,
+        programId: _programId,
+        trainerName: _trainerName,
+        trainerImage: _trainerImage,
+      );
     }
   }
 
@@ -855,7 +876,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
       _chatController!.isOtherUserTyping.value;
       final other = _chatController!.otherParticipant;
       final name = other?.name ?? _trainerName ?? 'User';
-      final imageUrl = other?.imageUrl;
+      final imageUrl = other?.imageUrl ?? _trainerImage;
       final isOnline = other?.isOnlineNow ?? false;
       final isTyping = _chatController!.isOtherUserTyping.value;
       final statusText = isTyping ? 'typing...' : (isOnline ? 'Online' : 'Offline');
@@ -865,6 +886,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
         mainAxisSize: MainAxisSize.min,
         children: [
           SafeCircleNetworkAvatar(
+            key: ValueKey(_conversationId ?? _trainerId ?? name),
             radius: 20,
             imageUrl: imageUrl,
             backgroundColor: AppColors.accent.withOpacity(0.15),

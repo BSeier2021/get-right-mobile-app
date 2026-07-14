@@ -95,11 +95,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
         'conversationId': conversation.id,
         'trainerId': conversation.trainerId,
         'trainerName': conversation.trainerName,
+        'trainerImage': conversation.trainerImage,
         'programId': conversation.programId,
         'programTitle': conversation.programTitle,
       },
     );
     _chatController?.leaveChatRoom();
+    await _chatController?.refreshConversations();
+  }
+
+  Future<void> _onRefreshConversations() async {
     await _chatController?.refreshConversations();
   }
 
@@ -190,57 +195,79 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   Widget _buildConversationsList(bool isLoading, bool isLoadingMore, List<ConversationModel> conversations) {
     if (isLoading && conversations.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return RefreshIndicator(
+        color: AppColors.accent,
+        onRefresh: _onRefreshConversations,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          controller: _scrollController,
+          children: const [
+            SizedBox(height: 240),
+            Center(child: CircularProgressIndicator(color: AppColors.accent)),
+          ],
+        ),
+      );
     }
 
     if (conversations.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(_searchQuery.isNotEmpty ? Icons.search_off : Icons.chat_bubble_outline, size: 80, color: AppColors.primaryGray),
-              const SizedBox(height: 24),
-              Text(_searchQuery.isNotEmpty ? 'No Results Found' : 'No Messages', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground)),
-              const SizedBox(height: 12),
-              Text(
-                _searchQuery.isNotEmpty ? 'Try adjusting your search query' : 'Start a conversation with your trainers from enrolled programs.',
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
-                textAlign: TextAlign.center,
-              ),
-              if (!_searchQuery.isNotEmpty) ...[
-                const SizedBox(height: 32),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Get.toNamed(AppRoutes.myPrograms);
-                  },
-                  icon: const Icon(Icons.fitness_center),
-                  label: const Text('View My Programs'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.onAccent,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      return RefreshIndicator(
+        color: AppColors.accent,
+        onRefresh: _onRefreshConversations,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          controller: _scrollController,
+          children: [
+            SizedBox(height: MediaQuery.of(context).size.height * 0.18),
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(_searchQuery.isNotEmpty ? Icons.search_off : Icons.chat_bubble_outline, size: 80, color: AppColors.primaryGray),
+                  const SizedBox(height: 24),
+                  Text(_searchQuery.isNotEmpty ? 'No Results Found' : 'No Messages', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onBackground)),
+                  const SizedBox(height: 12),
+                  Text(
+                    _searchQuery.isNotEmpty ? 'Try adjusting your search query' : 'Start a conversation with your trainers from enrolled programs.',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+                    textAlign: TextAlign.center,
                   ),
-                ),
-              ],
-            ],
-          ),
+                  if (!_searchQuery.isNotEmpty) ...[
+                    const SizedBox(height: 32),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Get.toNamed(AppRoutes.myPrograms);
+                      },
+                      icon: const Icon(Icons.fitness_center),
+                      label: const Text('View My Programs'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.onAccent,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
       );
     }
 
     return RefreshIndicator(
-      onRefresh: () => _chatController!.refreshConversations(),
+      color: AppColors.accent,
+      onRefresh: _onRefreshConversations,
       child: ListView.builder(
         controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
         itemCount: conversations.length + (isLoadingMore ? 1 : 0),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemBuilder: (context, index) {
           if (index >= conversations.length) {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
             );
           }
           final conversation = conversations[index];
