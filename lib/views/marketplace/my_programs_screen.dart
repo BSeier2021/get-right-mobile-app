@@ -92,11 +92,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     return null;
   }
 
-  static DateTime? _parseDate(dynamic v) {
-    if (v == null) return null;
-    if (v is DateTime) return v;
-    return DateTime.tryParse(v.toString());
-  }
+  static DateTime? _parseDate(dynamic v) => MarketplaceRepository.apiCalendarDate(v);
 
   static int _progressPct(dynamic v) {
     if (v == null) return 0;
@@ -283,7 +279,9 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadPrograms());
   }
 
-  Future<void> _loadPrograms() async {
+  Future<void> _onRefresh() => _loadPrograms(isRefresh: true);
+
+  Future<void> _loadPrograms({bool isRefresh = false}) async {
     if (!Get.isRegistered<AuthController>()) {
       setState(() {
         _loading = false;
@@ -292,23 +290,29 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
       return;
     }
     setState(() {
-      _loading = true;
+      if (!isRefresh) {
+        _loading = true;
+        _cardRows.clear();
+        _page = 1;
+        _hasMore = false;
+      }
       _loadError = null;
-      _cardRows.clear();
-      _page = 1;
-      _hasMore = false;
     });
     final result = await Get.find<AuthController>().fetchCustomerEnrolledPrograms(page: 1, limit: _pageSize, status: _currentTab.apiValue);
     if (!mounted) return;
     if (result == null) {
       setState(() {
         _loading = false;
-        _loadError = 'Could not load programs';
+        if (!isRefresh || _cardRows.isEmpty) {
+          _loadError = 'Could not load programs';
+        }
       });
       return;
     }
     setState(() {
-      _cardRows.addAll(result.enrollments.map(_enrollmentToCard));
+      _cardRows
+        ..clear()
+        ..addAll(result.enrollments.map(_enrollmentToCard));
       _regroupCardRows();
       _hasMore = result.hasNextPage;
       _page = result.currentPage;
@@ -518,29 +522,51 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
   }
 
   Widget _buildBody() {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.accentVariant));
-    }
-    if (_loadError != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _loadError!,
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(onPressed: _loadPrograms, child: const Text('Retry')),
-            ],
-          ),
+    if (_loading && _cardRows.isEmpty) {
+      return RefreshIndicator(
+        color: AppColors.accentVariant,
+        onRefresh: _onRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 240),
+            Center(child: CircularProgressIndicator(color: AppColors.accentVariant)),
+          ],
         ),
       );
     }
-    return RefreshIndicator(color: AppColors.accentVariant, onRefresh: _loadPrograms, child: _buildProgramsList(_cardRows));
+    if (_loadError != null && _cardRows.isEmpty) {
+      return RefreshIndicator(
+        color: AppColors.accentVariant,
+        onRefresh: _onRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _loadError!,
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(onPressed: _loadPrograms, child: const Text('Retry')),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      color: AppColors.accentVariant,
+      onRefresh: _onRefresh,
+      child: _buildProgramsList(_cardRows),
+    );
   }
 
   Widget _tabChip(int index, String label) {
@@ -611,6 +637,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
         return false;
       },
       child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: programs.length + (_loadingMore ? 1 : 0),
         itemBuilder: (context, index) {

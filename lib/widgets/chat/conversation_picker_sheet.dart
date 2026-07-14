@@ -79,6 +79,7 @@ class _ConversationPickerSheetState extends State<ConversationPickerSheet> {
         limit: 20,
         search: search,
         currentUserId: _currentUserId,
+        unblockedOnly: true,
       );
       if (!mounted) return;
       setState(() {

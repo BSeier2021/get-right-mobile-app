@@ -482,6 +482,28 @@ class MarketplaceRepository {
     return 0;
   }
 
+  /// Calendar date from API ISO (`2026-07-14T19:00:00.000Z` → 14 Jul) without local timezone shift.
+  static DateTime? apiCalendarDate(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is DateTime) {
+      return DateTime(raw.year, raw.month, raw.day);
+    }
+    final text = raw.toString().trim();
+    if (text.isEmpty) return null;
+    final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(text);
+    if (match != null) {
+      return DateTime(
+        int.parse(match.group(1)!),
+        int.parse(match.group(2)!),
+        int.parse(match.group(3)!),
+      );
+    }
+    final parsed = DateTime.tryParse(text);
+    if (parsed == null) return null;
+    final source = parsed.isUtc ? parsed : parsed.toUtc();
+    return DateTime(source.year, source.month, source.day);
+  }
+
   static DateTime? endDateFromStartAndWeeks(DateTime? start, dynamic durationWeeks) {
     final weeks = durationWeeksFrom(durationWeeks);
     if (start == null || weeks <= 0) return null;

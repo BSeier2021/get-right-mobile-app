@@ -1,8 +1,8 @@
 class AppUrl {
   // development url
-  // static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
-  // static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
-  // static const String socketUrl = 'http://getright.prodservers.com:8003';
+  static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
+  static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
+  static const String socketUrl = 'http://getright.prodservers.com:8003';
 
   // client url
   // static const String baseUrl = 'http://getright.prodservers.com:8004/api/v1';
@@ -14,9 +14,9 @@ class AppUrl {
   // static const String imnageUrl = 'https://5c8zvt4q-8001.inc1.devtunnels.ms/api/v1';
   // static const String socketUrl = 'https://5c8zvt4q-8001.inc1.devtunnels.ms/';
 //  port url
-  static const String baseUrl = 'https://5c8zvt4q-8003.inc1.devtunnels.ms/api/v1';
-  static const String imnageUrl = 'https://5c8zvt4q-8003.inc1.devtunnels.ms/api/v1';
-  static const String socketUrl = 'https://5c8zvt4q-8003.inc1.devtunnels.ms/';
+  // static const String baseUrl = 'https://5c8zvt4q-8003.inc1.devtunnels.ms/api/v1';
+  // static const String imnageUrl = 'https://5c8zvt4q-8003.inc1.devtunnels.ms/api/v1';
+  // static const String socketUrl = 'https://5c8zvt4q-8003.inc1.devtunnels.ms/';
 
   
   
@@ -395,7 +395,7 @@ class AppUrl {
   /// `GET /customer/planned-routes/:routeId` → `data.route`.
   static String customerPlannedRouteById(String routeId) => '$baseUrl/customer/planned-routes/${Uri.encodeComponent(routeId.trim())}';
 
-  /// `GET /user/chat/conversations` — query: `page`, `limit`, optional `search`.
+  /// `GET /user/chat/conversations` — query: `page`, `limit`, optional `search`, optional `unblockedOnly`.
   static String get chatConversations => '$baseUrl/user/chat/conversations';
 
   /// `GET /user/chat/conversations/unread-count` — total unread messages.

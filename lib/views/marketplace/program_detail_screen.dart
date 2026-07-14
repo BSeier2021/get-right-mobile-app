@@ -33,7 +33,9 @@ class ProgramDetailScreen extends StatefulWidget {
 }
 
 class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
-  final FavoritesController _favoritesController = Get.put(FavoritesController());
+  late final FavoritesController _favoritesController = Get.isRegistered<FavoritesController>()
+      ? Get.find<FavoritesController>()
+      : Get.put(FavoritesController());
   final FeedRepository _feedRepo = FeedRepository();
   final MarketplaceRepository _marketplaceRepo = MarketplaceRepository();
   final CalendarRepository _calendarRepo = CalendarRepository();
@@ -84,6 +86,16 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     } else if (_apiProgramId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadProgramReviews());
     }
+  }
+
+  Future<void> _refreshScreen() async {
+    final enrollmentId = _enrollmentDetailId;
+    final hasEnrollment = enrollmentId != null && _mongoIdRe.hasMatch(enrollmentId);
+    final hasCatalogId = _apiProgramId != null && _mongoIdRe.hasMatch(_apiProgramId!);
+    if (hasEnrollment || hasCatalogId) {
+      await _loadProgramDetail();
+    }
+    await _loadProgramReviews();
   }
 
   Future<void> _loadProgramReviews() async {
@@ -533,19 +545,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     _isEnrolled = false;
   }
 
-  DateTime? _parseEnrollmentDateValue(dynamic raw) {
-    if (raw == null) return null;
-    if (raw is DateTime) {
-      final local = raw.isUtc ? raw.toLocal() : raw;
-      return DateTime(local.year, local.month, local.day);
-    }
-    final text = raw.toString().trim();
-    if (text.isEmpty) return null;
-    final parsed = DateTime.tryParse(text);
-    if (parsed == null) return null;
-    final local = parsed.toLocal();
-    return DateTime(local.year, local.month, local.day);
-  }
+  DateTime? _parseEnrollmentDateValue(dynamic raw) => MarketplaceRepository.apiCalendarDate(raw);
 
   dynamic _rawEnrollmentBoundaryDate({required bool start}) {
     final primaryKey = start ? 'enrollmentStartDate' : 'enrollmentEndDate';
@@ -1369,8 +1369,12 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
               ),
           ],
         ),
-        body: CustomScrollView(
-          slivers: [
+        body: RefreshIndicator(
+          color: AppColors.accent,
+          onRefresh: _refreshScreen,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            slivers: [
             if (_loadingDetail) const SliverToBoxAdapter(child: LinearProgressIndicator(minHeight: 3)),
             SliverToBoxAdapter(
               child: Padding(
@@ -1651,6 +1655,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
               ),
             ),
           ],
+        ),
         ),
         // Bottom bar: enrolled users see calendar actions; others see web purchase notice.
         bottomNavigationBar: _isEnrolled ? _buildAlreadyEnrolledBottomBar() : _buildWebPurchaseNoticeBar(),

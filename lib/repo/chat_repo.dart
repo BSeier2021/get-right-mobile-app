@@ -95,12 +95,13 @@ class ChatConversationsPage {
 class ChatRepository {
   final NetworkApiService _network = NetworkApiService();
 
-  /// `GET /user/chat/conversations?page=&limit=&search=` → `data.conversations[]`.
+  /// `GET /user/chat/conversations?page=&limit=&search=&unblockedOnly=` → `data.conversations[]`.
   Future<ChatConversationsPage> fetchConversations({
     int page = 1,
     int limit = 10,
     String search = '',
     String? currentUserId,
+    bool? unblockedOnly,
   }) async {
     final params = <String, dynamic>{
       'page': page,
@@ -109,6 +110,9 @@ class ChatRepository {
     final trimmedSearch = search.trim();
     if (trimmedSearch.isNotEmpty) {
       params['search'] = trimmedSearch;
+    }
+    if (unblockedOnly == true) {
+      params['unblockedOnly'] = true;
     }
 
     final raw = await _network.get(AppUrl.chatConversations, params: params);

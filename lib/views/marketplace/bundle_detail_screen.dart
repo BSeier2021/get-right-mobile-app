@@ -23,7 +23,9 @@ class BundleDetailScreen extends StatefulWidget {
 }
 
 class _BundleDetailScreenState extends State<BundleDetailScreen> {
-  final FavoritesController _favoritesController = Get.put(FavoritesController());
+  late final FavoritesController _favoritesController = Get.isRegistered<FavoritesController>()
+      ? Get.find<FavoritesController>()
+      : Get.put(FavoritesController());
   Map<String, dynamic> _bundle = {};
   bool _loading = true;
   String? _error;

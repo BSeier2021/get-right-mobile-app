@@ -33,6 +33,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_onTabChanged);
+    _favoritesController.loadFavourites(type: 'program', refresh: true);
   }
 
   void _onTabChanged() {

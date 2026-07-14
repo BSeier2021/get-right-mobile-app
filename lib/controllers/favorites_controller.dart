@@ -27,13 +27,6 @@ class FavoritesController extends GetxController {
   List<Map<String, dynamic>> get programFavourites => _programFavourites;
   List<Map<String, dynamic>> get bundleFavourites => _bundleFavourites;
 
-  @override
-  void onInit() {
-    super.onInit();
-    loadFavourites(type: 'program', refresh: true);
-    loadFavourites(type: 'bundle', refresh: true);
-  }
-
   String _normalizeType(String type) => FavouritesRepository.normalizeType(type);
 
   RxSet<String> _idsForType(String type) {

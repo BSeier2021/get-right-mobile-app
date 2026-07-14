@@ -1623,82 +1623,81 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
-  void _showShareOptions() {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black45,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Title row with close button
-              Row(
-                children: [
-                  const Spacer(),
-                  Text(
-                    'Share Options',
-                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.red.shade300, width: 1.5),
-                      ),
-                      child: Icon(Icons.close, size: 16, color: Colors.red.shade400),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text('Choose how you want to share your activity', style: AppTextStyles.bodySmall.copyWith(color: AppColors.black)),
-              const SizedBox(height: 20),
-              _buildShareOptionTile(
-                icon: Icons.message_outlined,
-                title: 'Share to Chat',
-                subtitle: 'Send workout or run to a conversation',
-                onTap: () {
-                  Navigator.pop(context);
-                  _shareSelectedDayToChat();
-                },
-              ),
-              const SizedBox(height: 12),
-              // Share Summary tile
-              _buildShareOptionTile(
-                icon: Icons.assignment_outlined,
-                title: 'Share Summary',
-                subtitle: 'Share workout summary to\nsocial media',
-                onTap: () {
-                  Navigator.pop(context);
-                  _showSharePreview('summary');
-                },
-              ),
-              const SizedBox(height: 12),
-              // Share Workout Details tile
-              _buildShareOptionTile(
-                icon: Icons.download_for_offline_outlined,
-                title: 'Share Workout Details',
-                subtitle: 'Share workout details with\na friend',
-                onTap: () {
-                  Navigator.pop(context);
-                  _showSharePreview('download');
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // void _showShareOptions() {
+  //   showDialog(
+  //     context: context,
+  //     barrierColor: Colors.black45,
+  //     builder: (context) => Dialog(
+  //       backgroundColor: Colors.white,
+  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  //       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+  //       child: Padding(
+  //         padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+  //         child: Column(
+  //           mainAxisSize: MainAxisSize.min,
+  //           children: [
+  //             // Title row with close button
+  //             Row(
+  //               children: [
+  //                 const Spacer(),
+  //                 Text(
+  //                   'Share Options',
+  //                   style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+  //                 ),
+  //                 const Spacer(),
+  //                 GestureDetector(
+  //                   onTap: () => Navigator.pop(context),
+  //                   child: Container(
+  //                     width: 28,
+  //                     height: 28,
+  //                     decoration: BoxDecoration(
+  //                       shape: BoxShape.circle,
+  //                       border: Border.all(color: Colors.red.shade300, width: 1.5),
+  //                     ),
+  //                     child: Icon(Icons.close, size: 16, color: Colors.red.shade400),
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //             const SizedBox(height: 6),
+  //             Text('Choose how you want to share your activity', style: AppTextStyles.bodySmall.copyWith(color: AppColors.black)),
+  //             const SizedBox(height: 20),
+  //             _buildShareOptionTile(
+  //               icon: Icons.message_outlined,
+  //               title: 'Share to Chat',
+  //               subtitle: 'Send workout or run to a conversation',
+  //               onTap: () {
+                 
+  //               },
+  //             ),
+  //             const SizedBox(height: 12),
+  //             // Share Summary tile
+  //             _buildShareOptionTile(
+  //               icon: Icons.assignment_outlined,
+  //               title: 'Share Summary',
+  //               subtitle: 'Share workout summary to\nsocial media',
+  //               onTap: () {
+  //                 Navigator.pop(context);
+  //                 _showSharePreview('summary');
+  //               },
+  //             ),
+  //             const SizedBox(height: 12),
+  //             // Share Workout Details tile
+  //             _buildShareOptionTile(
+  //               icon: Icons.download_for_offline_outlined,
+  //               title: 'Share Workout Details',
+  //               subtitle: 'Share workout details with\na friend',
+  //               onTap: () {
+  //                 Navigator.pop(context);
+  //                 _showSharePreview('download');
+  //               },
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 
   Widget _buildShareOptionTile({required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
     return Material(
@@ -2561,7 +2560,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: _showShareOptions,
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _shareSelectedDayToChat();
+                  },
                   icon: const Icon(Icons.share_rounded, size: 20),
                   label: const Text('Share'),
                   style: ElevatedButton.styleFrom(
@@ -3103,7 +3105,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () => _showShareOptions(),
+                onTap: () {
+                  Navigator.pop(context);
+                  _shareSelectedDayToChat();
+                },
                 child: Icon(Icons.share, color: AppColors.primaryGray, size: 20),
               ),
             ],
@@ -3433,7 +3438,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () => _showShareOptions(),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _shareSelectedDayToChat();
+                    },
                     borderRadius: BorderRadius.circular(10),
                     child: Padding(
                       padding: const EdgeInsets.all(8),

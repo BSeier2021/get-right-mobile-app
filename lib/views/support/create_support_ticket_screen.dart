@@ -68,7 +68,7 @@ class _CreateSupportTicketScreenState extends State<CreateSupportTicketScreen> {
       return;
     }
     if (body.isEmpty) {
-      Get.snackbar('Support', 'Please describe your issue', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Support', 'Please enter issue details', snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
@@ -136,14 +136,14 @@ class _CreateSupportTicketScreenState extends State<CreateSupportTicketScreen> {
             CustomTextField(
               controller: _titleController,
               labelText: 'Subject',
-              hintText: 'Brief summary of your issue',
+              hintText: 'Enter the subject of your support request',
               maxLength: 255,
               inputFormatters: [NoEmojiInputFormatter()],
             ),
             SizedBox(height: 16.h),
             CustomTextField(
               controller: _bodyController,
-              labelText: 'Message',
+              labelText: 'Issue details',
               hintText: 'Describe your issue in detail',
               maxLines: 6,
               maxLength: 5000,
