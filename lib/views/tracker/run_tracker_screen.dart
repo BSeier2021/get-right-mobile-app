@@ -39,6 +39,10 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
   String? _selectedActivity;
   Worker? _plannerReloadWorker;
   Worker? _journalTabWorker;
+  Worker? _runnerLogVisibilityWorker;
+
+  /// GoogleMap must not be created while this tab is offstage in TabBarView (blank map).
+  bool _isRunnerLogVisible = false;
   PlannedRouteModel? _reusedPlannedRoute;
   bool _isLoadingReusedRoute = false;
   String? _pendingPlannedRouteId;
@@ -56,12 +60,30 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
     super.initState();
     if (Get.isRegistered<HomeNavigationController>()) {
       final nav = Get.find<HomeNavigationController>();
+      _isRunnerLogVisible = nav.journalTabIndex.value == 1;
       _plannerReloadWorker = ever<int>(nav.journalPlannerReloadNonce, (_) => _applyPlannerRunContext());
       _journalTabWorker = ever<int>(nav.journalTabIndex, (_) => _applyPlannerRunContext());
+      _runnerLogVisibilityWorker = ever<int>(nav.journalTabIndex, (idx) {
+        final visible = idx == 1;
+        if (visible == _isRunnerLogVisible) return;
+        _isRunnerLogVisible = visible;
+        if (visible) {
+          _onRunnerLogBecameVisible();
+        } else {
+          _tearDownMapForOffstage();
+        }
+        if (mounted) setState(() {});
+      });
+    } else {
+      // Opened outside the journal tabs — map can create immediately.
+      _isRunnerLogVisible = true;
     }
     _applyPlannerRunContext();
     _loadStats();
-    _initializeLocation();
+    // Controller already requests location in onInit; only retry if still missing.
+    if (_trackingController.currentPosition.value == null) {
+      _initializeLocation();
+    }
     // Listen to position updates and update camera only (with debouncing)
     ever(_trackingController.currentPosition, (position) {
       if (position != null && _mapController != null && _isMapCreated && mounted) {
@@ -77,6 +99,21 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
         }
       }
     });
+  }
+
+  void _onRunnerLogBecameVisible() {
+    // Recreate the map on-screen so tiles render (offstage GoogleMap often stays blank).
+    _tearDownMapForOffstage();
+    if (_trackingController.currentPosition.value == null) {
+      _initializeLocation();
+    }
+  }
+
+  void _tearDownMapForOffstage() {
+    _mapController?.dispose();
+    _mapController = null;
+    _isMapCreated = false;
+    _cachedMapWidget = null;
   }
 
   /// Initialize location with proper error handling
@@ -105,7 +142,12 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
         permission = await gpsService.requestPermission();
         if (permission == LocationPermission.denied) {
           if (mounted) {
-            Get.snackbar('Permission Required', 'Location permission is required to track your runs', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 5));
+            Get.snackbar(
+              'Permission Required',
+              'Location permission is required to track your runs',
+              snackPosition: SnackPosition.BOTTOM,
+              duration: const Duration(seconds: 5),
+            );
           }
           return;
         }
@@ -144,10 +186,8 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
   void dispose() {
     _plannerReloadWorker?.dispose();
     _journalTabWorker?.dispose();
-    _mapController?.dispose();
-    _mapController = null;
-    _isMapCreated = false;
-    _cachedMapWidget = null;
+    _runnerLogVisibilityWorker?.dispose();
+    _tearDownMapForOffstage();
     _lastCameraPosition = null;
     _lastCameraUpdate = null;
     super.dispose();
@@ -214,7 +254,10 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
 
       // Build the map widget separately - it should never rebuild once created
       Widget mapContent;
-      if (_isMapCreated && _cachedMapWidget != null) {
+      if (!_isRunnerLogVisible) {
+        // Avoid creating GoogleMap while this TabBarView page is offstage.
+        mapContent = Container(color: AppColors.surface);
+      } else if (_isMapCreated && _cachedMapWidget != null) {
         // Map is already created - use cached widget and NEVER rebuild it
         mapContent = _cachedMapWidget!;
       } else if (!hasPosition) {
@@ -288,13 +331,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
                     color: AppColors.accent,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.white.withOpacity(0.35), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.black.withOpacity(0.12),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 2))],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -548,10 +585,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
                         ],
                       ),
                     ),
-                    TextButton(
-                      onPressed: _clearReusedPlannedRoute,
-                      child: const Text('Clear'),
-                    ),
+                    TextButton(onPressed: _clearReusedPlannedRoute, child: const Text('Clear')),
                   ],
                 ),
               ),
@@ -738,7 +772,10 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
           const SizedBox(height: 8),
           Text(
             type,
-            style: AppTextStyles.labelSmall.copyWith(color: isSelected ? color : AppColors.onSurface, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500),
+            style: AppTextStyles.labelSmall.copyWith(
+              color: isSelected ? color : AppColors.onSurface,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -749,13 +786,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
     final route = _reusedPlannedRoute;
     if (route == null || route.routePoints.isEmpty) return const {};
     return {
-      Polyline(
-        polylineId: const PolylineId('reused_planned_route'),
-        points: route.routePoints,
-        color: const Color(0xFF7C49E2),
-        width: 5,
-        geodesic: true,
-      ),
+      Polyline(polylineId: const PolylineId('reused_planned_route'), points: route.routePoints, color: const Color(0xFF7C49E2), width: 5, geodesic: true),
     };
   }
 

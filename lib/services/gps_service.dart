@@ -13,6 +13,10 @@ class GpsService {
     return _instance!;
   }
 
+  /// Prevents concurrent permission / position requests (iOS/Android reject parallel prompts).
+  Future<LocationPermission>? _permissionRequest;
+  Future<Position?>? _locationRequest;
+
   /// Check if location services are enabled
   Future<bool> isLocationServiceEnabled() async {
     return await Geolocator.isLocationServiceEnabled();
@@ -25,11 +29,23 @@ class GpsService {
 
   /// Request location permission
   Future<LocationPermission> requestPermission() async {
-    return await Geolocator.requestPermission();
+    if (_permissionRequest != null) return _permissionRequest!;
+    _permissionRequest = Geolocator.requestPermission().whenComplete(() {
+      _permissionRequest = null;
+    });
+    return _permissionRequest!;
   }
 
   /// Get current location
   Future<Position?> getCurrentLocation() async {
+    if (_locationRequest != null) return _locationRequest!;
+    _locationRequest = _resolveCurrentLocation().whenComplete(() {
+      _locationRequest = null;
+    });
+    return _locationRequest!;
+  }
+
+  Future<Position?> _resolveCurrentLocation() async {
     // Check if location services are enabled
     final serviceEnabled = await isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -74,7 +90,12 @@ class GpsService {
 
     double totalDistance = 0;
     for (int i = 0; i < points.length - 1; i++) {
-      totalDistance += calculateDistance(startLat: points[i].latitude, startLng: points[i].longitude, endLat: points[i + 1].latitude, endLng: points[i + 1].longitude);
+      totalDistance += calculateDistance(
+        startLat: points[i].latitude,
+        startLng: points[i].longitude,
+        endLat: points[i + 1].latitude,
+        endLng: points[i + 1].longitude,
+      );
     }
     return totalDistance;
   }

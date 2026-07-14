@@ -60,10 +60,7 @@ class RunTrackingController extends GetxController {
 
   /// Logs the planned-route payload that will be sent when this run is saved.
   void logPlannedRouteSavePayloadPreview() {
-    RunningLogRepository.previewPlannedRouteSave(
-      points: routePoints.toList(),
-      existingRouteId: plannedRouteId,
-    );
+    RunningLogRepository.previewPlannedRouteSave(points: routePoints.toList(), existingRouteId: plannedRouteId);
   }
 
   /// Start tracking run
@@ -142,7 +139,12 @@ class RunTrackingController extends GetxController {
 
     // Calculate distance
     if (_lastPosition != null) {
-      final distance = _gpsService.calculateDistance(startLat: _lastPosition!.latitude, startLng: _lastPosition!.longitude, endLat: position.latitude, endLng: position.longitude);
+      final distance = _gpsService.calculateDistance(
+        startLat: _lastPosition!.latitude,
+        startLng: _lastPosition!.longitude,
+        endLat: position.latitude,
+        endLng: position.longitude,
+      );
       distanceMeters.value += distance;
 
       // Calculate current pace (min/km) based on last segment
@@ -279,10 +281,7 @@ class RunTrackingController extends GetxController {
 
       var backendSynced = false;
       try {
-        final response = await _runningLogRepo.saveRunningLog(
-          run: run,
-          existingRouteId: plannedRouteId,
-        );
+        final response = await _runningLogRepo.saveRunningLog(run: run, existingRouteId: plannedRouteId);
         final logId = RunningLogRepository.runningLogIdFrom(response);
         if (logId != null && logId.isNotEmpty) {
           persisted = run.copyWith(backendLogId: logId);
@@ -304,8 +303,8 @@ class RunTrackingController extends GetxController {
           final message = backendSynced && localSyncSuccess
               ? 'Your run has been saved and synced to Journal and Calendar'
               : backendSynced
-                  ? 'Your run has been saved to your account'
-                  : 'Your run has been synced to Journal and Calendar';
+              ? 'Your run has been saved to your account'
+              : 'Your run has been synced to Journal and Calendar';
           Get.snackbar(
             'Run Saved',
             message,
