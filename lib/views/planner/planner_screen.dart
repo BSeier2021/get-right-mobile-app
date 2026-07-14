@@ -88,19 +88,25 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   bool get _canMoveProgramWorkout {
     final data = _getDataForDate(_selectedDate);
+    if (CalendarRepository.isRestDayData(data)) return false;
     return data?['program'] != null && _calendarEntryIdForSelectedDate() != null;
   }
+
+  bool get _isSelectedDayRestDay => CalendarRepository.isRestDayData(_getDataForDate(_selectedDate));
+
+  bool get _canAddWorkoutToSelectedDay => !_isSelectedDayRestDay;
 
   bool get _canMarkAsComplete {
     if (_isSelectedDateInFuture) return false;
     final data = _getDataForDate(_selectedDate);
     if (!_canMarkDayCompleted(data)) return false;
-    if (_isCalendarDayMarkedRest(data)) return false;
+    if (CalendarRepository.isRestDayData(data)) return false;
     if (_isCalendarDayMarkedComplete(data)) return false;
     return true;
   }
 
   bool _canMarkDayCompleted(Map<String, dynamic>? data) {
+    if (CalendarRepository.isRestDayData(data)) return false;
     if (_dayHasLoggedData(data)) return true;
     return data?['program'] != null;
   }
@@ -121,15 +127,21 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   bool _isCalendarDayMarkedComplete(Map<String, dynamic>? data) {
-    final entryStatus = _calendarEntryStatus(data);
-    return entryStatus == 'completed';
+    return CalendarRepository.isCompletedDayData(data);
   }
 
   bool _isCalendarDayMarkedRest(Map<String, dynamic>? data) {
-    final entryStatus = _calendarEntryStatus(data);
-    if (entryStatus == 'rest') return true;
-    if (_calendarEntryIdForSelectedDate() != null) return false;
-    return data?['workoutStatus']?.toString() == 'rest';
+    return CalendarRepository.isRestDayData(data);
+  }
+
+  void _showRestDayBlockedMessage() {
+    Get.snackbar(
+      'Rest Day',
+      'This day is marked as a rest day. Change the day status before adding workouts.',
+      backgroundColor: AppColors.error,
+      colorText: AppColors.onError,
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
   String? get _selectedDayStatusLabel {
@@ -327,6 +339,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   bool _dayHasVisibleContent(Map<String, dynamic>? data) {
     if (data == null) return false;
+    if (_isCalendarDayMarkedRest(data)) return true;
     if (data['program'] != null) return true;
     return _dayHasLoggedData(data);
   }
@@ -356,6 +369,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final data = _getDataForDate(date);
     if (data == null) return Colors.transparent;
 
+    if (_isCalendarDayMarkedRest(data)) return const Color(0xFF4A90E2);
+
     final program = data['program'];
     if (program is Map) {
       switch (program['status']?.toString().toLowerCase()) {
@@ -363,6 +378,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
           return const Color(0xFF6FCF97);
         case 'incomplete':
           return const Color(0xFFE74C3C);
+        case 'rest':
+          return const Color(0xFF4A90E2);
       }
     }
 
@@ -785,6 +802,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<void> _showSetDayStatusSheet() async {
+    final dayData = _getDataForDate(_selectedDate);
+    final isRestDay = _isCalendarDayMarkedRest(dayData);
+    final isCompletedDay = _isCalendarDayMarkedComplete(dayData);
+
     final selectedType = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -820,7 +841,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
                 ),
                 const SizedBox(height: 24),
-                if (!_isSelectedDateInFuture) ...[
+                if (!_isSelectedDateInFuture && !isRestDay) ...[
                   _buildStatusOptionTile(
                     icon: Icons.check_circle_outline,
                     iconBg: const Color(0xFFDFF1D3),
@@ -849,14 +870,35 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   ),
                   const SizedBox(height: 12),
                 ],
-                _buildStatusOptionTile(
-                  icon: Icons.hotel_outlined,
-                  iconBg: const Color(0xFFDCEBFA),
-                  iconColor: const Color(0xFF4A90E2),
-                  title: 'Rest Day',
-                  subtitle: _isSelectedDateInFuture ? 'Schedule recovery for this upcoming day' : 'Planned recovery with no workout logged',
-                  onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeRest),
-                ),
+                if (!isCompletedDay)
+                  _buildStatusOptionTile(
+                    icon: Icons.hotel_outlined,
+                    iconBg: const Color(0xFFDCEBFA),
+                    iconColor: const Color(0xFF4A90E2),
+                    title: 'Rest Day',
+                    subtitle: _isSelectedDateInFuture ? 'Schedule recovery for this upcoming day' : 'Planned recovery with no workout logged',
+                    onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeRest),
+                  ),
+                if (isRestDay && !_isSelectedDateInFuture) ...[
+                  const SizedBox(height: 12),
+                  _buildStatusOptionTile(
+                    icon: Icons.timelapse,
+                    iconBg: const Color(0xFFFFF0D8),
+                    iconColor: AppColors.accent,
+                    title: 'In Progress',
+                    subtitle: 'Remove rest day and mark activity in progress',
+                    onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeInProgress),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildStatusOptionTile(
+                    icon: Icons.pending_outlined,
+                    iconBg: const Color(0xFFFFE8E8),
+                    iconColor: const Color(0xFFE74C3C),
+                    title: 'Incomplete',
+                    subtitle: 'Remove rest day and mark activity incomplete',
+                    onTap: () => Navigator.pop(sheetContext, CalendarRepository.typeIncomplete),
+                  ),
+                ],
 
                 const SizedBox(height: 20),
                 const SizedBox(height: 20),
@@ -933,7 +975,20 @@ class _PlannerScreenState extends State<PlannerScreen> {
       return;
     }
 
-    if (type == CalendarRepository.typeCompleted && !_canMarkDayCompleted(_getDataForDate(_selectedDate))) {
+    final dayData = _getDataForDate(_selectedDate);
+
+    if (type == CalendarRepository.typeRest && _isCalendarDayMarkedComplete(dayData)) {
+      Get.snackbar(
+        'Cannot mark Rest Day',
+        'A completed day cannot be changed to a rest day.',
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    if (type == CalendarRepository.typeCompleted && !_canMarkDayCompleted(dayData)) {
       Get.snackbar(
         'Add data first',
         'Log a workout, run, meal, note, photo, or program workout before marking complete',
@@ -946,7 +1001,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
     setState(() => _isMarkingComplete = true);
     try {
-      final dayData = _getDataForDate(_selectedDate);
       final durationInSeconds = CalendarRepository.typeRequiresDuration(type)
           ? CalendarRepository.durationSecondsForDayComplete(dayData)
           : null;
@@ -967,7 +1021,15 @@ class _PlannerScreenState extends State<PlannerScreen> {
       if (!mounted) return;
       await _loadCalendarMonth();
       if (!mounted) return;
-      if (type == CalendarRepository.typeInProgress) {
+      if (type == CalendarRepository.typeRest) {
+        final key = CalendarRepository.normalizedDate(_selectedDate);
+        final refreshed = _getDataForDate(_selectedDate);
+        if (refreshed != null) {
+          setState(() {
+            _dayData[key] = CalendarRepository.applyRestDayToDayData(refreshed);
+          });
+        }
+      } else if (type == CalendarRepository.typeInProgress) {
         final key = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
         final data = _getDataForDate(_selectedDate);
         if (data != null) {
@@ -1209,6 +1271,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _showAddWorkoutDialog() {
+    if (!_canAddWorkoutToSelectedDay) {
+      _showRestDayBlockedMessage();
+      return;
+    }
+
     Get.to(
       () => AddDateScreen(
         selectedDate: _selectedDate,
@@ -2474,22 +2541,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
               const SizedBox(height: 16),
               Text('No data for this day', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.green)),
               const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Data'),
-                  onPressed: _showAddWorkoutDialog,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.onAccent,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    textStyle: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
+              if (_canAddWorkoutToSelectedDay)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Data'),
+                    onPressed: _showAddWorkoutDialog,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      textStyle: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
+              if (_canAddWorkoutToSelectedDay) const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -2511,14 +2579,20 @@ class _PlannerScreenState extends State<PlannerScreen> {
       );
     }
 
+    final isRestDay = _isCalendarDayMarkedRest(data);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
+          if (isRestDay) ...[
+            _buildRestDayBanner(),
+            const SizedBox(height: 12),
+          ],
           if (!_isSelectedDateInFuture) ...[_buildProgressPhotosSection(), const SizedBox(height: 12)],
 
           // Program Workout (mapped from enrolled program)
-          if (data['program'] != null) _buildProgramWorkoutSection(data['program']),
+          if (data['program'] != null) _buildProgramWorkoutSection(data['program'], isRestDay: isRestDay),
 
           // Workout Summary
           if (data['workout'] != null) _buildWorkoutSummarySection(data['workout']),
@@ -2538,41 +2612,61 @@ class _PlannerScreenState extends State<PlannerScreen> {
           const SizedBox(height: 16),
 
           // Action Buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _showAddWorkoutDialog,
-                  icon: const Icon(Icons.add_rounded, size: 20),
-                  label: const Text('Add'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.accent,
-                    side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          if (_canAddWorkoutToSelectedDay)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _showAddWorkoutDialog,
+                    icon: const Icon(Icons.add_rounded, size: 20),
+                    label: const Text('Add'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.accent,
+                      side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _shareSelectedDayToChat();
-                  },
-                  icon: const Icon(Icons.share_rounded, size: 20),
-                  label: const Text('Share'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.onAccent,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _shareSelectedDayToChat();
+                    },
+                    icon: const Icon(Icons.share_rounded, size: 20),
+                    label: const Text('Share'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    ),
                   ),
                 ),
+              ],
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _shareSelectedDayToChat();
+                },
+                icon: const Icon(Icons.share_rounded, size: 20),
+                label: const Text('Share'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: AppColors.onAccent,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                ),
               ),
-            ],
-          ),
+            ),
           _buildDayStatusActions(),
         ],
       ),
@@ -2786,9 +2880,44 @@ class _PlannerScreenState extends State<PlannerScreen> {
     return raw.whereType<Map>().map((ex) => Map<String, dynamic>.from(ex)).toList();
   }
 
-  Widget _buildProgramWorkoutSection(Map<String, dynamic> program) {
+  Widget _buildRestDayBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFDCEBFA),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF4A90E2).withOpacity(0.35)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: const BoxDecoration(color: Color(0xFF4A90E2), shape: BoxShape.circle),
+            child: const Icon(Icons.hotel_outlined, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Rest Day', style: AppTextStyles.titleSmall.copyWith(color: const Color(0xFF2F6FB3), fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(
+                  'Recovery day — workouts cannot be added until you change the day status.',
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgramWorkoutSection(Map<String, dynamic> program, {bool isRestDay = false}) {
     final title = program['title']?.toString() ?? 'Program Workout';
-    final status = program['status']?.toString().toLowerCase() ?? '';
+    final status = isRestDay ? 'rest' : (program['status']?.toString().toLowerCase() ?? '');
     final difficulty = program['difficulty']?.toString() ?? '';
     final workoutDays = _programWorkoutDaysList(program);
     final currentDayNumber = (program['currentDayNumber'] as num?)?.toInt() ?? (program['dayNumber'] as num?)?.toInt() ?? 0;
@@ -2814,6 +2943,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
       case 'incomplete':
         statusColor = const Color(0xFFE74C3C);
         statusLabel = 'Incomplete';
+        break;
+      case 'rest':
+        statusColor = const Color(0xFF4A90E2);
+        statusLabel = 'Rest Day';
         break;
       default:
         statusColor = AppColors.accent;
@@ -2879,7 +3012,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ),
           if (workoutDays.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text('Full day-by-day plan from your enrolled program', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+            Text(
+              isRestDay ? 'Scheduled program workout skipped for this rest day' : 'Full day-by-day plan from your enrolled program',
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+            ),
             const SizedBox(height: 12),
             ...workoutDays.map((day) => _buildProgramWorkoutDayCard(day, currentDayNumber)),
           ] else ...[

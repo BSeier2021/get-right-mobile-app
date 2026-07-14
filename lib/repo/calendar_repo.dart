@@ -227,6 +227,31 @@ class CalendarRepository {
     }
   }
 
+  static bool isRestDayData(Map<String, dynamic>? data) {
+    if (data == null) return false;
+    final entryType = data['calendarEntryType']?.toString();
+    if (workoutStatusFromType(entryType) == 'rest') return true;
+    return data['workoutStatus']?.toString() == 'rest';
+  }
+
+  static bool isCompletedDayData(Map<String, dynamic>? data) {
+    if (data == null) return false;
+    final entryType = data['calendarEntryType']?.toString();
+    if (workoutStatusFromType(entryType) == 'completed') return true;
+    return data['workoutStatus']?.toString() == 'completed';
+  }
+
+  static Map<String, dynamic> applyRestDayToDayData(Map<String, dynamic> data) {
+    final updated = Map<String, dynamic>.from(data);
+    updated['calendarEntryType'] = typeRest;
+    updated['workoutStatus'] = 'rest';
+    final program = updated['program'];
+    if (program is Map) {
+      updated['program'] = Map<String, dynamic>.from(program)..['status'] = 'rest';
+    }
+    return updated;
+  }
+
   static String formatDurationSeconds(int seconds) {
     final safe = seconds < 0 ? 0 : seconds;
     final hours = safe ~/ 3600;
@@ -980,6 +1005,15 @@ class CalendarRepository {
 
         if (map.containsKey(targetDate)) {
           final existing = map[targetDate]!;
+          if (isRestDayData(existing)) {
+            final restProgram = Map<String, dynamic>.from(dayProgram)..['status'] = 'rest';
+            map[targetDate] = mergeDayData(existing, {
+              'program': restProgram,
+              'workoutStatus': 'rest',
+            });
+            continue;
+          }
+
           final existingProgram = existing['program'];
           if (existingProgram == null) {
             map[targetDate] = mergeDayData(existing, {
@@ -1015,20 +1049,29 @@ class CalendarRepository {
     final photos = progressPhotosFromEntry(entry);
     final journal = entry['workoutJournal'];
     final programDay = programDayFromEntry(entry);
+    final entryWorkoutStatus = workoutStatusFromType(entry['type']?.toString());
+    final isRestDay = entryWorkoutStatus == 'rest';
+
+    Map<String, dynamic>? resolvedProgramDay = programDay;
+    if (programDay != null && isRestDay) {
+      resolvedProgramDay = Map<String, dynamic>.from(programDay)..['status'] = 'rest';
+    }
 
     return {
       'calendarEntryId': entryIdFromCalendarRecord(entry),
       'calendarEntryType': entry['type']?.toString(),
-      'workoutStatus': programDay != null
-          ? workoutStatusFromType(programDay['status']?.toString())
-          : workoutStatusFromType(entry['type']?.toString()),
+      'workoutStatus': isRestDay
+          ? 'rest'
+          : (resolvedProgramDay != null
+              ? workoutStatusFromType(resolvedProgramDay['status']?.toString())
+              : entryWorkoutStatus),
       'hasProgressPhoto': photos.isNotEmpty || hasProgressPhotosInEntry(entry),
       'progressPhotos': photos,
       'workout': workoutSummaryFromJournal(journal),
       'run': runSummaryFromRunningLogRaw(entry['runningLog']),
       'nutrition': nutrition,
       'notes': displayNotesFrom(entry['notes']?.toString()),
-      if (programDay != null) 'program': programDay,
+      if (resolvedProgramDay != null) 'program': resolvedProgramDay,
     };
   }
 

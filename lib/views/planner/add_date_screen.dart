@@ -55,6 +55,18 @@ class _AddDateScreenState extends State<AddDateScreen> {
     return selected == today;
   }
 
+  bool get _isRestDay => CalendarRepository.isRestDayData(widget.dayData);
+
+  void _showRestDayBlockedMessage() {
+    Get.snackbar(
+      'Rest Day',
+      'This day is marked as a rest day. Change the day status before adding workouts or runs.',
+      backgroundColor: AppColors.error,
+      colorText: AppColors.onError,
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
   Future<bool> _saveCalendarNotes(String notes) async {
     setState(() => _isSaving = true);
     try {
@@ -92,6 +104,10 @@ class _AddDateScreenState extends State<AddDateScreen> {
   }
 
   Future<void> _handleAddWorkout() async {
+    if (_isRestDay) {
+      _showRestDayBlockedMessage();
+      return;
+    }
     if (_reuseOptions.any((o) => o.kind == PlannerReuseKind.warmup || o.kind == PlannerReuseKind.workout)) {
       _showReuseSheet(forWorkout: true);
       return;
@@ -106,6 +122,10 @@ class _AddDateScreenState extends State<AddDateScreen> {
   }
 
   void _handleAddRun() {
+    if (_isRestDay) {
+      _showRestDayBlockedMessage();
+      return;
+    }
     if (_reuseOptions.any((o) => o.kind == PlannerReuseKind.plannedRoute || o.kind == PlannerReuseKind.savedActivity)) {
       _showReuseSheet(forWorkout: false);
       return;
@@ -433,6 +453,10 @@ class _AddDateScreenState extends State<AddDateScreen> {
   }
 
   void _reuseEntryDirectly(PlannerReuseOption option) {
+    if (_isRestDay) {
+      _showRestDayBlockedMessage();
+      return;
+    }
     switch (option.kind) {
       case PlannerReuseKind.warmup:
       case PlannerReuseKind.workout:
@@ -477,6 +501,30 @@ class _AddDateScreenState extends State<AddDateScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text('Log something for this day', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                  if (_isRestDay) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCEBFA),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFF4A90E2).withOpacity(0.35)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.hotel_outlined, color: Color(0xFF4A90E2)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Rest day — workouts and runs are disabled until you change the day status.',
+                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   if (reuseOptions.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     Text(
@@ -506,10 +554,12 @@ class _AddDateScreenState extends State<AddDateScreen> {
                     imagePath: 'assets/images/add workout.png',
                     iconBg: const Color(0xFFDFF1D3),
                     title: 'Add Workout',
-                    subtitle: reuseOptions.any((o) => o.kind == PlannerReuseKind.warmup || o.kind == PlannerReuseKind.workout)
-                        ? 'Add another workout or reuse existing'
-                        : 'Log a gym or home workout',
-                    onTap: _isSaving ? () {} : _handleAddWorkout,
+                    subtitle: _isRestDay
+                        ? 'Unavailable on rest days'
+                        : (reuseOptions.any((o) => o.kind == PlannerReuseKind.warmup || o.kind == PlannerReuseKind.workout)
+                            ? 'Add another workout or reuse existing'
+                            : 'Log a gym or home workout'),
+                    onTap: _isSaving || _isRestDay ? () {} : _handleAddWorkout,
                   ),
                   const SizedBox(height: 12),
                   _buildActionTile(
@@ -517,10 +567,12 @@ class _AddDateScreenState extends State<AddDateScreen> {
                     imagePath: 'assets/images/add run.png',
                     iconBg: const Color(0xFFFFE8D1),
                     title: 'Add Run',
-                    subtitle: reuseOptions.any((o) => o.kind == PlannerReuseKind.plannedRoute || o.kind == PlannerReuseKind.savedActivity)
-                        ? (_isSelectedDateToday ? 'Add another run, log manually, or track with GPS' : 'Add another run or log manually')
-                        : (_isSelectedDateToday ? 'Log manually or track with GPS' : 'Log run details manually'),
-                    onTap: _isSaving ? () {} : _handleAddRun,
+                    subtitle: _isRestDay
+                        ? 'Unavailable on rest days'
+                        : (reuseOptions.any((o) => o.kind == PlannerReuseKind.plannedRoute || o.kind == PlannerReuseKind.savedActivity)
+                            ? (_isSelectedDateToday ? 'Add another run, log manually, or track with GPS' : 'Add another run or log manually')
+                            : (_isSelectedDateToday ? 'Log manually or track with GPS' : 'Log run details manually')),
+                    onTap: _isSaving || _isRestDay ? () {} : _handleAddRun,
                   ),
                   const SizedBox(height: 12),
                   _buildActionTile(
