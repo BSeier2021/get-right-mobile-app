@@ -521,7 +521,7 @@ Platform: $platformLabel
               ),
               icon: Icon(Icons.mail_outline_rounded, size: 20.sp),
               label: Text(
-                _launchingEmail ? 'Opening email...' : 'Email Support',
+                _launchingEmail ? 'Opening email...' : 'Send us an email',
                 style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w700, color: AppColors.onError),
               ),
             ),
