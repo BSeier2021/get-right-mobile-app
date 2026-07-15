@@ -314,11 +314,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       children: [
                         Image.asset('assets/images/google.png', width: 60.w),
                         if (Platform.isIOS || Platform.isMacOS) ...[const SizedBox(width: 12), Image.asset('assets/images/apple.png', width: 60.w)],
-                        const SizedBox(width: 12),
-                        Image.asset('assets/images/facebook.png', width: 60.w),
+                        // const SizedBox(width: 12),
+                        // Image.asset('assets/images/facebook.png', width: 60.w),
                       ],
                     ),
-                    SizedBox(height: 120.h),
+                    SizedBox(height: 100.h),
                     // Sign up link
                     Center(
                       child: Row(

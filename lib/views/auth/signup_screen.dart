@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -28,9 +29,15 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
+  bool _agreedToTerms = false;
+  late final TapGestureRecognizer _termsTapRecognizer;
+  late final TapGestureRecognizer _privacyTapRecognizer;
+
   @override
   void initState() {
     super.initState();
+    _termsTapRecognizer = TapGestureRecognizer()..onTap = () => Get.toNamed(AppRoutes.termsConditions);
+    _privacyTapRecognizer = TapGestureRecognizer()..onTap = () => Get.toNamed(AppRoutes.privacyPolicy);
     _passwordController.addListener(_onPasswordChanged);
     _setupAnimations();
   }
@@ -87,6 +94,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
 
   @override
   void dispose() {
+    _termsTapRecognizer.dispose();
+    _privacyTapRecognizer.dispose();
     _passwordController.removeListener(_onPasswordChanged);
     _emailController.dispose();
     _passwordController.dispose();
@@ -97,6 +106,17 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
 
   Future<void> _signup() async {
     FocusScope.of(context).unfocus();
+    if (!_agreedToTerms) {
+      Get.snackbar(
+        'Create account',
+        'Please agree to Terms & Conditions and Privacy Policy',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+      );
+      return;
+    }
     if (!_formKey.currentState!.validate()) {
       final p = _passwordController.text;
       final missing = <String>[];
@@ -277,6 +297,69 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                             ),
                           ),
 
+                          const SizedBox(height: 20),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              InkWell(
+                                onTap: () => setState(() => _agreedToTerms = !_agreedToTerms),
+                                borderRadius: BorderRadius.circular(100),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  width: 20.sp,
+                                  height: 20.sp,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _agreedToTerms ? AppColors.accent : Colors.transparent,
+                                    border: Border.all(
+                                      color: _agreedToTerms ? AppColors.accent : AppColors.primaryGray.withOpacity(0.6),
+                                      width: 1.6,
+                                    ),
+                                  ),
+                                  child: _agreedToTerms ? Icon(Icons.check, size: 14.sp, color: AppColors.onAccent) : null,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text.rich(
+                                  TextSpan(
+                                    text: 'I agree to Get Right\'s ',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.onBackground.withOpacity(0.75),
+                                      fontSize: 13.sp,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    children: [
+                                      TextSpan(
+                                        text: 'Terms & Conditions',
+                                        style: const TextStyle(
+                                          color: AppColors.accent,
+                                          fontWeight: FontWeight.w700,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                        recognizer: _termsTapRecognizer,
+                                      ),
+                                      TextSpan(
+                                        text: ' and ',
+                                        style: TextStyle(color: AppColors.onBackground.withOpacity(0.75)),
+                                      ),
+                                      TextSpan(
+                                        text: 'Privacy Policy',
+                                        style: const TextStyle(
+                                          color: AppColors.accent,
+                                          fontWeight: FontWeight.w700,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                        recognizer: _privacyTapRecognizer,
+                                      ),
+                                      const TextSpan(text: '.'),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
                           const SizedBox(height: 28),
 
                           // Create Account button
@@ -333,8 +416,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                             children: [
                               Image.asset('assets/images/google.png', width: 60.w),
                               if (Platform.isIOS || Platform.isMacOS) ...[const SizedBox(width: 12), Image.asset('assets/images/apple.png', width: 60.w)],
-                              const SizedBox(width: 12),
-                              Image.asset('assets/images/facebook.png', width: 60.w),
+                              // const SizedBox(width: 12),
+                              // Image.asset('assets/images/facebook.png', width: 60.w),
                             ],
                           ),
                           const SizedBox(height: 20),

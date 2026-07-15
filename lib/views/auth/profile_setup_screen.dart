@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -32,10 +31,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
   final _bioController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   File? _profileImageFile;
-  bool _agreedToTerms = false;
-
-  late final TapGestureRecognizer _termsTapRecognizer;
-  late final TapGestureRecognizer _privacyTapRecognizer;
 
   DateTime? _dateOfBirth;
   String? _selectedGender;
@@ -47,8 +42,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    _termsTapRecognizer = TapGestureRecognizer()..onTap = () => Get.toNamed(AppRoutes.termsConditions);
-    _privacyTapRecognizer = TapGestureRecognizer()..onTap = () => Get.toNamed(AppRoutes.privacyPolicy);
     _setupAnimations();
   }
 
@@ -61,8 +54,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
 
   @override
   void dispose() {
-    _termsTapRecognizer.dispose();
-    _privacyTapRecognizer.dispose();
     _fullNameController.dispose();
     _phoneController.dispose();
     _weightController.dispose();
@@ -132,10 +123,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
     }
     if (weight < 20 || weight > 500) {
       Get.snackbar('Profile', 'Please enter a weight between 20 and 500 kg', snackPosition: SnackPosition.BOTTOM);
-      return;
-    }
-    if (!_agreedToTerms) {
-      Get.snackbar('Profile', 'Please agree to Terms & Conditions and Privacy Policy', snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
@@ -329,60 +316,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                             hintText: 'Tell us about yourself...',
                             maxLines: 3,
                             inputFormatters: kNoEmojiInputFormatters,
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              InkWell(
-                                onTap: () => setState(() => _agreedToTerms = !_agreedToTerms),
-                                borderRadius: BorderRadius.circular(100),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
-                                  width: 20.sp,
-                                  height: 20.sp,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: _agreedToTerms ? AppColors.accent : Colors.transparent,
-                                    border: Border.all(color: _agreedToTerms ? AppColors.accent : AppColors.primaryGray.withOpacity(0.6), width: 1.6),
-                                  ),
-                                  child: _agreedToTerms ? Icon(Icons.check, size: 14.sp, color: AppColors.onAccent) : null,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text.rich(
-                                  TextSpan(
-                                    text: 'By continuing, you agree to GetRight\'s ',
-                                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.75), fontSize: 13.sp, fontWeight: FontWeight.w400),
-                                    children: [
-                                      TextSpan(
-                                        text: 'Terms &\nConditions',
-                                        style: const TextStyle(
-                                          color: AppColors.accent,
-                                          fontWeight: FontWeight.w700,
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                        recognizer: _termsTapRecognizer,
-                                      ),
-                                      TextSpan(
-                                        text: ' and ',
-                                        style: TextStyle(color: AppColors.onBackground.withOpacity(0.75)),
-                                      ),
-                                      TextSpan(
-                                        text: 'Privacy Policy',
-                                        style: const TextStyle(
-                                          color: AppColors.accent,
-                                          fontWeight: FontWeight.w700,
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                        recognizer: _privacyTapRecognizer,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
                           ),
                           const SizedBox(height: 20),
                           GetBuilder<AuthController>(

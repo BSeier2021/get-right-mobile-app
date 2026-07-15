@@ -276,6 +276,14 @@ class _AppDrawerState extends State<AppDrawer> {
                     },
                   ),
                   _drawerItem(
+                    fallbackIcon: Icons.description_outlined,
+                    title: 'Terms & Conditions',
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed(AppRoutes.termsConditions);
+                    },
+                  ),
+                  _drawerItem(
                     asset: 'assets/images/danger.png',
                     fallbackIcon: Icons.privacy_tip_outlined,
                     title: 'Privacy Policy',

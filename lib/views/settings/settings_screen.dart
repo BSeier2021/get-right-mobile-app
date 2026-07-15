@@ -55,13 +55,13 @@ class SettingsScreen extends StatelessWidget {
           ),
 
           // Enable Notifications
-          _settingsCard(
-            iconBg: const Color(0xFFF9E9C3),
-            image: 'assets/images/notification333.png',
-            title: 'Enable Notifications',
-            subtitle: 'Receive workout reminders and updates',
-            onTap: () => controller.toggleNotifications(!controller.notificationsEnabled),
-          ),
+          // _settingsCard(
+          //   iconBg: const Color(0xFFF9E9C3),
+          //   image: 'assets/images/notification333.png',
+          //   title: 'Enable Notifications',
+          //   subtitle: 'Receive workout reminders and updates',
+          //   onTap: () => controller.toggleNotifications(!controller.notificationsEnabled),
+          // ),
 
           // Change Password
           _settingsCard(
