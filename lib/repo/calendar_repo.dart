@@ -274,6 +274,20 @@ class CalendarRepository {
 
   static Map<String, dynamic>? runSummaryFromRunningLogRaw(dynamic runningLogRaw) {
     if (runningLogRaw == null) return null;
+    if (runningLogRaw is String) {
+      final id = _mongoId(runningLogRaw);
+      if (id == null) return null;
+      return {
+        'id': id,
+        'distance': '0 km',
+        'time': '0:00',
+        'durationSeconds': 0,
+        'pace': '--:-- /km',
+        'calories': 0,
+        'activityType': 'Run',
+        'isPlannedRoute': false,
+      };
+    }
     if (runningLogRaw is! Map) return null;
 
     final log = Map<String, dynamic>.from(runningLogRaw);
@@ -310,7 +324,7 @@ class CalendarRepository {
     final calories = _intFrom(log['caloriesBurned']) ?? _intFrom(log['calories']);
 
     return {
-      'id': log['_id']?.toString(),
+      'id': _mongoId(log['_id'] ?? log['id']),
       'distance': '${(distanceMeters / 1000).toStringAsFixed(2)} km',
       'time': formatDurationSeconds(durationSeconds),
       'durationSeconds': durationSeconds,
@@ -990,7 +1004,6 @@ class CalendarRepository {
     if (programRaw is! Map) return null;
     final program = Map<String, dynamic>.from(programRaw);
     final exercises = programExercisesFrom(program['exercises']);
-    if (exercises.isEmpty) return null;
 
     Map<String, dynamic>? enrollment;
     var workoutDays = const <Map<String, dynamic>>[];
@@ -1000,6 +1013,11 @@ class CalendarRepository {
       if (nestedProgram is Map) {
         workoutDays = parseWorkoutDaysList(nestedProgram['workoutDays']);
       }
+    }
+
+    if (exercises.isEmpty && workoutDays.isEmpty) {
+      final status = program['status']?.toString().trim() ?? '';
+      if (status.isEmpty && enrollment == null) return null;
     }
 
     final dayNumber = _intFrom(program['dayNumber']) ?? inferProgramDayNumber(exercises, workoutDays) ?? 1;
@@ -1012,44 +1030,6 @@ class CalendarRepository {
       dayNumber: dayNumber,
       entryType: entry['type']?.toString(),
     );
-  }
-
-  static int? programDayNumberFromDayData(Map<String, dynamic> dayData, List<Map<String, dynamic>> workoutDays) {
-    final program = dayData['program'];
-    if (program is! Map) return null;
-    final programMap = Map<String, dynamic>.from(program);
-    final fromField = _intFrom(programMap['dayNumber']) ?? _intFrom(programMap['currentDayNumber']);
-    if (fromField != null) return fromField;
-    return inferProgramDayNumber(programExercisesFrom(programMap['exercises']), workoutDays);
-  }
-
-  static int typicalProgramDaySpacing(Map<int, DateTime> scheduledByDayNumber) {
-    if (scheduledByDayNumber.length < 2) return 1;
-    final sorted = scheduledByDayNumber.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
-    var totalSpacing = 0;
-    var count = 0;
-    for (var i = 1; i < sorted.length; i++) {
-      final dayDelta = sorted[i].key - sorted[i - 1].key;
-      if (dayDelta <= 0) continue;
-      final dateDelta = sorted[i].value.difference(sorted[i - 1].value).inDays;
-      totalSpacing += (dateDelta / dayDelta).round().clamp(1, 365);
-      count++;
-    }
-    return count > 0 ? (totalSpacing / count).round().clamp(1, 365) : 1;
-  }
-
-  static DateTime previewDateForProgramDay(int dayNumber, Map<int, DateTime> scheduledByDayNumber, DateTime fallbackAnchor) {
-    final knownDate = scheduledByDayNumber[dayNumber];
-    if (knownDate != null) return knownDate;
-
-    if (scheduledByDayNumber.isEmpty) {
-      return fallbackAnchor.add(Duration(days: dayNumber - 1));
-    }
-
-    final sorted = scheduledByDayNumber.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
-    final lastKnown = sorted.last;
-    final spacing = typicalProgramDaySpacing(scheduledByDayNumber);
-    return lastKnown.value.add(Duration(days: (dayNumber - lastKnown.key) * spacing));
   }
 
   static void enrichExistingProgramEntry(
@@ -1071,32 +1051,6 @@ class CalendarRepository {
     map[date] = mergeDayData(existing, {'program': mergedProgram});
   }
 
-  static Map<String, dynamic> previewProgramDayData({
-    required Map<String, dynamic> templateProgram,
-    required List<Map<String, dynamic>> workoutDays,
-    required List<Map<String, dynamic>> exercises,
-    required int dayNumber,
-  }) {
-    final dayProgram = Map<String, dynamic>.from(templateProgram)
-      ..['exercises'] = exercises
-      ..['exerciseCount'] = exercises.length
-      ..['totalSets'] = exercises.fold<int>(0, (sum, ex) => sum + (_intFrom(ex['numberOfSets']) ?? 0))
-      ..['workoutDays'] = workoutDays
-      ..['dayNumber'] = dayNumber
-      ..['currentDayNumber'] = dayNumber;
-
-    return {
-      'workoutStatus': workoutStatusFromType(dayProgram['status']?.toString()),
-      'hasProgressPhoto': false,
-      'progressPhotos': const [],
-      'workout': null,
-      'run': null,
-      'nutrition': null,
-      'notes': '',
-      'program': dayProgram,
-    };
-  }
-
   static void expandProgramScheduleInMap(Map<DateTime, Map<String, dynamic>> map) {
     final grouped = <String, List<MapEntry<DateTime, Map<String, dynamic>>>>{};
 
@@ -1109,68 +1063,14 @@ class CalendarRepository {
     }
 
     for (final entries in grouped.values) {
-      entries.sort((a, b) => a.key.compareTo(b.key));
       final templateProgram = Map<String, dynamic>.from(entries.first.value['program'] as Map);
       final workoutDays = parseWorkoutDaysList(templateProgram['workoutDays']);
       if (workoutDays.isEmpty) continue;
 
-      final anchorDate = entries.first.key;
-      final scheduledByDayNumber = <int, DateTime>{};
-
       for (final entry in entries) {
-        final dayData = entry.value;
-        final entryId = dayData['calendarEntryId']?.toString();
+        final entryId = entry.value['calendarEntryId']?.toString();
         if (entryId == null || entryId.isEmpty) continue;
-
-        final dayNumber = programDayNumberFromDayData(dayData, workoutDays);
-        if (dayNumber == null) continue;
-
-        scheduledByDayNumber[dayNumber] = entry.key;
         enrichExistingProgramEntry(map, entry.key, workoutDays);
-      }
-
-      final maxKnownDayNumber = scheduledByDayNumber.keys.isEmpty ? 0 : scheduledByDayNumber.keys.reduce((a, b) => a > b ? a : b);
-
-      for (var i = 0; i < workoutDays.length; i++) {
-        final workoutDay = workoutDays[i];
-        final dayNumber = _intFrom(workoutDay['dayNumber']) ?? (i + 1);
-        if (scheduledByDayNumber.containsKey(dayNumber)) continue;
-
-        // Do not recreate preview entries for deleted days in the middle of the schedule.
-        if (dayNumber <= maxKnownDayNumber) continue;
-
-        final exercises = programExercisesFrom(workoutDay['exercises']);
-        if (exercises.isEmpty) continue;
-
-        final targetDate = previewDateForProgramDay(dayNumber, scheduledByDayNumber, anchorDate);
-        final previewData = previewProgramDayData(
-          templateProgram: templateProgram,
-          workoutDays: workoutDays,
-          exercises: exercises,
-          dayNumber: dayNumber,
-        );
-
-        if (map.containsKey(targetDate)) {
-          final existing = map[targetDate]!;
-          final existingEntryId = existing['calendarEntryId']?.toString();
-          if (existingEntryId != null && existingEntryId.isNotEmpty) continue;
-
-          if (isRestDayData(existing)) {
-            final restProgram = Map<String, dynamic>.from(previewData['program'] as Map)..['status'] = 'rest';
-            map[targetDate] = mergeDayData(existing, {
-              'program': restProgram,
-              'workoutStatus': 'rest',
-            });
-            continue;
-          }
-
-          if (existing['program'] == null) {
-            map[targetDate] = mergeDayData(existing, previewData);
-          }
-          continue;
-        }
-
-        map[targetDate] = previewData;
       }
     }
   }
@@ -1371,22 +1271,29 @@ class CalendarRepository {
       throw Exception('Invalid calendar entry id');
     }
 
-    final body = updateEntryBody(
-      notes: notes,
-      type: type,
-      runningLog: runningLog,
-      workoutJournal: workoutJournal,
-      durationInSeconds: durationInSeconds,
-    );
-    final removeIds = removeProgressPhotoIds?.map((e) => e.trim()).where(WorkoutRepository.isValidMongoId).toList() ?? const <String>[];
-    if (removeIds.isNotEmpty) {
-      body['removeProgressPhotosIds'] = jsonEncode(removeIds);
-    }
     final files = progressPhotoFiles?.where((f) => f.path.isNotEmpty).toList() ?? const <File>[];
     final multipartFiles = progressPhotoType != null && files.isNotEmpty
         ? progressPhotoMultipartFiles(files: files, slot: progressPhotoType)
         : const <String, List<File>>{};
 
+    Map<String, dynamic> body;
+    try {
+      body = updateEntryBody(
+        notes: notes,
+        type: type,
+        runningLog: runningLog,
+        workoutJournal: workoutJournal,
+        durationInSeconds: durationInSeconds,
+      );
+    } catch (e) {
+      if (multipartFiles.isEmpty) rethrow;
+      body = <String, dynamic>{};
+    }
+
+    final removeIds = removeProgressPhotoIds?.map((e) => e.trim()).where(WorkoutRepository.isValidMongoId).toList() ?? const <String>[];
+    if (removeIds.isNotEmpty) {
+      body['removeProgressPhotosIds'] = jsonEncode(removeIds);
+    }
     final dynamic raw;
     if (multipartFiles.isNotEmpty) {
       raw = await _network.putMultipart(

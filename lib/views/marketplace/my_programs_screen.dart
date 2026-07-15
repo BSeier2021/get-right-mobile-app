@@ -1003,7 +1003,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'From ${_formatDateFull(startDate)} – ${_formatDateFull(endDate)}',
+                        'From ${_formatDateFull(startDate.toLocal())} – ${_formatDateFull(endDate.toLocal())}',
                         style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w500),
                       ),
                     ),

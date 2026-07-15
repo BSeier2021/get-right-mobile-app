@@ -19,6 +19,7 @@ import 'package:get_right/views/planner/calendar_type_dialog.dart';
 import 'package:get_right/widgets/safe_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 /// Planner screen - workout plans and calendar with color-coded entries
 class PlannerScreen extends StatefulWidget {
@@ -89,7 +90,25 @@ class _PlannerScreenState extends State<PlannerScreen> {
   bool get _canMoveProgramWorkout {
     final data = _getDataForDate(_selectedDate);
     if (CalendarRepository.isRestDayData(data)) return false;
-    return data?['program'] != null && _calendarEntryIdForSelectedDate() != null;
+    final program = data?['program'];
+    if (program is! Map || _calendarEntryIdForSelectedDate() == null) return false;
+    return !_isProgramMovedToAnotherDay(Map<String, dynamic>.from(program));
+  }
+
+  bool _isProgramMovedToAnotherDay(Map<String, dynamic> program) {
+    final status = _programEntryStatusRaw(program);
+    return status.contains('moved');
+  }
+
+  String _programEntryStatusRaw(Map<String, dynamic> program) {
+    return program['status']?.toString().toLowerCase().trim() ?? '';
+  }
+
+  String _programScheduleStatusLabel(Map<String, dynamic> program) {
+    final raw = program['status']?.toString().trim() ?? '';
+    if (raw.isEmpty) return '';
+    if (raw.length == 1) return raw.toUpperCase();
+    return raw[0].toUpperCase() + raw.substring(1);
   }
 
   bool get _isSelectedDayRestDay => CalendarRepository.isRestDayData(_getDataForDate(_selectedDate));
@@ -144,6 +163,26 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
+  void _showIncompleteProgramWorkoutBlockedMessage() {
+    Get.snackbar(
+      'Complete Program Workout',
+      'You cannot mark this day as complete until you complete your scheduled program workout',
+      backgroundColor: AppColors.error,
+      colorText: AppColors.onError,
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
+  bool _hasIncompleteScheduledProgramWorkout(Map<String, dynamic>? data) {
+    if (data == null) return false;
+    if (!_hasCalendarEntry(data)) return false;
+    if (_isCalendarDayMarkedRest(data)) return false;
+    final program = data['program'];
+    if (program is! Map) return false;
+    final status = program['status']?.toString().toLowerCase().trim() ?? '';
+    return status != 'completed';
+  }
+
   String? get _selectedDayStatusLabel {
     final status = _calendarEntryStatus(_getDataForDate(_selectedDate));
     return switch (status) {
@@ -156,10 +195,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   bool get _isSelectedDateInFuture {
-    final now = DateTime.now();
     final selected = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-    final today = DateTime(now.year, now.month, now.day);
-    return selected.isAfter(today);
+    return selected.isAfter(_todayDate);
+  }
+
+  DateTime get _todayDate {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  DateTime _dateOnOrAfterToday(DateTime date) {
+    final normalized = DateTime(date.year, date.month, date.day);
+    return normalized.isBefore(_todayDate) ? _todayDate : normalized;
+  }
+
+  bool _isPastDate(DateTime date) {
+    final normalized = DateTime(date.year, date.month, date.day);
+    return normalized.isBefore(_todayDate);
   }
 
   DateTime? _resolveInitialDate() {
@@ -366,10 +418,15 @@ class _PlannerScreenState extends State<PlannerScreen> {
     return CalendarRepository.dayDataForDate(_dayData, date);
   }
 
+  bool _hasCalendarEntry(Map<String, dynamic>? data) {
+    final id = data?['calendarEntryId']?.toString();
+    return id != null && id.isNotEmpty;
+  }
+
   bool _dayHasVisibleContent(Map<String, dynamic>? data) {
     if (data == null) return false;
     if (_isCalendarDayMarkedRest(data)) return true;
-    if (data['program'] != null) return true;
+    if (data['program'] != null && _hasCalendarEntry(data)) return true;
     return _dayHasLoggedData(data);
   }
 
@@ -401,7 +458,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     if (_isCalendarDayMarkedRest(data)) return const Color(0xFF4A90E2);
 
     final program = data['program'];
-    if (program is Map) {
+    if (program is Map && _hasCalendarEntry(data)) {
       switch (program['status']?.toString().toLowerCase()) {
         case 'completed':
           return const Color(0xFF6FCF97);
@@ -617,12 +674,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
       } else {
         final entryType = await showCalendarTypeDialog(context);
         if (entryType == null || !mounted) return;
+        final dayData = _getDataForDate(_selectedDate);
         response = await _calendarRepo.createCalendarEntry(
           date: _selectedDate,
           type: entryType,
           notes: userNotes.isEmpty ? null : userNotes,
           progressPhotoFiles: [photo],
           progressPhotoType: type,
+          durationInSeconds: CalendarRepository.typeRequiresDuration(entryType)
+              ? CalendarRepository.durationSecondsForDayComplete(dayData)
+              : null,
         );
       }
 
@@ -775,7 +836,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
   Widget _buildDayStatusActions() {
     if (!_canSetDayStatus) return const SizedBox.shrink();
 
+    final dayData = _getDataForDate(_selectedDate);
     final currentStatus = _selectedDayStatusLabel;
+    final isCompletedDay = _isCalendarDayMarkedComplete(dayData);
+    final blockedByIncompleteProgram = _hasIncompleteScheduledProgramWorkout(dayData);
 
     return Padding(
       padding: const EdgeInsets.only(top: 12),
@@ -791,33 +855,44 @@ class _PlannerScreenState extends State<PlannerScreen> {
             ),
             const SizedBox(height: 8),
           ],
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _isMarkingComplete ? null : _showSetDayStatusSheet,
-              icon: _isMarkingComplete
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
-                  : const Icon(Icons.event_available_outlined, size: 20),
-              label: Text(_isMarkingComplete ? 'Saving...' : 'Set Day Status'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.accent,
-                side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          if (!isCompletedDay)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isMarkingComplete ? null : _showSetDayStatusSheet,
+                icon: _isMarkingComplete
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
+                    : const Icon(Icons.event_available_outlined, size: 20),
+                label: Text(_isMarkingComplete ? 'Saving...' : 'Set Day Status'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.accent,
+                  side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                ),
               ),
             ),
-          ),
           if (_canMarkAsComplete) ...[
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _isMarkingComplete ? null : () => _applyDayStatus(CalendarRepository.typeCompleted),
+                onPressed: _isMarkingComplete
+                    ? null
+                    : () {
+                        if (blockedByIncompleteProgram) {
+                          _showIncompleteProgramWorkoutBlockedMessage();
+                          return;
+                        }
+                        _applyDayStatus(CalendarRepository.typeCompleted);
+                      },
                 icon: const Icon(Icons.check_circle_outline, size: 20),
                 label: const Text('Quick Mark Complete'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
+                  backgroundColor: blockedByIncompleteProgram ? AppColors.primaryGray.withOpacity(0.45) : AppColors.accent,
                   foregroundColor: AppColors.onError,
+                  disabledBackgroundColor: AppColors.primaryGray.withOpacity(0.45),
+                  disabledForegroundColor: AppColors.onError.withOpacity(0.8),
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
@@ -1017,6 +1092,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
       return;
     }
 
+    if (type == CalendarRepository.typeCompleted && _hasIncompleteScheduledProgramWorkout(dayData)) {
+      _showIncompleteProgramWorkoutBlockedMessage();
+      return;
+    }
+
     if (type == CalendarRepository.typeCompleted && !_canMarkDayCompleted(dayData)) {
       Get.snackbar(
         'Add data first',
@@ -1126,7 +1206,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
     final program = _getDataForDate(_selectedDate)?['program'];
     final title = program is Map ? program['title']?.toString() ?? 'Program Workout' : 'Program Workout';
-    DateTime targetDate = _selectedDate.add(const Duration(days: 1));
+    DateTime targetDate = _dateOnOrAfterToday(_selectedDate.add(const Duration(days: 1)));
 
     await showModalBottomSheet<void>(
       context: context,
@@ -1171,7 +1251,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                               style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 4),
-                            Text('Reschedule this program workout to another day', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                            Text('Reschedule this program workout to today or a future date', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                           ],
                         ),
                       ),
@@ -1215,12 +1295,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
-                          initialDate: targetDate,
-                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                          initialDate: _dateOnOrAfterToday(targetDate),
+                          firstDate: _todayDate,
                           lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
                         );
                         if (picked != null) {
-                          setModalState(() => targetDate = DateTime(picked.year, picked.month, picked.day));
+                          setModalState(() => targetDate = _dateOnOrAfterToday(picked));
                         }
                       },
                       child: Container(
@@ -1288,6 +1368,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
       Get.snackbar('Move Workout', 'Choose a different date', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
       return;
     }
+    if (_isPastDate(normalizedTarget)) {
+      Get.snackbar(
+        'Move Workout',
+        'Program workouts can only be scheduled for today or future dates',
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
 
     setState(() => _isMovingProgramWorkout = true);
     try {
@@ -1322,14 +1412,58 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   Future<void> _capturePhoto(String type, {ImageSource source = ImageSource.camera}) async {
     try {
+      final permitted = await _ensurePhotoPermission(source);
+      if (!permitted || !mounted) return;
+
       final XFile? photo = await _imagePicker.pickImage(source: source, imageQuality: 85);
 
       if (photo != null) {
         await _persistProgressPhoto(File(photo.path), type);
       }
     } catch (e) {
+      if (!mounted) return;
       Get.snackbar('Error', 'Failed to add photo: $e', backgroundColor: AppColors.error, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
     }
+  }
+
+  Future<bool> _ensurePhotoPermission(ImageSource source) async {
+    if (source == ImageSource.camera) {
+      final status = await Permission.camera.request();
+      if (status.isGranted || status.isLimited) return true;
+      if (!mounted) return false;
+      Get.snackbar(
+        'Permission required',
+        'Camera permission is needed to take a progress photo.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: AppColors.onError,
+        mainButton: status.isPermanentlyDenied
+            ? TextButton(onPressed: () => openAppSettings(), child: const Text('Settings'))
+            : null,
+      );
+      return false;
+    }
+
+    if (!Platform.isAndroid && !Platform.isIOS) return true;
+
+    var status = await Permission.photos.request();
+    if (status.isGranted || status.isLimited) return true;
+    if (Platform.isAndroid) {
+      status = await Permission.storage.request();
+      if (status.isGranted) return true;
+    }
+    if (!mounted) return false;
+    Get.snackbar(
+      'Permission required',
+      'Gallery permission is needed to choose a progress photo.',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: AppColors.error,
+      colorText: AppColors.onError,
+      mainButton: status.isPermanentlyDenied
+          ? TextButton(onPressed: () => openAppSettings(), child: const Text('Settings'))
+          : null,
+    );
+    return false;
   }
 
   void _showAddWorkoutDialog() {
@@ -1746,6 +1880,50 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
+  String? _runningLogIdFromRunMap(Map<String, dynamic> run) {
+    final direct = run['id']?.toString().trim();
+    if (WorkoutRepository.isValidMongoId(direct)) return direct;
+
+    final runModel = run['runModel'];
+    if (runModel is RunModel) {
+      final backendId = runModel.backendLogId?.trim();
+      if (WorkoutRepository.isValidMongoId(backendId)) return backendId;
+      final localId = runModel.id.trim();
+      if (WorkoutRepository.isValidMongoId(localId)) return localId;
+    }
+    return null;
+  }
+
+  void _shareRunToChat(Map<String, dynamic> run) {
+    final runId = _runningLogIdFromRunMap(run);
+    if (runId != null) {
+      ShareToChatService.share(context: context, type: SharedContentType.runningLog, contentId: runId);
+      return;
+    }
+    Get.snackbar(
+      'Cannot share',
+      'This run is not saved yet',
+      backgroundColor: AppColors.error,
+      colorText: AppColors.onError,
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
+  void _shareWorkoutToChat(Map<String, dynamic> workout) {
+    final journalId = workout['journalId']?.toString().trim();
+    if (WorkoutRepository.isValidMongoId(journalId)) {
+      ShareToChatService.share(context: context, type: SharedContentType.workoutJournal, contentId: journalId!);
+      return;
+    }
+    Get.snackbar(
+      'Cannot share',
+      'This workout is not saved yet',
+      backgroundColor: AppColors.error,
+      colorText: AppColors.onError,
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
   void _shareSelectedDayToChat() {
     final data = _getDataForDate(_selectedDate);
     final workout = data?['workout'];
@@ -1758,9 +1936,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
     }
     final run = data?['run'];
     if (run is Map) {
-      final runId = run['id']?.toString().trim();
-      if (WorkoutRepository.isValidMongoId(runId)) {
-        ShareToChatService.share(context: context, type: SharedContentType.runningLog, contentId: runId!);
+      final runId = _runningLogIdFromRunMap(Map<String, dynamic>.from(run));
+      if (runId != null) {
+        ShareToChatService.share(context: context, type: SharedContentType.runningLog, contentId: runId);
         return;
       }
     }
@@ -2703,10 +2881,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _shareSelectedDayToChat();
-                    },
+                    onPressed: _shareSelectedDayToChat,
                     icon: const Icon(Icons.share_rounded, size: 20),
                     label: const Text('Share'),
                     style: ElevatedButton.styleFrom(
@@ -2724,10 +2899,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _shareSelectedDayToChat();
-                },
+                onPressed: _shareSelectedDayToChat,
                 icon: const Icon(Icons.share_rounded, size: 20),
                 label: const Text('Share'),
                 style: ElevatedButton.styleFrom(
@@ -2899,30 +3071,27 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ),
 
                 Expanded(
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (notification) => notification.metrics.axis == Axis.horizontal,
-                    child: PageView.builder(
-                      controller: _progressPhotoPageController,
-                      physics: const PageScrollPhysics(),
-                      onPageChanged: (index) {
-                        if (mounted) setState(() => _progressPhotoPageIndex = index);
-                      },
-                      itemCount: photoTypes.length,
-                      itemBuilder: (context, index) {
-                        final type = photoTypes[index];
-                        final photoUrl = type == 'front' ? frontUrl : sideUrl;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: _buildProgressPhotoTile(
-                            type: type,
-                            photoUrl: photoUrl,
-                            height: 220,
-                            isLoading: _uploadingProgressPhotoType == type,
-                            onTap: () => _handleProgressPhotoTap(_selectedDate, type),
-                          ),
-                        );
-                      },
-                    ),
+                  child: PageView.builder(
+                    controller: _progressPhotoPageController,
+                    physics: const PageScrollPhysics(),
+                    onPageChanged: (index) {
+                      if (mounted) setState(() => _progressPhotoPageIndex = index);
+                    },
+                    itemCount: photoTypes.length,
+                    itemBuilder: (context, index) {
+                      final type = photoTypes[index];
+                      final photoUrl = type == 'front' ? frontUrl : sideUrl;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: _buildProgressPhotoTile(
+                          type: type,
+                          photoUrl: photoUrl,
+                          height: 220,
+                          isLoading: _uploadingProgressPhotoType == type,
+                          onTap: () => _handleProgressPhotoTap(_selectedDate, type),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 IconButton(
@@ -3025,9 +3194,15 @@ class _PlannerScreenState extends State<PlannerScreen> {
         statusLabel = 'Rest Day';
         break;
       default:
-        statusColor = AppColors.accent;
-        statusLabel = status.isNotEmpty ? status[0].toUpperCase() + status.substring(1) : 'Scheduled';
+        statusColor = status.contains('moved') ? AppColors.primaryGray : AppColors.accent;
+        statusLabel = _programScheduleStatusLabel(program);
+        if (statusLabel.isEmpty) statusLabel = 'Scheduled';
     }
+
+    final scheduleStatusLabel = _programScheduleStatusLabel(program);
+    final scheduleHeading = workoutDays.isNotEmpty ? 'Program Schedule' : 'Today\'s Exercises';
+    final scheduleTitle = scheduleStatusLabel.isNotEmpty ? '$scheduleStatusLabel · $scheduleHeading' : scheduleHeading;
+    final movedToAnotherDay = _isProgramMovedToAnotherDay(program);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -3096,13 +3271,17 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ],
           const SizedBox(height: 16),
           Text(
-            workoutDays.isNotEmpty ? 'Program Schedule' : 'Today\'s Exercises',
+            scheduleTitle,
             style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
           ),
           if (workoutDays.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              isRestDay ? 'Scheduled program workout skipped for this rest day' : 'Full day-by-day plan from your enrolled program',
+              isRestDay
+                  ? 'Scheduled program workout skipped for this rest day'
+                  : movedToAnotherDay
+                      ? 'This program workout was moved to another date'
+                      : 'Full day-by-day plan from your enrolled program',
               style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
             ),
             const SizedBox(height: 12),
@@ -3348,10 +3527,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                  _shareSelectedDayToChat();
-                },
+                onTap: () => _shareWorkoutToChat(workout),
                 child: Icon(Icons.share, color: AppColors.primaryGray, size: 20),
               ),
             ],
@@ -3650,62 +3826,65 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   Widget _buildRunSummarySection(Map<String, dynamic> run) {
     final activityLabel = _runActivityLabel(run);
-    return GestureDetector(
-      onTap: () => _viewRunDetails(run),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.accent.withOpacity(0.4)),
-          boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 2))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.accent.withOpacity(0.4)),
+        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                child: Icon(_runActivityIcon(activityLabel), color: AppColors.accent, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '$activityLabel Summary',
+                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _shareRunToChat(run),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(Icons.share_rounded, color: AppColors.accent, size: 22),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () => _viewRunDetails(run),
+            behavior: HitTestBehavior.opaque,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                  child: Icon(_runActivityIcon(activityLabel), color: AppColors.accent, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '$activityLabel Summary',
-                    style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.pop(context);
-                      _shareSelectedDayToChat();
-                    },
-                    borderRadius: BorderRadius.circular(10),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Icon(Icons.share_rounded, color: AppColors.accent, size: 22),
-                    ),
-                  ),
-                ),
+                _buildDetailRow(Icons.category_outlined, 'Activity', activityLabel),
+                const SizedBox(height: 8),
+                _buildDetailRow(Icons.route, 'Distance', run['distance'] ?? '0 km'),
+                const SizedBox(height: 8),
+                _buildDetailRow(Icons.timer, 'Time', run['time'] ?? '0:00'),
+                const SizedBox(height: 8),
+                _buildDetailRow(Icons.speed, 'Pace', run['pace'] ?? '--:-- /km'),
+                const SizedBox(height: 8),
+                _buildDetailRow(Icons.local_fire_department, 'Calories', (run['calories'] ?? 0).toString()),
               ],
             ),
-            const SizedBox(height: 16),
-            _buildDetailRow(Icons.category_outlined, 'Activity', activityLabel),
-            const SizedBox(height: 8),
-            _buildDetailRow(Icons.route, 'Distance', run['distance'] ?? '0 km'),
-            const SizedBox(height: 8),
-            _buildDetailRow(Icons.timer, 'Time', run['time'] ?? '0:00'),
-            const SizedBox(height: 8),
-            _buildDetailRow(Icons.speed, 'Pace', run['pace'] ?? '--:-- /km'),
-            const SizedBox(height: 8),
-            _buildDetailRow(Icons.local_fire_department, 'Calories', (run['calories'] ?? 0).toString()),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
