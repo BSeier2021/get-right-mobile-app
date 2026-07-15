@@ -245,7 +245,12 @@ class _AddDateScreenState extends State<AddDateScreen> {
         calendarEntryId: widget.calendarEntryId,
       ),
     );
-    if (!mounted || result != 'manual_run') return;
+    if (!mounted) return;
+    if (result is Map && result['type'] == 'manual_run') {
+      Get.back(result: result);
+      return;
+    }
+    if (result != 'manual_run') return;
     Get.back(result: 'manual_run');
   }
 

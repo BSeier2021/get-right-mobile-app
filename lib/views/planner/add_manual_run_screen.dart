@@ -78,7 +78,7 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
     return Duration(seconds: totalSeconds);
   }
 
-  int? _parseCalories(double distanceKm) {
+  int? _resolveCalories(double distanceKm) {
     final raw = _caloriesController.text.trim();
     if (raw.isEmpty) {
       return RunningLogRepository.estimateCaloriesForManualRun(
@@ -88,6 +88,14 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
     }
     final parsed = int.tryParse(raw);
     return parsed != null && parsed > 0 ? parsed : null;
+  }
+
+  String? _validateCaloriesField(String? _) {
+    final raw = _caloriesController.text.trim();
+    if (raw.isEmpty) return null;
+    final parsed = int.tryParse(raw);
+    if (parsed == null || parsed <= 0) return 'Enter a valid calorie amount';
+    return null;
   }
 
   Future<void> _saveRun() async {
@@ -136,7 +144,17 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
       final startTime = _buildStartDateTime();
       final endTime = startTime.add(duration);
       final distanceMeters = distanceKm * 1000;
-      final calories = _parseCalories(distanceKm);
+      final calories = _resolveCalories(distanceKm);
+      if (_caloriesController.text.trim().isNotEmpty && (calories == null || calories <= 0)) {
+        Get.snackbar(
+          'Invalid calories',
+          'Enter a valid calorie amount greater than zero',
+          backgroundColor: AppColors.error,
+          colorText: AppColors.onError,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
 
       final response = await _runningLogRepo.saveManualRunningLog(
         startTime: startTime,
@@ -182,7 +200,11 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
       );
 
       if (!mounted) return;
-      Get.back(result: 'manual_run');
+      Get.back(result: {
+        'type': 'manual_run',
+        'logId': logId,
+        'caloriesBurned': calories,
+      });
     } catch (e) {
       if (!mounted) return;
       await showCalendarErrorDialog(context, e);
@@ -386,6 +408,7 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
                       controller: _caloriesController,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: _validateCaloriesField,
                       decoration: _fieldDecoration(hintText: 'Auto'),
                     ),
                     const SizedBox(height: 32),

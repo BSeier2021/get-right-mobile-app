@@ -232,6 +232,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         _dayData = merged;
         _isLoadingCalendar = false;
       });
+      await _applyStoredRunCaloriesToDayData();
       if (_pendingDayDetailLoad || _isCalendarCollapsed) {
         await _loadSelectedDayDetail();
       }
@@ -302,6 +303,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         _isLoadingDayDetail = false;
         _pendingDayDetailLoad = false;
       });
+      await _applyStoredRunCaloriesToDayData();
       if (CalendarRepository.progressPhotoUrlForType(detail['progressPhotos'], 'front') != null) {
         _clearLocalProgressPhotoPath(_selectedDate, 'front');
       }
@@ -316,6 +318,33 @@ class _PlannerScreenState extends State<PlannerScreen> {
         _pendingDayDetailLoad = false;
       });
     }
+  }
+
+  Future<Map<String, int>> _storedRunCaloriesById() async {
+    if (!Get.isRegistered<StorageService>()) return const {};
+    final runs = await Get.find<StorageService>().getRuns();
+    final map = <String, int>{};
+    for (final run in runs) {
+      final calories = run.caloriesBurned;
+      if (calories == null || calories <= 0) continue;
+      final backendId = run.backendLogId?.trim();
+      if (backendId != null && backendId.isNotEmpty) {
+        map[backendId] = calories;
+      }
+      final id = run.id.trim();
+      if (id.isNotEmpty) {
+        map[id] = calories;
+      }
+    }
+    return map;
+  }
+
+  Future<void> _applyStoredRunCaloriesToDayData() async {
+    final caloriesByRunId = await _storedRunCaloriesById();
+    if (caloriesByRunId.isEmpty || !mounted) return;
+    setState(() {
+      _dayData = CalendarRepository.applyStoredRunCalories(_dayData, caloriesByRunId);
+    });
   }
 
   String _formatRunTime(Duration duration) {
@@ -1322,6 +1351,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
       await _loadCalendarMonth();
       if (!mounted) return;
       await _loadSelectedDayDetail();
+      if (result is Map && result['type'] == 'manual_run') {
+        Get.snackbar(
+          'Saved',
+          'Run added to your calendar',
+          backgroundColor: AppColors.completed,
+          colorText: AppColors.onError,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
       if (result == 'manual_run') {
         Get.snackbar(
           'Saved',

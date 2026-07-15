@@ -280,9 +280,6 @@ class CalendarRepository {
     var distanceMeters = (log['distance'] as num?)?.toDouble() ?? 0.0;
     final durationSeconds = (log['duration'] as num?)?.toInt() ?? 0;
     double? averagePace;
-    if (distanceMeters > 0 && durationSeconds > 0) {
-      averagePace = (durationSeconds / 60) / (distanceMeters / 1000);
-    }
 
     String? routeId;
     final routeRaw = log['route'];
@@ -294,12 +291,23 @@ class CalendarRepository {
       if (WorkoutRepository.isValidMongoId(nested?.toString())) {
         routeId = nested.toString().trim();
       }
+      if (distanceMeters <= 0) {
+        final estimated = (routeMap['estimatedDistance'] as num?)?.toDouble();
+        if (estimated != null && estimated > 0) {
+          distanceMeters = estimated;
+        }
+      }
+    }
+
+    if (distanceMeters > 0 && durationSeconds > 0) {
+      averagePace = (durationSeconds / 60) / (distanceMeters / 1000);
     }
 
     final activityType = RunningLogRepository.activityTypeFromRunningType(
       log['runningType']?.toString() ?? log['activityType']?.toString() ?? 'Run',
     );
     final isPlannedRoute = routeId != null && durationSeconds <= 0 && distanceMeters <= 0;
+    final calories = _intFrom(log['caloriesBurned']) ?? _intFrom(log['calories']);
 
     return {
       'id': log['_id']?.toString(),
@@ -307,11 +315,46 @@ class CalendarRepository {
       'time': formatDurationSeconds(durationSeconds),
       'durationSeconds': durationSeconds,
       'pace': formatPaceMinPerKm(averagePace),
-      'calories': (log['caloriesBurned'] as num?)?.toInt() ?? 0,
+      'calories': calories ?? 0,
       'activityType': activityType,
       if (routeId != null) 'routeId': routeId,
       'isPlannedRoute': isPlannedRoute,
     };
+  }
+
+  static Map<String, dynamic>? mergeRunSummaryWithStoredCalories(
+    Map<String, dynamic>? runSummary,
+    Map<String, int> caloriesByRunId,
+  ) {
+    if (runSummary == null || caloriesByRunId.isEmpty) return runSummary;
+    final runId = runSummary['id']?.toString();
+    if (runId == null || runId.isEmpty) return runSummary;
+
+    final storedCalories = caloriesByRunId[runId];
+    if (storedCalories == null || storedCalories <= 0) return runSummary;
+
+    return Map<String, dynamic>.from(runSummary)..['calories'] = storedCalories;
+  }
+
+  static Map<String, dynamic> applyStoredRunCaloriesToDayData(
+    Map<String, dynamic> dayData,
+    Map<String, int> caloriesByRunId,
+  ) {
+    final run = dayData['run'];
+    if (run is! Map) return dayData;
+    final mergedRun = mergeRunSummaryWithStoredCalories(Map<String, dynamic>.from(run), caloriesByRunId);
+    if (mergedRun == null) return dayData;
+    return Map<String, dynamic>.from(dayData)..['run'] = mergedRun;
+  }
+
+  static Map<DateTime, Map<String, dynamic>> applyStoredRunCalories(
+    Map<DateTime, Map<String, dynamic>> map,
+    Map<String, int> caloriesByRunId,
+  ) {
+    if (caloriesByRunId.isEmpty) return map;
+    return map.map(
+      (date, dayData) => MapEntry(date, applyStoredRunCaloriesToDayData(dayData, caloriesByRunId)),
+    );
   }
 
   static Map<String, dynamic>? workoutSummaryFromJournal(dynamic journalRaw) {
