@@ -114,6 +114,12 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
     return null;
   }
 
+  bool get _viewOnly {
+    final args = Get.arguments;
+    if (args is! Map) return false;
+    return args['viewOnly'] == true || args['fromSharedContent'] == true;
+  }
+
   @override
   void dispose() {
     _mapController?.dispose();
@@ -193,7 +199,26 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
 
                 _buildDetailedStats(run),
                 if (run.splits != null && run.splits!.isNotEmpty) _buildSplitsSection(run),
-                _buildActionButtons(run),
+                if (!_viewOnly)
+                  _buildActionButtons(run)
+                else ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: OutlinedButton(
+                        onPressed: () => Get.back(),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 2),
+                          foregroundColor: AppColors.onSurface,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: Text('Close', style: AppTextStyles.buttonLarge.copyWith(color: AppColors.onSurface)),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
               ],
             ),

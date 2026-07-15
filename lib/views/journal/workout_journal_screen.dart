@@ -427,11 +427,8 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       _isPaused = false;
     });
 
-    await _finalizeWorkoutJournal();
-
-    if (!mounted) return;
-
     final celebrationCalories = _workout?.caloriesBurned ?? _calories;
+    final prepareFuture = _finalizeWorkoutJournal();
 
     Get.to(
       () => WorkoutCelebrationScreen(
@@ -439,6 +436,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         calories: celebrationCalories,
         workoutName: _getWorkoutName(),
         workoutJournalId: _workoutJournalId,
+        prepareFuture: prepareFuture,
       ),
       transition: Transition.zoom,
       duration: const Duration(milliseconds: 500),

@@ -11,8 +11,16 @@ class WorkoutCelebrationScreen extends StatefulWidget {
   final int calories;
   final String workoutName;
   final String? workoutJournalId;
+  final Future<void>? prepareFuture;
 
-  const WorkoutCelebrationScreen({super.key, required this.duration, required this.calories, required this.workoutName, this.workoutJournalId});
+  const WorkoutCelebrationScreen({
+    super.key,
+    required this.duration,
+    required this.calories,
+    required this.workoutName,
+    this.workoutJournalId,
+    this.prepareFuture,
+  });
 
   @override
   State<WorkoutCelebrationScreen> createState() => _WorkoutCelebrationScreenState();
@@ -22,6 +30,7 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
+  bool _isPreparing = false;
 
   final List<String> _motivationalQuotes = [
     "You showed up—and that's what counts. Keep going!",
@@ -37,12 +46,23 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
   @override
   void initState() {
     super.initState();
+    _isPreparing = widget.prepareFuture != null;
     _controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
 
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
+    _prepareAndAnimate();
+  }
+
+  Future<void> _prepareAndAnimate() async {
+    if (widget.prepareFuture != null) {
+      await widget.prepareFuture;
+      if (!mounted) return;
+      setState(() => _isPreparing = false);
+    }
+    if (!mounted) return;
     _controller.forward();
   }
 
@@ -58,6 +78,25 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
 
   @override
   Widget build(BuildContext context) {
+    if (_isPreparing) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: AppColors.accent),
+              const SizedBox(height: 20),
+              Text(
+                'Saving your workout...',
+                style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(

@@ -116,12 +116,14 @@ class CalendarRepository {
   }
 
   static void applyDurationForCompletedType(Map<String, dynamic> body, String? type, int? durationInSeconds) {
-    if (!typeRequiresDuration(type)) return;
-    final secs = durationInSeconds ?? 0;
+    final effectiveType = type ?? body['type']?.toString();
+    if (!typeRequiresDuration(effectiveType)) return;
+    final secs = durationInSeconds ?? _intFrom(body['duration']) ?? _intFrom(body['durationInSeconds']) ?? 0;
     if (secs <= 0) {
       throw Exception('Duration in seconds is required when marking workout as complete');
     }
-    body['durationInSeconds'] = secs;
+    body.remove('durationInSeconds');
+    body['duration'] = secs;
   }
 
   static Map<String, dynamic> createEntryBody({
@@ -930,6 +932,8 @@ class CalendarRepository {
       'exercises': exercises,
       'exerciseCount': exercises.length,
       'totalSets': totalSets,
+      'caloriesBurned': _intFrom(programStub['caloriesBurned']) ?? 0,
+      'programDate': programStub['date']?.toString(),
       'programId': programStub['programId']?.toString(),
       'enrollmentId': enrollmentId,
       'workoutDays': workoutDays,
@@ -1198,14 +1202,20 @@ class CalendarRepository {
   }) {
     final body = <String, dynamic>{};
     if (notes != null) body['notes'] = notes.trim();
-    if (type != null && type.trim().isNotEmpty) body['type'] = calendarTypeForApi(type);
+    final resolvedType = type != null && type.trim().isNotEmpty ? calendarTypeForApi(type) : null;
+    if (resolvedType != null) body['type'] = resolvedType;
     if (runningLog != null && WorkoutRepository.isValidMongoId(runningLog)) {
       body['runningLog'] = runningLog.trim();
     }
     if (workoutJournal != null && WorkoutRepository.isValidMongoId(workoutJournal)) {
       body['workoutJournal'] = workoutJournal.trim();
     }
-    applyDurationForCompletedType(body, type, durationInSeconds);
+    if (durationInSeconds != null && durationInSeconds > 0) {
+      body.remove('durationInSeconds');
+      body['duration'] = durationInSeconds;
+    }
+    applyDurationForCompletedType(body, resolvedType ?? type, durationInSeconds);
+    if (body.isEmpty) throw Exception('Nothing to update');
     return body;
   }
 
@@ -1264,6 +1274,58 @@ class CalendarRepository {
 
     if (!_isOk(raw)) {
       throw Exception(_messageFrom(raw) ?? 'Could not update calendar entry');
+    }
+    return Map<String, dynamic>.from(raw as Map);
+  }
+
+  static Map<String, dynamic> completeProgramWorkoutBody({
+    required int durationSeconds,
+    int? caloriesBurned,
+    String? workoutJournalId,
+  }) {
+    if (durationSeconds <= 0) {
+      throw Exception('Duration in seconds is required when marking workout as complete');
+    }
+
+    final program = <String, dynamic>{
+      'duration': durationSeconds,
+      'status': 'completed',
+    };
+    if (caloriesBurned != null && caloriesBurned > 0) {
+      program['caloriesBurned'] = caloriesBurned;
+    }
+
+    final body = <String, dynamic>{
+      'type': calendarTypeForApi(typeCompleted),
+      'program': program,
+    };
+    if (workoutJournalId != null && WorkoutRepository.isValidMongoId(workoutJournalId)) {
+      body['workoutJournal'] = workoutJournalId.trim();
+    }
+    return body;
+  }
+
+  /// Marks a mapped program workout complete on its calendar entry.
+  /// API expects duration under `program.duration`, not top-level `duration`.
+  Future<Map<String, dynamic>> completeProgramWorkoutOnCalendar({
+    required String calendarEntryId,
+    required int durationSeconds,
+    int? caloriesBurned,
+    String? workoutJournalId,
+  }) async {
+    final id = calendarEntryId.trim();
+    if (!WorkoutRepository.isValidMongoId(id)) {
+      throw Exception('Invalid calendar entry id');
+    }
+
+    final body = completeProgramWorkoutBody(
+      durationSeconds: durationSeconds,
+      caloriesBurned: caloriesBurned,
+      workoutJournalId: workoutJournalId,
+    );
+    final raw = await _network.put(AppUrl.customerCalendarById(id), body);
+    if (!_isOk(raw)) {
+      throw Exception(_messageFrom(raw) ?? 'Could not complete program workout');
     }
     return Map<String, dynamic>.from(raw as Map);
   }

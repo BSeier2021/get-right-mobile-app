@@ -258,7 +258,10 @@ class RunningLogRepository {
   /// Maps one log from `GET /customer/running-logs`.
   static RunModel runModelFromApiLog(Map<String, dynamic> json) {
     final id = json['_id']?.toString() ?? '';
-    final userId = json['user']?.toString() ?? '';
+    final userRaw = json['user'];
+    final userId = userRaw is Map
+        ? (userRaw['_id']?.toString() ?? '')
+        : userRaw?.toString() ?? '';
     final activityType = activityTypeFromRunningType(json['runningType']?.toString() ?? 'Run');
     var distanceMeters = (json['distance'] as num?)?.toDouble() ?? 0.0;
     final durationSeconds = (json['duration'] as num?)?.toInt() ?? 0;

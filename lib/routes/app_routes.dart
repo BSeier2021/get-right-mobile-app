@@ -33,6 +33,8 @@ class AppRoutes {
   // Journal Routes
   static const String journal = '/journal';
   static const String workoutJournal = '/workout-journal';
+  static const String sharedWorkoutDetail = '/shared-workout-detail';
+  static const String programWorkout = '/program-workout';
   static const String completedWorkouts = '/completed-workouts';
   static const String addWorkout = '/add-workout';
   static const String addExercise = '/add-exercise';

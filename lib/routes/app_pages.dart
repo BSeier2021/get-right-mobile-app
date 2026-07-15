@@ -26,6 +26,7 @@ import 'package:get_right/views/profile/followers_screen.dart';
 import 'package:get_right/views/profile/following_screen.dart';
 import 'package:get_right/views/journal/My_work_screen.dart';
 import 'package:get_right/views/journal/completed_workouts_screen.dart';
+import 'package:get_right/views/journal/program_workout_screen.dart';
 import 'package:get_right/views/journal/workout_journal_screen.dart';
 import 'package:get_right/views/journal/workout_timer_screen.dart';
 import 'package:get_right/views/journal/add_workout_screen.dart';
@@ -61,6 +62,7 @@ import 'package:get_right/views/settings/blocked_users_screen.dart';
 import 'package:get_right/views/settings/reports_screen.dart';
 import 'package:get_right/views/chat/chat_list_screen.dart';
 import 'package:get_right/views/chat/chat_room_screen.dart';
+import 'package:get_right/views/chat/shared_workout_detail_screen.dart';
 import 'package:get_right/views/tracker/progress_screen.dart';
 import 'package:get_right/views/search/search_screen.dart';
 import 'package:get_right/views/search/search_results_screen.dart';
@@ -133,6 +135,7 @@ class AppPages {
     // Journal Pages
     GetPage(name: AppRoutes.journal, page: () => const WorkoutScreen(), transition: Transition.fade),
     GetPage(name: AppRoutes.workoutJournal, page: () => const WorkoutJournalScreen(), transition: Transition.fade),
+    GetPage(name: AppRoutes.programWorkout, page: () => ProgramWorkoutScreen.fromArguments(Get.arguments), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.completedWorkouts, page: () => const CompletedWorkoutsScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.workoutTimer, page: () => const WorkoutTimerScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.addWorkout, page: () => const AddWorkoutScreen(), transition: Transition.downToUp),
@@ -221,6 +224,7 @@ class AppPages {
     // Chat Pages
     GetPage(name: AppRoutes.chatList, page: () => const ChatListScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.chatRoom, page: () => const ChatRoomScreen(), transition: Transition.rightToLeft),
+    GetPage(name: AppRoutes.sharedWorkoutDetail, page: () => SharedWorkoutDetailScreen.fromArguments(Get.arguments), transition: Transition.rightToLeft),
 
     // Nutrition Pages
     GetPage(name: AppRoutes.nutrition, page: () => const NutritionScreen(), transition: Transition.rightToLeft),

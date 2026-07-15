@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/shared_content_model.dart';
 import 'package:get_right/repo/calendar_repo.dart';
+import 'package:get_right/repo/running_log_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
@@ -94,6 +95,7 @@ class SharedContentCard extends StatelessWidget {
                   ],
                 ),
               ),
+              Icon(Icons.chevron_right, color: muted, size: 20),
             ],
           ),
         ),
@@ -230,9 +232,10 @@ class SharedContentCard extends StatelessWidget {
       case SharedContentType.feed:
         if (contentId.isNotEmpty) Get.toNamed(AppRoutes.feedSingleReel, arguments: {'feedId': contentId});
       case SharedContentType.workoutJournal:
-        Get.toNamed(AppRoutes.home, arguments: {'navigateToTab': 2, 'journalTabIndex': 0});
+        Get.toNamed(AppRoutes.sharedWorkoutDetail, arguments: {'sharedContent': data});
       case SharedContentType.runningLog:
-        if (contentId.isNotEmpty) Get.toNamed(AppRoutes.runDetail, arguments: {'runningLogId': contentId});
+        final run = RunningLogRepository.runModelFromApiLog(data);
+        Get.toNamed(AppRoutes.runDetail, arguments: {'run': run, 'viewOnly': true});
       case SharedContentType.recipe:
         if (contentId.isNotEmpty) Get.toNamed(AppRoutes.recipeDetail, arguments: {'recipeId': contentId});
       case SharedContentType.foodSave:

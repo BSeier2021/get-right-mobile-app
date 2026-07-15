@@ -1058,6 +1058,39 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   Future<void> _markAsComplete() async => _applyDayStatus(CalendarRepository.typeCompleted);
 
+  Future<void> _openProgramWorkoutScreen(Map<String, dynamic> program, {List<Map<String, dynamic>>? dayExercises, Map<String, dynamic>? dayData}) async {
+    final data = dayData ?? _getDataForDate(_selectedDate);
+    final workout = data?['workout'];
+    final journalId = workout is Map ? workout['journalId']?.toString() : null;
+    final durationSeconds = workout is Map ? (workout['durationSeconds'] as num?)?.toInt() : null;
+    final workoutCalories = workout is Map ? (workout['calories'] as num?)?.toInt() : null;
+
+    final programPayload = Map<String, dynamic>.from(program);
+    if (dayExercises != null && dayExercises.isNotEmpty) {
+      programPayload['exercises'] = dayExercises;
+    }
+    final workoutStatus = data?['workoutStatus']?.toString().toLowerCase();
+    if (workoutStatus == 'completed') {
+      programPayload['status'] = 'completed';
+    }
+
+    final result = await Get.toNamed(
+      AppRoutes.programWorkout,
+      arguments: {
+        'selectedDate': _selectedDate,
+        'calendarEntryId': _calendarEntryIdForSelectedDate(),
+        'workoutJournalId': journalId,
+        'durationSeconds': durationSeconds,
+        'caloriesBurned': workoutCalories ?? programPayload['caloriesBurned'],
+        'program': programPayload,
+      },
+    );
+
+    if (result == true && mounted) {
+      await _loadCalendarMonth();
+    }
+  }
+
   Future<void> _showMoveProgramWorkoutSheet() async {
     final entryId = _calendarEntryIdForSelectedDate();
     if (entryId == null || !_canMoveProgramWorkout) return;
@@ -2592,7 +2625,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           if (!_isSelectedDateInFuture) ...[_buildProgressPhotosSection(), const SizedBox(height: 12)],
 
           // Program Workout (mapped from enrolled program)
-          if (data['program'] != null) _buildProgramWorkoutSection(data['program'], isRestDay: isRestDay),
+          if (data['program'] != null) _buildProgramWorkoutSection(data['program'], dayData: data, isRestDay: isRestDay),
 
           // Workout Summary
           if (data['workout'] != null) _buildWorkoutSummarySection(data['workout']),
@@ -2915,13 +2948,17 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
-  Widget _buildProgramWorkoutSection(Map<String, dynamic> program, {bool isRestDay = false}) {
+  Widget _buildProgramWorkoutSection(Map<String, dynamic> program, {Map<String, dynamic>? dayData, bool isRestDay = false}) {
     final title = program['title']?.toString() ?? 'Program Workout';
     final status = isRestDay ? 'rest' : (program['status']?.toString().toLowerCase() ?? '');
     final difficulty = program['difficulty']?.toString() ?? '';
     final workoutDays = _programWorkoutDaysList(program);
     final currentDayNumber = (program['currentDayNumber'] as num?)?.toInt() ?? (program['dayNumber'] as num?)?.toInt() ?? 0;
     final exercises = program['exercises'] is List ? (program['exercises'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : <Map<String, dynamic>>[];
+    final workoutSummary = dayData?['workout'];
+    final loggedCalories = workoutSummary is Map ? (workoutSummary['calories'] as num?)?.toInt() : null;
+    final programCalories = (program['caloriesBurned'] as num?)?.toInt() ?? 0;
+    final displayCalories = loggedCalories ?? programCalories;
     final totalExercises = workoutDays.isNotEmpty ? workoutDays.fold<int>(0, (sum, day) => sum + _exercisesForProgramWorkoutDay(day).length) : exercises.length;
     final totalSets = workoutDays.isNotEmpty
         ? workoutDays.fold<int>(0, (sum, day) {
@@ -3005,6 +3042,19 @@ class _PlannerScreenState extends State<PlannerScreen> {
               if (workoutDays.isNotEmpty) ...[const SizedBox(width: 10), Expanded(child: _buildWorkoutStatBox('assets/icons/time.svg', '${workoutDays.length}', 'Workout Days'))],
             ],
           ),
+          if (displayCalories > 0) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(Icons.local_fire_department, size: 16, color: Colors.orange.shade700),
+                const SizedBox(width: 6),
+                Text(
+                  '$displayCalories calories burned',
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           Text(
             workoutDays.isNotEmpty ? 'Program Schedule' : 'Today\'s Exercises',
@@ -3017,10 +3067,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
               style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
             ),
             const SizedBox(height: 12),
-            ...workoutDays.map((day) => _buildProgramWorkoutDayCard(day, currentDayNumber)),
+            ...workoutDays.map((day) => _buildProgramWorkoutDayCard(day, currentDayNumber, program: program, dayData: dayData)),
           ] else ...[
             const SizedBox(height: 10),
-            ...exercises.asMap().entries.map((entry) => _buildProgramExerciseTile(entry.value, entry.key + 1)),
+            ...exercises.asMap().entries.map(
+              (entry) => _buildProgramExerciseTile(
+                entry.value,
+                entry.key + 1,
+                onTap: isRestDay ? null : () => _openProgramWorkoutScreen(program, dayData: dayData),
+              ),
+            ),
           ],
           if (_canMoveProgramWorkout) ...[
             const SizedBox(height: 14),
@@ -3046,7 +3102,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
-  Widget _buildProgramWorkoutDayCard(Map<String, dynamic> day, int currentDayNumber) {
+  Widget _buildProgramWorkoutDayCard(Map<String, dynamic> day, int currentDayNumber, {required Map<String, dynamic> program, Map<String, dynamic>? dayData}) {
     final dayNumber = (day['dayNumber'] as num?)?.toInt() ?? 0;
     final dayExercises = _exercisesForProgramWorkoutDay(day);
     final isCurrentDay = dayNumber > 0 && dayNumber == currentDayNumber;
@@ -3107,13 +3163,21 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     child: Text('Exercises for this day will appear here.', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                   ),
                 ]
-              : dayExercises.asMap().entries.map((entry) => _buildProgramExerciseTile(entry.value, entry.key + 1)).toList(),
+              : dayExercises.asMap().entries
+                    .map(
+                      (entry) => _buildProgramExerciseTile(
+                        entry.value,
+                        entry.key + 1,
+                        onTap: () => _openProgramWorkoutScreen(program, dayExercises: dayExercises, dayData: dayData),
+                      ),
+                    )
+                    .toList(),
         ),
       ),
     );
   }
 
-  Widget _buildProgramExerciseTile(Map<String, dynamic> ex, int order) {
+  Widget _buildProgramExerciseTile(Map<String, dynamic> ex, int order, {VoidCallback? onTap}) {
     final name = (ex['exerciseName'] ?? ex['name'])?.toString().trim();
     final displayName = name != null && name.isNotEmpty ? name : 'Exercise $order';
     final sets = ex['numberOfSets'] ?? ex['sets'];
@@ -3122,7 +3186,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final weight = ex['weight'];
     final description = (ex['exerciseDescription'] ?? ex['description'])?.toString().trim();
 
-    return Container(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -3152,6 +3221,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
                 ),
               ),
+              if (onTap != null) const Icon(Icons.chevron_right, color: AppColors.primaryGray, size: 20),
             ],
           ),
           if (sets != null || reps != null || weight != null || rest.isNotEmpty) ...[
@@ -3173,6 +3243,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
             Text(description, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, height: 1.4)),
           ],
         ],
+      ),
+        ),
       ),
     );
   }
