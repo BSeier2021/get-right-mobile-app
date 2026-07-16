@@ -2969,10 +2969,10 @@ class AuthController extends GetxController {
   }
 
   /// `GET /customer/food-logs/analytics` — returns inner `data` on success.
-  Future<Map<String, dynamic>?> fetchFoodLogAnalytics({required String date, int dailyGoal = 2000}) async {
+  Future<Map<String, dynamic>?> fetchFoodLogAnalytics({required String date, }) async {
     try {
       _syncNetworkBearerFromStorage();
-      final response = await _authRepo.getFoodLogAnalyticsRepo(date: date, dailyGoal: dailyGoal);
+      final response = await _authRepo.getFoodLogAnalyticsRepo(date: date, );
       if (response is! Map<String, dynamic>) return null;
       if (!_apiEnvelopeSuccess(response)) return null;
       final data = response['data'];

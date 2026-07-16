@@ -231,8 +231,7 @@ class NutritionController extends GetxController {
 
     try {
       final dateKey = _getDateKey(selectedDate.value);
-      final dailyGoal = calorieGoal.value.round();
-      final data = await Get.find<AuthController>().fetchFoodLogAnalytics(date: dateKey, dailyGoal: dailyGoal);
+      final data = await Get.find<AuthController>().fetchFoodLogAnalytics(date: dateKey, );
       if (data == null) {
         trackerFetchError = 'Could not load nutrition data';
         return;

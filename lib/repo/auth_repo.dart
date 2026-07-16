@@ -339,8 +339,8 @@ class AuthRepository {
   }
 
   /// `GET /customer/food-logs/analytics` — query: `date`, `dailyGoal`.
-  Future<dynamic> getFoodLogAnalyticsRepo({required String date, int dailyGoal = 2000}) async {
-    return _network.get(AppUrl.customerFoodLogAnalytics(date: date, dailyGoal: dailyGoal));
+  Future<dynamic> getFoodLogAnalyticsRepo({required String date, int }) async {
+    return _network.get(AppUrl.customerFoodLogAnalytics(date: date, ));
   }
 
   /// `POST /customer/food-logs` — JSON: mealType, meal (foodSaveId), loggedAt, servings, notes.

@@ -237,7 +237,8 @@ class WorkoutRepository {
     final caloriesBurned = caloriesRaw is num ? caloriesRaw.round() : int.tryParse(caloriesRaw?.toString() ?? '');
     final journalType = entry['type']?.toString();
     final notes = entry['notes']?.toString().trim();
-    final isComplete = entry['isComplete'] == true || entry['status']?.toString().toLowerCase() == 'completed';
+    final journalStatus = entry['status']?.toString();
+    final isComplete = entry['isComplete'] == true || WorkoutJournalModel.isCompletedStatus(journalStatus);
     DateTime? completedAt;
     if (isComplete) {
       completedAt = DateTime.tryParse(entry['completedAt']?.toString() ?? '') ??
@@ -278,6 +279,7 @@ class WorkoutRepository {
       durationSeconds: duration,
       caloriesBurned: caloriesBurned,
       notes: notes?.isNotEmpty == true ? notes : null,
+      status: journalStatus,
     );
   }
 
@@ -548,6 +550,8 @@ class WorkoutRepository {
 
     final earliest = sorted.first;
     final latest = sorted.last;
+    final completedEntries = sorted.where((e) => e.isCompleted).toList();
+    final completedEntry = completedEntries.isNotEmpty ? completedEntries.last : null;
 
     return WorkoutJournalModel(
       id: earliest.id,
@@ -557,8 +561,12 @@ class WorkoutRepository {
       workoutExercises: workoutExercises,
       createdAt: earliest.createdAt,
       updatedAt: latest.updatedAt,
-      durationSeconds: totalDuration > 0 ? totalDuration : latest.durationSeconds,
-      caloriesBurned: latest.caloriesBurned,
+      startedAt: completedEntry?.startedAt ?? latest.startedAt ?? earliest.startedAt,
+      completedAt: completedEntry?.completedAt ?? completedEntry?.updatedAt,
+      durationSeconds: totalDuration > 0 ? totalDuration : (completedEntry?.durationSeconds ?? latest.durationSeconds),
+      caloriesBurned: completedEntry?.caloriesBurned ?? latest.caloriesBurned,
+      notes: completedEntry?.notes ?? latest.notes,
+      status: completedEntry?.status ?? latest.status ?? earliest.status,
     );
   }
 

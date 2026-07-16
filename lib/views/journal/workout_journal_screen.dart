@@ -148,7 +148,8 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
   HomeNavigationController? get _navController => Get.isRegistered<HomeNavigationController>() ? Get.find<HomeNavigationController>() : null;
 
-  bool get _isWorkoutCompleted => _workout?.isCompleted == true;
+  bool get _isWorkoutCompleted =>
+      _workout?.isCompleted == true || _journalEntries.any((entry) => entry.isCompleted);
 
   WorkoutJournalModel _applyStoredExerciseSections(WorkoutJournalModel fromApi) {
     final warmup = <WorkoutExerciseModel>[];
@@ -231,12 +232,13 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         if (today != null && today.id.isNotEmpty) {
           _workout = _applyStoredExerciseSections(
             today.copyWith(
-              startedAt: _isStarted ? (previousWorkout?.startedAt ?? today.startedAt) : today.startedAt,
-              completedAt: today.completedAt ?? previousWorkout?.completedAt,
-              durationSeconds: _isStarted
+              startedAt: _isStarted && !today.isCompleted ? (previousWorkout?.startedAt ?? today.startedAt) : today.startedAt,
+              completedAt: today.completedAt ?? (today.isCompleted ? today.updatedAt : previousWorkout?.completedAt),
+              durationSeconds: _isStarted && !today.isCompleted
                   ? (previousWorkout?.durationSeconds ?? today.durationSeconds)
                   : (today.durationSeconds ?? previousWorkout?.durationSeconds),
               caloriesBurned: today.caloriesBurned ?? previousWorkout?.caloriesBurned,
+              status: today.status ?? previousWorkout?.status,
             ),
           );
         } else if (_workout == null || startFresh) {
@@ -419,7 +421,13 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     _timer?.cancel();
 
     if (_workout != null && _startTime != null) {
-      _workout = _workout!.copyWith(startedAt: _startTime, completedAt: DateTime.now(), durationSeconds: _seconds, caloriesBurned: _calories);
+      _workout = _workout!.copyWith(
+        startedAt: _startTime,
+        completedAt: DateTime.now(),
+        durationSeconds: _seconds,
+        caloriesBurned: _calories,
+        status: 'Completed',
+      );
     }
 
     setState(() {

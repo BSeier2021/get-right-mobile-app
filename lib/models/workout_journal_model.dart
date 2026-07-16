@@ -15,6 +15,7 @@ class WorkoutJournalModel {
   final int? durationSeconds; // Total workout duration
   final int? caloriesBurned; // From smartwatch
   final String? notes; // Daily workout notes
+  final String? status; // API journal status e.g. Completed, Incomplete
 
   WorkoutJournalModel({
     required this.id,
@@ -29,6 +30,7 @@ class WorkoutJournalModel {
     this.durationSeconds,
     this.caloriesBurned,
     this.notes,
+    this.status,
   });
 
   factory WorkoutJournalModel.fromJson(Map<String, dynamic> json) {
@@ -45,6 +47,7 @@ class WorkoutJournalModel {
       durationSeconds: json['durationSeconds']?.toInt(),
       caloriesBurned: json['caloriesBurned']?.toInt(),
       notes: json['notes'],
+      status: json['status']?.toString(),
     );
   }
 
@@ -62,6 +65,7 @@ class WorkoutJournalModel {
       'durationSeconds': durationSeconds,
       'caloriesBurned': caloriesBurned,
       'notes': notes,
+      if (status != null) 'status': status,
     };
   }
 
@@ -78,6 +82,7 @@ class WorkoutJournalModel {
     int? durationSeconds,
     int? caloriesBurned,
     String? notes,
+    String? status,
   }) {
     return WorkoutJournalModel(
       id: id ?? this.id,
@@ -92,14 +97,17 @@ class WorkoutJournalModel {
       durationSeconds: durationSeconds ?? this.durationSeconds,
       caloriesBurned: caloriesBurned ?? this.caloriesBurned,
       notes: notes ?? this.notes,
+      status: status ?? this.status,
     );
   }
 
-  /// Check if workout is empty
-  bool get isEmpty => warmupExercises.isEmpty && workoutExercises.isEmpty;
+  static bool isCompletedStatus(String? raw) => raw?.trim().toLowerCase() == 'completed';
 
   /// Check if workout is completed
-  bool get isCompleted => completedAt != null;
+  bool get isCompleted => completedAt != null || isCompletedStatus(status);
+
+  /// Check if workout is empty
+  bool get isEmpty => warmupExercises.isEmpty && workoutExercises.isEmpty;
 
   /// Get all exercises (warmup + workout)
   List<WorkoutExerciseModel> get allExercises => [...warmupExercises, ...workoutExercises];

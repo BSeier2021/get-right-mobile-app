@@ -363,8 +363,8 @@ class AppUrl {
   static String customerFoodSaveById(String foodSaveId) => '$baseUrl/customer/food-saves/${Uri.encodeComponent(foodSaveId.trim())}';
 
   /// `GET /customer/food-logs/analytics` — query: `date` (`YYYY-MM-DD`), `dailyGoal`.
-  static String customerFoodLogAnalytics({required String date, int dailyGoal = 2000}) {
-    final q = Uri(queryParameters: {'date': date.trim(), 'dailyGoal': '$dailyGoal'}).query;
+  static String customerFoodLogAnalytics({required String date, }) {
+    final q = Uri(queryParameters: {'date': date.trim(),}).query;
     return '$baseUrl/customer/food-logs/analytics?$q';
   }
 
