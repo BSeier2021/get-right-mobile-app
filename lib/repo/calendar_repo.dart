@@ -106,6 +106,16 @@ class CalendarRepository {
         if (secs != null && secs > 0) return secs;
       }
 
+      final runs = runsFromDayData(dayData);
+      if (runs.isNotEmpty) {
+        var total = 0;
+        for (final run in runs) {
+          final secs = _intFrom(run['durationSeconds']);
+          if (secs != null && secs > 0) total += secs;
+        }
+        if (total > 0) return total;
+      }
+
       final run = dayData['run'];
       if (run is Map) {
         final secs = _intFrom(run['durationSeconds']);
@@ -272,6 +282,40 @@ class CalendarRepository {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')} /km';
   }
 
+  static double distanceKmFromRunningLogValue(dynamic distanceRaw) {
+    final raw = (distanceRaw as num?)?.toDouble() ?? 0.0;
+    if (raw <= 0) return 0;
+    if (raw >= 1000) return raw / 1000;
+    return raw;
+  }
+
+  static List<Map<String, dynamic>> runSummariesFromEntryRunningLog(dynamic runningLogRaw) {
+    final items = <dynamic>[];
+    if (runningLogRaw is List) {
+      items.addAll(runningLogRaw);
+    } else if (runningLogRaw != null) {
+      items.add(runningLogRaw);
+    }
+
+    final runs = <Map<String, dynamic>>[];
+    for (final item in items) {
+      final summary = runSummaryFromRunningLogRaw(item);
+      if (summary != null) runs.add(summary);
+    }
+    return runs;
+  }
+
+  static List<Map<String, dynamic>> runsFromDayData(Map<String, dynamic>? dayData) {
+    if (dayData == null) return const [];
+    final runs = dayData['runs'];
+    if (runs is List) {
+      return runs.whereType<Map>().map((run) => Map<String, dynamic>.from(run)).toList();
+    }
+    final run = dayData['run'];
+    if (run is Map) return [Map<String, dynamic>.from(run)];
+    return const [];
+  }
+
   static Map<String, dynamic>? runSummaryFromRunningLogRaw(dynamic runningLogRaw) {
     if (runningLogRaw == null) return null;
     if (runningLogRaw is String) {
@@ -291,7 +335,7 @@ class CalendarRepository {
     if (runningLogRaw is! Map) return null;
 
     final log = Map<String, dynamic>.from(runningLogRaw);
-    var distanceMeters = (log['distance'] as num?)?.toDouble() ?? 0.0;
+    var distanceKm = distanceKmFromRunningLogValue(log['distance']);
     final durationSeconds = (log['duration'] as num?)?.toInt() ?? 0;
     double? averagePace;
 
@@ -305,27 +349,27 @@ class CalendarRepository {
       if (WorkoutRepository.isValidMongoId(nested?.toString())) {
         routeId = nested.toString().trim();
       }
-      if (distanceMeters <= 0) {
+      if (distanceKm <= 0) {
         final estimated = (routeMap['estimatedDistance'] as num?)?.toDouble();
         if (estimated != null && estimated > 0) {
-          distanceMeters = estimated;
+          distanceKm = distanceKmFromRunningLogValue(estimated);
         }
       }
     }
 
-    if (distanceMeters > 0 && durationSeconds > 0) {
-      averagePace = (durationSeconds / 60) / (distanceMeters / 1000);
+    if (distanceKm > 0 && durationSeconds > 0) {
+      averagePace = (durationSeconds / 60) / distanceKm;
     }
 
     final activityType = RunningLogRepository.activityTypeFromRunningType(
       log['runningType']?.toString() ?? log['activityType']?.toString() ?? 'Run',
     );
-    final isPlannedRoute = routeId != null && durationSeconds <= 0 && distanceMeters <= 0;
+    final isPlannedRoute = routeId != null && durationSeconds <= 0 && distanceKm <= 0;
     final calories = _intFrom(log['caloriesBurned']) ?? _intFrom(log['calories']);
 
     return {
       'id': _mongoId(log['_id'] ?? log['id']),
-      'distance': '${(distanceMeters / 1000).toStringAsFixed(2)} km',
+      'distance': '${distanceKm.toStringAsFixed(2)} km',
       'time': formatDurationSeconds(durationSeconds),
       'durationSeconds': durationSeconds,
       'pace': formatPaceMinPerKm(averagePace),
@@ -354,11 +398,17 @@ class CalendarRepository {
     Map<String, dynamic> dayData,
     Map<String, int> caloriesByRunId,
   ) {
-    final run = dayData['run'];
-    if (run is! Map) return dayData;
-    final mergedRun = mergeRunSummaryWithStoredCalories(Map<String, dynamic>.from(run), caloriesByRunId);
-    if (mergedRun == null) return dayData;
-    return Map<String, dynamic>.from(dayData)..['run'] = mergedRun;
+    final runs = runsFromDayData(dayData);
+    if (runs.isEmpty) return dayData;
+
+    final mergedRuns = runs.map((run) {
+      final merged = mergeRunSummaryWithStoredCalories(run, caloriesByRunId);
+      return merged ?? run;
+    }).toList();
+
+    return Map<String, dynamic>.from(dayData)
+      ..['runs'] = mergedRuns
+      ..['run'] = mergedRuns.first;
   }
 
   static Map<DateTime, Map<String, dynamic>> applyStoredRunCalories(
@@ -1087,6 +1137,8 @@ class CalendarRepository {
       resolvedProgramDay = Map<String, dynamic>.from(programDay)..['status'] = 'rest';
     }
 
+    final runs = runSummariesFromEntryRunningLog(entry['runningLog']);
+
     return {
       'calendarEntryId': entryIdFromCalendarRecord(entry),
       'calendarEntryType': entry['type']?.toString(),
@@ -1098,7 +1150,8 @@ class CalendarRepository {
       'hasProgressPhoto': photos.isNotEmpty || hasProgressPhotosInEntry(entry),
       'progressPhotos': photos,
       'workout': workoutSummaryFromJournal(journal),
-      'run': runSummaryFromRunningLogRaw(entry['runningLog']),
+      if (runs.isNotEmpty) 'runs': runs,
+      if (runs.isNotEmpty) 'run': runs.first,
       'nutrition': nutrition,
       'notes': displayNotesFrom(entry['notes']?.toString()),
       if (resolvedProgramDay != null) 'program': resolvedProgramDay,
@@ -1505,6 +1558,24 @@ class CalendarRepository {
       workoutJournal: journalId,
       durationInSeconds: typeRequiresDuration(type) ? (durationInSeconds ?? durationSecondsForDayComplete(dayData)) : null,
     );
+  }
+
+  /// `DELETE /customer/calendar/:id/running-logs/:runningLogId` — unlink one run from a day (log remains).
+  Future<Map<String, dynamic>?> unlinkRunningLogFromCalendar({
+    required String calendarEntryId,
+    required String runningLogId,
+  }) async {
+    final entryId = calendarEntryId.trim();
+    final logId = runningLogId.trim();
+    if (!WorkoutRepository.isValidMongoId(entryId) || !WorkoutRepository.isValidMongoId(logId)) {
+      throw Exception('Invalid calendar entry or running log id');
+    }
+
+    final raw = await _network.delete(AppUrl.customerCalendarUnlinkRunningLog(entryId, logId));
+    if (!_isOk(raw)) {
+      throw Exception(_messageFrom(raw) ?? 'Could not remove run from calendar day');
+    }
+    return dayDataFromMutationResponse(raw);
   }
 
   /// Links a completed run log to the calendar day (`PUT` or `POST /customer/calendar` with `runningLog`).

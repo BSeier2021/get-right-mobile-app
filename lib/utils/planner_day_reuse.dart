@@ -30,7 +30,10 @@ class PlannerDayReuse {
 
     final options = <PlannerReuseOption>[];
     _addWorkoutOptions(options, dayData['workout']);
-    _addRunOptions(options, dayData['run']);
+    _addRunOptionsFromList(options, dayData['runs']);
+    if (options.where((option) => option.kind == PlannerReuseKind.savedActivity || option.kind == PlannerReuseKind.plannedRoute).isEmpty) {
+      _addRunOptions(options, dayData['run']);
+    }
     return options;
   }
 
@@ -91,6 +94,15 @@ class PlannerDayReuse {
           journalId: journalId,
         ),
       );
+    }
+  }
+
+  static void _addRunOptionsFromList(List<PlannerReuseOption> options, dynamic runsRaw) {
+    if (runsRaw is! List) return;
+    for (final item in runsRaw) {
+      if (item is Map) {
+        _addRunOptions(options, item);
+      }
     }
   }
 

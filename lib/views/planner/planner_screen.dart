@@ -44,6 +44,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   String? _calendarLoadError;
   String? _dayDetailError;
   bool _isDeletingEntry = false;
+  bool _isRemovingRun = false;
   bool _isMarkingComplete = false;
   bool _isMovingProgramWorkout = false;
   late final PageController _progressPhotoPageController;
@@ -441,7 +442,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     if (data == null) return false;
     if (data['hasProgressPhoto'] == true) return true;
     if (data['workout'] != null) return true;
-    if (data['run'] != null) return true;
+    if (CalendarRepository.runsFromDayData(data).isNotEmpty) return true;
     if (data['nutrition'] != null) return true;
     final notes = CalendarRepository.displayNotesFrom(data['notes']?.toString());
     return notes.isNotEmpty;
@@ -1941,9 +1942,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
         return;
       }
     }
-    final run = data?['run'];
-    if (run is Map) {
-      final runId = _runningLogIdFromRunMap(Map<String, dynamic>.from(run));
+    final runs = CalendarRepository.runsFromDayData(data);
+    if (runs.isNotEmpty) {
+      final runId = _runningLogIdFromRunMap(runs.last);
       if (runId != null) {
         ShareToChatService.share(context: context, type: SharedContentType.runningLog, contentId: runId);
         return;
@@ -2854,11 +2855,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
           // Workout Summary
           if (data['workout'] != null) _buildWorkoutSummarySection(data['workout']),
 
-          // Run Summary
-          if (data['run'] != null) _buildRunSummarySection(data['run']),
-
-          // Simple Calories Card (when only run calories available, no nutrition card)
-          if (data['run'] != null && data['nutrition'] == null && data['workout'] == null) _buildSimpleCaloriesCard(data['run']),
+          // Run summaries (supports multiple running logs per day)
+          if (CalendarRepository.runsFromDayData(data).isNotEmpty)
+            _buildRunsSection(CalendarRepository.runsFromDayData(data)),
 
           // Nutrition Summary
           if (data['nutrition'] != null) _buildNutritionSummarySection(data['nutrition']),
@@ -3782,36 +3781,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
-  Widget _buildSimpleCaloriesCard(Map<String, dynamic> run) {
-    final calories = run['calories']?.toString() ?? '0';
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
-        boxShadow: [BoxShadow(color: AppColors.blackOverlay.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.local_fire_department, color: AppColors.primaryGray, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Text('Calories', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-          const Spacer(),
-          Text(
-            calories,
-            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
   String _runActivityLabel(Map<String, dynamic> run) {
     final raw = run['activityType']?.toString().trim();
     if (raw == null || raw.isEmpty) return 'Run';
@@ -3832,8 +3801,111 @@ class _PlannerScreenState extends State<PlannerScreen> {
     }
   }
 
-  Widget _buildRunSummarySection(Map<String, dynamic> run) {
+  Widget _buildRunsSection(List<Map<String, dynamic>> runs) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (runs.length > 1) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Runs (${runs.length})',
+              style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+        ...runs.asMap().entries.map(
+          (entry) => _buildRunSummarySection(
+            entry.value,
+            titleSuffix: runs.length > 1 ? ' #${entry.key + 1}' : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmUnlinkRunFromDay(Map<String, dynamic> run) async {
+    final entryId = _calendarEntryIdForSelectedDate();
+    final runId = _runningLogIdFromRunMap(run);
+    if (entryId == null || runId == null || _isRemovingRun) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Remove from this day?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+        content: Text(
+          'This removes the run from this calendar day only. The run will stay in your running history.',
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text('Remove', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isRemovingRun = true);
+    try {
+      await _calendarRepo.unlinkRunningLogFromCalendar(calendarEntryId: entryId, runningLogId: runId);
+      if (!mounted) return;
+      await _loadCalendarMonth();
+      await _loadSelectedDayDetail(isRefresh: true);
+      Get.snackbar('Removed', 'Run removed from this day', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      if (!mounted) return;
+      await showCalendarErrorDialog(context, e);
+    } finally {
+      if (mounted) setState(() => _isRemovingRun = false);
+    }
+  }
+
+  Future<void> _confirmDeleteRunPermanently(Map<String, dynamic> run) async {
+    final runId = _runningLogIdFromRunMap(run);
+    if (runId == null || _isRemovingRun) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Delete run?', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface)),
+        content: Text(
+          'This permanently deletes the run and removes it from all calendar days.',
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text('Delete', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isRemovingRun = true);
+    try {
+      await RunningLogRepository().deleteRunningLog(runId);
+      if (!mounted) return;
+      await _loadCalendarMonth();
+      await _loadSelectedDayDetail(isRefresh: true);
+      Get.snackbar('Deleted', 'Run deleted permanently', backgroundColor: AppColors.completed, colorText: AppColors.onError, snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      if (!mounted) return;
+      await showCalendarErrorDialog(context, e);
+    } finally {
+      if (mounted) setState(() => _isRemovingRun = false);
+    }
+  }
+
+  Widget _buildRunSummarySection(Map<String, dynamic> run, {String? titleSuffix}) {
     final activityLabel = _runActivityLabel(run);
+    final canManageRun = _calendarEntryIdForSelectedDate() != null && _runningLogIdFromRunMap(run) != null;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -3856,10 +3928,26 @@ class _PlannerScreenState extends State<PlannerScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  '$activityLabel Summary',
+                  '$activityLabel Summary${titleSuffix ?? ''}',
                   style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                 ),
               ),
+              if (canManageRun)
+                PopupMenuButton<String>(
+                  enabled: !_isRemovingRun,
+                  icon: Icon(Icons.more_vert, color: AppColors.primaryGray, size: 22),
+                  onSelected: (value) {
+                    if (value == 'unlink') {
+                      _confirmUnlinkRunFromDay(run);
+                    } else if (value == 'delete') {
+                      _confirmDeleteRunPermanently(run);
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'unlink', child: Text('Remove from this day')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete run permanently')),
+                  ],
+                ),
               Material(
                 color: Colors.transparent,
                 child: InkWell(

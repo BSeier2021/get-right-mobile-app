@@ -698,6 +698,18 @@ class RunningLogRepository {
     return createRunningLog(body);
   }
 
+  /// `DELETE /customer/running-logs/:logId` — delete run and unlink from all calendar entries.
+  Future<void> deleteRunningLog(String logId) async {
+    final id = logId.trim();
+    if (!WorkoutRepository.isValidMongoId(id)) {
+      throw Exception('Invalid running log id');
+    }
+    final raw = await _network.delete(AppUrl.customerRunningLogById(id));
+    if (!_isOk(raw)) {
+      throw Exception(_messageFrom(raw) ?? 'Could not delete running log');
+    }
+  }
+
   /// `POST /customer/running-logs` — persist a completed run on the server.
   Future<Map<String, dynamic>> createRunningLog(Map<String, dynamic> body) async {
     final payload = sanitizeRunningLogBody(body);

@@ -419,6 +419,10 @@ class AppUrl {
     return '$baseUrl/customer/calendar?$q';
   }
 
+  /// `DELETE /customer/calendar/:calendarEntryId/running-logs/:runningLogId` — unlink run from day only.
+  static String customerCalendarUnlinkRunningLog(String calendarEntryId, String runningLogId) =>
+      '$baseUrl/customer/calendar/${Uri.encodeComponent(calendarEntryId.trim())}/running-logs/${Uri.encodeComponent(runningLogId.trim())}';
+
   /// `GET /customer/calendar/:calendarEntryId` → `data.entry`, `data.nutrition`.
   /// `PUT /customer/calendar/:calendarEntryId` — body: `notes`, `type`, `runningLog`, optional `removeProgressPhotosIds` + `progressPhotoFront` / `progressPhotoBack` (multipart file).
   /// `DELETE /customer/calendar/:calendarEntryId` — remove calendar entry.
