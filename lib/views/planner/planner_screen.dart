@@ -92,7 +92,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
     if (CalendarRepository.isRestDayData(data)) return false;
     final program = data?['program'];
     if (program is! Map || _calendarEntryIdForSelectedDate() == null) return false;
-    return !_isProgramMovedToAnotherDay(Map<String, dynamic>.from(program));
+    final programMap = Map<String, dynamic>.from(program);
+    if (_isProgramMovedToAnotherDay(programMap) || _isProgramWorkoutCompleted(programMap)) return false;
+    return true;
+  }
+
+  bool _isProgramWorkoutCompleted(Map<String, dynamic> program) {
+    final status = _programEntryStatusRaw(program);
+    return status == 'completed';
   }
 
   bool _isProgramMovedToAnotherDay(Map<String, dynamic> program) {
