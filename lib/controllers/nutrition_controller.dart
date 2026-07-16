@@ -55,6 +55,11 @@ class NutritionController extends GetxController {
   /// Center label calories from analytics API when the last fetch applied to [selectedDate].
   double? trackerCenterCalories;
 
+  /// Calorie analytics from `GET /customer/food-logs/analytics`.
+  double? trackerCaloriesBurned;
+  double? trackerCaloriesRemaining;
+  double? trackerCalorieProgressPercent;
+
   /// Macro ring percents from API `[carbs, fat, protein]` when any percent is non-zero.
   List<double>? trackerMacroPercentsFromApi;
 
@@ -312,6 +317,9 @@ class NutritionController extends GetxController {
     final calories = data['calories'];
     final goalCal = calories is Map ? _toD(calories['goal']) : calorieGoal.value;
     final consumedCal = calories is Map ? _toD(calories['consumed']) : 0.0;
+    trackerCaloriesBurned = calories is Map ? _toD(calories['burned']) : null;
+    trackerCaloriesRemaining = calories is Map ? _toD(calories['remaining']) : null;
+    trackerCalorieProgressPercent = calories is Map ? _toD(calories['progressPercent']) : null;
 
     final macros = data['macronutrients'];
     var pG = 0.0;

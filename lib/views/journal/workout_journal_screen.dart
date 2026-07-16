@@ -458,8 +458,8 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     });
   }
 
-  Future<void> _finalizeWorkoutJournal() async {
-    if (_workout == null) return;
+  Future<int?> _finalizeWorkoutJournal() async {
+    if (_workout == null) return null;
 
     final workoutIds = _workout!.allExercises.where((e) => WorkoutRepository.isValidMongoId(e.id)).map((e) => e.id).toList();
     if (workoutIds.isEmpty) {
@@ -467,12 +467,12 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         try {
           await _workoutRepo.completeWorkoutJournal(journalId: _workoutJournalId!, duration: _seconds);
         } catch (e) {
-          if (!mounted) return;
+          if (!mounted) return _workout?.caloriesBurned;
           Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
         }
       }
       await _refreshWorkoutJournalFromApi();
-      return;
+      return _workout?.caloriesBurned;
     }
 
     try {
@@ -487,9 +487,11 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         await _workoutRepo.completeWorkoutJournal(journalId: _workoutJournalId!, duration: _seconds);
       }
       await _refreshWorkoutJournalFromApi();
+      return _workout?.caloriesBurned;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return _workout?.caloriesBurned;
       Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+      return _workout?.caloriesBurned;
     }
   }
 

@@ -3528,8 +3528,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     ),
                     if (journalDate != null) ...[
                       const SizedBox(height: 4),
-                      Text(DateFormat('MMM d, yyyy · h:mm a').format(journalDate.toLocal()), style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                      Text(DateFormat('MMM d, yyyy').format(journalDate.toLocal()), style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                     ],
+               
                   ],
                 ),
               ),
@@ -3962,14 +3963,49 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Widget _buildNutritionSummarySection(Map<String, dynamic> nutrition) {
-    final caloriesRaw = nutrition['calories']?.toString() ?? '0';
-    final caloriesParts = caloriesRaw.split('/');
-    final caloriesVal = caloriesParts.first.trim();
-    final caloriesGoal = caloriesParts.length > 1 ? caloriesParts.last.trim() : null;
-    final proteinVal = nutrition['protein']?.toString().replaceAll('g', '').trim() ?? '0';
-    final carbsVal = nutrition['carbs']?.toString().replaceAll('g', '').trim() ?? '0';
-    final fatsVal = nutrition['fats']?.toString().replaceAll('g', '').trim() ?? '0';
-    final caloriesDisplay = caloriesGoal != null && caloriesGoal.isNotEmpty ? '$caloriesVal / $caloriesGoal' : caloriesVal;
+    int readInt(dynamic value, {int fallback = 0}) {
+      if (value is num) return value.round();
+      return int.tryParse(value?.toString() ?? '') ?? fallback;
+    }
+
+    final hasStructuredCalories = nutrition.containsKey('caloriesConsumed') || nutrition.containsKey('caloriesGoal');
+    late final int consumed;
+    late final int burned;
+    late final int goal;
+    late final int remaining;
+    late final int progressPercent;
+
+    if (hasStructuredCalories) {
+      consumed = readInt(nutrition['caloriesConsumed']);
+      burned = readInt(nutrition['caloriesBurned']);
+      goal = readInt(nutrition['caloriesGoal']);
+      remaining = readInt(nutrition['caloriesRemaining'], fallback: goal - consumed);
+      progressPercent = readInt(nutrition['caloriesProgressPercent'], fallback: goal > 0 ? ((consumed / goal) * 100).round() : 0);
+    } else {
+      final caloriesRaw = nutrition['calories']?.toString() ?? '0';
+      final caloriesParts = caloriesRaw.split('/');
+      consumed = readInt(caloriesParts.first.trim());
+      goal = caloriesParts.length > 1 ? readInt(caloriesParts.last.trim()) : 0;
+      burned = 0;
+      remaining = goal - consumed;
+      progressPercent = goal > 0 ? ((consumed / goal) * 100).round() : 0;
+    }
+
+    final proteinVal = nutrition.containsKey('proteinGrams')
+        ? readInt(nutrition['proteinGrams']).toString()
+        : nutrition['protein']?.toString().replaceAll('g', '').trim() ?? '0';
+    final carbsVal = nutrition.containsKey('carbsGrams')
+        ? readInt(nutrition['carbsGrams']).toString()
+        : nutrition['carbs']?.toString().replaceAll('g', '').trim() ?? '0';
+    final fatsVal = nutrition.containsKey('fatsGrams')
+        ? readInt(nutrition['fatsGrams']).toString()
+        : nutrition['fats']?.toString().replaceAll('g', '').trim() ?? '0';
+    final proteinPercent = readInt(nutrition['proteinPercent']);
+    final carbsPercent = readInt(nutrition['carbsPercent']);
+    final fatsPercent = readInt(nutrition['fatsPercent']);
+
+    final progressValue = (progressPercent / 100).clamp(0.0, 1.0);
+    final isOverGoal = remaining < 0 || progressPercent > 100;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -3999,7 +4035,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 17),
                     ),
                     const SizedBox(height: 2),
-                    Text('Total consumed for this day', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                    Text('Calories and macros for this day', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
                   ],
                 ),
               ),
@@ -4007,20 +4043,92 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ),
           const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
-              Expanded(child: _buildNutritionBox(caloriesDisplay, 'Calories kcal', const Color(0xFFE8F5E0), AppColors.onSurface)),
+              Text(
+                '$consumed',
+                style: const TextStyle(fontSize: 36, color: AppColors.onSurface, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                goal > 0 ? '/ $goal kcal' : 'kcal',
+                style: AppTextStyles.titleMedium.copyWith(color: AppColors.black, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: progressValue,
+              backgroundColor: Colors.white,
+              valueColor: AlwaysStoppedAnimation<Color>(isOverGoal ? Colors.red : AppColors.accent),
+              minHeight: 8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '$progressPercent% of goal',
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                isOverGoal ? '${(-remaining)} kcal over' : '$remaining kcal remaining',
+                style: AppTextStyles.bodySmall.copyWith(color: isOverGoal ? Colors.red : AppColors.black, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: _buildNutritionMiniStat('Consumed', '$consumed', Icons.restaurant_outlined)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildNutritionMiniStat('Burned', '$burned', Icons.local_fire_department_outlined)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildNutritionMiniStat('Goal', '$goal', Icons.flag_outlined)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text('Macronutrients', style: AppTextStyles.labelLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: _buildNutritionBox('$proteinVal', 'Protein g${proteinPercent > 0 ? ' · $proteinPercent%' : ''}', const Color(0xFFE8F5E0), AppColors.onSurface)),
               const SizedBox(width: 12),
-              Expanded(child: _buildNutritionBox(proteinVal, 'Protein g', const Color(0xFFE8F5E0), AppColors.onSurface)),
+              Expanded(child: _buildNutritionBox('$carbsVal', 'Carbs g${carbsPercent > 0 ? ' · $carbsPercent%' : ''}', const Color(0xFFE8F5E0), AppColors.onSurface)),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildNutritionBox(carbsVal, 'Carbs g', const Color(0xFFE8F5E0), AppColors.onSurface)),
-              const SizedBox(width: 12),
-              Expanded(child: _buildNutritionBox(fatsVal, 'Fats g', const Color(0xFFFCDDD5), const Color(0xFFD94E2A))),
+              Expanded(child: _buildNutritionBox('$fatsVal', 'Fats g${fatsPercent > 0 ? ' · $fatsPercent%' : ''}', const Color(0xFFFCDDD5), const Color(0xFFD94E2A))),
+              const Expanded(child: SizedBox()),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNutritionMiniStat(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryGray.withOpacity(0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: AppColors.accent),
+          const SizedBox(height: 6),
+          Text(value, style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 2),
+          Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600)),
         ],
       ),
     );

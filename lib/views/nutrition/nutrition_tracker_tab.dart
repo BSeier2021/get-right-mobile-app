@@ -38,7 +38,7 @@ class NutritionTrackerTab extends StatelessWidget {
                       ),
 
                     // Calories Overview Card
-                    _buildCaloriesCard(context, controller, currentDay.totalCalories, currentDay.calorieGoal, currentDay.calorieProgress),
+                    _buildCaloriesCard(context, controller, currentDay),
 
                     // Macros Overview
                     const SizedBox(height: 24),
@@ -281,8 +281,15 @@ class NutritionTrackerTab extends StatelessWidget {
     );
   }
 
-  Widget _buildCaloriesCard(BuildContext context, NutritionController controller, double consumed, double goal, double progress, {bool isLimited = false}) {
-    final remaining = goal - consumed;
+  Widget _buildCaloriesCard(BuildContext context, NutritionController controller, NutritionDay currentDay, {bool isLimited = false}) {
+    final consumed = currentDay.totalCalories;
+    final goal = currentDay.calorieGoal;
+    final burned = controller.trackerCaloriesBurned ?? 0.0;
+    final remaining = controller.trackerCaloriesRemaining ?? (goal - consumed);
+    final progressPercent = controller.trackerCalorieProgressPercent ?? (goal > 0 ? (consumed / goal) * 100 : 0);
+    final progressValue = (progressPercent / 100).clamp(0.0, 1.0);
+    final isOverGoal = remaining < 0 || progressPercent > 100;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -341,16 +348,35 @@ class NutritionTrackerTab extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
-              value: progress.clamp(0.0, 1.0),
+              value: progressValue,
               backgroundColor: Colors.white,
-              valueColor: AlwaysStoppedAnimation<Color>(progress > 1.0 ? Colors.red : AppColors.accent),
+              valueColor: AlwaysStoppedAnimation<Color>(isOverGoal ? Colors.red : AppColors.accent),
               minHeight: 10,
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            remaining > 0 ? '${remaining.toStringAsFixed(0)} kcal remaining' : '${(-remaining).toStringAsFixed(0)} kcal over',
-            style: AppTextStyles.bodyMedium.copyWith(color: remaining > 0 ? AppColors.black : Colors.red, fontWeight: FontWeight.w500),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${progressPercent.clamp(0, 999).toStringAsFixed(0)}% of goal',
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                isOverGoal ? '${(-remaining).toStringAsFixed(0)} kcal over' : '${remaining.toStringAsFixed(0)} kcal remaining',
+                style: AppTextStyles.bodySmall.copyWith(color: isOverGoal ? Colors.red : AppColors.black, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: _buildCalorieStatChip('Consumed', consumed.toStringAsFixed(0), Icons.restaurant_outlined)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildCalorieStatChip('Burned', burned.toStringAsFixed(0), Icons.local_fire_department_outlined)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildCalorieStatChip('Goal', goal.toStringAsFixed(0), Icons.flag_outlined)),
+            ],
           ),
           if (isLimited) ...[
             const SizedBox(height: 16),
@@ -375,6 +401,33 @@ class NutritionTrackerTab extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalorieStatChip(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFBDE2B7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: AppColors.accent),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );

@@ -11,7 +11,7 @@ class WorkoutCelebrationScreen extends StatefulWidget {
   final int calories;
   final String workoutName;
   final String? workoutJournalId;
-  final Future<void>? prepareFuture;
+  final Future<int?>? prepareFuture;
 
   const WorkoutCelebrationScreen({
     super.key,
@@ -31,6 +31,7 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
   bool _isPreparing = false;
+  int _displayCalories = 0;
 
   final List<String> _motivationalQuotes = [
     "You showed up—and that's what counts. Keep going!",
@@ -46,6 +47,7 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
   @override
   void initState() {
     super.initState();
+    _displayCalories = widget.calories;
     _isPreparing = widget.prepareFuture != null;
     _controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
 
@@ -58,9 +60,12 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
 
   Future<void> _prepareAndAnimate() async {
     if (widget.prepareFuture != null) {
-      await widget.prepareFuture;
+      final apiCalories = await widget.prepareFuture;
       if (!mounted) return;
-      setState(() => _isPreparing = false);
+      setState(() {
+        _isPreparing = false;
+        if (apiCalories != null) _displayCalories = apiCalories;
+      });
     }
     if (!mounted) return;
     _controller.forward();
@@ -246,7 +251,7 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
           children: [
             Expanded(child: _buildStatCard(Icons.timer_outlined, widget.duration, 'Duration')),
             const SizedBox(width: 16),
-            Expanded(child: _buildStatCard(Icons.local_fire_department, '${widget.calories}', 'Calories')),
+            Expanded(child: _buildStatCard(Icons.local_fire_department, '$_displayCalories', 'Calories')),
           ],
         ),
         const SizedBox(height: 16),

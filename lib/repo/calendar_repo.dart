@@ -1113,7 +1113,10 @@ class CalendarRepository {
     if (calories is! Map && macros is! Map) return null;
 
     final consumed = calories is Map ? _intFrom(calories['consumed']) ?? 0 : 0;
+    final burned = calories is Map ? _intFrom(calories['burned']) ?? 0 : 0;
     final goal = calories is Map ? _intFrom(calories['goal']) ?? 0 : 0;
+    final remaining = calories is Map ? _intFrom(calories['remaining']) ?? 0 : 0;
+    final progressPercent = calories is Map ? _intFrom(calories['progressPercent']) ?? 0 : 0;
 
     double macroGrams(String key) {
       if (macros is! Map) return 0;
@@ -1124,15 +1127,35 @@ class CalendarRepository {
       return double.tryParse(grams?.toString() ?? '') ?? 0;
     }
 
+    double macroPercent(String key) {
+      if (macros is! Map) return 0;
+      final macro = macros[key];
+      if (macro is! Map) return 0;
+      final percent = macro['percent'];
+      if (percent is num) return percent.toDouble();
+      return double.tryParse(percent?.toString() ?? '') ?? 0;
+    }
+
     final protein = macroGrams('protein');
     final carbs = macroGrams('carbs');
     final fats = macroGrams('fats');
 
     return {
+      'caloriesConsumed': consumed,
+      'caloriesBurned': burned,
+      'caloriesGoal': goal,
+      'caloriesRemaining': remaining,
+      'caloriesProgressPercent': progressPercent,
       'calories': '$consumed/$goal',
       'protein': '${protein.round()}g',
+      'proteinGrams': protein.round(),
+      'proteinPercent': macroPercent('protein').round(),
       'carbs': '${carbs.round()}g',
+      'carbsGrams': carbs.round(),
+      'carbsPercent': macroPercent('carbs').round(),
       'fats': '${fats.round()}g',
+      'fatsGrams': fats.round(),
+      'fatsPercent': macroPercent('fats').round(),
     };
   }
 
