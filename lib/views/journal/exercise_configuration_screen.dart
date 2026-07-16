@@ -33,6 +33,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   List<String> _journalWorkoutIds = const [];
   List<String> _addedExerciseIds = const [];
   DateTime? _journalDay;
+  WorkoutExerciseModel? _supersetPartnerOf;
   final WorkoutRepository _workoutRepo = WorkoutRepository();
   final CalendarRepository _calendarRepo = CalendarRepository();
   final TextEditingController _nameController = TextEditingController();
@@ -64,6 +65,10 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       final rawJournalDay = args['journalDay'];
       if (rawJournalDay is DateTime) {
         _journalDay = rawJournalDay;
+      }
+      if (args['supersetPartnerOf'] is WorkoutExerciseModel) {
+        _supersetPartnerOf = args['supersetPartnerOf'] as WorkoutExerciseModel;
+        _isSuperset = false;
       }
 
       // Handle editing existing exercise
@@ -118,6 +123,8 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         }
 
         _configs.add(cfg);
+      } else if (_supersetPartnerOf != null) {
+        _configs.add(_Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}'));
       } else if (_isSuperset && args['exercises'] != null) {
         for (var ex in args['exercises'] as List<ExerciseLibraryModel>) {
           _configs.add(_Config(name: ex.name, id: ex.id, iconUrl: ex.iconUrl));
@@ -345,6 +352,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     final now = DateTime.now();
 
     final createdApiIds = <String>[];
+    String? savedSupersetIdentifier;
     if (_isEditing) {
       if (!WorkoutRepository.isValidMongoId(_editingWorkoutId)) {
         Get.snackbar('Error', 'Workout id is missing or invalid', backgroundColor: AppColors.error, colorText: AppColors.onError);
@@ -371,17 +379,37 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         var journalId = WorkoutRepository.isValidMongoId(_workoutJournalId) ? _workoutJournalId!.trim() : null;
         journalId ??= await _workoutRepo.findWorkoutJournalIdForToday(date: journalDay);
         final hadJournalBeforeSave = WorkoutRepository.isValidMongoId(journalId);
+        final sharedSupersetIdentifier = _isSuperset ? WorkoutRepository.generateSupersetIdentifier() : null;
+        String? partnerSupersetIdentifier;
+
+        if (_supersetPartnerOf != null) {
+          final partner = _supersetPartnerOf!;
+          if (!WorkoutRepository.isValidMongoId(partner.id)) {
+            throw Exception('Existing exercise id is missing or invalid');
+          }
+          partnerSupersetIdentifier = partner.supersetIdentifier?.trim();
+          if (partnerSupersetIdentifier == null || partnerSupersetIdentifier.isEmpty) {
+            partnerSupersetIdentifier = WorkoutRepository.generateSupersetIdentifier();
+            await _workoutRepo.updateWorkout(
+              partner.id,
+              WorkoutRepository.updateWorkoutBody(supersetIdentifier: partnerSupersetIdentifier),
+            );
+          }
+        }
+
+        savedSupersetIdentifier = partnerSupersetIdentifier ?? sharedSupersetIdentifier;
 
         for (var i = 0; i < _configs.length; i++) {
           final cfg = _configs[i];
           final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
           final refId = cfg.id.trim();
+          final supersetIdentifier = partnerSupersetIdentifier ?? sharedSupersetIdentifier;
           final body = WorkoutRepository.createWorkoutBody(
             type: _exerciseType.apiValue,
             name: name,
             exercise: _buildApiExerciseSets(cfg),
             refExercise: refId.isNotEmpty && !refId.startsWith('manual_') ? refId : null,
-            supersetIdentifier: _isSuperset ? 'A${i + 1}' : null,
+            supersetIdentifier: supersetIdentifier,
             workoutJournal: journalId,
             date: journalId == null ? WorkoutRepository.toJournalDate(journalDay) : null,
           );
@@ -416,7 +444,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       if (mounted) setState(() => _isSaving = false);
     }
 
-    final supersetGroupId = _isSuperset ? 'A' : null;
+    final isSupersetExercise = _isSuperset || _supersetPartnerOf != null;
     for (var i = 0; i < _configs.length; i++) {
       final cfg = _configs[i];
       final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
@@ -436,6 +464,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         );
       }).toList();
       final apiId = _isEditing ? _editingWorkoutId : (i < createdApiIds.length ? createdApiIds[i] : null);
+      final supersetParsed = WorkoutExerciseModel.parseSupersetIdentifier(savedSupersetIdentifier);
       exercises.add(
         WorkoutExerciseModel(
           id: apiId ?? 'ex_${now.millisecondsSinceEpoch}_$i',
@@ -443,9 +472,10 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
           exerciseId: cfg.id,
           iconUrl: cfg.iconUrl,
           sets: sets,
-          isSuperset: _isSuperset,
-          supersetId: supersetGroupId,
-          supersetOrder: _isSuperset ? i : null,
+          isSuperset: isSupersetExercise,
+          supersetIdentifier: savedSupersetIdentifier,
+          supersetId: supersetParsed?.groupId,
+          supersetOrder: isSupersetExercise ? i : null,
           date: now,
           createdAt: now,
           exerciseType: _exerciseType,
@@ -867,7 +897,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
             onPressed: () => Get.back(),
           ),
           title: Text(
-            'Configure Exercise',
+            _supersetPartnerOf != null ? 'Add Superset Partner' : 'Configure Exercise',
             style: AppTextStyles.titleLarge.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w600),
           ),
           centerTitle: true,
@@ -880,45 +910,54 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _isSuperset,
-                          onChanged: (value) {
-                            setState(() {
-                              _isSuperset = value ?? false;
-                              if (_isSuperset && _configs.length < 2) {
-                                final firstConfig = _configs[0];
-                                final secondConfig = _Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}');
-                                secondConfig.mainType = firstConfig.mainType;
-                                secondConfig.extraType = firstConfig.extraType;
-                                secondConfig.sets.clear();
-                                for (var set in firstConfig.sets) {
-                                  final newSet = _SetData();
-                                  newSet.reps = set.reps;
-                                  newSet.time = set.time;
-                                  newSet.weight = set.weight;
-                                  newSet.distance = set.distance;
-                                  newSet.distanceUnit = set.distanceUnit;
-                                  newSet.isBodyweight = set.isBodyweight;
-                                  secondConfig.sets.add(newSet);
+                    if (_supersetPartnerOf == null && !_isEditing)
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _isSuperset,
+                            onChanged: (value) {
+                              setState(() {
+                                _isSuperset = value ?? false;
+                                if (_isSuperset && _configs.length < 2) {
+                                  final firstConfig = _configs[0];
+                                  final secondConfig = _Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}');
+                                  secondConfig.mainType = firstConfig.mainType;
+                                  secondConfig.extraType = firstConfig.extraType;
+                                  secondConfig.sets.clear();
+                                  for (var set in firstConfig.sets) {
+                                    final newSet = _SetData();
+                                    newSet.reps = set.reps;
+                                    newSet.time = set.time;
+                                    newSet.weight = set.weight;
+                                    newSet.distance = set.distance;
+                                    newSet.distanceUnit = set.distanceUnit;
+                                    newSet.isBodyweight = set.isBodyweight;
+                                    secondConfig.sets.add(newSet);
+                                  }
+                                  _configs.add(secondConfig);
+                                } else if (!_isSuperset && _configs.length > 1) {
+                                  _configs.removeRange(1, _configs.length);
                                 }
-                                _configs.add(secondConfig);
-                              } else if (!_isSuperset && _configs.length > 1) {
-                                _configs.removeRange(1, _configs.length);
-                              }
-                            });
-                          },
-                          activeColor: AppColors.accent,
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        Text(
-                          'Create Superset',
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
+                              });
+                            },
+                            activeColor: AppColors.accent,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          Text(
+                            'Create Superset',
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    if (_supersetPartnerOf == null && !_isEditing) const SizedBox(height: 20),
+                    if (_supersetPartnerOf != null) ...[
+                      Text(
+                        'Pair with ${_supersetPartnerOf!.exerciseName}',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                     ..._configs
                         .asMap()
                         .entries

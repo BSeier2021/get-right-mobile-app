@@ -211,6 +211,20 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         }
       }
 
+      final detailJournalId =
+          WorkoutRepository.primaryJournalIdForDay(rawEntries, day: day, strict: strictDay) ??
+          (WorkoutRepository.isValidMongoId(_workoutJournalId) ? _workoutJournalId : null);
+      if (WorkoutRepository.isValidMongoId(detailJournalId)) {
+        try {
+          final detail = await _workoutRepo.fetchWorkoutJournalById(detailJournalId!);
+          if (detail != null) {
+            rawEntries = WorkoutRepository.entriesWithDetailReplacing(rawEntries, detail);
+          }
+        } catch (_) {
+          /* list response is still usable */
+        }
+      }
+
       final nav = _navController;
       final hasJournalForDay = rawEntries.isNotEmpty;
       if (hasJournalForDay && nav != null) {
@@ -590,6 +604,49 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   void _onAddWarmup() => _openAddExerciseFlow(JournalExerciseType.warmup);
 
   void _onAddWorkout() => _openAddExerciseFlow(JournalExerciseType.workout);
+
+  Future<void> _openSupersetPartnerFlow(WorkoutExerciseModel existing, bool isWarmup) async {
+    if (_isWorkoutCompleted) {
+      Get.snackbar('Workout completed', 'You cannot add exercises to a completed workout.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (!WorkoutRepository.isValidMongoId(existing.id)) {
+      Get.snackbar('Cannot add superset', 'Save this exercise first.', backgroundColor: AppColors.error, colorText: AppColors.onError);
+      return;
+    }
+
+    try {
+      await _ensureWorkoutJournalId();
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+      return;
+    }
+
+    final exerciseType = existing.exerciseType ?? JournalExerciseType.fromIsWarmup(isWarmup);
+    await Get.toNamed(
+      AppRoutes.exerciseConfiguration,
+      arguments: {
+        'exerciseType': exerciseType,
+        'isWarmup': exerciseType.isWarmup,
+        'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _currentJournalWorkoutIds(),
+        'addedExerciseIds': _currentAddedLibraryExerciseIds(),
+        'journalDay': _journalDay,
+        'supersetPartnerOf': existing,
+      },
+    )?.then((r) async {
+      if (r is! Map || r['exercises'] == null) return;
+      final returnedJournalId = r['workoutJournalId']?.toString();
+      if (WorkoutRepository.isValidMongoId(returnedJournalId)) {
+        _workoutJournalId = returnedJournalId;
+        await _linkJournalToPlannerCalendar(returnedJournalId!);
+      }
+      final exercises = (r['exercises'] as List).whereType<WorkoutExerciseModel>();
+      await _rememberExerciseSections(exercises, exerciseType);
+      await _refreshWorkoutJournalFromApi();
+    });
+  }
 
   // ignore: unused_element
   void _showQuickAddDialog({required bool isTimer}) {
@@ -1233,9 +1290,36 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
   WorkoutExerciseModel _exerciseWithJournalNotes(WorkoutExerciseModel ex) => ex;
 
-  (WorkoutExerciseModel, WorkoutExerciseModel) _orderedSupersetPair(WorkoutExerciseModel a, WorkoutExerciseModel b) {
-    if (a.supersetOrder != null && b.supersetOrder != null) {
+  String? _supersetGroupKey(WorkoutExerciseModel ex) {
+    final raw = ex.supersetIdentifier?.trim();
+    if (raw != null && raw.isNotEmpty) return raw;
+    return ex.supersetId;
+  }
+
+  bool _inSameSupersetGroup(WorkoutExerciseModel a, WorkoutExerciseModel b) {
+    if (!a.isSuperset || !b.isSuperset || a.id == b.id) return false;
+    final rawA = a.supersetIdentifier?.trim();
+    final rawB = b.supersetIdentifier?.trim();
+    if (rawA != null && rawA.isNotEmpty && rawB != null && rawB.isNotEmpty) {
+      return rawA == rawB;
+    }
+    final keyA = _supersetGroupKey(a);
+    final keyB = _supersetGroupKey(b);
+    return keyA != null && keyA == keyB;
+  }
+
+  (WorkoutExerciseModel, WorkoutExerciseModel) _orderedSupersetPair(
+    WorkoutExerciseModel a,
+    WorkoutExerciseModel b,
+    List<WorkoutExerciseModel> exercises,
+  ) {
+    if (a.supersetOrder != null && b.supersetOrder != null && a.supersetOrder != b.supersetOrder) {
       return a.supersetOrder! <= b.supersetOrder! ? (a, b) : (b, a);
+    }
+    final indexA = exercises.indexWhere((e) => e.id == a.id);
+    final indexB = exercises.indexWhere((e) => e.id == b.id);
+    if (indexA >= 0 && indexB >= 0 && indexA != indexB) {
+      return indexA <= indexB ? (a, b) : (b, a);
     }
     return (a, b);
   }
@@ -1249,18 +1333,19 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       final exercise = _exerciseWithJournalNotes(exercises[i]);
 
       // Check if this exercise is part of a superset
-      if (exercise.isSuperset && exercise.supersetId != null) {
-        // Skip if we've already processed this superset group (e.g. A1 + A2 → group A)
-        if (processedSupersets.contains(exercise.supersetId)) {
+      if (exercise.isSuperset && _supersetGroupKey(exercise) != null) {
+        final groupKey = _supersetGroupKey(exercise)!;
+        // Skip if we've already processed this superset group
+        if (processedSupersets.contains(groupKey)) {
           continue;
         }
 
         // Find the partner exercise in the same superset group
-        final otherRaw = exercises.firstWhereOrNull((e) => e.isSuperset && e.supersetId == exercise.supersetId && e.id != exercise.id);
+        final otherRaw = exercises.firstWhereOrNull((e) => _inSameSupersetGroup(exercise, e));
         final otherExercise = otherRaw != null ? _exerciseWithJournalNotes(otherRaw) : null;
 
         if (otherExercise != null) {
-          final pair = _orderedSupersetPair(exercise, otherExercise);
+          final pair = _orderedSupersetPair(exercise, otherExercise, exercises);
           final ex1 = pair.$1;
           final ex2 = pair.$2;
           // Add superset card
@@ -1285,7 +1370,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               ),
             ),
           );
-          processedSupersets.add(exercise.supersetId!);
+          processedSupersets.add(groupKey);
         } else {
           // Superset partner not found, display as regular exercise
           widgets.add(
@@ -1360,6 +1445,21 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                   ),
                 ),
               ),
+              if (!_isWorkoutCompleted && !ex.isSuperset && WorkoutRepository.isValidMongoId(ex.id))
+                ListTile(
+                  onTap: _isSavingJournal
+                      ? null
+                      : () {
+                          Get.back();
+                          _openSupersetPartnerFlow(ex, isWarmup);
+                        },
+                  title: Center(
+                    child: Text(
+                      'Add Superset Partner',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ),
               ListTile(
                 onTap: () {
                   Get.back();

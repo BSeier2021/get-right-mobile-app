@@ -13,7 +13,8 @@ class WorkoutExerciseModel {
   final List<ExerciseSetModel> sets;
   final String? notes; // Exercise-level notes
   final bool isSuperset; // If true, this is part of a superset
-  final String? supersetId; // ID of the superset group
+  final String? supersetIdentifier; // Raw API value — partners share the same string
+  final String? supersetId; // Parsed group id for UI grouping
   final int? supersetOrder; // Order within superset (0 or 1)
   final DateTime date;
   final DateTime createdAt;
@@ -43,6 +44,7 @@ class WorkoutExerciseModel {
     required this.sets,
     this.notes,
     this.isSuperset = false,
+    this.supersetIdentifier,
     this.supersetId,
     this.supersetOrder,
     required this.date,
@@ -65,6 +67,7 @@ class WorkoutExerciseModel {
           [],
       notes: json['notes'],
       isSuperset: json['isSuperset'] ?? false,
+      supersetIdentifier: json['supersetIdentifier'],
       supersetId: json['supersetId'],
       supersetOrder: json['supersetOrder']?.toInt(),
       date: json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
@@ -85,6 +88,7 @@ class WorkoutExerciseModel {
       'sets': sets.map((set) => set.toJson()).toList(),
       'notes': notes,
       'isSuperset': isSuperset,
+      if (supersetIdentifier != null) 'supersetIdentifier': supersetIdentifier,
       'supersetId': supersetId,
       'supersetOrder': supersetOrder,
       'date': date.toIso8601String(),
@@ -104,6 +108,7 @@ class WorkoutExerciseModel {
     List<ExerciseSetModel>? sets,
     String? notes,
     bool? isSuperset,
+    String? supersetIdentifier,
     String? supersetId,
     int? supersetOrder,
     DateTime? date,
@@ -121,6 +126,7 @@ class WorkoutExerciseModel {
       sets: sets ?? this.sets,
       notes: notes ?? this.notes,
       isSuperset: isSuperset ?? this.isSuperset,
+      supersetIdentifier: supersetIdentifier ?? this.supersetIdentifier,
       supersetId: supersetId ?? this.supersetId,
       supersetOrder: supersetOrder ?? this.supersetOrder,
       date: date ?? this.date,

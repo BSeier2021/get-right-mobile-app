@@ -336,7 +336,8 @@ class WorkoutRepository {
     if (name.isEmpty && refRaw is Map) {
       name = Map<String, dynamic>.from(refRaw)['name']?.toString() ?? '';
     }
-    final supersetParsed = WorkoutExerciseModel.parseSupersetIdentifier(json['supersetIdentifier']?.toString());
+    final supersetRaw = json['supersetIdentifier']?.toString();
+    final supersetParsed = WorkoutExerciseModel.parseSupersetIdentifier(supersetRaw);
     final createdAt = DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now();
     final updatedAt = DateTime.tryParse(json['updatedAt']?.toString() ?? '');
 
@@ -359,6 +360,7 @@ class WorkoutRepository {
       videoThumbnailUrl: _refExerciseVideoThumbnailUrl(refRaw),
       sets: sets,
       isSuperset: supersetParsed != null,
+      supersetIdentifier: supersetRaw?.trim().isNotEmpty == true ? supersetRaw!.trim() : null,
       supersetId: supersetParsed?.groupId,
       supersetOrder: supersetParsed?.order,
       date: createdAt,
@@ -671,7 +673,44 @@ class WorkoutRepository {
     return 1;
   }
 
-  /// Builds `PUT /customer/workout-journal/:id` body (partial update).
+  /// Stable client id for superset partners (`POST/PUT /customer/workout`).
+  static String generateSupersetIdentifier() => 'ss-${DateTime.now().millisecondsSinceEpoch}';
+
+  /// `GET /customer/workout-journal/:journalId` — populated journal with workout details.
+  Future<WorkoutJournalModel?> fetchWorkoutJournalById(String journalId) async {
+    if (!isValidMongoId(journalId)) return null;
+    final raw = await _network.get(AppUrl.customerWorkoutJournalById(journalId));
+    if (!_isOk(raw)) {
+      throw Exception(_messageFrom(raw) ?? 'Could not load workout journal');
+    }
+    if (raw is! Map) return null;
+    final root = Map<String, dynamic>.from(raw);
+    final data = root['data'];
+    if (data is Map) {
+      final dm = Map<String, dynamic>.from(data);
+      final journal = dm['journal'] ?? dm['workoutJournal'] ?? dm['entry'];
+      if (journal is Map) return journalFromApiEntry(Map<String, dynamic>.from(journal));
+      if (dm['_id'] != null || dm['id'] != null) return journalFromApiEntry(dm);
+    }
+    final journal = root['journal'] ?? root['workoutJournal'];
+    if (journal is Map) return journalFromApiEntry(Map<String, dynamic>.from(journal));
+    return null;
+  }
+
+  /// Replaces the list entry matching [detail] or prepends it when missing.
+  static List<WorkoutJournalModel> entriesWithDetailReplacing(List<WorkoutJournalModel> entries, WorkoutJournalModel detail) {
+    var replaced = false;
+    final out = entries.map((entry) {
+      if (entry.id == detail.id) {
+        replaced = true;
+        return detail;
+      }
+      return entry;
+    }).toList();
+    if (!replaced) out.insert(0, detail);
+    return out;
+  }
+
   static Map<String, dynamic> updateJournalBody({List<String>? workout, int? duration, String? notes, bool? isComplete}) {
     final body = <String, dynamic>{};
     if (workout != null) body['workout'] = workout;
@@ -816,14 +855,21 @@ class WorkoutRepository {
     return Map<String, dynamic>.from(raw as Map);
   }
 
-  /// Builds `PUT /customer/workout/:workoutId` body.
+  /// Builds `PUT /customer/workout/:workoutId` body — at least one field required.
   static Map<String, dynamic> updateWorkoutBody({
-    required String name,
-    required List<Map<String, dynamic>> exercise,
+    String? name,
+    List<Map<String, dynamic>>? exercise,
     String? notes,
+    String? supersetIdentifier,
   }) {
-    final body = <String, dynamic>{'name': name, 'exercise': exercise};
+    final body = <String, dynamic>{};
+    if (name != null) body['name'] = name;
+    if (exercise != null) body['exercise'] = exercise;
     if (notes != null) body['notes'] = notes;
+    if (supersetIdentifier != null && supersetIdentifier.trim().isNotEmpty) {
+      body['supersetIdentifier'] = supersetIdentifier.trim();
+    }
+    if (body.isEmpty) throw Exception('Nothing to update');
     return body;
   }
 
