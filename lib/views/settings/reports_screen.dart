@@ -102,7 +102,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               child: Row(
                 children: [
                   for (var i = 0; i < ReportRefType.tabOrder.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 8),
+                    if (i > 0) const SizedBox(width: 4),
                     _tabChip(ReportRefType.tabOrder[i], i),
                   ],
                 ],
@@ -258,15 +258,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  Widget _tabChip(String label, int index) {
+  Widget _tabChip(String refType, int index) {
     final selected = _selectedTab == index;
     return GestureDetector(
       onTap: () => _onTabSelected(index),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 10),
         decoration: BoxDecoration(color: selected ? AppColors.accentVariant : Colors.transparent, borderRadius: BorderRadius.circular(50)),
         child: Text(
-          label,
+          ReportRefType.tabLabel(refType),
           style: AppTextStyles.bodyMedium.copyWith(
             color: selected ? AppColors.white : AppColors.primaryGrayDark,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,

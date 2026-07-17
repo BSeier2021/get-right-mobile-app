@@ -125,6 +125,21 @@ class ReportRefType {
 
   /// Tab order for the reports screen.
   static const tabOrder = [auth, feeds, programs, feedComment];
+
+  static String tabLabel(String refType) {
+    switch (refType) {
+      case auth:
+        return 'User';
+      case feeds:
+        return 'Feeds';
+      case programs:
+        return 'Programs';
+      case feedComment:
+        return 'Feed comment';
+      default:
+        return refType;
+    }
+  }
 }
 
 /// Moderation queue state — matches backend `UserReportStatusEnums`.
