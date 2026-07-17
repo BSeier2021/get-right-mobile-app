@@ -2,34 +2,21 @@ import 'package:get_right/controllers/safety_center_controller.dart';
 import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
 
-class ParsedReportsPage {
-  const ParsedReportsPage({
-    required this.userReports,
-    required this.postReports,
-    required this.programReports,
-    required this.feedCommentReports,
+class ReportsListPage {
+  const ReportsListPage({
+    required this.reports,
     required this.totalDocs,
     required this.hasNextPage,
   });
 
-  final List<ReportItem> userReports;
-  final List<ReportItem> postReports;
-  final List<ReportItem> programReports;
-  final List<ReportItem> feedCommentReports;
+  final List<ReportItem> reports;
   final int totalDocs;
   final bool hasNextPage;
 }
 
-/// `GET /user/report` → `data.result.reports[]`.
-ParsedReportsPage parseReportsListResponse(dynamic raw) {
-  final empty = ParsedReportsPage(
-    userReports: const [],
-    postReports: const [],
-    programReports: const [],
-    feedCommentReports: const [],
-    totalDocs: 0,
-    hasNextPage: false,
-  );
+/// `GET /user/report?type=&status=&page=&limit=` → `data.result.reports[]`.
+ReportsListPage parseReportsListResponse(dynamic raw) {
+  const empty = ReportsListPage(reports: [], totalDocs: 0, hasNextPage: false);
   if (raw is! Map) return empty;
 
   final data = raw['data'];
@@ -41,44 +28,19 @@ ParsedReportsPage parseReportsListResponse(dynamic raw) {
   final list = result['reports'];
   if (list is! List) return empty;
 
-  final users = <ReportItem>[];
-  final posts = <ReportItem>[];
-  final programs = <ReportItem>[];
-  final feedComments = <ReportItem>[];
-
+  final reports = <ReportItem>[];
   for (final e in list) {
     if (e is! Map) continue;
     final item = _mapReportItem(Map<String, dynamic>.from(e));
-    if (item == null) continue;
-    switch (item.type) {
-      case ReportType.user:
-        users.add(item);
-      case ReportType.post:
-        posts.add(item);
-      case ReportType.programs:
-        programs.add(item);
-      case ReportType.feedComment:
-        feedComments.add(item);
-    }
+    if (item != null) reports.add(item);
   }
 
-  void sortList(List<ReportItem> items) => items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-  sortList(users);
-  sortList(posts);
-  sortList(programs);
-  sortList(feedComments);
+  reports.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-  final totalDocs = (result['totalDocs'] as num?)?.toInt() ?? users.length + posts.length + programs.length + feedComments.length;
+  final totalDocs = (result['totalDocs'] as num?)?.toInt() ?? reports.length;
   final hasNext = result['hasNextPage'] == true;
 
-  return ParsedReportsPage(
-    userReports: users,
-    postReports: posts,
-    programReports: programs,
-    feedCommentReports: feedComments,
-    totalDocs: totalDocs,
-    hasNextPage: hasNext,
-  );
+  return ReportsListPage(reports: reports, totalDocs: totalDocs, hasNextPage: hasNext);
 }
 
 ReportItem? _mapReportItem(Map<String, dynamic> json) {
@@ -135,7 +97,7 @@ ReportItem? _mapReportItem(Map<String, dynamic> json) {
     subtitle: additionalDetails ?? ReportItem.noAdditionalDetailsLabel,
     reason: reason,
     createdAt: createdAt,
-    status: json['status']?.toString() ?? 'Pending',
+    status: UserReportStatus.normalize(json['status']?.toString()),
     hasAdditionalDetails: additionalDetails != null,
     avatarUrl: avatarUrl,
     creatorName: type == ReportType.user ? null : creatorName,
@@ -150,7 +112,6 @@ ReportType _reportTypeFromRefType(String refType) {
       return ReportType.programs;
     case ReportRefType.feedComment:
       return ReportType.feedComment;
-    case ReportRefType.post:
     case ReportRefType.feeds:
       return ReportType.post;
     default:
@@ -185,8 +146,6 @@ String _postTitleFromRefType(String refType) {
       return 'Comment';
     case ReportRefType.programs:
       return 'Program';
-    case ReportRefType.post:
-      return 'Post';
     default:
       return 'Post report';
   }

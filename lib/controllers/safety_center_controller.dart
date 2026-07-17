@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/repo/blocks_repo.dart';
 import 'package:get_right/repo/reports_repo.dart';
 import 'package:get_right/utils/block_list_mapper.dart';
@@ -33,7 +34,7 @@ class ReportItem {
   final String subtitle;
   final String reason;
   final DateTime createdAt;
-  final String status; // e.g. Pending/Resolved
+  final String status;
   final String? avatarUrl;
   final String? creatorName;
   final bool hasAdditionalDetails;
@@ -58,21 +59,26 @@ class SafetyCenterController extends GetxController {
   final BlocksRepository _blocksRepo = BlocksRepository();
 
   final RxList<BlockedUser> blockedUsers = <BlockedUser>[].obs;
-  final RxList<ReportItem> reportedUsers = <ReportItem>[].obs;
-  final RxList<ReportItem> reportedPosts = <ReportItem>[].obs;
-  final RxList<ReportItem> reportedPrograms = <ReportItem>[].obs;
-  final RxList<ReportItem> reportedFeedComments = <ReportItem>[].obs;
+  final RxList<ReportItem> reports = <ReportItem>[].obs;
 
   final RxString blockedQuery = ''.obs;
   final RxString reportsQuery = ''.obs;
   final RxBool blockedLoading = false.obs;
   final RxnString blockedError = RxnString();
   final RxBool reportsLoading = false.obs;
+  final RxBool reportsLoadingMore = false.obs;
   final RxnString reportsError = RxnString();
 
   static const int _blockedPerPage = 10;
+  static const int _reportsPerPage = 20;
+
   int _blockedPage = 1;
   bool _blockedHasNext = true;
+
+  int _reportsPage = 1;
+  bool _reportsHasNext = false;
+  String? _activeReportRefType;
+  String? _activeReportStatus;
 
   /// `GET /user/block` — populates [blockedUsers].
   Future<void> loadBlockedUsers({bool showLoading = true, bool reset = true}) async {
@@ -111,28 +117,71 @@ class SafetyCenterController extends GetxController {
     }
   }
 
-  bool get _allReportListsEmpty =>
-      reportedUsers.isEmpty && reportedPosts.isEmpty && reportedPrograms.isEmpty && reportedFeedComments.isEmpty;
+  bool get reportsCacheEmpty => reports.isEmpty;
 
-  /// `GET /user/report` — populates report lists by [ReportType].
-  Future<void> loadReports({bool showLoading = true}) async {
-    if (showLoading) reportsLoading.value = true;
-    reportsError.value = null;
+  bool get reportsHasNextPage => _reportsHasNext;
+
+  /// `GET /user/report?type=&status=&page=&limit=` — server-filtered list for the active tab.
+  Future<void> loadReports({
+    required String type,
+    String? status,
+    bool showLoading = true,
+    bool reset = true,
+  }) async {
+    if (reportsLoading.value || reportsLoadingMore.value) return;
+    if (!reset && !_reportsHasNext) return;
+
+    _activeReportRefType = type;
+    _activeReportStatus = status;
+
+    if (reset) {
+      if (showLoading) reportsLoading.value = true;
+      reportsError.value = null;
+      _reportsPage = 1;
+      _reportsHasNext = false;
+    } else {
+      reportsLoadingMore.value = true;
+    }
+
+    final pageToFetch = reset ? 1 : _reportsPage;
+
     try {
-      final raw = await _reportsRepo.getReportsRepo();
+      final raw = await _reportsRepo.getReportsRepo(
+        page: pageToFetch,
+        limit: _reportsPerPage,
+        type: type,
+        status: status,
+      );
       final page = parseReportsListResponse(raw);
-      reportedUsers.assignAll(page.userReports);
-      reportedPosts.assignAll(page.postReports);
-      reportedPrograms.assignAll(page.programReports);
-      reportedFeedComments.assignAll(page.feedCommentReports);
+
+      if (reset) {
+        reports.assignAll(page.reports);
+      } else {
+        final existingIds = reports.map((r) => r.id).toSet();
+        for (final item in page.reports) {
+          if (!existingIds.contains(item.id)) reports.add(item);
+        }
+      }
+
+      _reportsHasNext = page.hasNextPage;
+      _reportsPage = pageToFetch + 1;
     } catch (e) {
       reportsError.value = e.toString();
+      if (reset) reports.clear();
     } finally {
-      reportsLoading.value = false;
+      if (reset) {
+        reportsLoading.value = false;
+      } else {
+        reportsLoadingMore.value = false;
+      }
     }
   }
 
-  bool get reportsCacheEmpty => _allReportListsEmpty;
+  Future<void> loadMoreReports() {
+    final type = _activeReportRefType;
+    if (type == null || type.isEmpty || !_reportsHasNext) return Future.value();
+    return loadReports(type: type, status: _activeReportStatus, showLoading: false, reset: false);
+  }
 
   List<BlockedUser> get filteredBlockedUsers {
     final q = blockedQuery.value.trim().toLowerCase();
@@ -140,24 +189,10 @@ class SafetyCenterController extends GetxController {
     return blockedUsers.where((u) => u.name.toLowerCase().contains(q) || u.username.toLowerCase().contains(q)).toList();
   }
 
-  List<ReportItem> _reportsSourceFor(ReportType type) {
-    switch (type) {
-      case ReportType.user:
-        return reportedUsers;
-      case ReportType.post:
-        return reportedPosts;
-      case ReportType.programs:
-        return reportedPrograms;
-      case ReportType.feedComment:
-        return reportedFeedComments;
-    }
-  }
-
-  List<ReportItem> filteredReportsFor(ReportType type) {
+  List<ReportItem> get filteredReports {
     final q = reportsQuery.value.trim().toLowerCase();
-    final source = _reportsSourceFor(type);
-    if (q.isEmpty) return source;
-    return source
+    if (q.isEmpty) return reports;
+    return reports
         .where(
           (r) =>
               r.title.toLowerCase().contains(q) ||
@@ -174,9 +209,7 @@ class SafetyCenterController extends GetxController {
     blockedUsers.removeWhere((u) => u.id == userId);
   }
 
-  void removeReport({required ReportType type, required String reportId}) {
-    _reportsSourceFor(type).removeWhere((r) => r.id == reportId);
+  void removeReport(String reportId) {
+    reports.removeWhere((r) => r.id == reportId);
   }
 }
-
-

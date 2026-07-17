@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/safety_center_controller.dart';
+import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/safe_circle_network_avatar.dart';
@@ -15,23 +16,56 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   final SafetyCenterController controller = Get.isRegistered<SafetyCenterController>() ? Get.find<SafetyCenterController>() : Get.put(SafetyCenterController());
-  int _selectedTab = 0; // 0 Users, 1 Posts, 2 Programs, 3 FeedComment
+  final ScrollController _scrollController = ScrollController();
 
-  static const List<({String label, ReportType type})> _tabs = [
-    (label: 'Users', type: ReportType.user),
-    (label: 'Posts', type: ReportType.post),
-    (label: 'Programs', type: ReportType.programs),
-    (label: 'Feed Comment', type: ReportType.feedComment),
-  ];
+  int _selectedTab = 0;
+  String? _selectedStatus;
 
-  ReportType get _activeReportType => _tabs[_selectedTab].type;
+  String get _activeRefType => ReportRefType.tabOrder[_selectedTab];
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.loadReports(showLoading: controller.reportsCacheEmpty);
+      _fetchReports(showLoading: controller.reportsCacheEmpty);
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      controller.loadMoreReports();
+    }
+  }
+
+  Future<void> _fetchReports({bool showLoading = true}) {
+    return controller.loadReports(
+      type: _activeRefType,
+      status: _selectedStatus,
+      showLoading: showLoading,
+      reset: true,
+    );
+  }
+
+  void _onTabSelected(int index) {
+    if (_selectedTab == index) return;
+    setState(() => _selectedTab = index);
+    _fetchReports();
+  }
+
+  void _onStatusSelected(String? status) {
+    if (_selectedStatus == status) return;
+    setState(() => _selectedStatus = status);
+    _fetchReports();
   }
 
   @override
@@ -61,20 +95,36 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ),
       body: Column(
         children: [
-          // ── Pill tab selector ─────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  for (var i = 0; i < _tabs.length; i++) ...[if (i > 0) const SizedBox(width: 8), _tabChip(_tabs[i].label, i)],
+                  for (var i = 0; i < ReportRefType.tabOrder.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    _tabChip(ReportRefType.tabOrder[i], i),
+                  ],
                 ],
               ),
             ),
           ),
-
-          // ── Search bar ────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _statusChip(null, 'All'),
+                  const SizedBox(width: 8),
+                  for (final status in UserReportStatus.all) ...[
+                    _statusChip(status, status),
+                    const SizedBox(width: 8),
+                  ],
+                ],
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: TextField(
@@ -101,15 +151,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
             ),
           ),
-
-          // ── Report list ───────────────────────────────────────
           Expanded(
             child: Obx(() {
-              if (controller.reportsLoading.value && controller.reportsCacheEmpty) {
+              final refType = _activeRefType;
+              final isInitialLoad = controller.reportsLoading.value && controller.reports.isEmpty;
+
+              if (isInitialLoad) {
                 return const Center(child: CircularProgressIndicator(color: AppColors.accent));
               }
 
-              if (controller.reportsError.value != null && controller.reportsCacheEmpty) {
+              if (controller.reportsError.value != null && controller.reports.isEmpty) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
@@ -122,27 +173,26 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
-                        ElevatedButton(onPressed: () => controller.loadReports(), child: const Text('Retry')),
+                        ElevatedButton(onPressed: _fetchReports, child: const Text('Retry')),
                       ],
                     ),
                   ),
                 );
               }
 
-              final type = _activeReportType;
-              final items = controller.filteredReportsFor(type);
+              final items = controller.filteredReports;
 
               if (items.isEmpty) {
                 return RefreshIndicator(
                   color: AppColors.accent,
-                  onRefresh: () => controller.loadReports(showLoading: false),
+                  onRefresh: () => _fetchReports(showLoading: false),
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     children: [
-                      SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.2),
                       Center(
                         child: Text(
-                          _emptyMessageFor(type),
+                          _emptyMessageFor(refType),
                           style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
                           textAlign: TextAlign.center,
                         ),
@@ -154,12 +204,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
               return RefreshIndicator(
                 color: AppColors.accent,
-                onRefresh: () => controller.loadReports(showLoading: false),
+                onRefresh: () => _fetchReports(showLoading: false),
                 child: ListView.builder(
+                  controller: _scrollController,
                   physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  itemCount: items.length,
-                  itemBuilder: (context, i) => _reportCard(items[i], type),
+                  itemCount: items.length + (controller.reportsLoadingMore.value ? 1 : 0),
+                  itemBuilder: (context, i) {
+                    if (i >= items.length) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                      );
+                    }
+                    return _reportCard(items[i], refType);
+                  },
                 ),
               );
             }),
@@ -169,37 +228,40 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  String _emptyMessageFor(ReportType type) {
-    switch (type) {
-      case ReportType.user:
+  String _emptyMessageFor(String refType) {
+    switch (refType) {
+      case ReportRefType.auth:
         return 'No reported users.';
-      case ReportType.post:
-        return 'No reported posts.';
-      case ReportType.programs:
+      case ReportRefType.feeds:
+        return 'No reported feeds.';
+      case ReportRefType.programs:
         return 'No reported programs.';
-      case ReportType.feedComment:
+      case ReportRefType.feedComment:
         return 'No reported feed comments.';
+      default:
+        return 'No reports.';
     }
   }
 
-  IconData _iconForReportType(ReportType type) {
-    switch (type) {
-      case ReportType.user:
+  IconData _iconForRefType(String refType) {
+    switch (refType) {
+      case ReportRefType.auth:
         return Icons.person_outline;
-      case ReportType.post:
+      case ReportRefType.feeds:
         return Icons.article_outlined;
-      case ReportType.programs:
+      case ReportRefType.programs:
         return Icons.fitness_center_outlined;
-      case ReportType.feedComment:
+      case ReportRefType.feedComment:
         return Icons.chat_bubble_outline;
+      default:
+        return Icons.flag_outlined;
     }
   }
 
-  // ── Pill tab chip ──────────────────────────────────────────
   Widget _tabChip(String label, int index) {
     final selected = _selectedTab == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedTab = index),
+      onTap: () => _onTabSelected(index),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 10),
         decoration: BoxDecoration(color: selected ? AppColors.accentVariant : Colors.transparent, borderRadius: BorderRadius.circular(50)),
@@ -215,10 +277,44 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  // ── Report card ────────────────────────────────────────────
-  Widget _reportCard(ReportItem r, ReportType type) {
-    final isPending = r.status.toLowerCase() == 'pending';
-    final statusColor = isPending ? AppColors.accent : AppColors.accent;
+  Widget _statusChip(String? status, String label) {
+    final selected = _selectedStatus == status;
+    return GestureDetector(
+      onTap: () => _onStatusSelected(status),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accent.withOpacity(0.12) : AppColors.white,
+          borderRadius: BorderRadius.circular(50),
+          border: Border.all(color: selected ? AppColors.accent : const Color(0xFFE6F0DA), width: 1),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.labelSmall.copyWith(
+            color: selected ? AppColors.accent : AppColors.primaryGrayDark,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _statusColor(String status) {
+    switch (UserReportStatus.normalize(status)) {
+      case UserReportStatus.pending:
+        return AppColors.accent;
+      case UserReportStatus.reviewed:
+        return AppColors.completed;
+      case UserReportStatus.dismissed:
+        return AppColors.primaryGrayDark;
+      default:
+        return AppColors.primaryGrayDark;
+    }
+  }
+
+  Widget _reportCard(ReportItem r, String refType) {
+    final statusLabel = UserReportStatus.displayLabel(r.status);
+    final statusColor = _statusColor(r.status);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -232,15 +328,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Avatar
             SafeCircleNetworkAvatar(
               radius: 22,
               imageUrl: r.avatarUrl,
               backgroundColor: AppColors.accent.withOpacity(0.15),
-              fallback: Icon(_iconForReportType(type), color: AppColors.accent, size: 20),
+              fallback: Icon(_iconForRefType(refType), color: AppColors.accent, size: 20),
             ),
             const SizedBox(width: 12),
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,19 +360,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Wrap(spacing: 8, runSpacing: 6, children: [_pill(r.reason, AppColors.accent), _pill(r.status, statusColor)]),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      _pill(r.reason, AppColors.accent),
+                      _pill(statusLabel, statusColor),
+                    ],
+                  ),
                 ],
               ),
             ),
-
-            // Delete button
           ],
         ),
       ),
     );
   }
 
-  // ── Tag pill ───────────────────────────────────────────────
   Widget _pill(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
@@ -290,19 +388,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: Text(
         text,
         style: AppTextStyles.labelSmall.copyWith(color: color, fontWeight: FontWeight.w600, fontSize: 12),
-      ),
-    );
-  }
-
-  Future<bool?> _confirm({required String title, required String message, required String confirmText}) {
-    return Get.dialog<bool>(
-      AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Get.back(result: true), child: Text(confirmText)),
-        ],
       ),
     );
   }

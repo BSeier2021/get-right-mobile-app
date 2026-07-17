@@ -57,19 +57,18 @@ class ReportModel {
 
 enum ReportStatus {
   pending,
-  underReview,
-  resolved,
+  reviewed,
   dismissed;
 
   static ReportStatus fromString(String value) {
     switch (value.toLowerCase()) {
       case 'pending':
         return ReportStatus.pending;
+      case 'reviewed':
+      case 'resolved':
       case 'under_review':
       case 'underreview':
-        return ReportStatus.underReview;
-      case 'resolved':
-        return ReportStatus.resolved;
+        return ReportStatus.reviewed;
       case 'dismissed':
         return ReportStatus.dismissed;
       default:
@@ -81,13 +80,11 @@ enum ReportStatus {
   String toString() {
     switch (this) {
       case ReportStatus.pending:
-        return 'pending';
-      case ReportStatus.underReview:
-        return 'under_review';
-      case ReportStatus.resolved:
-        return 'resolved';
+        return 'Pending';
+      case ReportStatus.reviewed:
+        return 'Reviewed';
       case ReportStatus.dismissed:
-        return 'dismissed';
+        return 'Dismissed';
     }
   }
 }
@@ -117,17 +114,49 @@ class BlockModel {
   }
 }
 
-/// `reportRefType` values for `POST /user/report/:reportRef`.
+/// `reportRefType` values — matches backend `ReportRefTypeEnums`.
 class ReportRefType {
-  static const String auth = 'Auth';
-  static const String post = 'Post';
   static const String feedComment = 'FeedComment';
-  /// Backend enum for feed/reel reports (`POST /user/report/:feedId`).
+  static const String auth = 'Auth';
   static const String feeds = 'Feeds';
   static const String programs = 'Programs';
+
+  static const all = [feedComment, auth, feeds, programs];
+
+  /// Tab order for the reports screen.
+  static const tabOrder = [auth, feeds, programs, feedComment];
 }
 
-/// Report reasons — UI keys map to API enum via [getApiValue].
+/// Moderation queue state — matches backend `UserReportStatusEnums`.
+class UserReportStatus {
+  static const String pending = 'Pending';
+  static const String reviewed = 'Reviewed';
+  static const String dismissed = 'Dismissed';
+
+  static const all = [pending, reviewed, dismissed];
+
+  static String normalize(String? raw) {
+    final value = raw?.trim();
+    if (value == null || value.isEmpty) return pending;
+    switch (value.toLowerCase()) {
+      case 'pending':
+        return pending;
+      case 'reviewed':
+      case 'resolved':
+      case 'under_review':
+      case 'underreview':
+        return reviewed;
+      case 'dismissed':
+        return dismissed;
+      default:
+        return value;
+    }
+  }
+
+  static String displayLabel(String? raw) => normalize(raw);
+}
+
+/// Report reasons — UI keys map to API `UserReportReasonEnums` via [getApiValue].
 class ReportReasons {
   static const String spam = 'spam';
   static const String harassment = 'harassment';

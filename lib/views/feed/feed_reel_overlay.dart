@@ -629,16 +629,21 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     });
   }
 
+  void _setReportRequestInFlight(bool inFlight) {
+    _reportRequestInFlight = inFlight;
+    if (mounted) setState(() {});
+  }
+
   Future<void> _submitReportReel({required String creatorUserId, required String feedId, required String reason, String? details}) async {
     if (_reportRequestInFlight) return;
-    setState(() => _reportRequestInFlight = true);
+    _setReportRequestInFlight(true);
     try {
       await _feedRepo.reportFeedRepo(creatorUserId: creatorUserId, feedId: feedId, reason: reason, details: details, reportRefType: ReportRefType.feeds);
       Get.snackbar('Report submitted', 'Thank you for your feedback.', snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       Get.snackbar('Could not report', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
-      if (mounted) setState(() => _reportRequestInFlight = false);
+      _setReportRequestInFlight(false);
     }
   }
 
