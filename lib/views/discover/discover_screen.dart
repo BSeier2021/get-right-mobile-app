@@ -410,9 +410,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                           _metaChip(user.role.isNotEmpty ? user.role : 'User'),
                           if (user.isTrainer) ...[
                             const SizedBox(width: 8),
-                            Icon(Icons.people_outline, size: 14, color: AppColors.primaryGray),
+                            Icon(Icons.person_add_alt_1_outlined, size: 14, color: AppColors.primaryGray),
                             const SizedBox(width: 2),
-                            Text('${user.followersCount}', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
+                            Text(
+                              '${user.followersCount} ',
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
+                            ),
                           ],
                         ],
                       ),
