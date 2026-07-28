@@ -19,7 +19,8 @@ import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/journal/exercise_card.dart';
-import 'package:get_right/widgets/journal/superset_card.dart';
+import 'package:get_right/models/workout_group_type.dart';
+import 'package:get_right/widgets/journal/workout_group_card.dart';
 import 'package:get_right/views/journal/workout_celebration_screen.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
 
@@ -566,45 +567,6 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     return _workout!.allExercises.map((e) => e.exerciseId).where((id) => id.isNotEmpty).toSet().toList();
   }
 
-  Future<void> _openAddExerciseFlow(JournalExerciseType exerciseType) async {
-    try {
-      await _ensureWorkoutJournalId();
-    } catch (e) {
-      if (!mounted) return;
-      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
-      return;
-    }
-
-    await Get.toNamed(
-      AppRoutes.exerciseConfiguration,
-      arguments: {
-        'exerciseType': exerciseType,
-        'isWarmup': exerciseType.isWarmup,
-        'workoutJournalId': _workoutJournalId,
-        'journalWorkoutIds': _currentJournalWorkoutIds(),
-        'addedExerciseIds': _currentAddedLibraryExerciseIds(),
-        'journalDay': _journalDay,
-      },
-    )?.then((r) async {
-      if (r is! Map || r['exercises'] == null) return;
-      final returnedJournalId = r['workoutJournalId']?.toString();
-      if (WorkoutRepository.isValidMongoId(returnedJournalId)) {
-        _workoutJournalId = returnedJournalId;
-        await _linkJournalToPlannerCalendar(returnedJournalId!);
-      }
-      final type = r['exerciseType'] is JournalExerciseType
-          ? r['exerciseType'] as JournalExerciseType
-          : JournalExerciseType.fromIsWarmup(r['isWarmup'] == true);
-      final exercises = (r['exercises'] as List).whereType<WorkoutExerciseModel>();
-      await _rememberExerciseSections(exercises, type);
-      await _refreshWorkoutJournalFromApi();
-    });
-  }
-
-  void _onAddWarmup() => _openAddExerciseFlow(JournalExerciseType.warmup);
-
-  void _onAddWorkout() => _openAddExerciseFlow(JournalExerciseType.workout);
-
   Future<void> _openSupersetPartnerFlow(WorkoutExerciseModel existing, bool isWarmup) async {
     if (_isWorkoutCompleted) {
       Get.snackbar('Workout completed', 'You cannot add exercises to a completed workout.', snackPosition: SnackPosition.BOTTOM);
@@ -1002,90 +964,44 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     );
   }
 
-  void _showAddExerciseDialog() {
+  void _showAddExerciseDialog() => _openNewWorkoutScreen();
+
+  Future<void> _openNewWorkoutScreen() async {
     if (_isWorkoutCompleted) {
       Get.snackbar('Workout completed', 'You cannot add more exercises to a completed workout.', snackPosition: SnackPosition.BOTTOM);
       return;
     }
-    Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Add Exercise',
-                style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 20),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Would you like to add this exercise to warmup or workout?',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 52.h,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Get.back();
-                          _onAddWarmup();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(0, 0, 0, 0),
-                          foregroundColor: const Color(0xFF777777),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(50),
-                            side: const BorderSide(
-                              color: Color(0xFF777777), // Added border color
-                              width: 1.2,
-                            ),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'Warmup',
-                          style: AppTextStyles.buttonMedium.copyWith(color: Color(0xFF777777), fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: SizedBox(
-                      height: 52.h,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Get.back();
-                          _onAddWorkout();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accent,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'Workout',
-                          style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold).copyWith(fontSize: 13.sp),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: true,
-    );
+
+    try {
+      await _ensureWorkoutJournalId();
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+      return;
+    }
+
+    await Get.toNamed(
+      AppRoutes.newWorkout,
+      arguments: {
+        'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _currentJournalWorkoutIds(),
+        'addedExerciseIds': _currentAddedLibraryExerciseIds(),
+        'journalDay': _journalDay,
+      },
+    )?.then((r) async {
+      if (r is! Map || r['exercises'] == null) return;
+      final returnedJournalId = r['workoutJournalId']?.toString();
+      if (WorkoutRepository.isValidMongoId(returnedJournalId)) {
+        _workoutJournalId = returnedJournalId;
+        await _linkJournalToPlannerCalendar(returnedJournalId!);
+      }
+      final type = r['exerciseType'] is JournalExerciseType
+          ? r['exerciseType'] as JournalExerciseType
+          : JournalExerciseType.fromIsWarmup(r['isWarmup'] == true);
+      final exercises = (r['exercises'] as List).whereType<WorkoutExerciseModel>();
+      await _rememberExerciseSections(exercises, type);
+      await _refreshWorkoutJournalFromApi();
+    });
   }
 
   void _shareVia(String method) {
@@ -1324,87 +1240,64 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     return (a, b);
   }
 
-  /// Build exercises list with superset grouping support
+  /// Build exercises list with grouped superset/circuit support.
   List<Widget> _buildExercisesList(List<WorkoutExerciseModel> exercises, bool isWarmup) {
     final List<Widget> widgets = [];
-    final Set<String> processedSupersets = {};
+    final Set<String> processedGroups = {};
 
-    for (int i = 0; i < exercises.length; i++) {
-      final exercise = _exerciseWithJournalNotes(exercises[i]);
+    for (final raw in exercises) {
+      final exercise = _exerciseWithJournalNotes(raw);
+      final groupKey = _supersetGroupKey(exercise);
 
-      // Check if this exercise is part of a superset
-      if (exercise.isSuperset && _supersetGroupKey(exercise) != null) {
-        final groupKey = _supersetGroupKey(exercise)!;
-        // Skip if we've already processed this superset group
-        if (processedSupersets.contains(groupKey)) {
+      if (exercise.isSuperset && groupKey != null) {
+        if (processedGroups.contains(groupKey)) continue;
+
+        final groupMembers = exercises
+            .where((e) => _inSameSupersetGroup(exercise, e))
+            .map(_exerciseWithJournalNotes)
+            .toList()
+          ..sort((a, b) {
+            final orderA = a.supersetOrder ?? exercises.indexWhere((e) => e.id == a.id);
+            final orderB = b.supersetOrder ?? exercises.indexWhere((e) => e.id == b.id);
+            return orderA.compareTo(orderB);
+          });
+
+        if (groupMembers.length >= 2) {
+          final groupType = groupMembers.length >= 3 ? WorkoutGroupType.circuit : WorkoutGroupType.superset;
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: WorkoutGroupCard(
+                exercises: groupMembers,
+                groupType: groupType,
+                onMenuTap: (ex) => _showMenu(ex, isWarmup),
+                onTimerTap: (ex) {
+                  if (ex.hasTimedSets) {
+                    Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': ex});
+                  }
+                },
+              ),
+            ),
+          );
+          processedGroups.add(groupKey);
           continue;
         }
-
-        // Find the partner exercise in the same superset group
-        final otherRaw = exercises.firstWhereOrNull((e) => _inSameSupersetGroup(exercise, e));
-        final otherExercise = otherRaw != null ? _exerciseWithJournalNotes(otherRaw) : null;
-
-        if (otherExercise != null) {
-          final pair = _orderedSupersetPair(exercise, otherExercise, exercises);
-          final ex1 = pair.$1;
-          final ex2 = pair.$2;
-          // Add superset card
-          widgets.add(
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: SupersetCard(
-                exercise1: ex1,
-                exercise2: ex2,
-                onMenuTap1: () => _showMenu(ex1, isWarmup),
-                onMenuTap2: () => _showMenu(ex2, isWarmup),
-                onTimerTap1: () {
-                  if (ex1.hasTimedSets) {
-                    Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': ex1});
-                  }
-                },
-                onTimerTap2: () {
-                  if (ex2.hasTimedSets) {
-                    Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': ex2});
-                  }
-                },
-              ),
-            ),
-          );
-          processedSupersets.add(groupKey);
-        } else {
-          // Superset partner not found, display as regular exercise
-          widgets.add(
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ExerciseCard(
-                exercise: exercise,
-                onMenuTap: () => _showMenu(exercise, isWarmup),
-                onTimerTap: () {
-                  if (exercise.hasTimedSets) {
-                    Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': exercise});
-                  }
-                },
-              ),
-            ),
-          );
-        }
-      } else {
-        // Regular exercise (not a superset)
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: ExerciseCard(
-              exercise: exercise,
-              onMenuTap: () => _showMenu(exercise, isWarmup),
-              onTimerTap: () {
-                if (exercise.hasTimedSets) {
-                  Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': exercise});
-                }
-              },
-            ),
-          ),
-        );
       }
+
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: ExerciseCard(
+            exercise: exercise,
+            onMenuTap: () => _showMenu(exercise, isWarmup),
+            onTimerTap: () {
+              if (exercise.hasTimedSets) {
+                Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': exercise});
+              }
+            },
+          ),
+        ),
+      );
     }
 
     return widgets;

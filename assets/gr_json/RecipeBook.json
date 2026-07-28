@@ -1,0 +1,176 @@
+[
+  {
+    "id": "chicken_rice_bowl_001",
+    "name": "Chicken Rice Bowl",
+    "description": "A simple high-protein chicken and rice meal that works well for meal prep.",
+    "category": "Meal Prep",
+    "mealType": "Lunch",
+    "servings": 1,
+    "prepTimeMinutes": 10,
+    "cookTimeMinutes": 20,
+    "difficulty": "Easy",
+    "imageName": "chicken_rice_bowl",
+    "tags": ["High Protein", "Meal Prep", "Balanced"],
+    "priceTier": "medium",
+    "nutrition": {
+      "calories": 620,
+      "proteinGrams": 48,
+      "carbsGrams": 62,
+      "fatGrams": 18
+    },
+    "ingredients": [
+      {
+        "name": "Chicken breast",
+        "amount": 6,
+        "unit": "oz"
+      },
+      {
+        "name": "Cooked white rice",
+        "amount": 1,
+        "unit": "cup"
+      },
+      {
+        "name": "Olive oil",
+        "amount": 1,
+        "unit": "tbsp"
+      },
+      {
+        "name": "Broccoli",
+        "amount": 1,
+        "unit": "cup"
+      },
+      {
+        "name": "Soy sauce",
+        "amount": 1,
+        "unit": "tbsp"
+      }
+    ],
+    "instructions": [
+      "Season the chicken breast with salt, pepper, garlic powder, and any preferred seasoning.",
+      "Cook the chicken in a pan over medium heat until fully cooked.",
+      "Steam or sauté the broccoli until tender.",
+      "Add cooked rice to a bowl.",
+      "Top the rice with chicken, broccoli, olive oil, and soy sauce.",
+      "Serve immediately or store in a meal prep container."
+    ],
+    "notes": "Use brown rice or cauliflower rice depending on the user's goals.",
+    "isFeatured": true
+  },
+  {
+    "id": "protein_oats_001",
+    "name": "Protein Oats",
+    "description": "A quick breakfast option with protein powder, oats, and peanut butter.",
+    "category": "Breakfast",
+    "mealType": "Breakfast",
+    "servings": 1,
+    "prepTimeMinutes": 5,
+    "cookTimeMinutes": 3,
+    "difficulty": "Easy",
+    "imageName": "protein_oats",
+    "tags": ["High Protein", "Breakfast", "Bulking"],
+    "priceTier": "medium",
+    "nutrition": {
+      "calories": 540,
+      "proteinGrams": 38,
+      "carbsGrams": 56,
+      "fatGrams": 18
+    },
+    "ingredients": [
+      {
+        "name": "Old-fashioned oats",
+        "amount": 0.5,
+        "unit": "cup"
+      },
+      {
+        "name": "Protein powder",
+        "amount": 1,
+        "unit": "scoop"
+      },
+      {
+        "name": "Peanut butter",
+        "amount": 1,
+        "unit": "tbsp"
+      },
+      {
+        "name": "Milk",
+        "amount": 1,
+        "unit": "cup"
+      },
+      {
+        "name": "Banana",
+        "amount": 0.5,
+        "unit": "medium"
+      }
+    ],
+    "instructions": [
+      "Add oats and milk to a microwave-safe bowl.",
+      "Microwave for 2 to 3 minutes until the oats are soft.",
+      "Stir in protein powder after cooking.",
+      "Top with peanut butter and banana slices.",
+      "Serve warm."
+    ],
+    "notes": "Add more milk if the oats become too thick after adding protein powder.",
+    "isFeatured": false
+  },
+  {
+    "id": "turkey_taco_bowl_001",
+    "name": "Turkey Taco Bowl",
+    "description": "A lean taco bowl with ground turkey, rice, vegetables, and salsa.",
+    "category": "Meal Prep",
+    "mealType": "Dinner",
+    "servings": 1,
+    "prepTimeMinutes": 10,
+    "cookTimeMinutes": 15,
+    "difficulty": "Easy",
+    "imageName": "turkey_taco_bowl",
+    "tags": ["High Protein", "Weight Loss", "Meal Prep"],
+    "priceTier": "medium",
+    "nutrition": {
+      "calories": 580,
+      "proteinGrams": 45,
+      "carbsGrams": 52,
+      "fatGrams": 20
+    },
+    "ingredients": [
+      {
+        "name": "Lean ground turkey",
+        "amount": 6,
+        "unit": "oz"
+      },
+      {
+        "name": "Cooked rice",
+        "amount": 0.75,
+        "unit": "cup"
+      },
+      {
+        "name": "Black beans",
+        "amount": 0.25,
+        "unit": "cup"
+      },
+      {
+        "name": "Salsa",
+        "amount": 2,
+        "unit": "tbsp"
+      },
+      {
+        "name": "Shredded lettuce",
+        "amount": 1,
+        "unit": "cup"
+      },
+      {
+        "name": "Shredded cheese",
+        "amount": 0.25,
+        "unit": "cup"
+      }
+    ],
+    "instructions": [
+      "Cook the ground turkey in a skillet over medium heat.",
+      "Season with taco seasoning or chili powder, garlic powder, cumin, salt, and pepper.",
+      "Add rice to a bowl.",
+      "Top with turkey, black beans, lettuce, salsa, and cheese.",
+      "Serve immediately or store for meal prep."
+    ],
+    "notes": "Use less rice and more lettuce for a lower-carb version.",
+    "isFeatured": true
+  }
+]

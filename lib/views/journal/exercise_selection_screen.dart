@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_right/data/gr_exercise_catalog.dart';
 import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/models/journal_exercise_type.dart';
+import 'package:get_right/models/workout_group_type.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
+import 'package:get_right/widgets/gr_catalog_image.dart';
 import 'package:get_right/widgets/safe_network_image.dart';
 
 /// Exercise list palette (creamy cards + cycling pastel icon circles).
@@ -31,6 +34,15 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
   final ScrollController _scrollController = ScrollController();
   final MarketplaceRepository _repo = MarketplaceRepository();
 
+  bool _isWarmup = false;
+  bool _journalFlow = false;
+  bool _pickAdditional = false;
+  WorkoutGroupType? _workoutGroupType;
+  int _requiredTotal = 1;
+  List<ExerciseLibraryModel> _preselected = const [];
+  String? _muscleGroupKey;
+  String? _muscleGroupName;
+  JournalExerciseType _exerciseType = JournalExerciseType.workout;
   bool _selectOnly = false;
   String? _workoutJournalId;
   List<String> _journalWorkoutIds = const [];
@@ -52,9 +64,11 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
     super.initState();
     final args = Get.arguments as Map<String, dynamic>?;
     if (args != null) {
+      _isWarmup = args['isWarmup'] ?? false;
+      _exerciseType = JournalExerciseType.fromArgs(args) ?? JournalExerciseType.fromIsWarmup(_isWarmup);
+      _isWarmup = _exerciseType.isWarmup;
       _selectOnly = args['selectOnly'] ?? false;
       _workoutJournalId = args['workoutJournalId']?.toString() ?? args['workoutJournal']?.toString();
-      _isSuperset = args['isSuperset'] ?? false;
       final rawJournalWorkoutIds = args['journalWorkoutIds'];
       if (rawJournalWorkoutIds is List) {
         _journalWorkoutIds = rawJournalWorkoutIds.map((e) => e.toString()).toList();
@@ -63,6 +77,18 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
       if (rawAddedExerciseIds is List) {
         _addedExerciseIds = rawAddedExerciseIds.map((e) => e.toString()).where((id) => id.isNotEmpty).toList();
       }
+      _journalFlow = args['journalFlow'] == true;
+      _pickAdditional = args['pickAdditional'] == true;
+      _workoutGroupType = WorkoutGroupType.fromArgs(args['workoutGroupType']);
+      _requiredTotal = (args['requiredTotal'] as num?)?.toInt() ?? _workoutGroupType?.minExercises ?? 1;
+      final rawPreselected = args['preselected'];
+      if (rawPreselected is List) {
+        _preselected = rawPreselected.whereType<ExerciseLibraryModel>().toList();
+        _selected.addAll(_preselected);
+      }
+      _isSuperset = _workoutGroupType == WorkoutGroupType.superset || (args['isSuperset'] ?? false);
+      _muscleGroupKey = args['muscleGroupKey']?.toString();
+      _muscleGroupName = args['muscleGroupName']?.toString();
     }
     _searchCtrl.addListener(_filter);
     _scrollController.addListener(_onScroll);
@@ -102,6 +128,25 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
 
     final pageToLoad = reset ? 1 : _page + 1;
     try {
+      if (_journalFlow) {
+        await GrExerciseCatalog.instance.ensureLoaded();
+        final entries = _muscleGroupKey != null && _muscleGroupKey!.isNotEmpty
+            ? GrExerciseCatalog.instance.exercisesForMuscleGroup(_muscleGroupKey!)
+            : GrExerciseCatalog.instance.allExercises;
+        final exercises = entries.map((e) => e.toExerciseLibraryModel()).toList();
+        if (!mounted) return;
+        setState(() {
+          _allExercises = exercises;
+          _page = 1;
+          _hasMore = false;
+          _loading = false;
+          _loadingMore = false;
+          _error = null;
+          _applyFilter();
+        });
+        return;
+      }
+
       final result = await _repo.fetchUserExercisesPage(page: pageToLoad, limit: _limit);
       if (!mounted) return;
       setState(() {
@@ -140,20 +185,48 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
   }
 
   void _toggleSelect(ExerciseLibraryModel ex) {
-    // In selectOnly mode, immediately return the selected exercise
     if (_selectOnly) {
       Get.back(result: {'exercise': ex});
       return;
     }
+
+    if (_journalFlow && !_pickAdditional) {
+      _openAddToWorkout(ex);
+      return;
+    }
+
     setState(() {
-      if (_selected.contains(ex))
-        _selected.remove(ex);
-      else if (_isSuperset && _selected.length < 2)
+      if (_selected.contains(ex)) {
+        if (!_preselected.contains(ex)) _selected.remove(ex);
+      } else if (_pickAdditional && _workoutGroupType != null) {
+        if (_workoutGroupType == WorkoutGroupType.circuit) {
+          _selected.add(ex);
+        } else if (_selected.length < _requiredTotal) {
+          _selected.add(ex);
+        }
+      } else if (_isSuperset && _selected.length < 2) {
         _selected.add(ex);
-      else if (!_isSuperset) {
+      } else if (!_isSuperset) {
         _selected.clear();
         _selected.add(ex);
       }
+    });
+  }
+
+  void _openAddToWorkout(ExerciseLibraryModel ex) {
+    Get.toNamed(
+      AppRoutes.addToWorkout,
+      arguments: {
+        'journalFlow': true,
+        'exerciseType': _exerciseType,
+        'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _journalWorkoutIds,
+        'addedExerciseIds': _addedExerciseIds,
+        if (Get.arguments is Map && (Get.arguments as Map)['journalDay'] != null) 'journalDay': (Get.arguments as Map)['journalDay'],
+        'exercise': ex,
+      },
+    )?.then((r) {
+      if (r != null) Get.back(result: r);
     });
   }
 
@@ -162,24 +235,45 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
       Get.snackbar('Select Exercise', 'Please select at least one exercise', backgroundColor: AppColors.error, colorText: AppColors.onError);
       return;
     }
-    if (_isSuperset && _selected.length != 2) {
+
+    if (_pickAdditional && _workoutGroupType != null) {
+      if (_selected.length < _requiredTotal) {
+        final label = _workoutGroupType!.label;
+        Get.snackbar(
+          label,
+          'Select at least ${_requiredTotal - _selected.length} more exercise(s)',
+          backgroundColor: AppColors.error,
+          colorText: AppColors.onError,
+        );
+        return;
+      }
+    } else if (_isSuperset && _selected.length != 2) {
       Get.snackbar('Superset', 'Select exactly 2 exercises for superset', backgroundColor: AppColors.error, colorText: AppColors.onError);
       return;
     }
-    // If selectOnly mode, return the selected exercise directly
+
     if (_selectOnly) {
       Get.back(result: {'exercise': _selected.first});
       return;
     }
+
+    final isGrouped = _pickAdditional && _workoutGroupType?.isGrouped == true || _isSuperset;
+    final groupType = _workoutGroupType ?? (_isSuperset ? WorkoutGroupType.superset : WorkoutGroupType.single);
+    final selectedList = _selected.toList();
+
     Get.toNamed(
       AppRoutes.exerciseConfiguration,
       arguments: {
-        'exerciseType': JournalExerciseType.workout,
-        'isSuperset': _isSuperset,
+        'isWarmup': _isWarmup,
+        'exerciseType': _exerciseType,
+        'isSuperset': isGrouped,
+        'workoutGroupType': groupType.apiValue,
+        'journalFlow': _journalFlow,
         'workoutJournalId': _workoutJournalId,
         'journalWorkoutIds': _journalWorkoutIds,
-        'exercise': _selected.length == 1 ? _selected.first : null,
-        'exercises': _isSuperset ? _selected.toList() : null,
+        'addedExerciseIds': _addedExerciseIds,
+        'exercise': selectedList.length == 1 ? selectedList.first : null,
+        'exercises': selectedList.length > 1 ? selectedList : null,
       },
     )?.then((r) {
       if (r != null) Get.back(result: r);
@@ -187,7 +281,8 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
   }
 
   void _onManual() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {
-        'exerciseType': JournalExerciseType.workout,
+        'isWarmup': _isWarmup,
+        'exerciseType': _exerciseType,
         'isManual': true,
         'workoutJournalId': _workoutJournalId,
         'journalWorkoutIds': _journalWorkoutIds,
@@ -205,19 +300,28 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
       decoration: BoxDecoration(
         color: iconBg,
         shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       clipBehavior: Clip.antiAlias,
       child: iconUrl != null && iconUrl.isNotEmpty
           ? Padding(
               padding: const EdgeInsets.all(6),
-              child: SafeNetworkImage(
-                url: iconUrl,
-                fit: BoxFit.contain,
-                fallback: Center(child: Icon(Icons.fitness_center, color: _kExerciseNameColor.withOpacity(0.55), size: 20)),
-              ),
+              child: iconUrl.startsWith('assets/')
+                  ? GrCatalogImage(
+                      assetPath: iconUrl,
+                      fit: BoxFit.contain,
+                      borderRadius: 22,
+                      scale: 1.08,
+                      width: double.infinity,
+                      height: double.infinity,
+                    )
+                  : SafeNetworkImage(
+                      url: iconUrl,
+                      fit: BoxFit.contain,
+                      fallback: Center(child: Icon(Icons.fitness_center, color: _kExerciseNameColor.withValues(alpha: 0.55), size: 20)),
+                    ),
             )
-          : Center(child: Icon(Icons.fitness_center, color: _kExerciseNameColor.withOpacity(0.55), size: 20)),
+          : Center(child: Icon(Icons.fitness_center, color: _kExerciseNameColor.withValues(alpha: 0.55), size: 20)),
     );
   }
 
@@ -251,7 +355,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+            Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             Text('No exercises found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
           ],
@@ -284,7 +388,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
             elevation: sel ? 4 : 1,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: sel ? AppColors.accent.withOpacity(0.35) : const Color(0xFFE8EBDC), width: sel ? 2 : 1),
+              side: BorderSide(color: sel ? AppColors.accent.withValues(alpha: 0.35) : const Color(0xFFE8EBDC), width: sel ? 2 : 1),
             ),
             color: _kExerciseCardBg,
             child: InkWell(
@@ -346,7 +450,9 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final showButtons = (!_isSuperset && _selected.isNotEmpty) || (_isSuperset && _selected.length == 2);
+    final showButtons = _pickAdditional
+        ? _selected.length >= _requiredTotal
+        : (!_isSuperset && _selected.isNotEmpty) || (_isSuperset && _selected.length == 2);
 
     return Scaffold(
       backgroundColor: _kExerciseCardBg,
@@ -359,11 +465,16 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
           child: Container(
             margin: EdgeInsets.only(left: 16.w, top: 16.h),
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
         ),
-        title: Text('Select Exercise', style: AppTextStyles.titleMedium.copyWith(color: _kExerciseNameColor)),
+        title: Text(
+          _pickAdditional
+              ? 'Select ${_requiredTotal - _preselected.length} more'
+              : (_muscleGroupName ?? 'Select Exercise'),
+          style: AppTextStyles.titleMedium.copyWith(color: _kExerciseNameColor),
+        ),
         centerTitle: true,
       ),
       body: Stack(
@@ -425,7 +536,9 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         child: Text(
-                          _isSuperset && _selected.length == 2 ? 'Configure Superset' : 'Configure ${_selected.first.name}',
+                          _pickAdditional && _workoutGroupType != null
+                              ? 'Configure ${_workoutGroupType!.label}'
+                              : (_isSuperset && _selected.length == 2 ? 'Configure Superset' : 'Configure ${_selected.first.name}'),
                           style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent),
                         ),
                       ),

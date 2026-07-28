@@ -102,6 +102,16 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/gr_json/ExerciseList.json
+    - assets/gr_json/RecipeBook.json
+    - assets/gr_json/assets/Categories/
+    - assets/gr_json/assets/Categories/armsExercises/
+    - assets/gr_json/assets/Categories/backExercises/
+    - assets/gr_json/assets/Categories/chestExercises/
+    - assets/gr_json/assets/Categories/coreExercises/
+    - assets/gr_json/assets/Categories/legsExercises/
+    - assets/gr_json/assets/Categories/equipment/
+    - assets/gr_json/assets/Categories/modality/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

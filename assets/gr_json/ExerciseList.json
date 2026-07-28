@@ -1,0 +1,2021 @@
+{
+  "modalityDefinitions": {
+    "strength": {
+      "name": "Strength",
+      "description": "Build maximal force with heavier loads and lower reps, usually 1 to 6 reps per set."
+    },
+    "hypertrophy": {
+      "name": "Hypertrophy",
+      "description": "Build muscle size with moderate weight and moderate reps, usually 6 to 15 reps per set."
+    },
+    "endurance": {
+      "name": "Muscular Endurance",
+      "description": "Improve how long muscles can work with lighter weight and higher reps, usually 15 or more reps per set."
+    },
+    "power": {
+      "name": "Power",
+      "description": "Develop explosive speed and force, often with fast bar speed or plyometric movements."
+    },
+    "mobility": {
+      "name": "Mobility",
+      "description": "Improve joint range of motion and controlled movement quality through dynamic drills and positions."
+    },
+    "stability": {
+      "name": "Stability",
+      "description": "Train balance, bracing, and control, often with core-focused or single-leg work."
+    },
+    "cardio": {
+      "name": "Cardio",
+      "description": "Raise heart rate and improve conditioning with sustained or interval-based aerobic work."
+    },
+    "pilates": {
+      "name": "Pilates",
+      "description": "Controlled, low-impact training focused on core strength, alignment, and breath, often on a mat or reformer."
+    },
+    "stretching": {
+      "name": "Stretching",
+      "description": "Improve flexibility and recovery with held stretches and lengthening-focused movements."
+    },
+    "general": {
+      "name": "General Fitness",
+      "description": "Mixed training for overall health and movement, not tied to one specific performance goal."
+    }
+  },
+  "movementTypeDefinitions": {
+    "push": {
+      "name": "Push",
+      "description": "Move weight away from your body. Includes horizontal presses like bench press and vertical presses like overhead press."
+    },
+    "pull": {
+      "name": "Pull",
+      "description": "Move weight toward your body. Includes rows, pull-ups, and pulldowns that train the back and biceps."
+    },
+    "hinge": {
+      "name": "Hinge",
+      "description": "Bend at the hips with a flat back. Includes deadlifts, Romanian deadlifts, and hip thrusts that target the posterior chain."
+    },
+    "squat": {
+      "name": "Squat",
+      "description": "Bend at the knees and hips together with an upright torso. Includes back squats, front squats, and goblet squats."
+    },
+    "lunge": {
+      "name": "Lunge",
+      "description": "Step into a split stance and lower your body. Includes walking lunges, reverse lunges, and split squats."
+    },
+    "carry": {
+      "name": "Carry",
+      "description": "Walk while holding weight. Includes farmer carries, suitcase carries, and overhead carries for grip, core, and conditioning."
+    },
+    "rotation": {
+      "name": "Rotation",
+      "description": "Rotate through the torso or hips under load or control. Includes cable chops, wood chops, and rotational throws."
+    },
+    "core": {
+      "name": "Core",
+      "description": "Train the midsection through bracing, flexion, or anti-movement. Includes planks, crunches, leg raises, and pallof presses."
+    },
+    "isolation": {
+      "name": "Isolation",
+      "description": "Focus on one joint and one muscle group with minimal help from other muscles. Includes curls, extensions, flies, and lateral raises."
+    },
+    "stretch": {
+      "name": "Stretch",
+      "description": "Lengthen muscles and open joints through controlled, held, or repeated end-range movement. Includes chest openers, static stretches, and flexibility-focused drills."
+    }
+  },
+  "experienceLevelDefinitions": {
+    "beginner": {
+      "name": "Beginner",
+      "description": "Suitable for people new to training or an exercise. Simple setup, easy to learn form, and lower coordination demands."
+    },
+    "intermediate": {
+      "name": "Intermediate",
+      "description": "For trainees with solid basic form who can handle more setup, balance, or technique. Requires some training experience."
+    },
+    "advanced": {
+      "name": "Advanced",
+      "description": "For experienced lifters. Higher skill, stability, or loading demands and less room for form breakdown."
+    }
+  },
+  "equipmentCategories": [
+    {
+      "name": "Barbell",
+      "imageName": "barbell",
+      "description": "A long bar used with weight plates for squats, presses, and other compound lifts."
+    },
+    {
+      "name": "Dumbbells",
+      "imageName": "dumbbells",
+      "description": "Handheld weights used for pressing, rowing, and isolation exercises."
+    },
+    {
+      "name": "Flat Bench",
+      "imageName": "flat-bench",
+      "description": "A flat workout bench used for pressing, flies, and support exercises."
+    },
+    {
+      "name": "Incline Bench",
+      "imageName": "incline-bench",
+      "description": "An adjustable bench set to an incline, typically 30 to 45 degrees."
+    },
+    {
+      "name": "Decline Bench",
+      "imageName": "decline-bench",
+      "description": "A bench set to a decline with leg pads for decline pressing exercises."
+    },
+    {
+      "name": "Squat Rack",
+      "imageName": "squat-rack",
+      "description": "A rack with safety bars used to hold a barbell for squats and heavy lifts."
+    },
+    {
+      "name": "Smith Machine",
+      "imageName": "smith-machine",
+      "description": "A guided barbell machine with a fixed vertical or angled bar path."
+    },
+    {
+      "name": "Cable Machine",
+      "imageName": "cable-machine",
+      "description": "A gym machine with adjustable pulleys and weight stacks for cable exercises."
+    },
+    {
+      "name": "Leg Press Machine",
+      "imageName": "leg-press-machine",
+      "description": "A seated or angled machine used to press weight with the legs."
+    },
+    {
+      "name": "Chest Press Machine",
+      "imageName": "chest-press-machine",
+      "description": "A seated machine with a fixed pressing path for chest training."
+    },
+    {
+      "name": "Incline Chest Press Machine",
+      "imageName": "incline-chest-press-machine",
+      "description": "An incline pressing machine that targets the upper chest."
+    },
+    {
+      "name": "Pec Deck Machine",
+      "imageName": "pec-deck-machine",
+      "description": "A machine that guides your arms through a chest fly motion."
+    },
+    {
+      "name": "Dip Station",
+      "imageName": "dip-station",
+      "description": "Parallel bars or a station used for chest and triceps dips."
+    },
+    {
+      "name": "Pull-Up Bar",
+      "imageName": "pull-up-bar",
+      "description": "A fixed or doorway-mounted bar used for pull-ups, chin-ups, and hanging exercises."
+    },
+    {
+      "name": "Landmine Attachment",
+      "imageName": "landmine-attachment",
+      "description": "A pivot base or corner setup that anchors one end of a barbell."
+    },
+    {
+      "name": "Kettlebells",
+      "imageName": "kettlebells",
+      "description": "Cast iron or competition kettlebells used for swings, presses, and carries."
+    },
+    {
+      "name": "Resistance Bands",
+      "imageName": "resistance-bands",
+      "description": "Elastic bands that add variable resistance for home and travel workouts."
+    },
+    {
+      "name": "Weight Plates",
+      "imageName": "weight-plates",
+      "description": "Round weight plates loaded onto barbells or used for exercises like the Svend press."
+    },
+    {
+      "name": "Yoga Mat",
+      "imageName": "yoga-mat",
+      "description": "A padded mat used for floor exercises, Pilates, and stretching."
+    },
+    {
+      "name": "Reformer",
+      "imageName": "reformer",
+      "description": "A Pilates apparatus with a sliding carriage, springs, and straps."
+    },
+    {
+      "name": "Long Box",
+      "imageName": "long-box",
+      "description": "A padded box accessory used on a Pilates reformer for prone exercises."
+    },
+    {
+      "name": "No Equipment",
+      "imageName": "no-equipment",
+      "description": "Bodyweight exercises that require no gym equipment."
+    }
+  ],
+  "modalityCategories": [
+    {
+      "id": "strength",
+      "name": "Strength",
+      "imageName": "strength",
+      "description": "Build maximal force with heavier loads and lower reps, usually 1 to 6 reps per set."
+    },
+    {
+      "id": "hypertrophy",
+      "name": "Hypertrophy",
+      "imageName": "hypertrophy",
+      "description": "Build muscle size with moderate weight and moderate reps, usually 6 to 15 reps per set."
+    },
+    {
+      "id": "endurance",
+      "name": "Muscular Endurance",
+      "imageName": "endurance",
+      "description": "Improve how long muscles can work with lighter weight and higher reps, usually 15 or more reps per set."
+    },
+    {
+      "id": "power",
+      "name": "Power",
+      "imageName": "power",
+      "description": "Develop explosive speed and force, often with fast bar speed or plyometric movements."
+    },
+    {
+      "id": "mobility",
+      "name": "Mobility",
+      "imageName": "mobility",
+      "description": "Improve joint range of motion and controlled movement quality through dynamic drills and positions."
+    },
+    {
+      "id": "stability",
+      "name": "Stability",
+      "imageName": "stability",
+      "description": "Train balance, bracing, and control, often with core-focused or single-leg work."
+    },
+    {
+      "id": "cardio",
+      "name": "Cardio",
+      "imageName": "cardio",
+      "description": "Raise heart rate and improve conditioning with sustained or interval-based aerobic work."
+    },
+    {
+      "id": "pilates",
+      "name": "Pilates",
+      "imageName": "pilates",
+      "description": "Controlled, low-impact training focused on core strength, alignment, and breath, often on a mat or reformer."
+    },
+    {
+      "id": "stretching",
+      "name": "Stretching",
+      "imageName": "stretching",
+      "description": "Improve flexibility and recovery with held stretches and lengthening-focused movements."
+    },
+    {
+      "id": "general",
+      "name": "General Fitness",
+      "imageName": "general",
+      "description": "Mixed training for overall health and movement, not tied to one specific performance goal."
+    }
+  ],
+  "muscleGroups": {
+    "chest": {
+      "imageName": "chest",
+      "exercises": [
+      {
+        "id": "barbell-bench-press",
+        "name": "Barbell Bench Press",
+        "imageName": "barbell-bench-press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "strength",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Barbell", "Flat Bench"],
+        "description": "A compound chest press performed with a barbell while lying on a flat bench.",
+        "setup": "Lie flat on the bench with your eyes under the bar, feet planted, and hands slightly wider than shoulder-width.",
+        "instructions": "Unrack the bar, lower it under control to your lower chest, then press it back up until your arms are extended.",
+        "formCues": [
+          "Keep your shoulder blades pulled back",
+          "Keep your feet planted",
+          "Control the bar on the way down",
+          "Do not bounce the bar off your chest"
+        ],
+        "repRange": "6-10",
+        "equipment": ["Barbell", "Flat Bench"]
+      },
+      {
+        "id": "incline-barbell-bench-press",
+        "name": "Incline Barbell Bench Press",
+        "imageName": "incline-barbell-bench-press",
+        "category": "chest",
+        "primaryMuscles": ["Upper Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "strength",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Barbell", "Upper Chest"],
+        "description": "A compound chest press performed with a barbell on an incline bench to emphasize the upper chest.",
+        "setup": "Set the bench to a 30 to 45 degree incline, lie back with your eyes under the bar, feet planted on the floor, and hands slightly wider than shoulder-width.",
+        "instructions": "Unrack the bar, lower it under control to your upper chest, then press it back up until your arms are extended.",
+        "formCues": [
+          "Keep your shoulder blades pulled back and down",
+          "Keep your feet planted and glutes on the bench",
+          "Control the bar on the way down to your upper chest",
+          "Do not bounce the bar off your chest",
+          "Avoid setting the incline too steep, which shifts work away from the chest"
+        ],
+        "repRange": "6-10",
+        "equipment": ["Barbell", "Incline Bench"]
+      },
+      {
+        "id": "decline-barbell-bench-press",
+        "name": "Decline Barbell Bench Press",
+        "imageName": "decline-barbell-bench-press",
+        "category": "chest",
+        "primaryMuscles": ["Lower Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "strength",
+        "experienceLevel": "intermediate",
+        "tags": ["Compound", "Barbell", "Lower Chest"],
+        "description": "A compound chest press performed with a barbell on a decline bench to emphasize the lower chest.",
+        "setup": "Set the bench to a slight decline, secure your legs in the foot pads, lie back with your eyes under the bar, and grip the bar slightly wider than shoulder-width.",
+        "instructions": "Unrack the bar, lower it under control to your lower chest, then press it back up until your arms are extended.",
+        "formCues": [
+          "Keep your shoulder blades pulled back and down",
+          "Keep your legs secured and your body stable on the bench",
+          "Control the bar on the way down to your lower chest",
+          "Do not bounce the bar off your chest",
+          "Avoid flaring your elbows too wide"
+        ],
+        "repRange": "6-10",
+        "equipment": ["Barbell", "Decline Bench"]
+      },
+      {
+        "id": "dumbbell-bench-press",
+        "name": "Dumbbell Bench Press",
+        "imageName": "dumbbell-bench-press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Dumbbells", "Home Gym Friendly", "Flat Bench"],
+        "description": "A compound chest press performed with dumbbells while lying on a flat bench, allowing each arm to move independently.",
+        "setup": "Lie flat on the bench with a dumbbell in each hand, feet planted, and the dumbbells held at chest level with your palms facing forward.",
+        "instructions": "Press the dumbbells up until your arms are extended, lower them under control to chest level, and repeat.",
+        "formCues": [
+          "Keep your shoulder blades pulled back",
+          "Keep your feet planted and glutes on the bench",
+          "Control the dumbbells on the way down",
+          "Do not let the dumbbells drift too far apart at the top",
+          "Keep your wrists stacked over your elbows"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Dumbbells", "Flat Bench"]
+      },
+      {
+        "id": "incline-dumbbell-bench-press",
+        "name": "Incline Dumbbell Bench Press",
+        "imageName": "incline-dumbbell-bench-press",
+        "category": "chest",
+        "primaryMuscles": ["Upper Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Dumbbells", "Home Gym Friendly", "Upper Chest"],
+        "description": "A compound chest press performed with dumbbells on an incline bench to emphasize the upper chest.",
+        "setup": "Set the bench to a 30 to 45 degree incline, sit with a dumbbell in each hand, lie back, and hold the dumbbells at chest level with your palms facing forward.",
+        "instructions": "Press the dumbbells up until your arms are extended, lower them under control to upper chest level, and repeat.",
+        "formCues": [
+          "Keep your shoulder blades pulled back and down",
+          "Keep your feet planted and glutes on the bench",
+          "Control the dumbbells on the way down to your upper chest",
+          "Do not let the dumbbells drift too far apart at the top",
+          "Avoid setting the incline too steep, which shifts work away from the chest"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Dumbbells", "Incline Bench"]
+      },
+      {
+        "id": "decline-dumbbell-bench-press",
+        "name": "Decline Dumbbell Bench Press",
+        "imageName": "decline-dumbbell-bench-press",
+        "category": "chest",
+        "primaryMuscles": ["Lower Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "intermediate",
+        "tags": ["Compound", "Dumbbells", "Home Gym Friendly", "Lower Chest"],
+        "description": "A compound chest press performed with dumbbells on a decline bench to emphasize the lower chest.",
+        "setup": "Set the bench to a slight decline, secure your legs in the foot pads, lie back with a dumbbell in each hand, and hold them at chest level with your palms facing forward.",
+        "instructions": "Press the dumbbells up until your arms are extended, lower them under control to lower chest level, and repeat.",
+        "formCues": [
+          "Keep your shoulder blades pulled back and down",
+          "Keep your legs secured and your body stable on the bench",
+          "Control the dumbbells on the way down to your lower chest",
+          "Do not let the dumbbells drift too far apart at the top",
+          "Avoid flaring your elbows too wide"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Dumbbells", "Decline Bench"]
+      },
+      {
+        "id": "flat-dumbbell-chest-fly",
+        "name": "Flat Dumbbell Chest Fly",
+        "imageName": "flat-dumbbell-chest-fly",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Front Delts"],
+        "movementType": "isolation",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Isolation", "Dumbbells", "Home Gym Friendly", "Flat Bench"],
+        "description": "An isolation chest exercise performed with dumbbells on a flat bench, using a wide arcing motion to stretch and contract the chest.",
+        "setup": "Lie flat on the bench with a dumbbell in each hand, arms extended above your chest with a slight bend in your elbows and palms facing each other.",
+        "instructions": "Lower the dumbbells out to your sides in a wide arc until you feel a stretch in your chest, then squeeze your chest to bring the dumbbells back together above your chest.",
+        "formCues": [
+          "Keep a slight bend in your elbows throughout the movement",
+          "Lower the dumbbells with control; do not drop them below shoulder level",
+          "Keep your shoulder blades pulled back and your back flat on the bench",
+          "Squeeze your chest at the top without letting the dumbbells touch",
+          "Use a lighter weight than you would for pressing movements"
+        ],
+        "repRange": "10-15",
+        "equipment": ["Dumbbells", "Flat Bench"]
+      },
+      {
+        "id": "incline-dumbbell-chest-fly",
+        "name": "Incline Dumbbell Chest Fly",
+        "imageName": "incline-dumbbell-chest-fly",
+        "category": "chest",
+        "primaryMuscles": ["Upper Chest"],
+        "secondaryMuscles": ["Front Delts"],
+        "movementType": "isolation",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Isolation", "Dumbbells", "Home Gym Friendly", "Upper Chest", "Incline Bench"],
+        "description": "An isolation chest exercise performed with dumbbells on an incline bench, using a wide arcing motion to emphasize the upper chest.",
+        "setup": "Set the bench to a 30 to 45 degree incline, lie back with a dumbbell in each hand, arms extended above your upper chest with a slight bend in your elbows and palms facing each other.",
+        "instructions": "Lower the dumbbells out to your sides in a wide arc until you feel a stretch in your upper chest, then squeeze your chest to bring the dumbbells back together above your upper chest.",
+        "formCues": [
+          "Keep a slight bend in your elbows throughout the movement",
+          "Lower the dumbbells with control; do not drop them below shoulder level",
+          "Keep your shoulder blades pulled back and your glutes on the bench",
+          "Squeeze your chest at the top without letting the dumbbells touch",
+          "Avoid setting the incline too steep, which shifts work away from the chest"
+        ],
+        "repRange": "10-15",
+        "equipment": ["Dumbbells", "Incline Bench"]
+      },
+      {
+        "id": "decline-dumbbell-chest-fly",
+        "name": "Decline Dumbbell Chest Fly",
+        "imageName": "decline-dumbbell-chest-fly",
+        "category": "chest",
+        "primaryMuscles": ["Lower Chest"],
+        "secondaryMuscles": ["Front Delts"],
+        "movementType": "isolation",
+        "modality": "hypertrophy",
+        "experienceLevel": "intermediate",
+        "tags": ["Isolation", "Dumbbells", "Home Gym Friendly", "Lower Chest", "Decline Bench"],
+        "description": "An isolation chest exercise performed with dumbbells on a decline bench, using a wide arcing motion to emphasize the lower chest.",
+        "setup": "Set the bench to a slight decline, secure your legs in the foot pads, lie back with a dumbbell in each hand, arms extended above your lower chest with a slight bend in your elbows and palms facing each other.",
+        "instructions": "Lower the dumbbells out to your sides in a wide arc until you feel a stretch in your lower chest, then squeeze your chest to bring the dumbbells back together above your lower chest.",
+        "formCues": [
+          "Keep a slight bend in your elbows throughout the movement",
+          "Lower the dumbbells with control; do not drop them below shoulder level",
+          "Keep your legs secured and your body stable on the bench",
+          "Squeeze your chest at the top without letting the dumbbells touch",
+          "Use a lighter weight than you would for pressing movements"
+        ],
+        "repRange": "10-15",
+        "equipment": ["Dumbbells", "Decline Bench"]
+      },
+      {
+        "id": "push-up",
+        "name": "Push-Up",
+        "imageName": "push-up",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts", "Core"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Bodyweight", "Home Gym Friendly", "No Equipment"],
+        "description": "A bodyweight chest exercise performed from a high plank position, lowering your chest toward the floor and pressing back up.",
+        "setup": "Start in a high plank with your hands slightly wider than shoulder-width, fingers forward, and your body in a straight line from head to heels.",
+        "instructions": "Lower your chest toward the floor by bending your elbows, then press through your hands to return to the starting position.",
+        "formCues": [
+          "Keep your core braced and your hips in line with your shoulders",
+          "Lower with control; do not let your lower back sag",
+          "Keep your elbows at roughly a 45-degree angle to your torso",
+          "Press all the way up without shrugging your shoulders",
+          "Modify on your knees if full push-ups are too difficult"
+        ],
+        "repRange": "8-20",
+        "equipment": []
+      },
+      {
+        "id": "cable-chest-fly",
+        "name": "Cable Chest Fly",
+        "imageName": "cable-chest-fly",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Front Delts"],
+        "movementType": "isolation",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Isolation", "Cable", "Constant Tension"],
+        "description": "An isolation chest exercise using cables set at chest height, bringing the handles together in a wide arcing motion.",
+        "setup": "Set both cable pulleys to chest height, grab a handle in each hand, and step forward into a slight stagger stance with a soft bend in your elbows.",
+        "instructions": "Bring the handles together in front of your chest in a controlled arc, squeeze at the center, then return with control to the stretched position.",
+        "formCues": [
+          "Keep a slight bend in your elbows throughout",
+          "Squeeze your chest at the center; do not let your shoulders roll forward",
+          "Control the weight on the way back; do not let the stack slam",
+          "Keep your torso upright and your core braced",
+          "Adjust pulley height to target flat, incline, or decline emphasis"
+        ],
+        "repRange": "10-15",
+        "equipment": ["Cable Machine"]
+      },
+      {
+        "id": "cable-crossover",
+        "name": "Cable Crossover",
+        "imageName": "cable-crossover",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Front Delts"],
+        "movementType": "isolation",
+        "modality": "hypertrophy",
+        "experienceLevel": "intermediate",
+        "tags": ["Isolation", "Cable", "Constant Tension"],
+        "description": "A standing cable chest exercise where high pulleys are brought down and together in front of the hips or lower chest.",
+        "setup": "Set both cable pulleys above shoulder height, grab the handles, and step forward with a slight forward lean and soft elbows.",
+        "instructions": "Pull the handles down and together across your body in a sweeping motion, squeeze your chest, then return with control to the start.",
+        "formCues": [
+          "Use a slight forward lean and a stable stagger stance",
+          "Keep a soft bend in your elbows; do not turn this into a press",
+          "Squeeze your chest hard at the bottom of the arc",
+          "Control the eccentric; do not let the cables yank your arms back",
+          "Keep your shoulders down and away from your ears"
+        ],
+        "repRange": "10-15",
+        "equipment": ["Cable Machine"]
+      },
+      {
+        "id": "chest-dip",
+        "name": "Chest Dip",
+        "imageName": "chest-dip",
+        "category": "chest",
+        "primaryMuscles": ["Lower Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "intermediate",
+        "tags": ["Compound", "Bodyweight", "Lower Chest"],
+        "description": "A compound bodyweight press performed on parallel bars with a forward lean to emphasize the chest.",
+        "setup": "Grip parallel bars, support yourself at arm's length, and lean your torso slightly forward with your legs behind you or bent.",
+        "instructions": "Lower your body by bending your elbows until you feel a stretch in your chest, then press back up to full arm extension.",
+        "formCues": [
+          "Lean forward to shift emphasis to the chest rather than the triceps",
+          "Lower with control; do not drop into the bottom position",
+          "Keep your shoulders down and avoid excessive shoulder shrug at the top",
+          "Do not flare your elbows straight out to the sides",
+          "Use an assisted dip machine or band if bodyweight is too difficult"
+        ],
+        "repRange": "6-12",
+        "equipment": ["Dip Station"]
+      },
+      {
+        "id": "pec-deck-fly",
+        "name": "Pec Deck Fly",
+        "imageName": "pec-deck-fly",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Front Delts"],
+        "movementType": "isolation",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Isolation", "Machine", "Beginner Friendly"],
+        "description": "A machine-based chest fly that guides your arms through a fixed arc for consistent chest isolation.",
+        "setup": "Adjust the seat so the handles align with mid-chest height, sit with your back flat against the pad, and grip the handles or place your forearms on the pads.",
+        "instructions": "Bring the handles or pads together in front of your chest, squeeze, then return with control until you feel a stretch in your chest.",
+        "formCues": [
+          "Keep your back flat against the pad throughout",
+          "Do not let your shoulders roll forward at the finish",
+          "Use a controlled tempo; do not slam the weight stack",
+          "Stop when you feel a stretch; do not overextend your shoulders",
+          "Keep your feet planted and your core lightly braced"
+        ],
+        "repRange": "10-15",
+        "equipment": ["Pec Deck Machine"]
+      },
+      {
+        "id": "landmine-press",
+        "name": "Landmine Press",
+        "imageName": "landmine-press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts", "Core"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "intermediate",
+        "tags": ["Compound", "Barbell", "Angled Press"],
+        "description": "A pressing exercise using a barbell anchored in a landmine setup, pressing the bar up and forward at an angle.",
+        "setup": "Anchor one end of a barbell in a landmine base or corner, load the free end, and stand or kneel facing the bar with both hands on the end of the bar.",
+        "instructions": "Press the bar up and forward until your arms are extended, then lower with control back toward your chest or upper chest.",
+        "formCues": [
+          "Brace your core to stay stable during the press",
+          "Press in a smooth arc; do not twist your torso excessively",
+          "Keep your wrists stacked over your elbows at the bottom",
+          "Control the bar on the way down",
+          "Use one arm at a time for a greater stability challenge"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Barbell", "Landmine Attachment"]
+      },
+      {
+        "id": "floor-press",
+        "name": "Floor Press",
+        "imageName": "floor-press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "strength",
+        "experienceLevel": "intermediate",
+        "tags": ["Compound", "Barbell", "Limited Range of Motion"],
+        "description": "A barbell bench press variation performed lying on the floor, limiting range of motion at the bottom to reduce shoulder stress.",
+        "setup": "Lie on your back with your knees bent and feet flat, position yourself under a barbell in a rack or have a partner hand you the bar, and grip slightly wider than shoulder-width.",
+        "instructions": "Lower the bar until your upper arms rest on the floor, pause briefly, then press the bar up until your arms are extended.",
+        "formCues": [
+          "Stop when your upper arms touch the floor; do not bounce",
+          "Keep your shoulder blades pulled back during the press",
+          "Drive through your feet and keep your glutes on the floor",
+          "Control the bar; the pause at the bottom removes momentum",
+          "Use a spotter or safety pins when lifting heavy"
+        ],
+        "repRange": "6-10",
+        "equipment": ["Barbell", "Squat Rack"]
+      },
+      {
+        "id": "dumbbell-pullover",
+        "name": "Dumbbell Pullover",
+        "imageName": "dumbbell-pullover",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Lats", "Triceps", "Core"],
+        "movementType": "isolation",
+        "modality": "hypertrophy",
+        "experienceLevel": "intermediate",
+        "tags": ["Isolation", "Dumbbells", "Stretch Focus"],
+        "description": "A chest and lat exercise performed lying on a bench, lowering a dumbbell in an arc behind your head and pulling it back over your chest.",
+        "setup": "Lie flat on a bench with your feet planted, hold one dumbbell with both hands on the inside of the weight plate, and extend it above your chest.",
+        "instructions": "Lower the dumbbell in a slow arc behind your head until you feel a stretch in your chest and lats, then pull it back over your chest to the starting position.",
+        "formCues": [
+          "Keep a slight bend in your elbows throughout",
+          "Move only at the shoulders; do not arch your lower back excessively",
+          "Lower with control; do not drop the weight behind you",
+          "Keep your hips low on the bench for stability",
+          "Use a manageable weight; this is not a maximal press"
+        ],
+        "repRange": "10-12",
+        "equipment": ["Dumbbells", "Flat Bench"]
+      },
+      {
+        "id": "smith-machine-bench-press",
+        "name": "Smith Machine Bench Press",
+        "imageName": "smith-machine-bench-press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Machine", "Guided Bar Path"],
+        "description": "A chest press performed on a Smith machine with a fixed bar path for added stability compared to a free barbell.",
+        "setup": "Set a flat bench under the Smith machine bar, lie back with your eyes under the bar, and grip slightly wider than shoulder-width.",
+        "instructions": "Unrack the bar by rotating your wrists, lower it under control to your chest, then press it back up until your arms are extended.",
+        "formCues": [
+          "Position the bench so the bar path lines up with your lower chest",
+          "Keep your shoulder blades pulled back and your feet planted",
+          "Do not bounce the bar off your chest",
+          "Lock the bar out fully before re-racking",
+          "Use a spotter mindset even on a Smith; re-rack with control"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Smith Machine", "Flat Bench"]
+      },
+      {
+        "id": "incline-push-up",
+        "name": "Incline Push-Up",
+        "imageName": "incline-push-up",
+        "category": "chest",
+        "primaryMuscles": ["Upper Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts", "Core"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Bodyweight", "Home Gym Friendly", "Upper Chest"],
+        "description": "A bodyweight push-up with your hands elevated on a bench or box to reduce load and emphasize the upper chest.",
+        "setup": "Place your hands on a sturdy bench or box slightly wider than shoulder-width and walk your feet back into a high plank with your body in a straight line.",
+        "instructions": "Lower your chest toward the bench by bending your elbows, then press back up to the starting position.",
+        "formCues": [
+          "Keep your core braced and your body in a straight line",
+          "Lower with control; do not let your hips sag",
+          "Keep your elbows at roughly a 45-degree angle to your torso",
+          "Use a higher surface to make the exercise easier if needed",
+          "Progress to lower surfaces as you get stronger"
+        ],
+        "repRange": "10-20",
+        "equipment": ["Flat Bench"]
+      },
+      {
+        "id": "decline-push-up",
+        "name": "Decline Push-Up",
+        "imageName": "decline-push-up",
+        "category": "chest",
+        "primaryMuscles": ["Lower Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts", "Core"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "intermediate",
+        "tags": ["Compound", "Bodyweight", "Home Gym Friendly", "Lower Chest"],
+        "description": "A bodyweight push-up with your feet elevated on a bench to increase difficulty and emphasize the lower chest.",
+        "setup": "Place your feet on a sturdy bench and your hands on the floor slightly wider than shoulder-width in a high plank position.",
+        "instructions": "Lower your chest toward the floor by bending your elbows, then press back up to full arm extension.",
+        "formCues": [
+          "Keep your core tight so your hips do not drop",
+          "Lower under control; do not face-plant from the elevated position",
+          "Keep your elbows from flaring straight out to the sides",
+          "Press through your palms and squeeze your chest at the top",
+          "Start with a low elevation if full decline push-ups are too hard"
+        ],
+        "repRange": "8-15",
+        "equipment": ["Flat Bench"]
+      },
+      {
+        "id": "wide-grip-push-up",
+        "name": "Wide-Grip Push-Up",
+        "imageName": "wide-grip-push-up",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts", "Core"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Bodyweight", "Home Gym Friendly", "No Equipment"],
+        "description": "A push-up variation with hands placed wider than standard to increase chest involvement and reduce triceps emphasis.",
+        "setup": "Start in a high plank with your hands placed wider than shoulder-width and your body in a straight line from head to heels.",
+        "instructions": "Lower your chest toward the floor, then press back up until your arms are extended.",
+        "formCues": [
+          "Do not place your hands so wide that your shoulders feel strained",
+          "Keep your core braced throughout the movement",
+          "Lower with control and maintain a straight body line",
+          "Press through your chest rather than just your arms",
+          "Modify on your knees if needed"
+        ],
+        "repRange": "8-15",
+        "equipment": []
+      },
+      {
+        "id": "incline-smith-machine-bench-press",
+        "name": "Incline Smith Machine Bench Press",
+        "imageName": "incline-smith-machine-bench-press",
+        "category": "chest",
+        "primaryMuscles": ["Upper Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Machine", "Upper Chest", "Guided Bar Path"],
+        "description": "An incline chest press on a Smith machine with a fixed bar path to target the upper chest with added stability.",
+        "setup": "Set an incline bench to 30 to 45 degrees under the Smith machine bar, lie back, and grip slightly wider than shoulder-width.",
+        "instructions": "Unrack the bar, lower it under control to your upper chest, then press it back up until your arms are extended.",
+        "formCues": [
+          "Align the bench so the bar tracks to your upper chest",
+          "Keep your shoulder blades pulled back and your feet planted",
+          "Do not bounce the bar off your chest",
+          "Avoid setting the incline too steep",
+          "Re-rack the bar with control at the end of each set"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Smith Machine", "Incline Bench"]
+      },
+      {
+        "id": "decline-smith-machine-bench-press",
+        "name": "Decline Smith Machine Bench Press",
+        "imageName": "decline-smith-machine-bench-press",
+        "category": "chest",
+        "primaryMuscles": ["Lower Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "intermediate",
+        "tags": ["Compound", "Machine", "Lower Chest", "Guided Bar Path"],
+        "description": "A decline chest press on a Smith machine with a fixed bar path to emphasize the lower chest.",
+        "setup": "Set a decline bench under the Smith machine bar, secure your legs, lie back, and grip slightly wider than shoulder-width.",
+        "instructions": "Unrack the bar, lower it under control to your lower chest, then press it back up until your arms are extended.",
+        "formCues": [
+          "Keep your legs secured and your body stable on the bench",
+          "Control the bar on the way down to your lower chest",
+          "Do not bounce the bar off your chest",
+          "Keep your shoulder blades pulled back and down",
+          "Lock out fully before re-racking"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Smith Machine", "Decline Bench"]
+      },
+      {
+        "id": "machine-chest-press",
+        "name": "Machine Chest Press",
+        "imageName": "machine-chest-press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Machine", "Beginner Friendly"],
+        "description": "A seated chest press on a plate-loaded or selectorized machine with a fixed pressing path.",
+        "setup": "Adjust the seat so the handles align with mid-chest height, sit with your back flat against the pad, and grip the handles.",
+        "instructions": "Press the handles forward until your arms are extended, then return with control until you feel a stretch in your chest.",
+        "formCues": [
+          "Keep your back flat against the pad throughout",
+          "Do not lock out aggressively or shrug your shoulders",
+          "Control the weight on the way back; do not let the stack slam",
+          "Keep your feet planted for stability",
+          "Use a full range of motion without overextending your shoulders"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Chest Press Machine"]
+      },
+      {
+        "id": "incline-machine-chest-press",
+        "name": "Incline Machine Chest Press",
+        "imageName": "incline-machine-chest-press",
+        "category": "chest",
+        "primaryMuscles": ["Upper Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Machine", "Upper Chest", "Beginner Friendly"],
+        "description": "An incline chest press on a machine with a fixed path to target the upper chest with minimal setup.",
+        "setup": "Adjust the seat so the handles align with upper-chest height, sit with your back against the incline pad, and grip the handles.",
+        "instructions": "Press the handles up and forward until your arms are extended, then return with control to the starting position.",
+        "formCues": [
+          "Keep your back and head in contact with the pad",
+          "Press through your upper chest; do not shrug at the top",
+          "Use a controlled tempo on the way down",
+          "Keep your feet planted and your core lightly braced",
+          "Stop just short of pain in the shoulder joint"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Incline Chest Press Machine"]
+      },
+      {
+        "id": "single-arm-dumbbell-bench-press",
+        "name": "Single-Arm Dumbbell Bench Press",
+        "imageName": "single-arm-dumbbell-bench-press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts", "Core"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "intermediate",
+        "tags": ["Compound", "Dumbbells", "Unilateral", "Core Stability"],
+        "description": "A unilateral dumbbell bench press that challenges chest strength and core stability one arm at a time.",
+        "setup": "Lie flat on a bench with one dumbbell held at chest level, feet planted, and your free arm extended to the side or resting on your hip for balance.",
+        "instructions": "Press the dumbbell up until your arm is extended, lower it under control to chest level, and complete all reps before switching arms.",
+        "formCues": [
+          "Keep your shoulder blades pulled back on the bench",
+          "Brace your core to prevent your torso from rotating",
+          "Control the dumbbell; do not let it drift out to the side",
+          "Keep your wrist stacked over your elbow",
+          "Use slightly lighter weight than your two-arm bench press"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Dumbbells", "Flat Bench"]
+      },
+      {
+        "id": "dumbbell-floor-press",
+        "name": "Dumbbell Floor Press",
+        "imageName": "dumbbell-floor-press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Dumbbells", "Home Gym Friendly", "Limited Range of Motion"],
+        "description": "A dumbbell press performed lying on the floor, stopping when your upper arms touch the ground to limit shoulder stress.",
+        "setup": "Lie on your back with your knees bent and feet flat, holding a dumbbell in each hand at chest level with your upper arms on the floor.",
+        "instructions": "Press the dumbbells up until your arms are extended, lower until your upper arms rest on the floor, pause briefly, and repeat.",
+        "formCues": [
+          "Stop when your upper arms touch the floor; do not bounce",
+          "Keep your shoulder blades pulled back during the press",
+          "Control the dumbbells; do not let them drift apart at the top",
+          "Drive through your feet for stability",
+          "Use a neutral or palms-forward grip based on comfort"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Dumbbells"]
+      },
+      {
+        "id": "resistance-band-chest-press",
+        "name": "Resistance Band Chest Press",
+        "imageName": "resistance-band-chest-press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts", "Core"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Compound", "Resistance Bands", "Home Gym Friendly"],
+        "description": "A standing or floor chest press using resistance bands anchored behind you for home-friendly pressing.",
+        "setup": "Anchor a resistance band at chest height behind you, hold a handle in each hand, and step forward until there is tension with your hands at chest level.",
+        "instructions": "Press the handles forward until your arms are extended, squeeze your chest, then return with control to the starting position.",
+        "formCues": [
+          "Stand in a stable stagger stance with your core braced",
+          "Press straight forward; do not let your shoulders roll forward",
+          "Control the band on the way back; do not let it snap you backward",
+          "Adjust your distance from the anchor to change difficulty",
+          "Keep your wrists neutral throughout"
+        ],
+        "repRange": "12-20",
+        "equipment": ["Resistance Bands"]
+      },
+      {
+        "id": "resistance-band-chest-fly",
+        "name": "Resistance Band Chest Fly",
+        "imageName": "resistance-band-chest-fly",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Front Delts"],
+        "movementType": "isolation",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Isolation", "Resistance Bands", "Home Gym Friendly"],
+        "description": "A home-friendly chest fly using resistance bands anchored behind you for constant tension through the arc.",
+        "setup": "Anchor a resistance band behind you at chest height, hold a handle in each hand, and step forward with a soft bend in your elbows.",
+        "instructions": "Bring your hands together in front of your chest in a wide arc, squeeze, then return with control to the stretched position.",
+        "formCues": [
+          "Keep a slight bend in your elbows throughout",
+          "Squeeze your chest at the center of the movement",
+          "Do not turn the fly into a press by bending your elbows too much",
+          "Stand tall with your core braced",
+          "Use a lighter band if you cannot control the return"
+        ],
+        "repRange": "12-20",
+        "equipment": ["Resistance Bands"]
+      },
+      {
+        "id": "incline-cable-fly",
+        "name": "Incline Cable Fly",
+        "imageName": "incline-cable-fly",
+        "category": "chest",
+        "primaryMuscles": ["Upper Chest"],
+        "secondaryMuscles": ["Front Delts"],
+        "movementType": "isolation",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Isolation", "Cable", "Upper Chest", "Constant Tension"],
+        "description": "A cable fly with pulleys set low and handles brought upward and together to emphasize the upper chest.",
+        "setup": "Set both cable pulleys to the lowest position, grab the handles, and step forward into a slight stagger stance with a soft bend in your elbows.",
+        "instructions": "Bring the handles up and together in front of your upper chest in a sweeping arc, squeeze, then return with control.",
+        "formCues": [
+          "Lead with your elbows and keep a fixed soft bend in your arms",
+          "Squeeze your upper chest at the top of the arc",
+          "Do not let your shoulders shrug toward your ears",
+          "Control the eccentric; do not let the weight pull you back abruptly",
+          "Use a slight forward lean for balance"
+        ],
+        "repRange": "10-15",
+        "equipment": ["Cable Machine"]
+      },
+      {
+        "id": "svend-press",
+        "name": "Svend Press",
+        "imageName": "svend-press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Front Delts", "Triceps"],
+        "movementType": "isolation",
+        "modality": "hypertrophy",
+        "experienceLevel": "beginner",
+        "tags": ["Isolation", "Plate", "Squeeze", "Home Gym Friendly"],
+        "description": "A chest squeeze exercise performed by pressing two weight plates together in front of the body and extending the arms.",
+        "setup": "Stand tall or sit on a bench holding two small weight plates together between your palms at chest height with your elbows out.",
+        "instructions": "Squeeze the plates together hard as you press them forward until your arms are extended, then return with control to your chest.",
+        "formCues": [
+          "Keep constant pressure squeezing the plates together",
+          "Press straight forward; do not let your shoulders roll forward",
+          "Use lighter plates and focus on the chest squeeze, not heavy weight",
+          "Keep your core braced if standing",
+          "Stop if you feel wrist or shoulder discomfort"
+        ],
+        "repRange": "12-20",
+        "equipment": ["Weight Plates"]
+      },
+      {
+        "id": "kettlebell-floor-press",
+        "name": "Kettlebell Floor Press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "intermediate",
+        "tags": ["Compound", "Kettlebell", "Home Gym Friendly", "Limited Range of Motion"],
+        "description": "A floor press performed with kettlebells, stopping when your upper arms touch the ground to limit shoulder stress.",
+        "setup": "Lie on your back with your knees bent and feet flat, holding a kettlebell in each hand in the rack or bottom position at chest level.",
+        "instructions": "Press the kettlebells up until your arms are extended, lower until your upper arms rest on the floor, pause briefly, and repeat.",
+        "formCues": [
+          "Keep your wrist straight and the kettlebell stable in your grip",
+          "Stop when your upper arms touch the floor; do not bounce",
+          "Keep your shoulder blades pulled back during the press",
+          "Control the bells; do not let them drift outward at the top",
+          "Use a manageable weight; kettlebells are harder to balance than dumbbells"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Kettlebells"]
+      },
+      {
+        "id": "kettlebell-bench-press",
+        "name": "Kettlebell Bench Press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "intermediate",
+        "tags": ["Compound", "Kettlebell", "Flat Bench"],
+        "description": "A chest press performed with kettlebells on a flat bench, pressing from chest level with a neutral or angled grip.",
+        "setup": "Lie flat on a bench with a kettlebell in each hand at chest level, feet planted, and your wrists stacked over your elbows.",
+        "instructions": "Press the kettlebells up until your arms are extended, lower them under control to chest level, and repeat.",
+        "formCues": [
+          "Keep the kettlebells stable; do not let them roll in your hands",
+          "Control the weight on the way down",
+          "Keep your shoulder blades pulled back and your glutes on the bench",
+          "Press in a smooth path without flaring your elbows excessively",
+          "Use lighter weight than your dumbbell bench press until you are comfortable"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Kettlebells", "Flat Bench"]
+      },
+      {
+        "id": "kettlebell-push-up",
+        "name": "Kettlebell Push-Up",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts", "Core"],
+        "movementType": "push",
+        "modality": "hypertrophy",
+        "experienceLevel": "intermediate",
+        "tags": ["Compound", "Kettlebell", "Bodyweight", "Increased Range of Motion"],
+        "description": "A push-up performed with each hand on a kettlebell handle to increase range of motion and add stability demands.",
+        "setup": "Place two kettlebells on the floor shoulder-width apart, grip the handles, and set up in a high plank with your body in a straight line.",
+        "instructions": "Lower your chest between the kettlebells by bending your elbows, then press back up to full arm extension.",
+        "formCues": [
+          "Keep the kettlebells from tipping; grip firmly and press evenly",
+          "Lower with control into the deeper range of motion",
+          "Keep your core braced and your hips in line with your shoulders",
+          "Do not let your shoulders dump forward at the bottom",
+          "Use standard push-ups first if balance on the bells is too difficult"
+        ],
+        "repRange": "6-12",
+        "equipment": ["Kettlebells"]
+      },
+      {
+        "id": "pilates-chest-expansion",
+        "name": "Pilates Chest Expansion",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Front Delts", "Core"],
+        "movementType": "stretch",
+        "modality": "pilates",
+        "experienceLevel": "beginner",
+        "tags": ["Pilates", "Mat", "Reformer", "Posture", "Low Impact"],
+        "description": "A Pilates chest opener performed on a mat or reformer by reaching the arms back with control to stretch and open the chest and shoulders.",
+        "setup": "On a mat, stand or kneel tall with your arms at your sides. On a reformer, kneel on the carriage facing the footbar and hold the straps behind you at hip height with light spring tension.",
+        "instructions": "Inhale as you reach your arms back to open your chest, exhale as you return your arms forward or to your sides with control.",
+        "formCues": [
+          "Keep your ribs stacked over your pelvis; do not arch your lower back",
+          "Open through your chest without shrugging your shoulders up",
+          "Move your arms from your shoulder blades, not just your hands",
+          "On the reformer, control the springs on the return",
+          "Use small range first if your shoulders feel tight"
+        ],
+        "repRange": "8-10",
+        "equipment": ["Yoga Mat"]
+      },
+      {
+        "id": "reformer-chest-press",
+        "name": "Reformer Chest Press",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Triceps", "Front Delts", "Core"],
+        "movementType": "push",
+        "modality": "pilates",
+        "experienceLevel": "beginner",
+        "tags": ["Pilates", "Reformer", "Spring Resistance", "Guided Path"],
+        "description": "A chest press on the reformer using spring resistance and handles or straps while lying or kneeling on the carriage.",
+        "setup": "Lie or kneel on the reformer carriage facing away from the footbar, hold the handles at chest height, and set an appropriate spring tension.",
+        "instructions": "Exhale as you press the handles forward until your arms are extended, inhale as you return with control to the starting position.",
+        "formCues": [
+          "Keep your core engaged so your torso stays stable on the carriage",
+          "Press through your chest; do not lock out aggressively",
+          "Control the springs on the return; do not let them snap you back",
+          "Keep your shoulders away from your ears",
+          "Adjust spring tension to match your strength level"
+        ],
+        "repRange": "8-12",
+        "equipment": ["Reformer"]
+      },
+      {
+        "id": "reformer-long-box-push-through",
+        "name": "Reformer Long Box Push Through",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Lats", "Core", "Front Delts"],
+        "movementType": "push",
+        "modality": "pilates",
+        "experienceLevel": "intermediate",
+        "tags": ["Pilates", "Reformer", "Long Box", "Shoulder Mobility"],
+        "description": "A reformer exercise on the long box where you press through the footbar or straps in a forward arc to open and strengthen the chest.",
+        "setup": "Lie prone on the long box on the reformer, reach forward to the footbar or straps, and set light to moderate spring tension.",
+        "instructions": "Exhale as you press through the bar or straps, lengthening your arms and opening your chest, then inhale as you return with control.",
+        "formCues": [
+          "Keep your hips anchored on the box throughout",
+          "Lead with your sternum and reach long through your arms",
+          "Do not collapse in your lower back as you press through",
+          "Use your breath to pace each rep",
+          "Start with lighter springs until you own the shoulder range"
+        ],
+        "repRange": "6-10",
+        "equipment": ["Reformer", "Long Box"]
+      },
+      {
+        "id": "reformer-chest-expansion",
+        "name": "Reformer Chest Expansion",
+        "category": "chest",
+        "primaryMuscles": ["Chest"],
+        "secondaryMuscles": ["Front Delts", "Core"],
+        "movementType": "stretch",
+        "modality": "pilates",
+        "experienceLevel": "beginner",
+        "tags": ["Pilates", "Reformer", "Posture", "Spring Resistance"],
+        "description": "A kneeling reformer exercise that opens the chest by reaching the arms back against spring resistance.",
+        "setup": "Kneel on the reformer carriage facing the footbar, hold the straps behind you at hip height, and set light spring tension.",
+        "instructions": "Inhale as you reach your arms back to open your chest against the springs, exhale as you return your arms forward with control.",
+        "formCues": [
+          "Keep your torso upright; do not lean forward as your arms move",
+          "Open your chest without flaring your ribs forward",
+          "Keep your shoulders down and your neck long",
+          "Control the springs on the return",
+          "Use lighter tension if you feel shoulder strain"
+        ],
+        "repRange": "8-10",
+        "equipment": ["Reformer"]
+      }
+      ]
+    },
+    "back": {
+      "imageName": "back",
+      "exercises": [
+        {
+          "id": "barbell-bent-over-row",
+          "name": "Barbell Bent-Over Row",
+          "imageName": "barbell-bent-over-row",
+          "category": "back",
+          "primaryMuscles": ["Lats"],
+          "secondaryMuscles": ["Rhomboids", "Rear Delts", "Biceps", "Core"],
+          "movementType": "pull",
+          "modality": "strength",
+          "experienceLevel": "intermediate",
+          "tags": ["Compound", "Barbell", "Horizontal Pull"],
+          "description": "A compound rowing exercise performed by hinging at the hips and pulling a barbell toward your lower chest or upper abdomen.",
+          "setup": "Stand with your feet hip-width apart, hinge forward with a flat back, and grip the barbell slightly wider than shoulder-width with your knees softly bent.",
+          "instructions": "Pull the bar toward your lower chest, squeeze your shoulder blades together, then lower the bar with control back to arm extension.",
+          "formCues": [
+            "Keep your back flat; do not round your spine",
+            "Pull with your elbows driving back, not your hands yanking up",
+            "Keep the bar close to your body throughout the rep",
+            "Brace your core so your torso stays stable",
+            "Avoid using momentum from your hips to heave the weight"
+          ],
+          "repRange": "6-10",
+          "equipment": ["Barbell"]
+        },
+        {
+          "id": "pull-up",
+          "name": "Pull-Up",
+          "imageName": "pull-up",
+          "category": "back",
+          "primaryMuscles": ["Lats"],
+          "secondaryMuscles": ["Biceps", "Rear Delts", "Core"],
+          "movementType": "pull",
+          "modality": "strength",
+          "experienceLevel": "intermediate",
+          "tags": ["Compound", "Bodyweight", "Vertical Pull"],
+          "description": "A bodyweight vertical pull performed by hanging from a bar and pulling your chin above the bar.",
+          "setup": "Grip a pull-up bar slightly wider than shoulder-width with your palms facing away, hang with your arms extended, and brace your core.",
+          "instructions": "Pull yourself up until your chin clears the bar, then lower with control back to a full hang.",
+          "formCues": [
+            "Start from a dead hang with your shoulders engaged, not fully relaxed",
+            "Drive your elbows down toward your ribs",
+            "Avoid excessive swinging or kipping unless intentionally training that style",
+            "Lower under control through the full range of motion",
+            "Use an assisted band or machine if full pull-ups are too difficult"
+          ],
+          "repRange": "5-10",
+          "equipment": ["Pull-Up Bar"]
+        },
+        {
+          "id": "lat-pulldown",
+          "name": "Lat Pulldown",
+          "imageName": "lat-pulldown",
+          "category": "back",
+          "primaryMuscles": ["Lats"],
+          "secondaryMuscles": ["Biceps", "Rear Delts", "Rhomboids"],
+          "movementType": "pull",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Compound", "Cable", "Vertical Pull", "Beginner Friendly"],
+          "description": "A machine-based vertical pull that brings a wide bar down toward your upper chest to train the lats.",
+          "setup": "Sit at the lat pulldown station, secure your thighs under the pad, grip the bar wider than shoulder-width, and sit tall with your chest up.",
+          "instructions": "Pull the bar down to your upper chest, squeeze your lats, then return the bar with control to arm extension.",
+          "formCues": [
+            "Pull the bar toward your chest, not behind your neck",
+            "Lean back slightly without rocking excessively",
+            "Drive your elbows down and back",
+            "Control the weight on the way up; do not let it pull you out of the seat",
+            "Keep your chest lifted throughout the rep"
+          ],
+          "repRange": "8-12",
+          "equipment": ["Cable Machine"]
+        },
+        {
+          "id": "seated-cable-row",
+          "name": "Seated Cable Row",
+          "imageName": "seated-cable-row",
+          "category": "back",
+          "primaryMuscles": ["Lats"],
+          "secondaryMuscles": ["Rhomboids", "Rear Delts", "Biceps"],
+          "movementType": "pull",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Compound", "Cable", "Horizontal Pull", "Beginner Friendly"],
+          "description": "A seated horizontal row using a cable machine to pull a handle toward your torso while keeping your chest up.",
+          "setup": "Sit at the cable row station with your feet on the platform, knees slightly bent, and grab the handle with your arms extended.",
+          "instructions": "Pull the handle toward your lower ribs, squeeze your shoulder blades together, then return with control to arm extension.",
+          "formCues": [
+            "Sit tall and keep your chest up throughout",
+            "Pull with your elbows close to your body",
+            "Squeeze your shoulder blades at the end of each rep",
+            "Do not round your lower back at the start of the pull",
+            "Control the return; do not let the weight jerk your shoulders forward"
+          ],
+          "repRange": "8-12",
+          "equipment": ["Cable Machine"]
+        },
+        {
+          "id": "dumbbell-single-arm-row",
+          "name": "Dumbbell Single-Arm Row",
+          "imageName": "dumbbell-single-arm-row",
+          "category": "back",
+          "primaryMuscles": ["Lats"],
+          "secondaryMuscles": ["Rhomboids", "Rear Delts", "Biceps", "Core"],
+          "movementType": "pull",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Compound", "Dumbbells", "Unilateral", "Home Gym Friendly"],
+          "description": "A one-arm row performed with a dumbbell while supported on a bench to train each side of the back independently.",
+          "setup": "Place one knee and the same-side hand on a flat bench, hold a dumbbell in the opposite hand with your arm extended, and keep your back flat.",
+          "instructions": "Pull the dumbbell toward your hip, squeeze your lat and shoulder blade, then lower with control to arm extension.",
+          "formCues": [
+            "Keep your back flat and parallel to the floor",
+            "Pull the dumbbell toward your hip, not straight up to the ceiling",
+            "Keep your elbow close to your body",
+            "Avoid twisting your torso as you row",
+            "Complete all reps on one side before switching"
+          ],
+          "repRange": "8-12",
+          "equipment": ["Dumbbells", "Flat Bench"]
+        },
+        {
+          "id": "barbell-deadlift",
+          "name": "Barbell Deadlift",
+          "imageName": "barbell-deadlift",
+          "category": "back",
+          "primaryMuscles": ["Lower Back"],
+          "secondaryMuscles": ["Glutes", "Hamstrings", "Lats", "Traps", "Core"],
+          "movementType": "hinge",
+          "modality": "strength",
+          "experienceLevel": "intermediate",
+          "tags": ["Compound", "Barbell", "Posterior Chain"],
+          "description": "A compound hip-hinge lift that pulls a barbell from the floor to a standing position, training the entire posterior chain.",
+          "setup": "Stand with your feet hip-width apart, bar over mid-foot, hinge down to grip the bar just outside your legs, and flatten your back with your chest up.",
+          "instructions": "Drive through the floor, extend your hips and knees together, and stand tall with the bar, then reverse the motion to lower the bar under control.",
+          "formCues": [
+            "Keep the bar close to your body throughout the lift",
+            "Maintain a flat back; do not round your spine",
+            "Push the floor away rather than yanking with your lower back",
+            "Lock out by squeezing your glutes, not by leaning back excessively",
+            "Use proper bumper plates or raise the bar if flexibility limits your start position"
+          ],
+          "repRange": "3-6",
+          "equipment": ["Barbell"]
+        },
+        {
+          "id": "t-bar-row",
+          "name": "T-Bar Row",
+          "imageName": "t-bar-row",
+          "category": "back",
+          "primaryMuscles": ["Lats"],
+          "secondaryMuscles": ["Rhomboids", "Rear Delts", "Biceps", "Lower Back"],
+          "movementType": "pull",
+          "modality": "strength",
+          "experienceLevel": "intermediate",
+          "tags": ["Compound", "Barbell", "Landmine", "Horizontal Pull"],
+          "description": "A rowing exercise using a landmine barbell setup to pull weight toward your chest with a neutral grip handle.",
+          "setup": "Straddle the bar with your feet on either side, hinge forward with a flat back, and grip the handle with both hands.",
+          "instructions": "Pull the handle toward your lower chest, squeeze your shoulder blades, then lower with control to arm extension.",
+          "formCues": [
+            "Keep your back flat and your core braced",
+            "Pull with your elbows driving back",
+            "Avoid standing up taller as you pull the weight",
+            "Control the eccentric; do not let the weight slam at the bottom",
+            "Keep the bar path close to your torso"
+          ],
+          "repRange": "6-10",
+          "equipment": ["Barbell", "Landmine Attachment"]
+        },
+        {
+          "id": "chest-supported-dumbbell-row",
+          "name": "Chest-Supported Dumbbell Row",
+          "imageName": "chest-supported-dumbbell-row",
+          "category": "back",
+          "primaryMuscles": ["Lats"],
+          "secondaryMuscles": ["Rhomboids", "Rear Delts", "Biceps"],
+          "movementType": "pull",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Compound", "Dumbbells", "Incline Bench", "Beginner Friendly"],
+          "description": "A dumbbell row performed lying chest-down on an incline bench to isolate the back and reduce lower-back strain.",
+          "setup": "Set an incline bench to about 30 to 45 degrees, lie chest-down with your feet planted, and hold a dumbbell in each hand with your arms extended.",
+          "instructions": "Pull both dumbbells toward your hips, squeeze your shoulder blades, then lower with control to arm extension.",
+          "formCues": [
+            "Keep your chest glued to the pad throughout",
+            "Pull with your elbows close to your body",
+            "Squeeze your shoulder blades at the top of each rep",
+            "Do not shrug your shoulders toward your ears",
+            "Use a controlled tempo; avoid swinging the dumbbells"
+          ],
+          "repRange": "8-12",
+          "equipment": ["Dumbbells", "Incline Bench"]
+        },
+        {
+          "id": "face-pull",
+          "name": "Face Pull",
+          "imageName": "face-pull",
+          "category": "back",
+          "primaryMuscles": ["Rear Delts"],
+          "secondaryMuscles": ["Rhomboids", "Traps", "Rotator Cuff"],
+          "movementType": "pull",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Isolation", "Cable", "Upper Back", "Shoulder Health"],
+          "description": "A cable exercise that pulls a rope attachment toward your face with external rotation to target the upper back and rear shoulders.",
+          "setup": "Set a cable pulley to upper-chest or face height, attach a rope, and grip it with your thumbs facing you as you step back into tension.",
+          "instructions": "Pull the rope toward your forehead while separating your hands and rotating your elbows up and back, then return with control.",
+          "formCues": [
+            "Pull toward your face, not your chest",
+            "Externally rotate at the end so your elbows finish high",
+            "Keep your ribs down; do not arch your lower back",
+            "Use lighter weight and focus on control and rear shoulder engagement",
+            "Squeeze your shoulder blades at the end of each rep"
+          ],
+          "repRange": "12-20",
+          "equipment": ["Cable Machine"]
+        },
+        {
+          "id": "chin-up",
+          "name": "Chin-Up",
+          "imageName": "chin-up",
+          "category": "back",
+          "primaryMuscles": ["Lats"],
+          "secondaryMuscles": ["Biceps", "Rear Delts", "Core"],
+          "movementType": "pull",
+          "modality": "strength",
+          "experienceLevel": "intermediate",
+          "tags": ["Compound", "Bodyweight", "Vertical Pull", "Biceps"],
+          "description": "A bodyweight vertical pull performed with an underhand grip, emphasizing the lats and biceps.",
+          "setup": "Grip a pull-up bar shoulder-width apart with your palms facing you, hang with your arms extended, and brace your core.",
+          "instructions": "Pull yourself up until your chin clears the bar, then lower with control back to a full hang.",
+          "formCues": [
+            "Start from a controlled hang with your shoulders engaged",
+            "Drive your elbows down toward your ribs",
+            "Avoid excessive swinging or kipping",
+            "Lower through the full range of motion under control",
+            "Use an assisted band or machine if needed"
+          ],
+          "repRange": "5-10",
+          "equipment": ["Pull-Up Bar"]
+        }
+      ]
+    },
+    "arms": {
+      "imageName": "arms",
+      "exercises": [
+        {
+          "id": "barbell-biceps-curl",
+          "name": "Barbell Biceps Curl",
+          "imageName": "barbell-biceps-curl",
+          "category": "arms",
+          "primaryMuscles": ["Biceps"],
+          "secondaryMuscles": ["Forearms"],
+          "movementType": "isolation",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Isolation", "Barbell", "Biceps"],
+          "description": "An isolation curl performed with a barbell to train the biceps through elbow flexion.",
+          "setup": "Stand tall with your feet hip-width apart, grip a barbell underhand shoulder-width apart, and let your arms hang with your elbows at your sides.",
+          "instructions": "Curl the bar up toward your shoulders, squeeze your biceps at the top, then lower with control back to the starting position.",
+          "formCues": [
+            "Keep your elbows pinned at your sides throughout",
+            "Do not swing your hips or lean back to lift the weight",
+            "Control the lowering phase; do not drop the bar quickly",
+            "Use a full range of motion without hyperextending at the bottom",
+            "Keep your wrists straight and strong"
+          ],
+          "repRange": "8-12",
+          "equipment": ["Barbell"]
+        },
+        {
+          "id": "dumbbell-hammer-curl",
+          "name": "Dumbbell Hammer Curl",
+          "imageName": "dumbbell-hammer-curl",
+          "category": "arms",
+          "primaryMuscles": ["Biceps"],
+          "secondaryMuscles": ["Brachialis", "Forearms"],
+          "movementType": "isolation",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Isolation", "Dumbbells", "Biceps", "Home Gym Friendly"],
+          "description": "A curl performed with dumbbells in a neutral grip to emphasize the biceps and brachialis.",
+          "setup": "Stand tall holding a dumbbell in each hand with your palms facing your body and your arms at your sides.",
+          "instructions": "Curl both dumbbells up toward your shoulders keeping your palms facing each other, then lower with control.",
+          "formCues": [
+            "Keep your elbows close to your torso",
+            "Do not use momentum from your shoulders or hips",
+            "Maintain a neutral grip throughout the rep",
+            "Lower the dumbbells under control",
+            "Alternate arms if you prefer unilateral focus"
+          ],
+          "repRange": "8-12",
+          "equipment": ["Dumbbells"]
+        },
+        {
+          "id": "cable-triceps-pushdown",
+          "name": "Cable Triceps Pushdown",
+          "imageName": "cable-triceps-pushdown",
+          "category": "arms",
+          "primaryMuscles": ["Triceps"],
+          "secondaryMuscles": ["Forearms"],
+          "movementType": "isolation",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Isolation", "Cable", "Triceps", "Beginner Friendly"],
+          "description": "A cable isolation exercise that extends the elbows to target the triceps by pushing a bar or rope downward.",
+          "setup": "Set a cable pulley to the top position, attach a straight bar or rope, grip it with your elbows bent at your sides, and stand tall.",
+          "instructions": "Push the attachment down until your arms are fully extended, squeeze your triceps, then return with control to the starting position.",
+          "formCues": [
+            "Keep your elbows pinned at your sides",
+            "Do not let your shoulders roll forward",
+            "Extend fully at the bottom without hyperextending your elbows aggressively",
+            "Control the return; do not let the weight pull your arms up abruptly",
+            "Stand with a slight forward lean and braced core"
+          ],
+          "repRange": "10-15",
+          "equipment": ["Cable Machine"]
+        },
+        {
+          "id": "dumbbell-lateral-raise",
+          "name": "Dumbbell Lateral Raise",
+          "imageName": "dumbbell-lateral-raise",
+          "category": "arms",
+          "primaryMuscles": ["Side Delts"],
+          "secondaryMuscles": ["Traps", "Front Delts"],
+          "movementType": "isolation",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Isolation", "Dumbbells", "Shoulders", "Home Gym Friendly"],
+          "description": "An isolation shoulder exercise that raises dumbbells out to the sides to target the lateral deltoids.",
+          "setup": "Stand tall holding a dumbbell in each hand at your sides with a slight bend in your elbows and your chest up.",
+          "instructions": "Raise the dumbbells out to your sides until your arms reach shoulder height, pause briefly, then lower with control.",
+          "formCues": [
+            "Lead with your elbows, not your hands",
+            "Keep a slight bend in your elbows throughout",
+            "Do not shrug the weight up with your traps",
+            "Stop around shoulder height; do not go excessively high",
+            "Use lighter weight and strict form over heavy swinging"
+          ],
+          "repRange": "10-15",
+          "equipment": ["Dumbbells"]
+        },
+        {
+          "id": "dumbbell-shoulder-press",
+          "name": "Dumbbell Shoulder Press",
+          "imageName": "dumbbell-shoulder-press",
+          "category": "arms",
+          "primaryMuscles": ["Shoulders"],
+          "secondaryMuscles": ["Triceps", "Upper Chest", "Core"],
+          "movementType": "push",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Compound", "Dumbbells", "Shoulders", "Home Gym Friendly"],
+          "description": "A pressing exercise that drives dumbbells overhead from shoulder height to train the shoulders and triceps.",
+          "setup": "Sit on a bench with back support or stand tall, hold dumbbells at shoulder height with your palms facing forward or neutral, and brace your core.",
+          "instructions": "Press the dumbbells overhead until your arms are extended, then lower with control back to shoulder height.",
+          "formCues": [
+            "Keep your core braced and avoid excessive lower-back arch",
+            "Press in a smooth path without flaring your elbows too wide",
+            "Lower the dumbbells under control to shoulder level",
+            "Do not bang the weights together at the top",
+            "Keep your wrists stacked over your elbows"
+          ],
+          "repRange": "8-12",
+          "equipment": ["Dumbbells", "Flat Bench"]
+        },
+        {
+          "id": "lying-barbell-triceps-extension",
+          "name": "Lying Barbell Triceps Extension",
+          "imageName": "lying-barbell-triceps-extension",
+          "category": "arms",
+          "primaryMuscles": ["Triceps"],
+          "secondaryMuscles": ["Forearms"],
+          "movementType": "isolation",
+          "modality": "hypertrophy",
+          "experienceLevel": "intermediate",
+          "tags": ["Isolation", "Barbell", "Triceps", "Skull Crusher"],
+          "description": "A lying triceps exercise, often called a skull crusher, that lowers a barbell toward the forehead and extends the elbows to straighten the arms.",
+          "setup": "Lie flat on a bench holding a barbell with a narrow overhand grip, arms extended above your chest, and your feet planted on the floor.",
+          "instructions": "Lower the bar toward your forehead by bending your elbows, keep your upper arms still, then extend your elbows to press the bar back up.",
+          "formCues": [
+            "Keep your upper arms vertical and fixed throughout",
+            "Lower with control; do not drop the bar toward your face",
+            "Extend fully at the top without locking out aggressively",
+            "Keep your wrists straight and elbows from flaring too wide",
+            "Use a manageable weight to protect your elbows"
+          ],
+          "repRange": "8-12",
+          "equipment": ["Barbell", "Flat Bench"]
+        },
+        {
+          "id": "dumbbell-concentration-curl",
+          "name": "Dumbbell Concentration Curl",
+          "imageName": "dumbbell-concentration-curl",
+          "category": "arms",
+          "primaryMuscles": ["Biceps"],
+          "secondaryMuscles": ["Forearms"],
+          "movementType": "isolation",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Isolation", "Dumbbells", "Biceps", "Unilateral"],
+          "description": "A strict single-arm curl performed seated with your elbow braced against your inner thigh to isolate the biceps.",
+          "setup": "Sit on a bench with your legs spread, hold a dumbbell in one hand, and brace the back of your upper arm against the inside of your thigh.",
+          "instructions": "Curl the dumbbell up toward your shoulder, squeeze your biceps at the top, then lower with control to full extension.",
+          "formCues": [
+            "Keep your upper arm pinned against your thigh",
+            "Do not swing your torso to lift the weight",
+            "Use a full controlled range of motion",
+            "Squeeze hard at the top of each rep",
+            "Complete all reps on one arm before switching"
+          ],
+          "repRange": "10-12",
+          "equipment": ["Dumbbells", "Flat Bench"]
+        },
+        {
+          "id": "overhead-dumbbell-triceps-extension",
+          "name": "Overhead Dumbbell Triceps Extension",
+          "imageName": "overhead-dumbbell-triceps-extension",
+          "category": "arms",
+          "primaryMuscles": ["Triceps"],
+          "secondaryMuscles": ["Forearms", "Core"],
+          "movementType": "isolation",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Isolation", "Dumbbells", "Triceps", "Home Gym Friendly"],
+          "description": "A triceps exercise performed by lowering a dumbbell behind the head with both hands and extending the elbows overhead.",
+          "setup": "Stand or sit tall holding one dumbbell with both hands overhead, arms extended, and your core braced.",
+          "instructions": "Lower the dumbbell behind your head by bending your elbows, then extend your arms to press the weight back overhead.",
+          "formCues": [
+            "Keep your upper arms close to your head and mostly still",
+            "Do not arch your lower back excessively as you press",
+            "Lower under control behind your head",
+            "Extend fully at the top without hyperextending your elbows",
+            "Use a weight you can control through the full range"
+          ],
+          "repRange": "10-12",
+          "equipment": ["Dumbbells"]
+        },
+        {
+          "id": "barbell-overhead-press",
+          "name": "Barbell Overhead Press",
+          "imageName": "barbell-overhead-press",
+          "category": "arms",
+          "primaryMuscles": ["Shoulders"],
+          "secondaryMuscles": ["Triceps", "Upper Chest", "Core"],
+          "movementType": "push",
+          "modality": "strength",
+          "experienceLevel": "intermediate",
+          "tags": ["Compound", "Barbell", "Shoulders", "Standing Press"],
+          "description": "A standing barbell press that drives the bar overhead from shoulder height to build shoulder and triceps strength.",
+          "setup": "Stand with your feet hip-width apart, grip the barbell just outside shoulder-width at collarbone height, and brace your core and glutes.",
+          "instructions": "Press the bar straight overhead until your arms are extended, then lower with control back to the starting position.",
+          "formCues": [
+            "Keep your core and glutes tight to avoid excessive back arch",
+            "Press the bar in a straight path close to your face",
+            "Tuck your chin slightly as the bar passes your head",
+            "Do not lean back excessively to finish the rep",
+            "Lock out with your biceps near your ears at the top"
+          ],
+          "repRange": "6-10",
+          "equipment": ["Barbell"]
+        },
+        {
+          "id": "dumbbell-front-raise",
+          "name": "Dumbbell Front Raise",
+          "imageName": "dumbbell-front-raise",
+          "category": "arms",
+          "primaryMuscles": ["Front Delts"],
+          "secondaryMuscles": ["Side Delts", "Upper Chest"],
+          "movementType": "isolation",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Isolation", "Dumbbells", "Shoulders", "Home Gym Friendly"],
+          "description": "An isolation shoulder exercise that raises dumbbells in front of the body to target the front deltoids.",
+          "setup": "Stand tall holding a dumbbell in each hand in front of your thighs with a slight bend in your elbows.",
+          "instructions": "Raise the dumbbells forward until your arms reach shoulder height, pause briefly, then lower with control.",
+          "formCues": [
+            "Keep a slight bend in your elbows throughout",
+            "Raise to shoulder height, not above your head",
+            "Do not swing your hips or use momentum",
+            "Lower the dumbbells under control",
+            "Use lighter weight and focus on front shoulder engagement"
+          ],
+          "repRange": "10-15",
+          "equipment": ["Dumbbells"]
+        }
+      ]
+    },
+    "legs": {
+      "imageName": "legs",
+      "exercises": [
+        {
+          "id": "barbell-back-squat",
+          "name": "Barbell Back Squat",
+          "imageName": "barbell-back-squat",
+          "category": "legs",
+          "primaryMuscles": ["Quads"],
+          "secondaryMuscles": ["Glutes", "Hamstrings", "Core"],
+          "movementType": "squat",
+          "modality": "strength",
+          "experienceLevel": "intermediate",
+          "tags": ["Compound", "Barbell", "Squat Rack"],
+          "description": "A compound lower-body exercise performed with a barbell across your upper back, bending at the knees and hips to squat down and stand back up.",
+          "setup": "Set the bar in a squat rack at upper-chest height, step under the bar with it resting across your upper traps or rear delts, grip the bar, and unrack by standing up with your feet shoulder-width apart.",
+          "instructions": "Break at the hips and knees to squat down until your thighs are at least parallel to the floor, then drive through your feet to stand back up.",
+          "formCues": [
+            "Keep your chest up and your core braced throughout",
+            "Track your knees over your toes; do not let them collapse inward",
+            "Keep your heels planted and your whole foot in contact with the floor",
+            "Control the descent; do not drop into the bottom position",
+            "Use safety bars or a spotter when lifting heavy"
+          ],
+          "repRange": "6-10",
+          "equipment": ["Barbell", "Squat Rack"]
+        },
+        {
+          "id": "barbell-front-squat",
+          "name": "Barbell Front Squat",
+          "imageName": "barbell-front-squat",
+          "category": "legs",
+          "primaryMuscles": ["Quads"],
+          "secondaryMuscles": ["Glutes", "Core", "Upper Back"],
+          "movementType": "squat",
+          "modality": "strength",
+          "experienceLevel": "intermediate",
+          "tags": ["Compound", "Barbell", "Squat Rack", "Upright Torso"],
+          "description": "A compound squat variation with the barbell racked across the front of the shoulders, emphasizing the quads with a more upright torso.",
+          "setup": "Set the bar in a squat rack at chest height, rack it across your front delts with elbows high, unrack, and stand with your feet shoulder-width apart.",
+          "instructions": "Break at the hips and knees to squat down while keeping your torso upright, then drive through your feet to stand back up.",
+          "formCues": [
+            "Keep your elbows high so the bar stays secure on your shoulders",
+            "Stay upright; do not let your chest collapse forward",
+            "Track your knees over your toes",
+            "Keep your heels planted throughout the rep",
+            "Use clean grip or cross-arm grip based on wrist mobility"
+          ],
+          "repRange": "6-10",
+          "equipment": ["Barbell", "Squat Rack"]
+        },
+        {
+          "id": "barbell-romanian-deadlift",
+          "name": "Barbell Romanian Deadlift",
+          "imageName": "barbell-romanian-deadlift",
+          "category": "legs",
+          "primaryMuscles": ["Hamstrings"],
+          "secondaryMuscles": ["Glutes", "Lower Back", "Core"],
+          "movementType": "hinge",
+          "modality": "hypertrophy",
+          "experienceLevel": "intermediate",
+          "tags": ["Compound", "Barbell", "Posterior Chain"],
+          "description": "A hip-hinge exercise that lowers a barbell along the legs with a slight knee bend to target the hamstrings and glutes.",
+          "setup": "Stand with your feet hip-width apart, hold a barbell at hip height with an overhand grip, and brace your core.",
+          "instructions": "Push your hips back and lower the bar along your thighs until you feel a stretch in your hamstrings, then drive your hips forward to stand tall.",
+          "formCues": [
+            "Keep the bar close to your legs throughout the movement",
+            "Maintain a flat back; do not round your spine",
+            "Bend mostly at the hips with only a slight knee bend",
+            "Stop when you feel a strong hamstring stretch, not when your back rounds",
+            "Squeeze your glutes at the top without leaning back excessively"
+          ],
+          "repRange": "8-12",
+          "equipment": ["Barbell"]
+        },
+        {
+          "id": "leg-press",
+          "name": "Leg Press",
+          "imageName": "leg-press",
+          "category": "legs",
+          "primaryMuscles": ["Quads"],
+          "secondaryMuscles": ["Glutes", "Hamstrings"],
+          "movementType": "squat",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Compound", "Machine", "Beginner Friendly"],
+          "description": "A machine-based leg exercise where you press a weighted platform away using your legs while seated or angled in the leg press.",
+          "setup": "Sit in the leg press machine with your back flat against the pad, feet shoulder-width on the platform, and release the safety handles.",
+          "instructions": "Lower the platform by bending your knees until they reach about 90 degrees, then press through your feet to extend your legs without locking out aggressively.",
+          "formCues": [
+            "Keep your lower back in contact with the pad; do not let it round off at the bottom",
+            "Do not lock your knees out hard at the top",
+            "Place your feet so your knees track over your toes",
+            "Control the weight on the way down; do not bounce at the bottom",
+            "Use a full but pain-free range of motion"
+          ],
+          "repRange": "8-12",
+          "equipment": ["Leg Press Machine"]
+        }
+      ]
+    },
+    "core": {
+      "imageName": "core",
+      "exercises": [
+        {
+          "id": "plank",
+          "name": "Plank",
+          "imageName": "plank",
+          "category": "core",
+          "primaryMuscles": ["Abs"],
+          "secondaryMuscles": ["Obliques", "Lower Back", "Shoulders"],
+          "movementType": "core",
+          "modality": "stability",
+          "experienceLevel": "beginner",
+          "tags": ["Isometric", "Bodyweight", "Anti-Extension", "Home Gym Friendly"],
+          "description": "An isometric hold that trains the entire core by maintaining a straight body line from head to heels.",
+          "setup": "Start on the floor on your forearms and toes with your elbows directly under your shoulders and your body in one straight line.",
+          "instructions": "Hold the position while keeping your core braced and hips level, then rest when your form breaks down.",
+          "formCues": [
+            "Keep your hips in line with your shoulders; do not sag or pike",
+            "Brace your abs as if preparing for a light punch",
+            "Keep your neck neutral by looking at the floor slightly ahead of your hands",
+            "Squeeze your glutes to help maintain a flat lower back",
+            "Breathe steadily throughout the hold"
+          ],
+          "repRange": "30-60 sec",
+          "equipment": []
+        },
+        {
+          "id": "dead-bug",
+          "name": "Dead Bug",
+          "imageName": "dead-bug",
+          "category": "core",
+          "primaryMuscles": ["Abs"],
+          "secondaryMuscles": ["Hip Flexors", "Obliques"],
+          "movementType": "core",
+          "modality": "stability",
+          "experienceLevel": "beginner",
+          "tags": ["Bodyweight", "Anti-Extension", "Beginner Friendly", "Home Gym Friendly"],
+          "description": "A floor-based core drill that alternates opposite arm and leg extensions while keeping the lower back pressed to the ground.",
+          "setup": "Lie on your back with your arms extended toward the ceiling, knees bent at 90 degrees, and your lower back flat against the floor.",
+          "instructions": "Slowly extend the opposite arm and leg toward the floor, return to the start, and alternate sides while keeping your core braced.",
+          "formCues": [
+            "Keep your lower back glued to the floor throughout",
+            "Move slowly and with control on each rep",
+            "Do not let your ribs flare as your arm and leg extend",
+            "Exhale as you extend and inhale as you return",
+            "Only extend as far as you can without losing back contact"
+          ],
+          "repRange": "8-12 per side",
+          "equipment": ["Yoga Mat"]
+        },
+        {
+          "id": "crunch",
+          "name": "Crunch",
+          "imageName": "crunch",
+          "category": "core",
+          "primaryMuscles": ["Abs"],
+          "secondaryMuscles": ["Obliques"],
+          "movementType": "core",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Bodyweight", "Flexion", "Beginner Friendly", "Home Gym Friendly"],
+          "description": "A classic abdominal exercise that curls the upper body off the floor to train the rectus abdominis through spinal flexion.",
+          "setup": "Lie on your back with your knees bent, feet flat on the floor, and your hands lightly behind your head or crossed on your chest.",
+          "instructions": "Curl your shoulders off the floor by contracting your abs, pause briefly at the top, then lower with control.",
+          "formCues": [
+            "Lift with your abs, not by pulling on your neck",
+            "Keep your lower back in contact with the floor at the bottom",
+            "Exhale as you crunch up and inhale on the way down",
+            "Use a small range of motion focused on the upper abs",
+            "Do not use momentum from your arms or hips"
+          ],
+          "repRange": "12-20",
+          "equipment": ["Yoga Mat"]
+        },
+        {
+          "id": "bicycle-crunch",
+          "name": "Bicycle Crunch",
+          "imageName": "bicycle-crunch",
+          "category": "core",
+          "primaryMuscles": ["Abs"],
+          "secondaryMuscles": ["Obliques", "Hip Flexors"],
+          "movementType": "core",
+          "modality": "endurance",
+          "experienceLevel": "beginner",
+          "tags": ["Bodyweight", "Rotation", "Home Gym Friendly"],
+          "description": "A dynamic core exercise that alternates elbow-to-knee twists to target the abs and obliques.",
+          "setup": "Lie on your back with your hands lightly behind your head, legs lifted, and knees bent at about 90 degrees.",
+          "instructions": "Bring your right elbow toward your left knee while extending your right leg, then switch sides in a pedaling motion.",
+          "formCues": [
+            "Rotate through your torso, not by pulling on your neck",
+            "Keep your lower back pressed toward the floor",
+            "Move with control rather than rushing through reps",
+            "Fully extend the non-working leg without letting it drop to the floor",
+            "Exhale as you twist and crunch"
+          ],
+          "repRange": "12-20 per side",
+          "equipment": ["Yoga Mat"]
+        },
+        {
+          "id": "side-plank",
+          "name": "Side Plank",
+          "imageName": "side-plank",
+          "category": "core",
+          "primaryMuscles": ["Obliques"],
+          "secondaryMuscles": ["Abs", "Glutes", "Shoulders"],
+          "movementType": "core",
+          "modality": "stability",
+          "experienceLevel": "beginner",
+          "tags": ["Isometric", "Bodyweight", "Anti-Lateral Flexion", "Home Gym Friendly"],
+          "description": "An isometric hold performed on one side to strengthen the obliques and lateral core stabilizers.",
+          "setup": "Lie on your side with your forearm on the floor, elbow under your shoulder, and your legs stacked or staggered.",
+          "instructions": "Lift your hips until your body forms a straight line from head to feet, hold, then lower and switch sides.",
+          "formCues": [
+            "Keep your hips stacked and avoid rotating forward or backward",
+            "Drive through your forearm and bottom foot to stay elevated",
+            "Do not let your hips sag toward the floor",
+            "Keep your top shoulder pulled back and neck neutral",
+            "Breathe steadily throughout the hold"
+          ],
+          "repRange": "20-45 sec per side",
+          "equipment": []
+        },
+        {
+          "id": "hanging-leg-raise",
+          "name": "Hanging Leg Raise",
+          "imageName": "hanging-leg-raise",
+          "category": "core",
+          "primaryMuscles": ["Abs"],
+          "secondaryMuscles": ["Hip Flexors", "Forearms", "Lats"],
+          "movementType": "core",
+          "modality": "hypertrophy",
+          "experienceLevel": "intermediate",
+          "tags": ["Bodyweight", "Flexion", "Pull-Up Bar"],
+          "description": "A hanging core exercise that raises the legs toward the chest to train the lower abs and hip flexors.",
+          "setup": "Hang from a pull-up bar with an overhand grip, arms extended, and your shoulders engaged away from your ears.",
+          "instructions": "Raise your legs by curling your pelvis and lifting your knees or straight legs toward your chest, then lower with control.",
+          "formCues": [
+            "Avoid excessive swinging; use controlled momentum if needed",
+            "Posteriorly tilt your pelvis at the top to engage the lower abs",
+            "Do not shrug your shoulders up toward your ears",
+            "Lower your legs slowly without arching your lower back excessively",
+            "Bend your knees to make the movement easier if needed"
+          ],
+          "repRange": "8-12",
+          "equipment": ["Pull-Up Bar"]
+        },
+        {
+          "id": "cable-crunch",
+          "name": "Cable Crunch",
+          "imageName": "cable-crunch",
+          "category": "core",
+          "primaryMuscles": ["Abs"],
+          "secondaryMuscles": ["Obliques"],
+          "movementType": "core",
+          "modality": "hypertrophy",
+          "experienceLevel": "beginner",
+          "tags": ["Cable", "Flexion", "Weighted Core"],
+          "description": "A kneeling cable exercise that uses spinal flexion and added resistance to overload the abdominal muscles.",
+          "setup": "Attach a rope to a high cable pulley, kneel facing the machine, and hold the rope beside your head with your hips stacked over your knees.",
+          "instructions": "Crunch down by rounding your spine and bringing your elbows toward your thighs, then return with control to the starting position.",
+          "formCues": [
+            "Move by flexing your spine, not by sitting your hips back",
+            "Keep your hips fixed throughout the rep",
+            "Exhale hard as you crunch down",
+            "Use a full controlled range without bouncing at the bottom",
+            "Choose a weight that allows strict form"
+          ],
+          "repRange": "10-15",
+          "equipment": ["Cable Machine"]
+        },
+        {
+          "id": "cable-pallof-press",
+          "name": "Cable Pallof Press",
+          "imageName": "cable-pallof-press",
+          "category": "core",
+          "primaryMuscles": ["Obliques"],
+          "secondaryMuscles": ["Abs", "Glutes", "Shoulders"],
+          "movementType": "core",
+          "modality": "stability",
+          "experienceLevel": "beginner",
+          "tags": ["Cable", "Anti-Rotation", "Functional Core"],
+          "description": "An anti-rotation core exercise that resists cable pull force while pressing the handle straight out from the chest.",
+          "setup": "Set a cable pulley at chest height, stand sideways to the machine, and hold the handle at your chest with both hands.",
+          "instructions": "Press the handle straight out in front of your chest, hold briefly against the rotational pull, then return to your chest with control.",
+          "formCues": [
+            "Keep your hips and shoulders square to the front",
+            "Do not let the cable rotate your torso",
+            "Brace your core and squeeze your glutes",
+            "Press in a straight line from your sternum",
+            "Complete all reps on one side before switching"
+          ],
+          "repRange": "10-12 per side",
+          "equipment": ["Cable Machine"]
+        },
+        {
+          "id": "russian-twist",
+          "name": "Russian Twist",
+          "imageName": "russian-twist",
+          "category": "core",
+          "primaryMuscles": ["Obliques"],
+          "secondaryMuscles": ["Abs", "Hip Flexors"],
+          "movementType": "rotation",
+          "modality": "endurance",
+          "experienceLevel": "beginner",
+          "tags": ["Rotation", "Dumbbells", "Home Gym Friendly"],
+          "description": "A seated rotational core exercise that twists the torso side to side, optionally holding a dumbbell for added resistance.",
+          "setup": "Sit on the floor with your knees bent, heels lightly on the ground, torso leaned back slightly, and hold a dumbbell at your chest.",
+          "instructions": "Rotate your torso to one side, then the other, keeping your chest up and moving through a controlled range.",
+          "formCues": [
+            "Rotate from your ribcage, not just your arms",
+            "Keep your chest lifted and core braced",
+            "Do not round your lower back excessively",
+            "Move with control rather than whipping side to side",
+            "Keep your feet planted or lift them for a harder variation"
+          ],
+          "repRange": "12-20 per side",
+          "equipment": ["Dumbbells", "Yoga Mat"]
+        },
+        {
+          "id": "mountain-climber",
+          "name": "Mountain Climber",
+          "imageName": "mountain-climber",
+          "category": "core",
+          "primaryMuscles": ["Abs"],
+          "secondaryMuscles": ["Hip Flexors", "Shoulders", "Quads"],
+          "movementType": "core",
+          "modality": "cardio",
+          "experienceLevel": "beginner",
+          "tags": ["Bodyweight", "Dynamic", "Home Gym Friendly", "Conditioning"],
+          "description": "A dynamic plank variation that alternates driving the knees toward the chest for core engagement and conditioning.",
+          "setup": "Start in a high plank with your hands under your shoulders, body in a straight line, and your core braced.",
+          "instructions": "Drive one knee toward your chest, then quickly switch legs in an alternating running motion while keeping your hips low.",
+          "formCues": [
+            "Keep your shoulders stacked over your wrists",
+            "Do not let your hips bounce up and down excessively",
+            "Maintain a braced core throughout",
+            "Land softly on the balls of your feet as you switch",
+            "Start slow and build speed only with good form"
+          ],
+          "repRange": "20-30 sec",
+          "equipment": []
+        }
+      ]
+    }
+  }
+}

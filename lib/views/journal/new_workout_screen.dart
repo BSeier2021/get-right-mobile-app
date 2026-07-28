@@ -21,10 +21,9 @@ class NewWorkoutScreen extends StatelessWidget {
 
   Future<void> _onBuildWorkout() async {
     final result = await Get.toNamed(
-      AppRoutes.exerciseConfiguration,
+      AppRoutes.journalExerciseLibrary,
       arguments: {
         'exerciseType': JournalExerciseType.workout,
-        'isSuperset': false,
         'workoutJournalId': _args['workoutJournalId'],
         'journalWorkoutIds': _args['journalWorkoutIds'],
         'addedExerciseIds': _args['addedExerciseIds'],
