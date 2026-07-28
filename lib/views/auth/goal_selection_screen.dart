@@ -82,7 +82,7 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
                           child: IconButton(
                             icon: Container(
                               padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                               child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
                             ),
                             onPressed: Get.back,
@@ -104,7 +104,7 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
                             onPressed: auth.isLoading ? null : () => _onSkip(auth),
                             child: Text(
                               'Skip',
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 16, fontWeight: FontWeight.w500),
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.6), fontSize: 16, fontWeight: FontWeight.w500),
                             ),
                           ),
                         ),
@@ -129,7 +129,7 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
                                     Text(
                                       auth.goalsError!,
                                       textAlign: TextAlign.center,
-                                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75)),
+                                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.75)),
                                     ),
                                     const SizedBox(height: 16),
                                     TextButton(
@@ -161,7 +161,7 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
                                       Text(
                                         'This helps us\nrecommend the best\nfeatures for you select\nall that apply',
                                         style: AppTextStyles.bodyLarge.copyWith(
-                                          color: AppColors.onBackground.withOpacity(0.8),
+                                          color: AppColors.onBackground.withValues(alpha: 0.8),
                                           fontSize: 15.sp,
                                           fontWeight: FontWeight.w400,
                                           height: 1.35,

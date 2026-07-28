@@ -557,7 +557,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -575,7 +575,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                 color: const Color(0xFFF8FFE9),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFFE8EFE0)),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -616,7 +616,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                     children: [
                       CircleAvatar(
                         radius: 18,
-                        backgroundColor: AppColors.accent.withOpacity(0.2),
+                        backgroundColor: AppColors.accent.withValues(alpha: 0.2),
                         backgroundImage: trainerUrl != null ? NetworkImage(trainerUrl) : null,
                         onBackgroundImageError: trainerUrl != null ? (_, __) {} : null,
                         child: trainerUrl == null
@@ -772,9 +772,9 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.completed.withOpacity(0.1),
+                color: AppColors.completed.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.completed.withOpacity(0.3)),
+                border: Border.all(color: AppColors.completed.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -803,7 +803,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, -2))],
         ),
         child: SafeArea(
           child: ElevatedButton(
@@ -847,15 +847,15 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.accent.withOpacity(0.1) : AppColors.surface,
+          color: isSelected ? AppColors.accent.withValues(alpha: 0.1) : AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? AppColors.accent : AppColors.primaryGray.withOpacity(0.3), width: isSelected ? 2 : 1),
+          border: Border.all(color: isSelected ? AppColors.accent : AppColors.primaryGray.withValues(alpha: 0.3), width: isSelected ? 2 : 1),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: isSelected ? AppColors.accent.withOpacity(0.2) : AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: isSelected ? AppColors.accent.withValues(alpha: 0.2) : AppColors.primaryGray.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
               child: asset != null
                   ? Image.asset(asset, width: 24, height: 24, color: null)
                   : Icon(icon ?? Icons.credit_card, color: isSelected ? AppColors.accent : AppColors.primaryGray, size: 24),

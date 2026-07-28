@@ -127,7 +127,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -242,7 +242,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                     Container(
                       width: 48.w,
                       height: 48.w,
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.9), shape: BoxShape.circle),
                       child: Image.asset('assets/images/playbutton.png', width: 24.w, height: 24.h),
                     ),
                 ],
@@ -281,7 +281,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
             child: LinearProgressIndicator(
               value: difficultyValue,
               minHeight: 8,
-              backgroundColor: AppColors.primaryGray.withOpacity(0.15),
+              backgroundColor: AppColors.primaryGray.withValues(alpha: 0.15),
               valueColor: AlwaysStoppedAnimation<Color>(difficultyColor),
             ),
           ),
@@ -382,7 +382,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     return Container(
       width: double.infinity,
       height: 200.h,
-      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.08), borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(16)),
       child: Center(
         child: showProgress
             ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
@@ -417,7 +417,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFF8FFE9),
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 4))],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -484,7 +484,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         color: _kFormCuesBg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _kFormCuesBorder, width: 1),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -519,7 +519,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         color: const Color(0xFFF8FFE9),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE6F0DA), width: 1),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,

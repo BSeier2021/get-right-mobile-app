@@ -352,7 +352,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       child: Container(
         padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 8, bottom: 12, left: 12, right: 12),
         decoration: BoxDecoration(
-          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [AppColors.black.withOpacity(0.8), AppColors.black.withOpacity(0)]),
+          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [AppColors.black.withValues(alpha: 0.8), AppColors.black.withValues(alpha: 0)]),
         ),
         child: Row(
           children: [
@@ -367,7 +367,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: status == 'Paused' ? AppColors.upcoming.withOpacity(0.9) : AppColors.accent.withOpacity(0.9),
+                      color: status == 'Paused' ? AppColors.upcoming.withValues(alpha: 0.9) : AppColors.accent.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: AppColors.white, width: 2),
                     ),
@@ -427,7 +427,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
                   decoration: BoxDecoration(
                     color: const Color(0xFFF6EAFE),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF7C49E2).withOpacity(0.35)),
+                    border: Border.all(color: const Color(0xFF7C49E2).withValues(alpha: 0.35)),
                   ),
                   child: Row(
                     children: [
@@ -482,14 +482,14 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
   }
 
   Widget _verticalDivider() {
-    return Container(width: 1, height: 22, color: AppColors.primaryGray.withOpacity(0.35));
+    return Container(width: 1, height: 22, color: AppColors.primaryGray.withValues(alpha: 0.35));
   }
 
   Widget _smallRoundButton({required IconData icon, required VoidCallback onTap}) {
     return Container(
       width: 32,
       height: 32,
-      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.2), shape: BoxShape.circle),
+      decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.2), shape: BoxShape.circle),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -587,7 +587,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: color.withOpacity(0.35), blurRadius: 12)],
+        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 12)],
       ),
       child: Material(
         color: Colors.transparent,
@@ -671,9 +671,9 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.surface.withOpacity(0.75),
+        color: AppColors.surface.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 1.5),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.4), width: 1.5),
         boxShadow: [BoxShadow(color: AppColors.lightGrey, blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
@@ -715,7 +715,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, -5))],
+              boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, -5))],
             ),
             child: Column(
               children: [
@@ -724,7 +724,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
                   margin: const EdgeInsets.only(top: 12, bottom: 8),
                   width: 40,
                   height: 4,
-                  decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(2)),
                 ),
 
                 // Content
@@ -882,10 +882,10 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.9),
+            color: color.withValues(alpha: 0.9),
             shape: BoxShape.circle,
             border: Border.all(color: AppColors.white, width: 3),
-            boxShadow: [BoxShadow(color: color.withOpacity(0.5), blurRadius: 15, spreadRadius: 2)],
+            boxShadow: [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 15, spreadRadius: 2)],
           ),
           child: Material(
             color: Colors.transparent,
@@ -902,7 +902,7 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
           style: AppTextStyles.labelMedium.copyWith(
             color: AppColors.white,
             fontWeight: FontWeight.bold,
-            shadows: [Shadow(color: AppColors.black.withOpacity(0.8), blurRadius: 4)],
+            shadows: [Shadow(color: AppColors.black.withValues(alpha: 0.8), blurRadius: 4)],
           ),
         ),
       ],
@@ -988,9 +988,9 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryGray.withOpacity(0.3),
+                  color: AppColors.primaryGray.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.accent.withOpacity(0.5), width: 2),
+                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.5), width: 2),
                 ),
                 child: Icon(Icons.lock_rounded, color: AppColors.accent, size: 48),
               ),
@@ -1028,9 +1028,9 @@ class _ActiveRunScreenState extends State<ActiveRunScreen> with SingleTickerProv
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.2),
+                  color: AppColors.accent.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.accent.withOpacity(0.5), width: 1),
+                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.5), width: 1),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

@@ -22,8 +22,8 @@ class SupersetCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 2),
-        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))],
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 2),
+        boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -31,7 +31,7 @@ class SupersetCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: const BorderRadius.only(topLeft: Radius.circular(14), topRight: Radius.circular(14)),
             ),
             child: Row(
@@ -84,7 +84,7 @@ class SupersetCard extends StatelessWidget {
                 Expanded(
                   child: Container(
                     height: 1,
-                    decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.transparent, AppColors.accent.withOpacity(0.3), Colors.transparent])),
+                    decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.transparent, AppColors.accent.withValues(alpha: 0.3), Colors.transparent])),
                   ),
                 ),
               ],

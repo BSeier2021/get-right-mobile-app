@@ -86,16 +86,16 @@ class _LogMealScreenState extends State<LogMealScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [const Color(0xFFFF9800).withOpacity(0.15), AppColors.surface], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  gradient: LinearGradient(colors: [const Color(0xFFFF9800).withValues(alpha: 0.15), AppColors.surface], begin: Alignment.topLeft, end: Alignment.bottomRight),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFFF9800).withOpacity(0.3)),
+                  border: Border.all(color: const Color(0xFFFF9800).withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
                     Container(
                       width: 60,
                       height: 60,
-                      decoration: BoxDecoration(color: const Color(0xFFFF9800).withOpacity(0.2), shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: const Color(0xFFFF9800).withValues(alpha: 0.2), shape: BoxShape.circle),
                       child: const Icon(Icons.restaurant, color: Color(0xFFFF9800), size: 32),
                     ),
                     const SizedBox(width: 16),
@@ -203,7 +203,7 @@ class _LogMealScreenState extends State<LogMealScreen> {
                   fillColor: AppColors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                    borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                   ),
                 ),
                 validator: (value) {
@@ -234,7 +234,7 @@ class _LogMealScreenState extends State<LogMealScreen> {
                         fillColor: AppColors.surface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                          borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                         ),
                       ),
                     ),
@@ -251,7 +251,7 @@ class _LogMealScreenState extends State<LogMealScreen> {
                         fillColor: AppColors.surface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                          borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                         ),
                       ),
                     ),
@@ -272,7 +272,7 @@ class _LogMealScreenState extends State<LogMealScreen> {
                         fillColor: AppColors.surface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                          borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                         ),
                       ),
                     ),
@@ -289,7 +289,7 @@ class _LogMealScreenState extends State<LogMealScreen> {
                         fillColor: AppColors.surface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                          borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                         ),
                       ),
                     ),
@@ -313,7 +313,7 @@ class _LogMealScreenState extends State<LogMealScreen> {
                   fillColor: AppColors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                    borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                   ),
                 ),
               ),
@@ -328,7 +328,7 @@ class _LogMealScreenState extends State<LogMealScreen> {
                     backgroundColor: const Color(0xFFFF9800),
                     foregroundColor: AppColors.onAccent,
                     elevation: 4,
-                    shadowColor: const Color(0xFFFF9800).withOpacity(0.5),
+                    shadowColor: const Color(0xFFFF9800).withValues(alpha: 0.5),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   child: Row(
@@ -357,7 +357,7 @@ class _LogMealScreenState extends State<LogMealScreen> {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
+          border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

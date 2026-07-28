@@ -360,7 +360,7 @@ class _AppDrawerState extends State<AppDrawer> {
     return Container(
       width: 70.w,
       height: 70.w,
-      color: AppColors.primaryGrayLight.withOpacity(0.35),
+      color: AppColors.primaryGrayLight.withValues(alpha: 0.35),
       alignment: Alignment.center,
       child: SizedBox(
         width: 22.w,

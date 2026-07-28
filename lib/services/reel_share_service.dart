@@ -116,7 +116,7 @@ class ReelShareService {
                 Container(
                   width: 40,
                   height: 4,
-                  decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
                 ),
                 const SizedBox(height: 16),
                 Text('Share Reel', style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold)),
@@ -169,9 +169,9 @@ class ReelShareService {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.12),
+              color: AppColors.accent.withValues(alpha: 0.12),
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.accent.withOpacity(0.25)),
+              border: Border.all(color: AppColors.accent.withValues(alpha: 0.25)),
             ),
             child: Icon(icon, color: AppColors.accent, size: 26),
           ),

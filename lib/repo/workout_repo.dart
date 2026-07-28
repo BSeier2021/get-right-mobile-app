@@ -235,7 +235,6 @@ class WorkoutRepository {
     final duration = (entry['duration'] as num?)?.toInt();
     final caloriesRaw = entry['caloriesBurned'];
     final caloriesBurned = caloriesRaw is num ? caloriesRaw.round() : int.tryParse(caloriesRaw?.toString() ?? '');
-    final journalType = entry['type']?.toString();
     final notes = entry['notes']?.toString().trim();
     final journalStatus = entry['status']?.toString();
     final isComplete = entry['isComplete'] == true || WorkoutJournalModel.isCompletedStatus(journalStatus);
@@ -246,24 +245,14 @@ class WorkoutRepository {
           date;
     }
 
-    final warmupExercises = <WorkoutExerciseModel>[];
     final workoutExercises = <WorkoutExerciseModel>[];
     final workoutItems = entry['workout'];
     if (workoutItems is List) {
       for (final item in workoutItems) {
         if (item is! Map) continue;
         final map = Map<String, dynamic>.from(item);
-        final itemType = _workoutItemTypeFromMap(map);
-        final exercise = workoutExerciseFromApi(map, exerciseType: itemType);
-        if (itemType?.isWarmup == true) {
-          warmupExercises.add(exercise);
-        } else if (itemType == JournalExerciseType.workout) {
-          workoutExercises.add(exercise);
-        } else if (JournalExerciseType.fromApi(journalType)?.isWarmup == true) {
-          warmupExercises.add(exercise);
-        } else {
-          workoutExercises.add(exercise);
-        }
+        final exercise = workoutExerciseFromApi(map, exerciseType: JournalExerciseType.workout);
+        workoutExercises.add(exercise.copyWith(exerciseType: JournalExerciseType.workout));
       }
     }
 
@@ -271,7 +260,7 @@ class WorkoutRepository {
       id: id,
       userId: entry['customer']?.toString() ?? '',
       date: date,
-      warmupExercises: warmupExercises,
+      warmupExercises: const [],
       workoutExercises: workoutExercises,
       createdAt: createdAt,
       updatedAt: updatedAt,
@@ -535,17 +524,15 @@ class WorkoutRepository {
   static WorkoutJournalModel _mergeJournalEntries(List<WorkoutJournalModel> entries) {
     final sorted = List<WorkoutJournalModel>.from(entries)..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-    final warmupExercises = <WorkoutExerciseModel>[];
     final workoutExercises = <WorkoutExerciseModel>[];
     final seenExerciseIds = <String>{};
     var totalDuration = 0;
 
     for (final entry in sorted) {
-      for (final ex in entry.warmupExercises) {
-        if (seenExerciseIds.add(ex.id)) warmupExercises.add(ex);
-      }
-      for (final ex in entry.workoutExercises) {
-        if (seenExerciseIds.add(ex.id)) workoutExercises.add(ex);
+      for (final ex in entry.allExercises) {
+        if (seenExerciseIds.add(ex.id)) {
+          workoutExercises.add(ex.copyWith(exerciseType: JournalExerciseType.workout));
+        }
       }
       totalDuration += entry.durationSeconds ?? 0;
     }
@@ -559,7 +546,7 @@ class WorkoutRepository {
       id: earliest.id,
       userId: earliest.userId,
       date: earliest.date,
-      warmupExercises: warmupExercises,
+      warmupExercises: const [],
       workoutExercises: workoutExercises,
       createdAt: earliest.createdAt,
       updatedAt: latest.updatedAt,

@@ -150,7 +150,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                   child: Container(
                     width: 40,
                     height: 4,
-                    decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.35), borderRadius: BorderRadius.circular(2)),
+                    decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(2)),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -209,14 +209,14 @@ class _AddDateScreenState extends State<AddDateScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFFF8FFE9),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.accent.withOpacity(0.35)),
+            border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
           ),
           child: Row(
             children: [
               Container(
                 width: 42,
                 height: 42,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), shape: BoxShape.circle),
                 child: Icon(icon, color: AppColors.accent, size: 22),
               ),
               const SizedBox(width: 12),
@@ -283,7 +283,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                   child: Container(
                     width: 40,
                     height: 4,
-                    decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.35), borderRadius: BorderRadius.circular(2)),
+                    decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(2)),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -325,7 +325,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.accent,
-                      side: BorderSide(color: AppColors.accent.withOpacity(0.5)),
+                      side: BorderSide(color: AppColors.accent.withValues(alpha: 0.5)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -358,14 +358,14 @@ class _AddDateScreenState extends State<AddDateScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFFF8FFE9),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.accent.withOpacity(0.35)),
+            border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
           ),
           child: Row(
             children: [
               Container(
                 width: 42,
                 height: 42,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), shape: BoxShape.circle),
                 child: Icon(icon, color: AppColors.accent, size: 22),
               ),
               const SizedBox(width: 12),
@@ -484,7 +484,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: _isSaving ? null : () => Get.back(),
@@ -514,7 +514,7 @@ class _AddDateScreenState extends State<AddDateScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFDCEBFA),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFF4A90E2).withOpacity(0.35)),
+                        border: Border.all(color: const Color(0xFF4A90E2).withValues(alpha: 0.35)),
                       ),
                       child: Row(
                         children: [
@@ -638,8 +638,8 @@ class _AddDateScreenState extends State<AddDateScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFFF8FFE9),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.primaryGray.withOpacity(0.25)),
-            boxShadow: [BoxShadow(color: AppColors.blackOverlay.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+            border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.25)),
+            boxShadow: [BoxShadow(color: AppColors.blackOverlay.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
           ),
           child: Row(
             children: [

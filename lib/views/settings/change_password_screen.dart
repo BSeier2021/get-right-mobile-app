@@ -119,7 +119,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
           onTap: () => Get.back(),
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
@@ -220,9 +220,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: AppColors.accent.withOpacity(0.07),
+        color: AppColors.accent.withValues(alpha: 0.07),
         border: Border.all(
-          color: AppColors.primaryGray.withOpacity(0.12),
+          color: AppColors.primaryGray.withValues(alpha: 0.12),
           width: 1,
         ),
       ),
@@ -256,7 +256,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
                     width: 6,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryGray.withOpacity(0.5),
+                      color: AppColors.primaryGray.withValues(alpha: 0.5),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -265,7 +265,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
                     child: Text(
                       hint,
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.onBackground.withOpacity(0.7),
+                        color: AppColors.onBackground.withValues(alpha: 0.7),
                       ),
                     ),
                   ),

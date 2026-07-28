@@ -52,7 +52,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -145,8 +145,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             Container(
               width: 120,
               height: 120,
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), shape: BoxShape.circle),
-              child: Center(child: Icon(Icons.notifications_none_rounded, size: 60, color: AppColors.accent.withOpacity(0.6))),
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
+              child: Center(child: Icon(Icons.notifications_none_rounded, size: 60, color: AppColors.accent.withValues(alpha: 0.6))),
             ),
             const SizedBox(height: 32),
             Text('All Caught Up!', style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold)),
@@ -167,8 +167,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [AppColors.accent.withOpacity(0.12), AppColors.accent.withOpacity(0.04)], begin: Alignment.centerLeft, end: Alignment.centerRight),
-        border: Border(bottom: BorderSide(color: AppColors.accent.withOpacity(0.15), width: 0.5)),
+        gradient: LinearGradient(colors: [AppColors.accent.withValues(alpha: 0.12), AppColors.accent.withValues(alpha: 0.04)], begin: Alignment.centerLeft, end: Alignment.centerRight),
+        border: Border(bottom: BorderSide(color: AppColors.accent.withValues(alpha: 0.15), width: 0.5)),
       ),
       child: Text(
         '$unreadCount unread notification${unreadCount > 1 ? 's' : ''}',
@@ -202,7 +202,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             padding: EdgeInsets.all(12.w),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isRead ? AppColors.primaryGray.withOpacity(0.2) : AppColors.accent.withOpacity(0.35)),
+              border: Border.all(color: isRead ? AppColors.primaryGray.withValues(alpha: 0.2) : AppColors.accent.withValues(alpha: 0.35)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,7 +218,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.15),
+                      color: color.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(notification.icon, color: color, size: 22),

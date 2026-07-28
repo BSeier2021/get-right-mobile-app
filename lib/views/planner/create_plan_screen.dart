@@ -265,7 +265,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                                  decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
                                   child: const Icon(Icons.calendar_today, color: AppColors.accent, size: 20),
                                 ),
                                 const SizedBox(width: 12),
@@ -307,7 +307,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                                  decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
                                   child: const Icon(Icons.event, color: AppColors.accent, size: 20),
                                 ),
                                 const SizedBox(width: 12),
@@ -363,7 +363,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.fitness_center_outlined, size: 60, color: AppColors.primaryGray.withOpacity(0.5)),
+                      Icon(Icons.fitness_center_outlined, size: 60, color: AppColors.primaryGray.withValues(alpha: 0.5)),
                       const SizedBox(height: 16),
                       Text('No workouts added yet', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray)),
                       const SizedBox(height: 8),
@@ -408,7 +408,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
       children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
           child: Icon(icon, color: AppColors.accent, size: 20),
         ),
         const SizedBox(width: 12),

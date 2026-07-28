@@ -151,36 +151,16 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   bool get _isWorkoutCompleted =>
       _workout?.isCompleted == true || _journalEntries.any((entry) => entry.isCompleted);
 
-  WorkoutJournalModel _applyStoredExerciseSections(WorkoutJournalModel fromApi) {
-    final warmup = <WorkoutExerciseModel>[];
-    final workout = <WorkoutExerciseModel>[];
+  WorkoutJournalModel _normalizeJournalExercises(WorkoutJournalModel fromApi) {
     final seen = <String>{};
-    var sectionsChanged = false;
+    final unified = <WorkoutExerciseModel>[];
 
     for (final ex in fromApi.allExercises) {
       if (!seen.add(ex.id)) continue;
-
-      final type = ex.exerciseType ?? _exerciseSectionById[ex.id] ?? JournalExerciseType.workout;
-      if (ex.exerciseType != null && WorkoutRepository.isValidMongoId(ex.id)) {
-        if (_exerciseSectionById[ex.id] != ex.exerciseType) {
-          _exerciseSectionById[ex.id] = ex.exerciseType!;
-          sectionsChanged = true;
-        }
-      }
-
-      final typed = ex.exerciseType == null ? ex.copyWith(exerciseType: type) : ex;
-      if (type.isWarmup) {
-        warmup.add(typed);
-      } else {
-        workout.add(typed);
-      }
+      unified.add(ex.copyWith(exerciseType: JournalExerciseType.workout));
     }
 
-    if (sectionsChanged) {
-      unawaited(_persistExerciseSections());
-    }
-
-    return fromApi.copyWith(warmupExercises: warmup, workoutExercises: workout);
+    return fromApi.copyWith(warmupExercises: const [], workoutExercises: unified);
   }
 
   Future<void> _refreshWorkoutJournalFromApi({bool showLoading = false}) async {
@@ -244,7 +224,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
             (WorkoutRepository.isValidMongoId(preferredId) ? preferredId : null) ??
             _workoutJournalId;
         if (today != null && today.id.isNotEmpty) {
-          _workout = _applyStoredExerciseSections(
+          _workout = _normalizeJournalExercises(
             today.copyWith(
               startedAt: _isStarted && !today.isCompleted ? (previousWorkout?.startedAt ?? today.startedAt) : today.startedAt,
               completedAt: today.completedAt ?? (today.isCompleted ? today.updatedAt : previousWorkout?.completedAt),
@@ -313,15 +293,11 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     }
   }
 
-  Future<void> _deleteExercise(WorkoutExerciseModel ex, bool isWarmup) async {
+  Future<void> _deleteExercise(WorkoutExerciseModel ex) async {
     final journalId = _workoutJournalByExerciseId[ex.id];
     if (journalId == null || !WorkoutRepository.isValidMongoId(journalId)) {
       setState(() {
-        if (isWarmup) {
-          _workout = _workout!.copyWith(warmupExercises: _workout!.warmupExercises.where((e) => e.id != ex.id).toList());
-        } else {
-          _workout = _workout!.copyWith(workoutExercises: _workout!.workoutExercises.where((e) => e.id != ex.id).toList());
-        }
+        _workout = _workout!.copyWith(workoutExercises: _workout!.workoutExercises.where((e) => e.id != ex.id).toList());
       });
       return;
     }
@@ -334,7 +310,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     await _persistJournalEntry(journalId: journalId, workoutIds: remainingIds);
   }
 
-  Future<void> _reorderExercises(List<WorkoutExerciseModel> reordered, bool isWarmup) async {
+  Future<void> _reorderExercises(List<WorkoutExerciseModel> reordered) async {
     final idsByJournal = <String, List<String>>{};
     for (final ex in reordered) {
       final journalId = _workoutJournalByExerciseId[ex.id];
@@ -344,11 +320,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     if (idsByJournal.isEmpty) {
       setState(() {
-        if (isWarmup) {
-          _workout = _workout!.copyWith(warmupExercises: reordered);
-        } else {
-          _workout = _workout!.copyWith(workoutExercises: reordered);
-        }
+        _workout = _workout!.copyWith(workoutExercises: reordered);
       });
       return;
     }
@@ -379,7 +351,6 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     setState(() {
       if (_workout == null) return;
       _workout = _workout!.copyWith(
-        warmupExercises: _applyExerciseNotes(_workout!.warmupExercises, ex.id, notes),
         workoutExercises: _applyExerciseNotes(_workout!.workoutExercises, ex.id, notes),
       );
     });
@@ -511,7 +482,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
   String _getWorkoutName() {
     if (_workout == null) return 'Workout';
-    final exerciseCount = _workout!.warmupExercises.length + _workout!.workoutExercises.length;
+    final exerciseCount = _workout!.workoutExercises.length;
     return '$exerciseCount Exercise${exerciseCount != 1 ? 's' : ''}';
   }
 
@@ -566,7 +537,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     return _workout!.allExercises.map((e) => e.exerciseId).where((id) => id.isNotEmpty).toSet().toList();
   }
 
-  Future<void> _openAddExerciseFlow(JournalExerciseType exerciseType) async {
+  Future<void> _openAddExerciseFlow() async {
     try {
       await _ensureWorkoutJournalId();
     } catch (e) {
@@ -578,8 +549,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     await Get.toNamed(
       AppRoutes.exerciseConfiguration,
       arguments: {
-        'exerciseType': exerciseType,
-        'isWarmup': exerciseType.isWarmup,
+        'exerciseType': JournalExerciseType.workout,
         'workoutJournalId': _workoutJournalId,
         'journalWorkoutIds': _currentJournalWorkoutIds(),
         'addedExerciseIds': _currentAddedLibraryExerciseIds(),
@@ -592,20 +562,13 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         _workoutJournalId = returnedJournalId;
         await _linkJournalToPlannerCalendar(returnedJournalId!);
       }
-      final type = r['exerciseType'] is JournalExerciseType
-          ? r['exerciseType'] as JournalExerciseType
-          : JournalExerciseType.fromIsWarmup(r['isWarmup'] == true);
       final exercises = (r['exercises'] as List).whereType<WorkoutExerciseModel>();
-      await _rememberExerciseSections(exercises, type);
+      await _rememberExerciseSections(exercises, JournalExerciseType.workout);
       await _refreshWorkoutJournalFromApi();
     });
   }
 
-  void _onAddWarmup() => _openAddExerciseFlow(JournalExerciseType.warmup);
-
-  void _onAddWorkout() => _openAddExerciseFlow(JournalExerciseType.workout);
-
-  Future<void> _openSupersetPartnerFlow(WorkoutExerciseModel existing, bool isWarmup) async {
+  Future<void> _openSupersetPartnerFlow(WorkoutExerciseModel existing) async {
     if (_isWorkoutCompleted) {
       Get.snackbar('Workout completed', 'You cannot add exercises to a completed workout.', snackPosition: SnackPosition.BOTTOM);
       return;
@@ -623,12 +586,10 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       return;
     }
 
-    final exerciseType = existing.exerciseType ?? JournalExerciseType.fromIsWarmup(isWarmup);
     await Get.toNamed(
       AppRoutes.exerciseConfiguration,
       arguments: {
-        'exerciseType': exerciseType,
-        'isWarmup': exerciseType.isWarmup,
+        'exerciseType': JournalExerciseType.workout,
         'workoutJournalId': _workoutJournalId,
         'journalWorkoutIds': _currentJournalWorkoutIds(),
         'addedExerciseIds': _currentAddedLibraryExerciseIds(),
@@ -643,7 +604,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
         await _linkJournalToPlannerCalendar(returnedJournalId!);
       }
       final exercises = (r['exercises'] as List).whereType<WorkoutExerciseModel>();
-      await _rememberExerciseSections(exercises, exerciseType);
+      await _rememberExerciseSections(exercises, JournalExerciseType.workout);
       await _refreshWorkoutJournalFromApi();
     });
   }
@@ -654,7 +615,6 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     final TextEditingController setsController = TextEditingController(text: '3');
     final TextEditingController repsController = TextEditingController(text: '10');
     final TextEditingController timeController = TextEditingController(text: '60');
-    bool isWarmup = false;
 
     Get.dialog(
       Dialog(
@@ -691,13 +651,6 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         prefixIcon: const Icon(Icons.fitness_center, color: AppColors.accent),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Checkbox(value: isWarmup, onChanged: (v) => setDialogState(() => isWarmup = v ?? false), activeColor: AppColors.accent),
-                        Text('Add as Warmup', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
-                      ],
                     ),
                     const SizedBox(height: 16),
                     if (isTimer) ...[
@@ -806,11 +759,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                               );
 
                               setState(() {
-                                if (isWarmup) {
-                                  _workout = _workout!.copyWith(warmupExercises: [..._workout!.warmupExercises, exercise]);
-                                } else {
-                                  _workout = _workout!.copyWith(workoutExercises: [..._workout!.workoutExercises, exercise]);
-                                }
+                                _workout = _workout!.copyWith(workoutExercises: [..._workout!.workoutExercises, exercise]);
                               });
 
                               nameController.dispose();
@@ -1002,90 +951,43 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     );
   }
 
-  void _showAddExerciseDialog() {
+  Future<void> _openNewWorkoutScreen() async {
     if (_isWorkoutCompleted) {
       Get.snackbar('Workout completed', 'You cannot add more exercises to a completed workout.', snackPosition: SnackPosition.BOTTOM);
       return;
     }
-    Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Add Exercise',
-                style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold, fontSize: 20),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Would you like to add this exercise to warmup or workout?',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 52.h,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Get.back();
-                          _onAddWarmup();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(0, 0, 0, 0),
-                          foregroundColor: const Color(0xFF777777),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(50),
-                            side: const BorderSide(
-                              color: Color(0xFF777777), // Added border color
-                              width: 1.2,
-                            ),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'Warmup',
-                          style: AppTextStyles.buttonMedium.copyWith(color: Color(0xFF777777), fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: SizedBox(
-                      height: 52.h,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Get.back();
-                          _onAddWorkout();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accent,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'Workout',
-                          style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold).copyWith(fontSize: 13.sp),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: true,
-    );
+
+    try {
+      await _ensureWorkoutJournalId();
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+      return;
+    }
+
+    await Get.toNamed(
+      AppRoutes.newWorkout,
+      arguments: {
+        'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _currentJournalWorkoutIds(),
+        'addedExerciseIds': _currentAddedLibraryExerciseIds(),
+        'journalDay': _journalDay,
+      },
+    )?.then((r) async {
+      if (r is! Map || r['exercises'] == null) return;
+      final returnedJournalId = r['workoutJournalId']?.toString();
+      if (WorkoutRepository.isValidMongoId(returnedJournalId)) {
+        _workoutJournalId = returnedJournalId;
+        await _linkJournalToPlannerCalendar(returnedJournalId!);
+      }
+      final exercises = (r['exercises'] as List).whereType<WorkoutExerciseModel>();
+      await _rememberExerciseSections(exercises, JournalExerciseType.workout);
+      await _refreshWorkoutJournalFromApi();
+    });
+  }
+
+  void _showAddExerciseDialog() {
+    _openNewWorkoutScreen();
   }
 
   void _shareVia(String method) {
@@ -1117,11 +1019,9 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               children: [
                 if (_isStarted) _buildMetrics(),
 
-                if (_workout!.warmupExercises.isNotEmpty) ...[_buildHeader('Warmup', isWarmup: true), ..._buildExercisesList(_workout!.warmupExercises, true)],
-
                 if (_workout!.workoutExercises.isNotEmpty) ...[
-                  _buildHeader('Workout', isWarmup: false),
-                  ..._buildExercisesList(_workout!.workoutExercises, false),
+                  _buildExerciseSummaryHeader(),
+                  ..._buildExercisesList(_workout!.workoutExercises),
                 ],
 
                 const SizedBox(height: 20),
@@ -1274,19 +1174,13 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     );
   }
 
-  Widget _buildHeader(String title, {bool isWarmup = false}) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-    child: Row(
-      children: [
-        // Icon(icon, color: isWarmup ? Colors.red : AppColors.accent, size: 20),
-        const SizedBox(width: 8),
-        Text(
-          title,
+  Widget _buildExerciseSummaryHeader() => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Text(
+          '${_workout!.workoutExercises.length} ${_workout!.workoutExercises.length == 1 ? 'Exercise' : 'Exercises'}',
           style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
         ),
-      ],
-    ),
-  );
+      );
 
   WorkoutExerciseModel _exerciseWithJournalNotes(WorkoutExerciseModel ex) => ex;
 
@@ -1325,7 +1219,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   }
 
   /// Build exercises list with superset grouping support
-  List<Widget> _buildExercisesList(List<WorkoutExerciseModel> exercises, bool isWarmup) {
+  List<Widget> _buildExercisesList(List<WorkoutExerciseModel> exercises) {
     final List<Widget> widgets = [];
     final Set<String> processedSupersets = {};
 
@@ -1355,8 +1249,8 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               child: SupersetCard(
                 exercise1: ex1,
                 exercise2: ex2,
-                onMenuTap1: () => _showMenu(ex1, isWarmup),
-                onMenuTap2: () => _showMenu(ex2, isWarmup),
+                onMenuTap1: () => _showMenu(ex1),
+                onMenuTap2: () => _showMenu(ex2),
                 onTimerTap1: () {
                   if (ex1.hasTimedSets) {
                     Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': ex1});
@@ -1378,7 +1272,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ExerciseCard(
                 exercise: exercise,
-                onMenuTap: () => _showMenu(exercise, isWarmup),
+                onMenuTap: () => _showMenu(exercise),
                 onTimerTap: () {
                   if (exercise.hasTimedSets) {
                     Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': exercise});
@@ -1395,7 +1289,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ExerciseCard(
               exercise: exercise,
-              onMenuTap: () => _showMenu(exercise, isWarmup),
+              onMenuTap: () => _showMenu(exercise),
               onTimerTap: () {
                 if (exercise.hasTimedSets) {
                   Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': exercise});
@@ -1410,7 +1304,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
     return widgets;
   }
 
-  void _showMenu(WorkoutExerciseModel ex, bool isWarmup) {
+  void _showMenu(WorkoutExerciseModel ex) {
     Get.bottomSheet(
       Container(
         decoration: const BoxDecoration(
@@ -1433,7 +1327,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                   Get.back();
                   Get.toNamed(
                     AppRoutes.exerciseConfiguration,
-                    arguments: {'isEditing': true, 'existingExercise': ex, 'isWarmup': isWarmup, 'exerciseType': JournalExerciseType.fromIsWarmup(isWarmup)},
+                    arguments: {'isEditing': true, 'existingExercise': ex, 'exerciseType': JournalExerciseType.workout},
                   )?.then((r) async {
                     if (r != null) await _refreshWorkoutJournalFromApi();
                   });
@@ -1451,7 +1345,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                       ? null
                       : () {
                           Get.back();
-                          _openSupersetPartnerFlow(ex, isWarmup);
+                          _openSupersetPartnerFlow(ex);
                         },
                   title: Center(
                     child: Text(
@@ -1486,7 +1380,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                     ? null
                     : () {
                         Get.back();
-                        _deleteExercise(ex, isWarmup);
+                        _deleteExercise(ex);
                       },
                 title: Center(
                   child: Text(
@@ -1502,10 +1396,10 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
                         Get.back();
                         Get.toNamed(
                           AppRoutes.reorderExercises,
-                          arguments: {'exercises': isWarmup ? _workout!.warmupExercises : _workout!.workoutExercises},
+                          arguments: {'exercises': _workout!.workoutExercises},
                         )?.then((r) {
                           if (r != null && r['exercises'] != null) {
-                            _reorderExercises(r['exercises'] as List<WorkoutExerciseModel>, isWarmup);
+                            _reorderExercises(r['exercises'] as List<WorkoutExerciseModel>);
                           }
                         });
                       },

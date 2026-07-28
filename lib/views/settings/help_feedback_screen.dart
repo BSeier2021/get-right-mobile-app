@@ -170,9 +170,9 @@ Platform: $platformLabel
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.accent.withOpacity(0.15), width: 1),
+              border: Border.all(color: AppColors.accent.withValues(alpha: 0.15), width: 1),
             ),
             child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 20),
           ),
@@ -381,7 +381,7 @@ Platform: $platformLabel
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: AppColors.accent.withOpacity(0.6)),
+          borderSide: BorderSide(color: AppColors.accent.withValues(alpha: 0.6)),
         ),
       ),
     );
@@ -433,7 +433,7 @@ Platform: $platformLabel
               color: isExpanded ? const Color(0xFFF3FBE3) : const Color(0xFFF8FFE9),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: isExpanded ? AppColors.accent.withOpacity(0.35) : const Color(0xFFE6F0DA),
+                color: isExpanded ? AppColors.accent.withValues(alpha: 0.35) : const Color(0xFFE6F0DA),
                 width: isExpanded ? 1.2 : 0.8,
               ),
             ),
@@ -446,7 +446,7 @@ Platform: $platformLabel
                       width: 28.w,
                       height: 28.w,
                       decoration: BoxDecoration(
-                        color: AppColors.accent.withOpacity(0.12),
+                        color: AppColors.accent.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(Icons.help_outline_rounded, size: 16.sp, color: AppColors.accent),
@@ -491,9 +491,9 @@ Platform: $platformLabel
       width: double.infinity,
       padding: EdgeInsets.all(18.w),
       decoration: BoxDecoration(
-        color: AppColors.surface.withOpacity(0.55),
+        color: AppColors.surface.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.18)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

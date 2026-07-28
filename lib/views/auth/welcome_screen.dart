@@ -107,7 +107,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                       const SizedBox(height: 16),
 
                       // Log In Button (Outline - Dark Grey)
-                      CustomOutlineButton(text: 'Log In', onPressed: _navigateToSignIn, borderColor: Colors.white.withOpacity(0.3), textColor: Colors.white),
+                      CustomOutlineButton(text: 'Log In', onPressed: _navigateToSignIn, borderColor: Colors.white.withValues(alpha: 0.3), textColor: Colors.white),
                     ],
                   ),
                 ),

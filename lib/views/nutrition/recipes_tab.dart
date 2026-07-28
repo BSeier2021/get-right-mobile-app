@@ -285,7 +285,7 @@ class _RecipesTabState extends State<RecipesTab> {
         width: 280,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Stack(
           children: [
@@ -306,7 +306,7 @@ class _RecipesTabState extends State<RecipesTab> {
               height: 220,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.7)]),
+                gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)]),
               ),
             ),
             if (recipe.categories.isNotEmpty)
@@ -315,7 +315,7 @@ class _RecipesTabState extends State<RecipesTab> {
                 left: 12,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(12)),
                   child: Text(
                     recipe.categories.first.displayName,
                     style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
@@ -375,7 +375,7 @@ class _RecipesTabState extends State<RecipesTab> {
     return Container(
       width: width,
       height: height,
-      color: AppColors.accent.withOpacity(0.3),
+      color: AppColors.accent.withValues(alpha: 0.3),
       child: const Center(child: Icon(Icons.restaurant, size: 60, color: AppColors.accent)),
     );
   }
@@ -387,8 +387,8 @@ class _RecipesTabState extends State<RecipesTab> {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+          border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Row(
           children: [
@@ -412,7 +412,7 @@ class _RecipesTabState extends State<RecipesTab> {
                     left: 6,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.black.withOpacity(0.7), borderRadius: BorderRadius.circular(6)),
+                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(6)),
                       child: Text(
                         recipe.categories.first.displayName,
                         style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
@@ -440,7 +440,7 @@ class _RecipesTabState extends State<RecipesTab> {
                         if (recipe.isPremium)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                            decoration: BoxDecoration(color: Colors.amber.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                            decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
                             child: const Icon(Icons.star, color: Colors.amber, size: 14),
                           ),
                       ],
@@ -521,7 +521,7 @@ class _RecipesTabState extends State<RecipesTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent.withOpacity(0.08) : Colors.transparent,
+          color: selected ? AppColors.accent.withValues(alpha: 0.08) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(

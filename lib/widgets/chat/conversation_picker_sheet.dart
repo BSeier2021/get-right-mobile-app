@@ -120,7 +120,7 @@ class _ConversationPickerSheetState extends State<ConversationPickerSheet> {
           Container(
             width: 40,
             height: 4,
-            decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.4), borderRadius: BorderRadius.circular(2)),
+            decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2)),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
@@ -198,7 +198,7 @@ class _ConversationPickerSheetState extends State<ConversationPickerSheet> {
               decoration: BoxDecoration(
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+                border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [

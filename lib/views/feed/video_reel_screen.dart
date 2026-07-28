@@ -319,7 +319,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
               fit: StackFit.expand,
               children: [
                 _backdropForPost(post),
-                Container(color: Colors.black.withOpacity(0.45)),
+                Container(color: Colors.black.withValues(alpha: 0.45)),
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -366,7 +366,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Colors.black.withOpacity(0.3), Colors.black.withOpacity(0.6)],
+              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.3), Colors.black.withValues(alpha: 0.6)],
               stops: const [0.0, 0.6, 1.0],
             ),
           ),
@@ -383,7 +383,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
                 IconButton(
                   icon: Container(
                     padding: EdgeInsets.all(8.w),
-                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
                     child: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20.sp),
                   ),
                   onPressed: () => Get.back(),
@@ -391,7 +391,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
                 IconButton(
                   icon: Container(
                     padding: EdgeInsets.all(8.w),
-                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
                     child: Icon(Icons.more_vert, color: Colors.white, size: 24.sp),
                   ),
                   onPressed: () => _showPostOptions(post),
@@ -475,7 +475,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 16.sp,
-                        shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+                        shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 6, offset: const Offset(0, 2))],
                       ),
                     ),
                     if (showFeedCreatorVerifiedBadge(post))
@@ -494,7 +494,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: Colors.white,
                   fontSize: 14.sp,
-                  shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+                  shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 6, offset: const Offset(0, 2))],
                 ),
               ),
               SizedBox(height: 8.h),
@@ -512,7 +512,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                               fontSize: 13.sp,
-                              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+                              shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 6, offset: const Offset(0, 2))],
                             ),
                           ),
                         )
@@ -531,7 +531,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
               child: Container(
                 width: 80.w,
                 height: 80.h,
-                decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
                 child: Icon(Icons.play_arrow, color: Colors.white, size: 50.sp),
               ),
             ),
@@ -554,7 +554,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 4, offset: const Offset(0, 1))],
+              shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 4, offset: const Offset(0, 1))],
             ),
           ),
         ],
@@ -583,7 +583,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 4, offset: const Offset(0, 1))],
+              shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 4, offset: const Offset(0, 1))],
             ),
           ),
         ],
@@ -632,7 +632,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 4, offset: const Offset(0, 1))],
+              shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 4, offset: const Offset(0, 1))],
             ),
           ),
         ],
@@ -678,7 +678,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 4, offset: const Offset(0, 1))],
+              shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 4, offset: const Offset(0, 1))],
             ),
           ),
         ],
@@ -769,7 +769,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), shape: BoxShape.circle),
             child: Icon(icon, color: AppColors.accent, size: 28),
           ),
           const SizedBox(height: 8),
@@ -792,7 +792,7 @@ class _VideoReelScreenState extends State<VideoReelScreen> {
             Container(
               width: 40,
               height: 4,
-              decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 8),
             _buildOptionItem(Icons.share_outlined, 'Share Post', () {

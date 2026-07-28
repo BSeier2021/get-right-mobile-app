@@ -196,10 +196,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: isCenter
                             ? greenAccent
                             : isSelected
-                            ? greenAccent.withOpacity(0.12)
+                            ? greenAccent.withValues(alpha: 0.12)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(isCenter ? 50 : 50),
-                        boxShadow: isCenter ? [BoxShadow(color: greenAccent.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 4))] : null,
+                        boxShadow: isCenter ? [BoxShadow(color: greenAccent.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 4))] : null,
                       ),
                       child: Center(
                         child: isSelected

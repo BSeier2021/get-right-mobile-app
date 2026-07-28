@@ -38,6 +38,7 @@ class AppRoutes {
   static const String completedWorkouts = '/completed-workouts';
   static const String addWorkout = '/add-workout';
   static const String addExercise = '/add-exercise';
+  static const String newWorkout = '/new-workout';
   static const String exerciseSelection = '/exercise-selection';
   static const String exerciseConfiguration = '/exercise-configuration';
   static const String addNotes = '/add-notes';

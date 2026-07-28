@@ -56,7 +56,7 @@ class _LogRunScreenState extends State<LogRunScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -77,15 +77,15 @@ class _LogRunScreenState extends State<LogRunScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primaryGray.withOpacity(0.6)),
-                  boxShadow: [BoxShadow(color: AppColors.blackOverlay.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+                  border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.6)),
+                  boxShadow: [BoxShadow(color: AppColors.blackOverlay.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
                 ),
                 child: Row(
                   children: [
                     Container(
                       width: 44,
                       height: 44,
-                      decoration: BoxDecoration(color: AppColors.completed.withOpacity(0.2), shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: AppColors.completed.withValues(alpha: 0.2), shape: BoxShape.circle),
                       child: const Icon(Icons.directions_run, color: AppColors.completed, size: 24),
                     ),
                     const SizedBox(width: 12),
@@ -163,7 +163,7 @@ class _LogRunScreenState extends State<LogRunScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(50),
 
-                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.4)),
+                    borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.4)),
                   ),
                 ),
                 validator: (value) {
@@ -194,7 +194,7 @@ class _LogRunScreenState extends State<LogRunScreen> {
                   fillColor: AppColors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(50),
-                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.4)),
+                    borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.4)),
                   ),
                 ),
                 validator: (value) {
@@ -225,7 +225,7 @@ class _LogRunScreenState extends State<LogRunScreen> {
                     },
                     selectedColor: AppColors.accent,
                     backgroundColor: AppColors.white,
-                    shape: StadiumBorder(side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray.withOpacity(0.4))),
+                    shape: StadiumBorder(side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray.withValues(alpha: 0.4))),
                     labelStyle: AppTextStyles.labelMedium.copyWith(
                       color: isSelected ? AppColors.onAccent : AppColors.onSurface,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -250,7 +250,7 @@ class _LogRunScreenState extends State<LogRunScreen> {
                   fillColor: AppColors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.4)),
+                    borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.4)),
                   ),
                 ),
               ),
@@ -294,7 +294,7 @@ class _LogRunScreenState extends State<LogRunScreen> {
               decoration: BoxDecoration(
                 color: AppColors.white,
                 borderRadius: BorderRadius.circular(50),
-                border: Border.all(color: AppColors.primaryGray.withOpacity(0.4)),
+                border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.4)),
               ),
               child: Text(value.isEmpty ? hint : value, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
             ),

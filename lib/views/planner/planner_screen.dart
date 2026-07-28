@@ -534,7 +534,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 Container(
                   width: 40,
                   height: 4,
-                  decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(2)),
                 ),
                 const SizedBox(height: 20),
                 Text(
@@ -874,7 +874,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 label: Text(_isMarkingComplete ? 'Saving...' : 'Set Day Status'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.accent,
-                  side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
+                  side: BorderSide(color: AppColors.accent.withValues(alpha: 0.8)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                 ),
@@ -897,10 +897,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 icon: const Icon(Icons.check_circle_outline, size: 20),
                 label: const Text('Quick Mark Complete'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: blockedByIncompleteProgram ? AppColors.primaryGray.withOpacity(0.45) : AppColors.accent,
+                  backgroundColor: blockedByIncompleteProgram ? AppColors.primaryGray.withValues(alpha: 0.45) : AppColors.accent,
                   foregroundColor: AppColors.onError,
-                  disabledBackgroundColor: AppColors.primaryGray.withOpacity(0.45),
-                  disabledForegroundColor: AppColors.onError.withOpacity(0.8),
+                  disabledBackgroundColor: AppColors.primaryGray.withValues(alpha: 0.45),
+                  disabledForegroundColor: AppColors.onError.withValues(alpha: 0.8),
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
@@ -937,7 +937,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 Container(
                   width: 40,
                   height: 4,
-                  decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(2)),
                 ),
                 const SizedBox(height: 20),
                 Text(
@@ -1046,7 +1046,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFFF8FFE9),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.primaryGray.withOpacity(0.25)),
+            border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.25)),
           ),
           child: Row(
             children: [
@@ -1238,7 +1238,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     child: Container(
                       width: 40,
                       height: 4,
-                      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
+                      decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(2)),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -1246,7 +1246,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
                         child: const Icon(Icons.event_repeat, color: AppColors.accent, size: 22),
                       ),
                       const SizedBox(width: 12),
@@ -1317,7 +1317,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                         decoration: BoxDecoration(
                           color: AppColors.background,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.accent.withOpacity(0.35)),
+                          border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
                         ),
                         child: Row(
                           children: [
@@ -1754,7 +1754,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               if (isLatest)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
                   child: Text(
                     'Latest',
                     style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
@@ -1824,7 +1824,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                                 '${type == 'front' ? 'Front' : 'Side'} Photo',
                                 style: AppTextStyles.titleSmall.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.bold),
                               ),
-                              Text(_formatDate(date), style: AppTextStyles.labelSmall.copyWith(color: AppColors.onPrimary.withOpacity(0.8))),
+                              Text(_formatDate(date), style: AppTextStyles.labelSmall.copyWith(color: AppColors.onPrimary.withValues(alpha: 0.8))),
                             ],
                           ),
                         ),
@@ -1874,7 +1874,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                           label: Text('Replace ${type == 'front' ? 'Front' : 'Side'} Photo'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.accent,
-                            side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
+                            side: BorderSide(color: AppColors.accent.withValues(alpha: 0.8)),
                           ),
                         ),
                       ),
@@ -2046,14 +2046,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFFF0F7E4),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.primaryGray.withOpacity(0.25)),
+            border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.25)),
           ),
           child: Row(
             children: [
               Container(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), shape: BoxShape.circle),
                 child: Icon(icon, color: AppColors.accent, size: 24),
               ),
               const SizedBox(width: 14),
@@ -2184,7 +2184,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFF8FFE9),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.25)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2227,7 +2227,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -2254,7 +2254,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFF8FFE9),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.25)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2265,7 +2265,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               Container(
                 width: 36,
                 height: 36,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), shape: BoxShape.circle),
                 child: const Icon(Icons.fitness_center, color: AppColors.accent, size: 18),
               ),
               const SizedBox(width: 10),
@@ -2291,7 +2291,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               Container(
                 width: 30,
                 height: 30,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.10), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.10), shape: BoxShape.circle),
                 child: const Icon(Icons.fitness_center, color: AppColors.accent, size: 14),
               ),
               const SizedBox(width: 10),
@@ -2308,7 +2308,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+              border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
             ),
             child: Column(
               children: [
@@ -2358,7 +2358,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
                   ),
                   child: Column(
                     children: [
@@ -2380,7 +2380,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
                   ),
                   child: Column(
                     children: [
@@ -2401,7 +2401,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           // Info banner
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.06), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10)),
             child: Row(
               children: [
                 Icon(Icons.info_outline, color: AppColors.primaryGray, size: 18),
@@ -2455,7 +2455,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -2599,7 +2599,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                         Container(
                           width: 6,
                           height: 6,
-                          decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
+                          decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.3), shape: BoxShape.circle),
                         ),
                         const SizedBox(width: 4),
                         Container(
@@ -2611,7 +2611,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                         Container(
                           width: 6,
                           height: 6,
-                          decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
+                          decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.3), shape: BoxShape.circle),
                         ),
                       ],
                     ),
@@ -2713,7 +2713,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     return Container(
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       decoration: BoxDecoration(
-                        border: !isCollapsed && rowIndex > 0 ? Border(top: BorderSide(color: AppColors.primaryGray.withOpacity(0.3), width: 1)) : null,
+                        border: !isCollapsed && rowIndex > 0 ? Border(top: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1)) : null,
                       ),
                       child: Container(
                         decoration: BoxDecoration(
@@ -2824,7 +2824,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   onPressed: _addProgressPhoto,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.accent,
-                    side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
+                    side: BorderSide(color: AppColors.accent.withValues(alpha: 0.8)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -2878,7 +2878,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     label: const Text('Add'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.accent,
-                      side: BorderSide(color: AppColors.accent.withOpacity(0.8)),
+                      side: BorderSide(color: AppColors.accent.withValues(alpha: 0.8)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                     ),
@@ -2942,9 +2942,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
         child: Container(
           height: height,
           decoration: BoxDecoration(
-            color: AppColors.primaryGrayLight.withOpacity(0.6),
+            color: AppColors.primaryGrayLight.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: hasPhoto ? AppColors.accent.withOpacity(0.4) : AppColors.primaryGray.withOpacity(0.3)),
+            border: Border.all(color: hasPhoto ? AppColors.accent.withValues(alpha: 0.4) : AppColors.primaryGray.withValues(alpha: 0.3)),
           ),
           clipBehavior: Clip.antiAlias,
           child: Stack(
@@ -2979,7 +2979,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ),
               if (isLoading)
                 Container(
-                  color: Colors.black.withOpacity(0.45),
+                  color: Colors.black.withValues(alpha: 0.45),
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -3017,8 +3017,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.4)),
-        boxShadow: [BoxShadow(color: AppColors.blackOverlay.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2))],
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.4)),
+        boxShadow: [BoxShadow(color: AppColors.blackOverlay.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3061,7 +3061,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 width: 6,
                 height: 6,
                 margin: EdgeInsets.only(right: index == photoTypes.length - 1 ? 0 : 4),
-                decoration: BoxDecoration(color: isActive ? AppColors.accent : AppColors.primaryGray.withOpacity(0.3), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: isActive ? AppColors.accent : AppColors.primaryGray.withValues(alpha: 0.3), shape: BoxShape.circle),
               );
             }),
           ),
@@ -3134,7 +3134,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFDCEBFA),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF4A90E2).withOpacity(0.35)),
+        border: Border.all(color: const Color(0xFF4A90E2).withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
@@ -3217,7 +3217,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         color: const Color(0xFFF8FFE9),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE8EFE0)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3227,7 +3227,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
                 child: const Icon(Icons.fitness_center, color: AppColors.accent, size: 22),
               ),
               const SizedBox(width: 12),
@@ -3245,7 +3245,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
                 child: Text(
                   statusLabel,
                   style: AppTextStyles.labelSmall.copyWith(color: statusColor, fontWeight: FontWeight.w600),
@@ -3315,7 +3315,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 label: Text(_isMovingProgramWorkout ? 'Moving...' : 'Move to Another Date'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.accent,
-                  side: BorderSide(color: AppColors.accent.withOpacity(0.7)),
+                  side: BorderSide(color: AppColors.accent.withValues(alpha: 0.7)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                 ),
               ),
@@ -3335,9 +3335,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: isCurrentDay ? AppColors.accent.withOpacity(0.08) : AppColors.white,
+        color: isCurrentDay ? AppColors.accent.withValues(alpha: 0.08) : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isCurrentDay ? AppColors.accent.withOpacity(0.45) : const Color(0xFFE8EFE0), width: isCurrentDay ? 1.5 : 1),
+        border: Border.all(color: isCurrentDay ? AppColors.accent.withValues(alpha: 0.45) : const Color(0xFFE8EFE0), width: isCurrentDay ? 1.5 : 1),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -3348,7 +3348,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           leading: Container(
             width: 36,
             height: 36,
-            decoration: BoxDecoration(color: isCurrentDay ? AppColors.accent.withOpacity(0.18) : AppColors.accent.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: isCurrentDay ? AppColors.accent.withValues(alpha: 0.18) : AppColors.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
             alignment: Alignment.center,
             child: Text(
               dayNumber > 0 ? '$dayNumber' : '•',
@@ -3366,7 +3366,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               if (isCurrentDay)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
                   child: Text(
                     'Today',
                     style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 10),
@@ -3421,7 +3421,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3431,7 +3431,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               Container(
                 width: 28,
                 height: 28,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
                 alignment: Alignment.center,
                 child: Text(
                   '$order',
@@ -3476,7 +3476,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   Widget _buildProgramMetricChip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -3504,7 +3504,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFF8FFE9),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3513,7 +3513,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
                 child: const Icon(Icons.fitness_center, color: AppColors.accent, size: 22),
               ),
               const SizedBox(width: 12),
@@ -3599,7 +3599,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3609,7 +3609,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                 clipBehavior: Clip.antiAlias,
                 child: iconUrl != null && iconUrl.isNotEmpty
                     ? SafeNetworkImage(
@@ -3764,7 +3764,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -3912,8 +3912,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accent.withOpacity(0.4)),
-        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 2))],
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
+        boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3922,7 +3922,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
                 child: Icon(_runActivityIcon(activityLabel), color: AppColors.accent, size: 22),
               ),
               const SizedBox(width: 12),
@@ -4101,7 +4101,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFF8FFE9),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4110,7 +4110,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
                 child: const Icon(Icons.restaurant_menu, color: AppColors.accent, size: 20),
               ),
               const SizedBox(width: 12),
@@ -4205,9 +4205,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.85),
+        color: Colors.white.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.15)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4233,7 +4233,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             style: AppTextStyles.titleLarge.copyWith(color: textColor, fontWeight: FontWeight.bold, fontSize: 28),
           ),
           const SizedBox(height: 4),
-          Text(label, style: AppTextStyles.labelSmall.copyWith(color: textColor.withOpacity(0.7), fontSize: 12)),
+          Text(label, style: AppTextStyles.labelSmall.copyWith(color: textColor.withValues(alpha: 0.7), fontSize: 12)),
         ],
       ),
     );
@@ -4246,8 +4246,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.4)),
-        boxShadow: [BoxShadow(color: AppColors.blackOverlay.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2))],
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.4)),
+        boxShadow: [BoxShadow(color: AppColors.blackOverlay.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4256,7 +4256,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
                 child: const Icon(Icons.note_alt_rounded, color: AppColors.accent, size: 22),
               ),
               const SizedBox(width: 12),

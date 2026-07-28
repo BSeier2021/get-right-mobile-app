@@ -56,7 +56,7 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -72,9 +72,9 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.1),
+                color: AppColors.accent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+                border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -112,7 +112,7 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, -2))],
         ),
         child: SafeArea(
           child: Row(
@@ -153,7 +153,7 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isAccepted ? AppColors.accent.withOpacity(0.5) : AppColors.primaryGray.withOpacity(0.3), width: isAccepted ? 2 : 1),
+        border: Border.all(color: isAccepted ? AppColors.accent.withValues(alpha: 0.5) : AppColors.primaryGray.withValues(alpha: 0.3), width: isAccepted ? 2 : 1),
       ),
       child: Column(
         children: [
@@ -161,14 +161,14 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isAccepted ? AppColors.accent.withOpacity(0.1) : AppColors.primaryGray.withOpacity(0.05),
+              color: isAccepted ? AppColors.accent.withValues(alpha: 0.1) : AppColors.primaryGray.withValues(alpha: 0.05),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: isAccepted ? AppColors.accent.withOpacity(0.2) : AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: isAccepted ? AppColors.accent.withValues(alpha: 0.2) : AppColors.primaryGray.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                   child: Icon(icon, color: isAccepted ? AppColors.accent : AppColors.primaryGray, size: 20),
                 ),
                 const SizedBox(width: 12),
@@ -195,7 +195,7 @@ class _ProgramTermsScreenState extends State<ProgramTermsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.primaryGray.withOpacity(0.2))),
+              border: Border(top: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.2))),
             ),
             child: Row(
               children: [

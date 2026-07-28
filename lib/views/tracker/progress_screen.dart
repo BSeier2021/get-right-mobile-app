@@ -152,7 +152,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -184,9 +184,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.error.withOpacity(0.08),
+                        color: AppColors.error.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.error.withOpacity(0.25)),
+                        border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
                       ),
                       child: Row(
                         children: [
@@ -274,7 +274,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFCDE7C8)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,7 +344,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   Widget _filterIconButton({required IconData icon, VoidCallback? onPressed}) {
     return Material(
-      color: AppColors.accent.withOpacity(0.1),
+      color: AppColors.accent.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onPressed,
@@ -374,9 +374,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? AppColors.accent : AppColors.accent.withOpacity(0.08),
+            color: selected ? AppColors.accent : AppColors.accent.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: selected ? AppColors.accent : AppColors.accent.withOpacity(0.25)),
+            border: Border.all(color: selected ? AppColors.accent : AppColors.accent.withValues(alpha: 0.25)),
           ),
           child: Column(
             children: [
@@ -391,7 +391,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
               Text(
                 label,
                 style: AppTextStyles.labelSmall.copyWith(
-                  color: selected ? AppColors.onAccent.withOpacity(0.85) : AppColors.primaryGray,
+                  color: selected ? AppColors.onAccent.withValues(alpha: 0.85) : AppColors.primaryGray,
                   fontSize: 10,
                 ),
               ),
@@ -501,7 +501,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFCDE7C8), width: 1),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
       );
 
   Widget _statCard({
@@ -517,7 +517,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFCDE7C8), width: 1),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Column(
         children: [

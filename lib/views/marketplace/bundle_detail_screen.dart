@@ -489,7 +489,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
           color: const Color(0xFFF8FFE9),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFE8EFE0)),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Row(
           children: [
@@ -588,7 +588,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
           leading: IconButton(
             icon: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
               child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
             ),
             onPressed: () => Get.back(),
@@ -636,11 +636,11 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
                       ),
                       if (subtitle != null && subtitle.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Text(subtitle, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.7))),
+                        Text(subtitle, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.7))),
                       ],
                       if (description.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        Text(description, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75))),
+                        Text(description, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.75))),
                       ],
                       const SizedBox(height: 14),
                       _buildTrainerProfileBar(trainer),
@@ -850,7 +850,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
           Image.asset(image, width: 20.w, height: 20.h),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(text, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.85))),
+            child: Text(text, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.85))),
           ),
         ],
       ),
@@ -902,7 +902,7 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, -2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, -2))],
       ),
       child: SafeArea(
         top: false,

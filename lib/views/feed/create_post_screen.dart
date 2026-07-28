@@ -218,13 +218,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1.5),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                         child: const Icon(Icons.photo_library_rounded, color: AppColors.accent, size: 24),
                       ),
                       const SizedBox(width: 16),
@@ -257,13 +257,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1.5),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                         child: const Icon(Icons.camera_alt_rounded, color: AppColors.accent, size: 24),
                       ),
                       const SizedBox(width: 16),
@@ -572,7 +572,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           if (!v.isPlaying)
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.black.withOpacity(0.55), shape: BoxShape.circle),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), shape: BoxShape.circle),
               child: const Icon(Icons.play_arrow, color: Colors.white, size: 50),
             ),
         ],
@@ -608,7 +608,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 width: active ? 10 : 8,
                 height: active ? 10 : 8,
-                decoration: BoxDecoration(color: active ? AppColors.accent : AppColors.primaryGray.withOpacity(0.4), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: active ? AppColors.accent : AppColors.primaryGray.withValues(alpha: 0.4), shape: BoxShape.circle),
               );
             }),
           ),
@@ -631,7 +631,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.accent.withOpacity(0.5), width: 1.5),
+                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.5), width: 1.5),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -711,7 +711,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           left: 16,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: AppColors.upcoming.withOpacity(0.9), borderRadius: BorderRadius.circular(20)),
+            decoration: BoxDecoration(color: AppColors.upcoming.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(20)),
             child: Text(
               'Draft media',
               style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
@@ -722,7 +722,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           top: 16,
           right: 16,
           child: Container(
-            decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
             child: IconButton(
               icon: Icon(_draftIsVideo ? Icons.videocam : Icons.edit, color: Colors.white),
               tooltip: _draftIsVideo ? 'Replace video' : 'Replace photos',
@@ -757,7 +757,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               if (!_isVideo && _remainingImageSlots > 0)
                 Container(
                   margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
                   child: IconButton(
                     icon: const Icon(Icons.add_photo_alternate_outlined, color: Colors.white),
                     tooltip: 'Add photos',
@@ -765,7 +765,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ),
                 ),
               Container(
-                decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
                 child: IconButton(
                   icon: Icon(_isVideo ? Icons.videocam : Icons.edit, color: Colors.white),
                   tooltip: _isVideo ? 'Change video' : 'Change photos',
@@ -787,7 +787,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             left: 16,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(20)),
               child: Text(
                 '${_previewImageIndex + 1}/${_selectedImages.length}',
                 style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
@@ -850,8 +850,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               decoration: BoxDecoration(
                 color: AppColors.backgroundColor,
-                border: Border(top: BorderSide(color: AppColors.primaryGray.withOpacity(0.2))),
-                boxShadow: [BoxShadow(color: AppColors.secondary.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, -2))],
+                border: Border(top: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.2))),
+                boxShadow: [BoxShadow(color: AppColors.secondary.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, -2))],
               ),
               child: Row(
                 children: [
@@ -863,7 +863,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         style: OutlinedButton.styleFrom(
                           backgroundColor: AppColors.surface,
                           foregroundColor: AppColors.onBackground,
-                          side: BorderSide(color: AppColors.primaryGray.withOpacity(0.45), width: 1.5),
+                          side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.45), width: 1.5),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                         ),
@@ -886,7 +886,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accent,
                           foregroundColor: Colors.white,
-                          disabledBackgroundColor: AppColors.accent.withOpacity(0.5),
+                          disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.5),
                           disabledForegroundColor: Colors.white70,
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -939,7 +939,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
                           minHeight: 6,
 
-                          backgroundColor: AppColors.primaryGray.withOpacity(0.2),
+                          backgroundColor: AppColors.primaryGray.withValues(alpha: 0.2),
 
                           valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
                         ),
@@ -983,14 +983,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
                           borderRadius: BorderRadius.circular(16),
 
-                          border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 2, style: BorderStyle.solid),
+                          border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 2, style: BorderStyle.solid),
                         ),
 
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
 
                           children: [
-                            Icon(Icons.add_photo_alternate_outlined, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+                            Icon(Icons.add_photo_alternate_outlined, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
 
                             const SizedBox(height: 16),
 
@@ -1057,13 +1057,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
 
-                                borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                                borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                               ),
 
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
 
-                                borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                                borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                               ),
 
                               focusedBorder: OutlineInputBorder(
@@ -1101,13 +1101,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
 
-                                borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                                borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                               ),
 
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
 
-                                borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                                borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                               ),
 
                               focusedBorder: OutlineInputBorder(
@@ -1177,7 +1177,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
                                 borderRadius: BorderRadius.circular(12),
 
-                                border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
+                                border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                               ),
 
                               child: DropdownButtonHideUnderline(
@@ -1242,8 +1242,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                                     (t) => InputChip(
                                       label: Text('#$t', style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface)),
                                       deleteIconColor: AppColors.primaryGray,
-                                      backgroundColor: AppColors.accent.withOpacity(0.12),
-                                      side: BorderSide(color: AppColors.primaryGray.withOpacity(0.25)),
+                                      backgroundColor: AppColors.accent.withValues(alpha: 0.12),
+                                      side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.25)),
                                       onDeleted: () {
                                         setState(() => _committedTags.remove(t));
                                       },
@@ -1267,13 +1267,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
 
-                                borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                                borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                               ),
 
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
 
-                                borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                                borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                               ),
 
                               focusedBorder: OutlineInputBorder(

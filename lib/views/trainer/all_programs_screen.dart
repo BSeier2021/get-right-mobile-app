@@ -56,7 +56,7 @@ class AllProgramsScreen extends StatelessWidget {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -102,7 +102,7 @@ class AllProgramsScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(40),
                   child: Column(
                     children: [
-                      Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.primaryGray.withOpacity(0.5)),
+                      Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.primaryGray.withValues(alpha: 0.5)),
                       const SizedBox(height: 16),
                       Text('No programs found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
                       const SizedBox(height: 8),
@@ -134,7 +134,7 @@ class AllProgramsScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+          border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

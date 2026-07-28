@@ -195,7 +195,7 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> with Single
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -260,10 +260,10 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> with Single
         padding: EdgeInsets.fromLTRB(20.w, 10.h, 20.w, 12.h),
         decoration: BoxDecoration(
           color: AppColors.backgroundColor,
-          border: Border(top: BorderSide(color: AppColors.primaryGray.withOpacity(0.12))),
+          border: Border(top: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.12))),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 12,
               offset: const Offset(0, -4),
             ),
@@ -371,7 +371,7 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> with Single
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                     decoration: BoxDecoration(
-                      color: _statusColor(ticket.status).withOpacity(0.15),
+                      color: _statusColor(ticket.status).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(

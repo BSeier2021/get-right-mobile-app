@@ -132,7 +132,7 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
         leading: GestureDetector(
           onTap: () => Get.back(),
           child: Container(
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ).paddingAll(8),
         ),
@@ -178,7 +178,7 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+            Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             Text('No exercises found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
           ],
@@ -218,7 +218,7 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
           color: AppColors.white,
           borderRadius: BorderRadius.circular(cardRadius),
           border: Border.all(color: _kLibraryCardBorder, width: 1),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 3))],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -232,7 +232,7 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(cardRadius), bottom: Radius.circular(14)),
                     child: imageUrl.isEmpty
                         ? ColoredBox(
-                            color: AppColors.accent.withOpacity(0.08),
+                            color: AppColors.accent.withValues(alpha: 0.08),
                             child: const Center(child: Icon(Icons.fitness_center, color: AppColors.accent, size: 36)),
                           )
                         : Image.network(
@@ -243,12 +243,12 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
                             loadingBuilder: (context, child, progress) {
                               if (progress == null) return child;
                               return ColoredBox(
-                                color: AppColors.accent.withOpacity(0.06),
+                                color: AppColors.accent.withValues(alpha: 0.06),
                                 child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
                               );
                             },
                             errorBuilder: (c, e, s) => ColoredBox(
-                              color: AppColors.accent.withOpacity(0.1),
+                              color: AppColors.accent.withValues(alpha: 0.1),
                               child: const Center(child: Icon(Icons.fitness_center, color: AppColors.accent, size: 32)),
                             ),
                           ),

@@ -19,7 +19,7 @@ class AppLogo extends StatelessWidget {
       width: size,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: showShadow ? [BoxShadow(color: (backgroundColor ?? AppColors.secondary).withOpacity(0.3), blurRadius: 20, spreadRadius: 3, offset: const Offset(0, 5))] : null,
+        boxShadow: showShadow ? [BoxShadow(color: (backgroundColor ?? AppColors.secondary).withValues(alpha: 0.3), blurRadius: 20, spreadRadius: 3, offset: const Offset(0, 5))] : null,
       ),
       child: Column(
         children: [

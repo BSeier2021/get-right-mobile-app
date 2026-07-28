@@ -81,7 +81,7 @@ class WorkoutCard extends StatelessWidget {
                   children: workout.tags!.take(3).map((tag) {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: AppColors.secondary.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                      decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                       child: Text(tag, style: AppTextStyles.labelSmall.copyWith(color: AppColors.secondary)),
                     );
                   }).toList(),

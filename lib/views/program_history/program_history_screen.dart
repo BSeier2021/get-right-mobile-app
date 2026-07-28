@@ -147,7 +147,7 @@ class _ProgramHistoryScreenState extends State<ProgramHistoryScreen> with Single
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                 child: Text(
                   program.programTitle,
                   style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
@@ -240,9 +240,9 @@ class _ProgramHistoryScreenState extends State<ProgramHistoryScreen> with Single
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.accent.withOpacity(0.1), width: 1),
+              border: Border.all(color: AppColors.accent.withValues(alpha: 0.1), width: 1),
             ),
             child: const Icon(Icons.arrow_back_ios_new, size: 20),
           ),
@@ -260,7 +260,7 @@ class _ProgramHistoryScreenState extends State<ProgramHistoryScreen> with Single
           controller: _tabController,
           indicatorColor: AppColors.accent,
           labelColor: AppColors.onPrimary,
-          unselectedLabelColor: AppColors.onPrimary.withOpacity(0.6),
+          unselectedLabelColor: AppColors.onPrimary.withValues(alpha: 0.6),
           labelStyle: AppTextStyles.titleSmall,
           tabs: const [
             Tab(text: 'Active'),
@@ -289,7 +289,7 @@ class _ProgramHistoryScreenState extends State<ProgramHistoryScreen> with Single
                   ? Icons.cancel_outlined
                   : Icons.check_circle_outline,
               size: 80,
-              color: AppColors.primaryGray.withOpacity(0.5),
+              color: AppColors.primaryGray.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text('No $statusType Programs', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
@@ -340,7 +340,7 @@ class _ProgramHistoryScreenState extends State<ProgramHistoryScreen> with Single
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withOpacity(0.3)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -367,7 +367,7 @@ class _ProgramHistoryScreenState extends State<ProgramHistoryScreen> with Single
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                 child: Text(
                   statusText,
                   style: AppTextStyles.labelSmall.copyWith(color: statusColor, fontWeight: FontWeight.bold),
@@ -392,7 +392,7 @@ class _ProgramHistoryScreenState extends State<ProgramHistoryScreen> with Single
             const SizedBox(height: 8),
             LinearProgressIndicator(
               value: program.progress / 100,
-              backgroundColor: AppColors.primaryGray.withOpacity(0.2),
+              backgroundColor: AppColors.primaryGray.withValues(alpha: 0.2),
               valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
             ),
             const SizedBox(height: 16),
@@ -448,7 +448,7 @@ class _ProgramHistoryScreenState extends State<ProgramHistoryScreen> with Single
   Widget _buildDateInfo(IconData icon, String label, String date) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
       child: Row(
         children: [
           Icon(icon, size: 16, color: AppColors.primaryGray),

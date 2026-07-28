@@ -527,7 +527,7 @@ class _RoutePlanningScreenState extends State<RoutePlanningScreen> {
               Container(
                 width: 40,
                 height: 4,
-                decoration: BoxDecoration(color: AppColors.background.withOpacity(0.4), borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(color: AppColors.background.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2)),
               ),
               const SizedBox(height: 10),
               Text(

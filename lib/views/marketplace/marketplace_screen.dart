@@ -168,7 +168,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   child: Container(
                     width: 40.w,
                     height: 4.h,
-                    decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.35), borderRadius: BorderRadius.circular(2)),
+                    decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(2)),
                   ),
                 ),
                 SizedBox(height: 16.h),
@@ -202,7 +202,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           onPressed: () => _applyProgramSearch(sheetContext, ''),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.onBackground,
-                            side: BorderSide(color: AppColors.primaryGray.withOpacity(0.4)),
+                            side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.4)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             padding: EdgeInsets.symmetric(vertical: 12.h),
                           ),
@@ -488,7 +488,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(50)),
+                          decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(50)),
                           child: const Icon(Icons.filter_list, color: AppColors.accent, size: 20),
                         ),
                         const SizedBox(width: 12),
@@ -514,7 +514,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   decoration: BoxDecoration(
                     color: Color(0xFFF8FFE9),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1),
                   ),
                   child: Wrap(
                     spacing: 8,
@@ -557,7 +557,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.primaryVariant,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1),
                   ),
                   child: Wrap(
                     spacing: 8,
@@ -609,7 +609,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.primaryVariant,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1),
                   ),
                   child: Wrap(
                     spacing: 8,
@@ -656,7 +656,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.primaryVariant,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1),
                   ),
                   child: Wrap(
                     spacing: 8,
@@ -696,14 +696,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.primaryVariant,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: _showCertifiedOnly ? AppColors.completed.withOpacity(0.2) : AppColors.primaryGray.withOpacity(0.2),
+                          color: _showCertifiedOnly ? AppColors.completed.withValues(alpha: 0.2) : AppColors.primaryGray.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(50),
                         ),
                         child: Icon(Icons.verified, color: _showCertifiedOnly ? AppColors.completed : AppColors.primaryGray, size: 20),
@@ -725,7 +725,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             _showCertifiedOnly = value;
                           });
                         },
-                        activeColor: AppColors.completed,
+                        activeThumbColor: AppColors.completed,
                       ),
                     ],
                   ),
@@ -870,7 +870,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: AppColors.accentVariant.withOpacity(0.2), borderRadius: BorderRadius.circular(50)),
+                          decoration: BoxDecoration(color: AppColors.accentVariant.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(50)),
                           child: const Icon(Icons.calendar_today, color: AppColors.accentVariant, size: 20),
                         ),
                         const SizedBox(width: 12),
@@ -893,14 +893,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.primaryVariant,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1),
                   ),
                   child: Row(
                     children: [
                       Container(
                         width: 60,
                         height: 60,
-                        decoration: BoxDecoration(color: AppColors.accentVariant.withOpacity(0.2), borderRadius: BorderRadius.circular(50)),
+                        decoration: BoxDecoration(color: AppColors.accentVariant.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(50)),
                         child: Icon(isBundle ? Icons.inventory_2 : Icons.fitness_center, color: AppColors.accentVariant, size: 30),
                       ),
                       const SizedBox(width: 12),
@@ -935,7 +935,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.primaryVariant,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.accentVariant.withOpacity(0.5), width: 2),
+                    border: Border.all(color: AppColors.accentVariant.withValues(alpha: 0.5), width: 2),
                   ),
                   child: InkWell(
                     onTap: () async {
@@ -989,9 +989,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.accentVariant.withOpacity(0.1),
+                    color: AppColors.accentVariant.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.accentVariant.withOpacity(0.3), width: 1),
+                    border: Border.all(color: AppColors.accentVariant.withValues(alpha: 0.3), width: 1),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1108,7 +1108,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               Container(
                 width: 80,
                 height: 80,
-                decoration: BoxDecoration(color: AppColors.completed.withOpacity(0.2), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.completed.withValues(alpha: 0.2), shape: BoxShape.circle),
                 child: const Icon(Icons.check_circle, color: AppColors.completed, size: 50),
               ),
               const SizedBox(height: 24),
@@ -1124,7 +1124,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               // Start date info
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(50)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(50)),
                 child: Text('Starts: ${startDate.day}/${startDate.month}/${startDate.year}', style: AppTextStyles.titleSmall.copyWith(color: AppColors.accent)),
               ),
               const SizedBox(height: 16),
@@ -1135,7 +1135,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.primaryVariant,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 1),
+                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 1),
                 ),
                 child: Column(
                   children: [
@@ -1157,7 +1157,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(50)),
+                      decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(50)),
                       child: Column(
                         children: [
                           Icon(Icons.calendar_today, color: AppColors.accent, size: 20),
@@ -1175,7 +1175,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: AppColors.completed.withOpacity(0.1), borderRadius: BorderRadius.circular(50)),
+                      decoration: BoxDecoration(color: AppColors.completed.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(50)),
                       child: Column(
                         children: [
                           Icon(Icons.library_books, color: AppColors.completed, size: 20),
@@ -1324,7 +1324,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return SafeCircleNetworkAvatar(
       radius: radius,
       imageUrl: url,
-      backgroundColor: AppColors.accent.withOpacity(0.15),
+      backgroundColor: AppColors.accent.withValues(alpha: 0.15),
       fallback: Text(
         initials.length > 2 ? initials.substring(0, 1).toUpperCase() : initials.toUpperCase(),
         style: TextStyle(color: AppColors.accent, fontSize: radius * 0.85, fontWeight: FontWeight.w700),
@@ -1531,7 +1531,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           url,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => Container(
-            color: AppColors.primaryGray.withOpacity(0.25),
+            color: AppColors.primaryGray.withValues(alpha: 0.25),
             alignment: Alignment.center,
             child: Icon(Icons.fitness_center, size: 48.sp, color: AppColors.accent),
           ),
@@ -1707,7 +1707,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.accent, width: 2),
             ),
@@ -2007,7 +2007,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       ),
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
                         child: Text(
                           catalogCountLabel,
                           style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
@@ -2054,7 +2054,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       padding: EdgeInsets.all(40.w),
                       child: Column(
                         children: [
-                          Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+                          Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
                           SizedBox(height: 16.h),
                           Text(hasActiveFilters ? 'No programs found' : 'No programs available', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
                           SizedBox(height: 8.h),
@@ -2109,7 +2109,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       label: Text(label),
       deleteIcon: const Icon(Icons.close, size: 16),
       onDeleted: onDelete,
-      backgroundColor: AppColors.accent.withOpacity(0.2),
+      backgroundColor: AppColors.accent.withValues(alpha: 0.2),
       labelStyle: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
     );
   }
@@ -2129,7 +2129,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             height: 200.h,
             width: double.infinity,
             decoration: BoxDecoration(
-              boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 8))],
+              boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.2), blurRadius: 15, offset: const Offset(0, 8))],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
@@ -2170,7 +2170,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               Flexible(
                                 child: Text(
                                   activeWorkout['description'] ?? 'Master the basics of strength training this week for free!',
-                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.7), fontSize: 15.sp, height: 1.4),
+                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withValues(alpha: 0.7), fontSize: 15.sp, height: 1.4),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -2269,7 +2269,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2538,7 +2538,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2731,7 +2731,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         decoration: BoxDecoration(
           color: const Color.fromARGB(0, 255, 229, 229), // Soft pink background
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: const Color.fromARGB(0, 0, 0, 0).withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: const Color.fromARGB(0, 0, 0, 0).withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Stack(
           clipBehavior: Clip.none,
@@ -2900,7 +2900,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           children: [
             Container(
               padding: EdgeInsets.all(20.w),
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), shape: BoxShape.circle),
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), shape: BoxShape.circle),
               child: const Icon(Icons.grid_view_rounded, size: 30, color: AppColors.accent),
             ),
             SizedBox(height: 16.h),
@@ -3088,7 +3088,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget _buildInfoChip(IconData icon, String label) {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 12.w),
-      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.2), borderRadius: BorderRadius.circular(50)),
+      decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(50)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

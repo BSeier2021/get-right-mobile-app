@@ -131,7 +131,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, -4))],
         ),
         child: SafeArea(
           child: Column(
@@ -141,7 +141,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 width: 48,
                 height: 5,
                 margin: const EdgeInsets.only(top: 12),
-                decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), borderRadius: BorderRadius.circular(3)),
+                decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(3)),
               ),
               const SizedBox(height: 24),
               Padding(
@@ -203,16 +203,16 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+            border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [color.withOpacity(0.2), color.withOpacity(0.15)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  gradient: LinearGradient(colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.15)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 22),
@@ -224,7 +224,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   style: AppTextStyles.titleMedium.copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 16),
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: color.withOpacity(0.6), size: 20),
+              Icon(Icons.chevron_right_rounded, color: color.withValues(alpha: 0.6), size: 20),
             ],
           ),
         ),
@@ -281,7 +281,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                 child: Text(
                   '${entry['type']} • ${entry['date']}',
                   style: AppTextStyles.bodySmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
@@ -391,7 +391,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, -4))],
         ),
         child: SafeArea(
           child: SingleChildScrollView(
@@ -404,7 +404,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   child: Container(
                     width: 48,
                     height: 5,
-                    decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), borderRadius: BorderRadius.circular(3)),
+                    decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(3)),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -483,8 +483,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1.5),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+            border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1.5),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
           ),
           child: Row(
             children: [
@@ -492,7 +492,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [color.withOpacity(0.2), color.withOpacity(0.15)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  gradient: LinearGradient(colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.15)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(icon, color: color, size: 26),
@@ -529,7 +529,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 20),
           ),
           onPressed: () {
@@ -576,14 +576,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             margin: const EdgeInsets.only(right: 12),
                             decoration: BoxDecoration(
                               gradient: isSelected
-                                  ? LinearGradient(colors: [AppColors.accent, AppColors.accent.withOpacity(0.85)], begin: Alignment.topLeft, end: Alignment.bottomRight)
+                                  ? LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.85)], begin: Alignment.topLeft, end: Alignment.bottomRight)
                                   : null,
                               color: isSelected ? null : AppColors.surface,
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: isSelected ? AppColors.accent : AppColors.primaryGray.withOpacity(0.3), width: isSelected ? 2 : 1.5),
+                              border: Border.all(color: isSelected ? AppColors.accent : AppColors.primaryGray.withValues(alpha: 0.3), width: isSelected ? 2 : 1.5),
                               boxShadow: isSelected
-                                  ? [BoxShadow(color: AppColors.accent.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 6), spreadRadius: 0)]
-                                  : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+                                  ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 6), spreadRadius: 0)]
+                                  : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
                             ),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -639,7 +639,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [AppColors.accent.withOpacity(0.2), AppColors.accent.withOpacity(0.1)],
+                                  colors: [AppColors.accent.withValues(alpha: 0.2), AppColors.accent.withValues(alpha: 0.1)],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
@@ -681,8 +681,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             decoration: BoxDecoration(
                               color: AppColors.surface,
                               borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1.5),
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+                              border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1.5),
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
                             ),
                             child: Column(
                               children: [
@@ -690,7 +690,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   padding: const EdgeInsets.all(20),
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
-                                      colors: [AppColors.accent.withOpacity(0.15), AppColors.accent.withOpacity(0.08)],
+                                      colors: [AppColors.accent.withValues(alpha: 0.15), AppColors.accent.withValues(alpha: 0.08)],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
@@ -737,10 +737,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                               decoration: BoxDecoration(
                                 color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1.5),
+                                border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1.5),
                                 boxShadow: [
-                                  BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 4), spreadRadius: 0),
-                                  BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 1)),
+                                  BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4), spreadRadius: 0),
+                                  BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 1)),
                                 ],
                               ),
                               child: Material(
@@ -759,7 +759,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                               padding: const EdgeInsets.all(12),
                                               decoration: BoxDecoration(
                                                 gradient: LinearGradient(
-                                                  colors: [AppColors.accent.withOpacity(0.2), AppColors.accent.withOpacity(0.15)],
+                                                  colors: [AppColors.accent.withValues(alpha: 0.2), AppColors.accent.withValues(alpha: 0.15)],
                                                   begin: Alignment.topLeft,
                                                   end: Alignment.bottomRight,
                                                 ),
@@ -788,7 +788,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                               decoration: BoxDecoration(
                                                 gradient: LinearGradient(
-                                                  colors: [AppColors.accent.withOpacity(0.15), AppColors.accent.withOpacity(0.1)],
+                                                  colors: [AppColors.accent.withValues(alpha: 0.15), AppColors.accent.withValues(alpha: 0.1)],
                                                   begin: Alignment.topLeft,
                                                   end: Alignment.bottomRight,
                                                 ),
@@ -812,7 +812,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                         const SizedBox(height: 16),
                                         Container(
                                           padding: const EdgeInsets.all(14),
-                                          decoration: BoxDecoration(color: AppColors.primaryGrayLight.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                                          decoration: BoxDecoration(color: AppColors.primaryGrayLight.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
                                           child: Text(entry['entry'] as String, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontSize: 14, height: 1.4)),
                                         ),
                                       ],
@@ -838,7 +838,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [AppColors.accent.withOpacity(0.2), AppColors.accent.withOpacity(0.1)],
+                              colors: [AppColors.accent.withValues(alpha: 0.2), AppColors.accent.withValues(alpha: 0.1)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -895,7 +895,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         margin: const EdgeInsets.only(bottom: 16, right: 4),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 6))],
+          boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 6))],
         ),
         child: FloatingActionButton.extended(
           heroTag: 'journal_fab',
@@ -917,8 +917,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1.5),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1.5),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -926,7 +926,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [color.withOpacity(0.2), color.withOpacity(0.15)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              gradient: LinearGradient(colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.15)], begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -963,9 +963,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.primaryVariant.withOpacity(0.5),
+        color: AppColors.primaryVariant.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -977,7 +977,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               Expanded(
                 child: Text(
                   label,
-                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.onPrimary.withOpacity(0.7)),
+                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.onPrimary.withValues(alpha: 0.7)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -995,7 +995,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               const SizedBox(width: 4),
               Padding(
                 padding: const EdgeInsets.only(bottom: 2),
-                child: Text(unit, style: AppTextStyles.labelSmall.copyWith(color: AppColors.onPrimary.withOpacity(0.6))),
+                child: Text(unit, style: AppTextStyles.labelSmall.copyWith(color: AppColors.onPrimary.withValues(alpha: 0.6))),
               ),
             ],
           ),
@@ -1009,7 +1009,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: isActive ? (isToday ? AppColors.accent : AppColors.accent.withOpacity(0.3)) : AppColors.primaryVariant.withOpacity(0.3),
+        color: isActive ? (isToday ? AppColors.accent : AppColors.accent.withValues(alpha: 0.3)) : AppColors.primaryVariant.withValues(alpha: 0.3),
         shape: BoxShape.circle,
         border: Border.all(color: isToday ? AppColors.accent : Colors.transparent, width: 2),
       ),
@@ -1017,7 +1017,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         child: Text(
           dayLabel,
           style: AppTextStyles.labelMedium.copyWith(
-            color: isActive ? AppColors.onAccent : AppColors.onPrimary.withOpacity(0.4),
+            color: isActive ? AppColors.onAccent : AppColors.onPrimary.withValues(alpha: 0.4),
             fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
           ),
         ),

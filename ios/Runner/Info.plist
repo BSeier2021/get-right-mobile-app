@@ -36,10 +36,10 @@
 	<string>Get Right needs your location to track your runs and provide accurate distance and pace information.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Get Right needs microphone access for video recording features in workout logs (if applicable).</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Get Right needs photo library access to allow you to select and upload photos for your profile and workout logs.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Get Right may save images you choose to your photo library when you update your profile.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Get Right needs photo library access to allow you to select and upload photos for your profile and workout logs.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

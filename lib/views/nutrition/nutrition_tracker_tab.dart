@@ -102,7 +102,7 @@ class NutritionTrackerTab extends StatelessWidget {
               return Positioned.fill(
                 child: AbsorbPointer(
                   child: Container(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     alignment: Alignment.center,
                     child: const SizedBox(width: 40, height: 40, child: CircularProgressIndicator(strokeWidth: 3)),
                   ),
@@ -296,7 +296,7 @@ class NutritionTrackerTab extends StatelessWidget {
         color: const Color(0xFFE5F4CC),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFBDE2B7)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,9 +383,9 @@ class NutritionTrackerTab extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.1),
+                color: AppColors.accent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+                border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -410,7 +410,7 @@ class NutritionTrackerTab extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.85),
+        color: Colors.white.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFBDE2B7)),
       ),
@@ -529,7 +529,7 @@ class NutritionTrackerTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -550,7 +550,7 @@ class NutritionTrackerTab extends StatelessWidget {
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(value: progress, backgroundColor: color.withOpacity(0.15), valueColor: AlwaysStoppedAnimation<Color>(color), minHeight: 12),
+            child: LinearProgressIndicator(value: progress, backgroundColor: color.withValues(alpha: 0.15), valueColor: AlwaysStoppedAnimation<Color>(color), minHeight: 12),
           ),
         ],
       ),
@@ -565,15 +565,15 @@ class NutritionTrackerTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: meals.isEmpty ? Colors.transparent : AppColors.lightGray.withOpacity(0.2),
+              color: meals.isEmpty ? Colors.transparent : AppColors.lightGray.withValues(alpha: 0.2),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             ),
             child: Row(
@@ -794,7 +794,7 @@ class NutritionTrackerTab extends StatelessWidget {
                   Text('Meal', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<MealType>(
-                    value: selectedMealType,
+                    initialValue: selectedMealType,
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: AppColors.white,

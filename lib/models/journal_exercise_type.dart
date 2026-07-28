@@ -1,4 +1,6 @@
-/// Warmup vs main workout section for journal exercises (`POST /customer/workout` `type` field).
+/// Exercise section for journal API (`POST /customer/workout` `type` field).
+/// The app uses a single unified exercise list; new exercises are always saved as [workout].
+/// [warmup] remains only so legacy API data can still be read.
 enum JournalExerciseType {
   warmup('Warmup'),
   workout('Workout');

@@ -236,7 +236,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                         child: IconButton(
                           icon: Container(
                             padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
                           ),
                           onPressed: _handleBack,
@@ -256,7 +256,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
                           const SizedBox(height: 10),
                           Text(
                             'Create an account to access your personal fitness\njournal, workout programs, and more.',
-                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withOpacity(0.8), fontSize: 14.sp, fontWeight: FontWeight.w400, height: 1.35),
+                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.onBackground.withValues(alpha: 0.8), fontSize: 14.sp, fontWeight: FontWeight.w400, height: 1.35),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 20),
@@ -365,7 +365,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
             color: const Color(0xFFF6FFE9),
             shape: BoxShape.circle,
             border: Border.all(color: const Color(0xFFE4F2D8), width: 1.2),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
           ),
           child: Padding(
             padding: _profileImageFile != null ? EdgeInsets.zero : EdgeInsets.all(20.r),
@@ -406,7 +406,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(30),
           color: Colors.white,
-          border: Border.all(color: AppColors.primaryGray.withOpacity(0.35), width: 1.2),
+          border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.35), width: 1.2),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 18),
         child: Row(
@@ -415,7 +415,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
               child: Text(
                 _dateOfBirth != null ? DateFormat('MMMM dd, yyyy').format(_dateOfBirth!) : 'Select your date of birth',
                 style: AppTextStyles.bodyMedium.copyWith(
-                  color: _dateOfBirth != null ? AppColors.onBackground : AppColors.onBackground.withOpacity(0.6),
+                  color: _dateOfBirth != null ? AppColors.onBackground : AppColors.onBackground.withValues(alpha: 0.6),
                   fontSize: 15,
                   fontWeight: FontWeight.w400,
                 ),
@@ -441,10 +441,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.35), width: 1.2),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.35), width: 1.2),
       ),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: icon != null
@@ -466,7 +466,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
           floatingLabelStyle: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w600),
         ),
         style: AppTextStyles.bodyMedium.copyWith(
-          color: value != null ? AppColors.onBackground : AppColors.onBackground.withOpacity(0.6),
+          color: value != null ? AppColors.onBackground : AppColors.onBackground.withValues(alpha: 0.6),
           fontSize: 15,
           fontWeight: FontWeight.w400,
         ),
@@ -477,7 +477,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> with SingleTick
         ),
         hint: Text(
           'Select gender',
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 15, fontWeight: FontWeight.w400),
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.6), fontSize: 15, fontWeight: FontWeight.w400),
         ),
         items: items.map((String item) {
           final label = itemLabel != null ? itemLabel(item) : item;

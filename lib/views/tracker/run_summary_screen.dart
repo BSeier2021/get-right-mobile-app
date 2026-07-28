@@ -210,7 +210,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
                       child: OutlinedButton(
                         onPressed: () => Get.back(),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 2),
+                          side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.5), width: 2),
                           foregroundColor: AppColors.onSurface,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
@@ -263,8 +263,8 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 2),
-        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.15), blurRadius: 15, offset: const Offset(0, 4))],
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 2),
+        boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.15), blurRadius: 15, offset: const Offset(0, 4))],
       ),
       clipBehavior: Clip.antiAlias,
       child: GoogleMap(
@@ -298,7 +298,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: _getActivityColor(run.activityType).withOpacity(0.2),
+            color: _getActivityColor(run.activityType).withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: _getActivityColor(run.activityType), width: 2),
           ),
@@ -345,9 +345,9 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildSecondaryStatItem(Icons.timer_rounded, 'Time', _formatDuration(run.duration)),
-            Container(width: 1, height: 40, color: AppColors.primaryGray.withOpacity(0.3)),
+            Container(width: 1, height: 40, color: AppColors.primaryGray.withValues(alpha: 0.3)),
             _buildSecondaryStatItem(Icons.speed_rounded, 'Avg Pace', _formatPace(run.averagePace)),
-            Container(width: 1, height: 40, color: AppColors.primaryGray.withOpacity(0.3)),
+            Container(width: 1, height: 40, color: AppColors.primaryGray.withValues(alpha: 0.3)),
             _buildSecondaryStatItem(Icons.local_fire_department_rounded, 'Calories', run.caloriesBurned != null ? '${run.caloriesBurned}' : '--'),
           ],
         ),
@@ -382,7 +382,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -431,7 +431,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,14 +460,14 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withOpacity(0.2), width: 1),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.2), width: 1),
       ),
       child: Row(
         children: [
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
             child: Center(
               child: Text(
                 '${split.splitNumber}',
@@ -520,7 +520,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
                 Get.toNamed(AppRoutes.activityTypeSelection);
               },
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.accent.withOpacity(0.5), width: 2),
+                side: BorderSide(color: AppColors.accent.withValues(alpha: 0.5), width: 2),
                 foregroundColor: AppColors.accent,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
@@ -536,7 +536,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
             child: OutlinedButton(
               onPressed: _isSavingToCalendar ? null : () => _onDone(run),
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 2),
+                side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.5), width: 2),
                 foregroundColor: AppColors.onSurface,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),

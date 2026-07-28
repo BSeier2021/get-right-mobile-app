@@ -257,7 +257,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
                     });
                     Get.back();
                   },
-                  selectedColor: AppColors.accent.withOpacity(0.2),
+                  selectedColor: AppColors.accent.withValues(alpha: 0.2),
                   backgroundColor: isSelected ? null : Colors.white,
                   labelStyle: TextStyle(color: isSelected ? AppColors.accent : AppColors.onSurface, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
                   side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray, width: isSelected ? 2 : 1),
@@ -281,7 +281,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
                     });
                     Get.back();
                   },
-                  selectedColor: AppColors.accent.withOpacity(0.2),
+                  selectedColor: AppColors.accent.withValues(alpha: 0.2),
                   backgroundColor: isSelected ? null : Colors.white,
                   labelStyle: TextStyle(color: isSelected ? AppColors.accent : AppColors.onSurface, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
                   side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray, width: isSelected ? 2 : 1),
@@ -303,7 +303,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
         leading: GestureDetector(
           onTap: () => Get.back(),
           child: Container(
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 18),
           ).paddingAll(8),
         ),
@@ -364,7 +364,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
               decoration: BoxDecoration(
                 color: AppColors.accentVariant,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.accent.withOpacity(0.35)),
+                border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -387,7 +387,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
               decoration: BoxDecoration(
                 color: Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.primaryGray.withOpacity(0.6)),
+                border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.6)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -415,9 +415,9 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.error.withOpacity(0.08),
+        color: AppColors.error.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.error.withOpacity(0.25)),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -443,7 +443,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
               Container(
                 width: 100,
                 height: 100,
-                decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.2), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.2), shape: BoxShape.circle),
                 child: const Icon(Icons.search_off_rounded, size: 50, color: AppColors.primaryGray),
               ),
               const SizedBox(height: 24),
@@ -490,16 +490,16 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.25), width: 1.5),
-        boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.25), width: 1.5),
+        boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatItem('${_filteredRuns.length}', 'Total Runs'),
-          Container(width: 1, height: 36, color: AppColors.primaryGray.withOpacity(0.25)),
+          Container(width: 1, height: 36, color: AppColors.primaryGray.withValues(alpha: 0.25)),
           _buildStatItem('${(totalDistance / 1000).toStringAsFixed(2)} km', 'Total Distance'),
-          Container(width: 1, height: 36, color: AppColors.primaryGray.withOpacity(0.25)),
+          Container(width: 1, height: 36, color: AppColors.primaryGray.withValues(alpha: 0.25)),
           _buildStatItem(_formatTotalDuration(totalDuration), 'Total Time'),
         ],
       ),
@@ -527,7 +527,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
             child: Icon(icon, color: AppColors.accent, size: 20),
           ),
           const SizedBox(width: 12),
@@ -551,8 +551,8 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accent.withOpacity(0.25), width: 1.5),
-        boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.25), width: 1.5),
+        boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Material(
         color: Colors.transparent,
@@ -682,8 +682,8 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
-          boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
+          border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1),
+          boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Material(
           color: Colors.transparent,
@@ -700,7 +700,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
                       Container(
                         width: 48,
                         height: 48,
-                        decoration: BoxDecoration(color: _getActivityColor(run.activityType).withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: _getActivityColor(run.activityType).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
                         child: Icon(_getActivityIcon(run.activityType), color: _getActivityColor(run.activityType), size: 24),
                       ),
                       const SizedBox(width: 12),
@@ -786,7 +786,7 @@ class _RunHistoryScreenState extends State<RunHistoryScreen> {
             Container(
               width: 120,
               height: 120,
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), shape: BoxShape.circle),
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
               child: const Icon(Icons.directions_run_rounded, size: 60, color: AppColors.accent),
             ),
             const SizedBox(height: 24),
@@ -927,7 +927,7 @@ class _SavedRoutePreviewSheet extends StatelessWidget {
             child: Container(
               width: 40,
               height: 4,
-              decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.4), borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2)),
             ),
           ),
           Padding(

@@ -150,7 +150,7 @@ class _ProgramSendReviewScreenState extends State<ProgramSendReviewScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -207,11 +207,11 @@ class _ProgramSendReviewScreenState extends State<ProgramSendReviewScreen> {
                     fillColor: AppColors.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                      borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                      borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -233,7 +233,7 @@ class _ProgramSendReviewScreenState extends State<ProgramSendReviewScreen> {
                     onPressed: _submitting ? null : _submitReview,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accent,
-                      disabledBackgroundColor: AppColors.accent.withOpacity(0.5),
+                      disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.5),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -257,9 +257,9 @@ class _ProgramSendReviewScreenState extends State<ProgramSendReviewScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.primaryGrayDark.withOpacity(0.15),
+        color: AppColors.primaryGrayDark.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.4)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.4)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,7 +281,7 @@ class _ProgramSendReviewScreenState extends State<ProgramSendReviewScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withOpacity(0.25)),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [

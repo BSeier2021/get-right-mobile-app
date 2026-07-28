@@ -563,7 +563,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                       children: [
                         Text(
                           'Following',
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface.withOpacity(0.8), fontWeight: FontWeight.w600),
+                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface.withValues(alpha: 0.8), fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 2),
                         Container(width: 62, height: 2, color: isFollowing ? AppColors.accent : Colors.transparent),
@@ -673,7 +673,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.people_outline, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+                Icon(Icons.people_outline, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
                 const SizedBox(height: 16),
                 Text('No posts from followed creators', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
                 const SizedBox(height: 8),
@@ -714,7 +714,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.wifi_off_rounded, size: 72, color: AppColors.primaryGray.withOpacity(0.55)),
+            Icon(Icons.wifi_off_rounded, size: 72, color: AppColors.primaryGray.withValues(alpha: 0.55)),
             const SizedBox(height: 12),
             Text(
               'Could not load feed',
@@ -724,7 +724,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
             const SizedBox(height: 6),
             Text(
               message,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray.withOpacity(0.9)),
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray.withValues(alpha: 0.9)),
               textAlign: TextAlign.center,
               maxLines: 4,
               overflow: TextOverflow.ellipsis,
@@ -770,7 +770,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         // Gradient overlay for better visibility
         Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.2)]),
+            gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withValues(alpha: 0.2)]),
           ),
         ),
 
@@ -782,7 +782,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, spreadRadius: 1)],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, spreadRadius: 1)],
             ),
             child: Icon(Icons.play_arrow, color: AppColors.accent, size: 24),
           ),
@@ -838,7 +838,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
         child: Icon(icon, color: AppColors.accent),
       ),
       title: Text(title, style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface)),
@@ -1010,7 +1010,7 @@ class _SearchScreenState extends State<_SearchScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+                    Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
                     const SizedBox(height: 16),
                     Text('No videos found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
                     const SizedBox(height: 8),

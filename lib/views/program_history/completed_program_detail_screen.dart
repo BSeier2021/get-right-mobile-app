@@ -111,7 +111,7 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
           Container(
             width: 60,
             height: 60,
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: AppColors.accent, size: 30),
           ),
           const SizedBox(height: 8),
@@ -206,7 +206,7 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.completed.withOpacity(0.3)),
+        border: Border.all(color: AppColors.completed.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,7 +240,7 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: AppColors.completed.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+            decoration: BoxDecoration(color: AppColors.completed.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
             child: Text(
               'COMPLETED',
               style: AppTextStyles.labelSmall.copyWith(color: AppColors.completed, fontWeight: FontWeight.bold),
@@ -264,7 +264,7 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -297,7 +297,7 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,7 +344,7 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,7 +409,7 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+          border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,11 +498,11 @@ class _CompletedProgramDetailScreenState extends State<CompletedProgramDetailScr
                 fillColor: AppColors.primaryVariant,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                  borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                  borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),

@@ -105,8 +105,8 @@ class _ExerciseCardState extends State<ExerciseCard> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: widget.showBorder ? Border.all(color: AppColors.accent.withOpacity(0.3), width: 2) : null,
-        boxShadow: widget.showBorder ? [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))] : null,
+        border: widget.showBorder ? Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 2) : null,
+        boxShadow: widget.showBorder ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, 4))] : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,9 +124,9 @@ class _ExerciseCardState extends State<ExerciseCard> {
                       height: 40.h,
                       margin: const EdgeInsets.only(right: 12),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: [color.withOpacity(0.25), color.withOpacity(0.1)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                        gradient: LinearGradient(colors: [color.withValues(alpha: 0.25), color.withValues(alpha: 0.1)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                         borderRadius: BorderRadius.circular(50),
-                        border: Border.all(color: color.withOpacity(0.25), width: 1),
+                        border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
                       ),
                       child: Center(child: _buildExerciseIcon(widget.exercise.exerciseName, widget.exercise.iconUrl, color)).paddingSymmetric(horizontal: 4, vertical: 4),
                     );
@@ -170,7 +170,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
               color: AppColors.white,
               borderRadius: BorderRadius.circular(16),
               // border: widget.showBorder ? Border.all(color: AppColors.accent.withOpacity(0.3), width: 2) : null,
-              boxShadow: widget.showBorder ? [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))] : null,
+              boxShadow: widget.showBorder ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, 4))] : null,
             ),
 
             child: Column(
@@ -283,7 +283,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-        border: isLast ? null : Border(bottom: BorderSide(color: AppColors.primaryGray.withOpacity(0.1), width: 1)),
+        border: isLast ? null : Border(bottom: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.1), width: 1)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -369,7 +369,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(0, 4, 0, 0),
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: AppColors.primaryGrayLight.withOpacity(0.3), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: AppColors.primaryGrayLight.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

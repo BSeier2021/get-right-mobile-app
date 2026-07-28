@@ -63,7 +63,7 @@ class ActiveProgramDetailScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,10 +99,10 @@ class ActiveProgramDetailScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: program.status == ProgramStatus.active
-                  ? AppColors.completed.withOpacity(0.1)
+                  ? AppColors.completed.withValues(alpha: 0.1)
                   : program.status == ProgramStatus.cancelled
-                  ? AppColors.missed.withOpacity(0.1)
-                  : AppColors.primaryGray.withOpacity(0.1),
+                  ? AppColors.missed.withValues(alpha: 0.1)
+                  : AppColors.primaryGray.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -135,7 +135,7 @@ class ActiveProgramDetailScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -172,7 +172,7 @@ class ActiveProgramDetailScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,7 +190,7 @@ class ActiveProgramDetailScreen extends StatelessWidget {
           const SizedBox(height: 12),
           LinearProgressIndicator(
             value: program.progress / 100,
-            backgroundColor: AppColors.primaryGray.withOpacity(0.2),
+            backgroundColor: AppColors.primaryGray.withValues(alpha: 0.2),
             valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
             minHeight: 8,
           ),
@@ -211,7 +211,7 @@ class ActiveProgramDetailScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withOpacity(0.3)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,7 +225,7 @@ class ActiveProgramDetailScreen extends StatelessWidget {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                 child: Text(
                   request.status.toString().toUpperCase(),
                   style: AppTextStyles.labelSmall.copyWith(color: statusColor, fontWeight: FontWeight.bold),

@@ -31,7 +31,7 @@ class _AddNotesScreenState extends State<AddNotesScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -60,11 +60,11 @@ class _AddNotesScreenState extends State<AddNotesScreen> {
                   fillColor: AppColors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.4)),
+                    borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.4)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.accent.withOpacity(0.6)),
+                    borderSide: BorderSide(color: AppColors.accent.withValues(alpha: 0.6)),
                   ),
                 ),
               ),
@@ -93,7 +93,7 @@ class _AddNotesScreenState extends State<AddNotesScreen> {
                 child: OutlinedButton(
                   onPressed: () => Get.back(),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppColors.primaryGray.withOpacity(0.6), width: 1.5),
+                    side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.6), width: 1.5),
                     foregroundColor: AppColors.onBackground,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                   ),

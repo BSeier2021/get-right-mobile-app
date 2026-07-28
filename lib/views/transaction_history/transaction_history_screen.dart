@@ -99,7 +99,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
        leading: GestureDetector(
           onTap: () => Get.back(),
           child: Container(
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ).paddingAll(8),
         ),
@@ -147,7 +147,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           children: [
             if (_summary != null) _buildSummaryCard(_summary!),
             SizedBox(height: MediaQuery.of(context).size.height * 0.12),
-            Icon(Icons.receipt_long, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+            Icon(Icons.receipt_long, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             Center(child: Text('No Transactions', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray))),
             const SizedBox(height: 8),
@@ -201,7 +201,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         color: const Color(0xFFF8FFE9),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE6F0DA)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 3))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,7 +253,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: highlight ? AppColors.accentVariant.withOpacity(0.12) : AppColors.white,
+        color: highlight ? AppColors.accentVariant.withValues(alpha: 0.12) : AppColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE6F0DA)),
       ),
@@ -328,9 +328,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withOpacity(0.12),
+                      color: AppColors.accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(50),
-                      border: Border.all(color: AppColors.accent.withOpacity(0.25)),
+                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.25)),
                     ),
                     child: Text(
                       transaction.displayTypeLabel,
@@ -402,7 +402,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: AppColors.accent.withOpacity(0.12),
+        color: AppColors.accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
       ),
       child: const Icon(Icons.receipt_long, color: AppColors.accent, size: 24),
@@ -414,9 +414,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(50),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         transaction.status.displayLabel.toUpperCase(),

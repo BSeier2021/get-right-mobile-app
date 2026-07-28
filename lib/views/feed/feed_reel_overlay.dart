@@ -135,7 +135,7 @@ class FeedReelStyledThumbnail extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Colors.white.withOpacity(isFullScreen ? 0.04 : 0.08), Colors.transparent, Colors.black.withOpacity(isFullScreen ? 0.18 : 0.10)],
+                colors: [Colors.white.withValues(alpha: isFullScreen ? 0.04 : 0.08), Colors.transparent, Colors.black.withValues(alpha: isFullScreen ? 0.18 : 0.10)],
                 stops: const [0.0, 0.45, 1.0],
               ),
             ),
@@ -208,7 +208,7 @@ class _FeedReelPhotoCarouselState extends State<FeedReelPhotoCarousel> {
                 margin: const EdgeInsets.symmetric(horizontal: 3),
                 width: active ? 8 : 6,
                 height: active ? 8 : 6,
-                decoration: BoxDecoration(color: active ? Colors.white : Colors.white.withOpacity(0.45), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: active ? Colors.white : Colors.white.withValues(alpha: 0.45), shape: BoxShape.circle),
               );
             }),
           ),
@@ -218,7 +218,7 @@ class _FeedReelPhotoCarouselState extends State<FeedReelPhotoCarousel> {
           left: 16,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(color: Colors.black.withOpacity(0.45), borderRadius: BorderRadius.circular(14)),
+            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(14)),
             child: Text(
               '${_currentIndex + 1}/${urls.length}',
               style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
@@ -393,7 +393,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
       decoration: BoxDecoration(
         color: AppColors.accentVariant,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: child,
     );
@@ -405,7 +405,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     return AppTextStyles.bodyMedium.copyWith(
       color: Colors.white,
       fontSize: 14,
-      shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+      shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 6, offset: const Offset(0, 2))],
     );
   }
 
@@ -723,7 +723,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 4, offset: const Offset(0, 1))],
+              shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 4, offset: const Offset(0, 1))],
             ),
           ),
         ],
@@ -747,7 +747,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
-                  shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+                  shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 6, offset: const Offset(0, 2))],
                 ),
               ),
               // if (showFeedCreatorVerifiedBadge(_post)) ...[
@@ -767,7 +767,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
               color: Colors.white,
               fontWeight: FontWeight.w700,
               fontSize: 15,
-              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+              shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 6, offset: const Offset(0, 2))],
             ),
           ),
         ],
@@ -785,7 +785,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
-                        shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 6, offset: const Offset(0, 2))],
+                        shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 6, offset: const Offset(0, 2))],
                       ),
                     ),
                   )
@@ -860,7 +860,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black.withOpacity(0.35), Colors.black.withOpacity(0.65)],
+                colors: [Colors.transparent, Colors.black.withValues(alpha: 0.35), Colors.black.withValues(alpha: 0.65)],
                 stops: const [0.0, 0.55, 1.0],
               ),
             ),
@@ -966,7 +966,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 4, offset: const Offset(0, 1))],
+              shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 4, offset: const Offset(0, 1))],
             ),
           ),
         ],
@@ -989,7 +989,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 4, offset: const Offset(0, 1))],
+              shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 4, offset: const Offset(0, 1))],
             ),
           ),
         ],
@@ -1064,7 +1064,7 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              shadows: [Shadow(color: Colors.black.withOpacity(0.7), blurRadius: 4, offset: const Offset(0, 1))],
+              shadows: [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 4, offset: const Offset(0, 1))],
             ),
           ),
         ],

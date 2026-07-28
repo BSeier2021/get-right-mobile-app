@@ -77,7 +77,7 @@ class _RouteEndpointLabelsState extends State<RouteEndpointLabels> {
         SizedBox(
           width: 14,
           height: 14,
-          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent.withOpacity(0.7)),
+          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent.withValues(alpha: 0.7)),
         ),
         const SizedBox(width: 8),
         Text('Loading locations...', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
@@ -102,7 +102,7 @@ class _RouteEndpointLabelsState extends State<RouteEndpointLabels> {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -112,7 +112,7 @@ class _RouteEndpointLabelsState extends State<RouteEndpointLabels> {
             child: Row(
               children: [
                 const SizedBox(width: 10),
-                Container(width: 2, height: 18, color: AppColors.primaryGray.withOpacity(0.25)),
+                Container(width: 2, height: 18, color: AppColors.primaryGray.withValues(alpha: 0.25)),
               ],
             ),
           ),

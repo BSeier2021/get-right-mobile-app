@@ -21,13 +21,11 @@ class ExerciseConfigurationScreen extends StatefulWidget {
 }
 
 class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScreen> {
-  bool _isWarmup = false;
   JournalExerciseType _exerciseType = JournalExerciseType.workout;
   bool _isManual = false;
   bool _isSuperset = false;
   bool _isEditing = false;
   String? _editingWorkoutId;
-  bool _hasAskedWarmupWorkout = false;
   bool _isSaving = false;
   String? _workoutJournalId;
   List<String> _journalWorkoutIds = const [];
@@ -47,12 +45,9 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     super.initState();
     final args = Get.arguments as Map<String, dynamic>?;
     if (args != null) {
-      _isWarmup = args['isWarmup'] ?? false;
-      _exerciseType = JournalExerciseType.fromArgs(args) ?? JournalExerciseType.fromIsWarmup(_isWarmup);
-      _isWarmup = _exerciseType.isWarmup;
+      _exerciseType = JournalExerciseType.workout;
       _isManual = args['isManual'] ?? false;
       _isSuperset = args['isSuperset'] ?? false;
-      _hasAskedWarmupWorkout = args['isWarmup'] != null; // If isWarmup is provided, we've already asked
       _workoutJournalId = args['workoutJournalId']?.toString() ?? args['workoutJournal']?.toString();
       final rawJournalWorkoutIds = args['journalWorkoutIds'];
       if (rawJournalWorkoutIds is List) {
@@ -140,107 +135,13 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     if (_configs.isEmpty) {
       _configs.add(_Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}'));
     }
-
-    // Show popup asking warmup/workout if not already determined
-    if (!_hasAskedWarmupWorkout) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _showWarmupWorkoutDialog());
-    }
-  }
-
-  void _showWarmupWorkoutDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        elevation: 8,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 8))],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Add Exercise',
-                style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Would you like to add this exercise to warmup or workout?',
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _exerciseType = JournalExerciseType.warmup;
-                          _isWarmup = true;
-                          _hasAskedWarmupWorkout = true;
-                        });
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.error,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 4,
-                        shadowColor: AppColors.error.withOpacity(0.4),
-                      ),
-                      child: Text(
-                        'Warmup',
-                        style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _exerciseType = JournalExerciseType.workout;
-                          _isWarmup = false;
-                          _hasAskedWarmupWorkout = true;
-                        });
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: AppColors.onAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 4,
-                        shadowColor: AppColors.accent.withOpacity(0.4),
-                      ),
-                      child: Text(
-                        'Workout',
-                        style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   void _openExerciseSelectionForCard(int cardIndex) {
     Get.toNamed(
       AppRoutes.exerciseSelection,
       arguments: {
-        'isWarmup': _isWarmup,
-        'exerciseType': _exerciseType,
+        'exerciseType': JournalExerciseType.workout,
         'isSuperset': false,
         'workoutJournalId': _workoutJournalId,
         'journalWorkoutIds': _journalWorkoutIds,
@@ -482,7 +383,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         ),
       );
     }
-    Get.back(result: {'exercises': exercises, 'isWarmup': _isWarmup, 'exerciseType': _exerciseType, if (_workoutJournalId != null) 'workoutJournalId': _workoutJournalId});
+    Get.back(result: {'exercises': exercises, 'exerciseType': _exerciseType, if (_workoutJournalId != null) 'workoutJournalId': _workoutJournalId});
   }
 
   List<Map<String, dynamic>> _buildApiExerciseSets(_Config cfg) {
@@ -991,8 +892,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     final result = await Get.toNamed(
       AppRoutes.exerciseSelection,
       arguments: {
-        'isWarmup': _isWarmup,
-        'exerciseType': _exerciseType,
+        'exerciseType': JournalExerciseType.workout,
         'selectOnly': true,
         'workoutJournalId': _workoutJournalId,
         'journalWorkoutIds': _journalWorkoutIds,

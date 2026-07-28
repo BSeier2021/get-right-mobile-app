@@ -1,5 +1,4 @@
 import 'package:get/get.dart';
-import 'package:get_right/models/report_block_model.dart';
 import 'package:get_right/repo/blocks_repo.dart';
 import 'package:get_right/repo/reports_repo.dart';
 import 'package:get_right/utils/block_list_mapper.dart';

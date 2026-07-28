@@ -1,4 +1,3 @@
-import 'package:get_right/models/journal_exercise_type.dart';
 import 'package:get_right/repo/workout_repo.dart';
 
 enum PlannerReuseKind { warmup, workout, plannedRoute, savedActivity }
@@ -46,40 +45,14 @@ class PlannerDayReuse {
     final workouts = workout['workouts'];
 
     if (workouts is List && workouts.isNotEmpty) {
-      var warmupCount = 0;
-      var workoutCount = 0;
-      for (final item in workouts) {
-        if (item is! Map) continue;
-        final type = JournalExerciseType.fromApi(Map<String, dynamic>.from(item)['exerciseType']?.toString());
-        if (type?.isWarmup == true) {
-          warmupCount++;
-        } else {
-          workoutCount++;
-        }
-      }
-      if (warmupCount == 0 && workoutCount == 0) {
-        workoutCount = workouts.length;
-      }
-      if (warmupCount > 0) {
-        options.add(
-          PlannerReuseOption(
-            kind: PlannerReuseKind.warmup,
-            title: 'Warm-up',
-            subtitle: _exerciseCountLabel(warmupCount),
-            journalId: journalId,
-          ),
-        );
-      }
-      if (workoutCount > 0) {
-        options.add(
-          PlannerReuseOption(
-            kind: PlannerReuseKind.workout,
-            title: 'Workout',
-            subtitle: _exerciseCountLabel(workoutCount),
-            journalId: journalId,
-          ),
-        );
-      }
+      options.add(
+        PlannerReuseOption(
+          kind: PlannerReuseKind.workout,
+          title: 'Workout',
+          subtitle: _exerciseCountLabel(workouts.length),
+          journalId: journalId,
+        ),
+      );
       return;
     }
 

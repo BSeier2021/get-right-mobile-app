@@ -50,7 +50,7 @@ class ChatMessageBubble extends StatelessWidget {
                     borderRadius: BorderRadius.circular(
                       16,
                     ).copyWith(bottomRight: isCurrentUser ? const Radius.circular(4) : null, bottomLeft: !isCurrentUser ? const Radius.circular(4) : null),
-                    border: isCurrentUser ? null : Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+                    border: isCurrentUser ? null : Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,14 +62,14 @@ class ChatMessageBubble extends StatelessWidget {
                         children: [
                           Text(
                             _formatTimestamp(message.timestamp),
-                            style: AppTextStyles.labelSmall.copyWith(color: isCurrentUser ? AppColors.onAccent.withOpacity(0.7) : AppColors.onSurface.withOpacity(0.7)),
+                            style: AppTextStyles.labelSmall.copyWith(color: isCurrentUser ? AppColors.onAccent.withValues(alpha: 0.7) : AppColors.onSurface.withValues(alpha: 0.7)),
                           ),
                           if (isCurrentUser && !message.isPending) ...[
                             const SizedBox(width: 4),
                             Icon(
                               message.isRead ? Icons.done_all : Icons.done,
                               size: 14,
-                              color: message.isRead ? AppColors.onAccent.withOpacity(0.7) : AppColors.onAccent.withOpacity(0.5),
+                              color: message.isRead ? AppColors.onAccent.withValues(alpha: 0.7) : AppColors.onAccent.withValues(alpha: 0.5),
                             ),
                           ],
                         ],
@@ -193,7 +193,7 @@ class ChatMessageBubble extends StatelessWidget {
                     Positioned.fill(
                       child: IgnorePointer(
                         child: Container(
-                          decoration: BoxDecoration(color: Colors.black.withOpacity(0.55), borderRadius: BorderRadius.circular(8)),
+                          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(8)),
                           alignment: Alignment.center,
                           child: Text(
                             '+$extraCount',
@@ -237,7 +237,7 @@ class ChatMessageBubble extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: ColoredBox(
-              color: Colors.black.withOpacity(0.45),
+              color: Colors.black.withValues(alpha: 0.45),
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -322,7 +322,7 @@ class _SenderAvatar extends StatelessWidget {
     return SafeCircleNetworkAvatar(
       radius: 18,
       imageUrl: imageUrl,
-      backgroundColor: AppColors.accent.withOpacity(0.15),
+      backgroundColor: AppColors.accent.withValues(alpha: 0.15),
       fallback: Text(
         initial,
         style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
@@ -348,7 +348,7 @@ class _LocalVideoPreview extends StatelessWidget {
             Center(
               child: Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: Colors.black.withOpacity(0.55), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), shape: BoxShape.circle),
                 child: const Icon(Icons.videocam, color: Colors.white, size: 36),
               ),
             ),
@@ -386,11 +386,11 @@ class _VideoAttachmentPreview extends StatelessWidget {
                 )
               else
                 Container(color: AppColors.primaryGray),
-              Container(color: Colors.black.withOpacity(0.25)),
+              Container(color: Colors.black.withValues(alpha: 0.25)),
               Center(
                 child: Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.55), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), shape: BoxShape.circle),
                   child: const Icon(Icons.play_arrow, color: Colors.white, size: 36),
                 ),
               ),
@@ -399,7 +399,7 @@ class _VideoAttachmentPreview extends StatelessWidget {
                 bottom: 8,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(6)),
+                  decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(6)),
                   child: Text('Tap to play', style: AppTextStyles.labelSmall.copyWith(color: Colors.white)),
                 ),
               ),

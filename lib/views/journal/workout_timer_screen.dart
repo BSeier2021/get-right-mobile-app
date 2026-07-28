@@ -86,7 +86,7 @@ class _WorkoutTimerScreenState extends State<WorkoutTimerScreen> {
               Container(
                 width: 80,
                 height: 80,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), shape: BoxShape.circle),
                 child: const Icon(Icons.check_circle, color: AppColors.accent, size: 48),
               ),
               const SizedBox(height: 20),
@@ -135,8 +135,8 @@ class _WorkoutTimerScreenState extends State<WorkoutTimerScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isRunning ? AppColors.accent : AppColors.primaryGray.withOpacity(0.3), width: isRunning ? 2 : 1),
-        boxShadow: [BoxShadow(color: isRunning ? AppColors.accent.withOpacity(0.2) : Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        border: Border.all(color: isRunning ? AppColors.accent : AppColors.primaryGray.withValues(alpha: 0.3), width: isRunning ? 2 : 1),
+        boxShadow: [BoxShadow(color: isRunning ? AppColors.accent.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,7 +150,7 @@ class _WorkoutTimerScreenState extends State<WorkoutTimerScreen> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                 child: Text(
                   _formatTime(initialSeconds),
                   style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),

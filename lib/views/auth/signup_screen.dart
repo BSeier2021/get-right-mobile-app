@@ -206,7 +206,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                             child: Text(
                               textAlign: TextAlign.center,
                               'Sign up to start your fitness journey.',
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 13.sp, fontWeight: FontWeight.w400, height: 1.4),
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.6), fontSize: 13.sp, fontWeight: FontWeight.w400, height: 1.4),
                             ),
                           ),
                           SizedBox(height: 30.h),
@@ -255,9 +255,9 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: AppColors.surface.withOpacity(0.5),
+                              color: AppColors.surface.withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+                              border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,7 +312,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                     shape: BoxShape.circle,
                                     color: _agreedToTerms ? AppColors.accent : Colors.transparent,
                                     border: Border.all(
-                                      color: _agreedToTerms ? AppColors.accent : AppColors.primaryGray.withOpacity(0.6),
+                                      color: _agreedToTerms ? AppColors.accent : AppColors.primaryGray.withValues(alpha: 0.6),
                                       width: 1.6,
                                     ),
                                   ),
@@ -325,7 +325,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                   TextSpan(
                                     text: 'I agree to Get Right\'s ',
                                     style: AppTextStyles.bodySmall.copyWith(
-                                      color: AppColors.onBackground.withOpacity(0.75),
+                                      color: AppColors.onBackground.withValues(alpha: 0.75),
                                       fontSize: 13.sp,
                                       fontWeight: FontWeight.w400,
                                     ),
@@ -341,7 +341,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                       ),
                                       TextSpan(
                                         text: ' and ',
-                                        style: TextStyle(color: AppColors.onBackground.withOpacity(0.75)),
+                                        style: TextStyle(color: AppColors.onBackground.withValues(alpha: 0.75)),
                                       ),
                                       TextSpan(
                                         text: 'Privacy Policy',
@@ -390,7 +390,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                               Expanded(
                                 child: Container(
                                   height: 1,
-                                  decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.transparent, AppColors.primaryGray.withOpacity(0.3)])),
+                                  decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.transparent, AppColors.primaryGray.withValues(alpha: 0.3)])),
                                 ),
                               ),
                               Padding(
@@ -403,7 +403,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                               Expanded(
                                 child: Container(
                                   height: 1,
-                                  decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.primaryGray.withOpacity(0.3), Colors.transparent])),
+                                  decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.primaryGray.withValues(alpha: 0.3), Colors.transparent])),
                                 ),
                               ),
                             ],
@@ -471,14 +471,14 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
           Icon(
             met ? Icons.check_circle_rounded : Icons.circle_outlined,
             size: 16,
-            color: met ? AppColors.accent : AppColors.primaryGray.withOpacity(0.45),
+            color: met ? AppColors.accent : AppColors.primaryGray.withValues(alpha: 0.45),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
               style: AppTextStyles.bodySmall.copyWith(
-                color: met ? AppColors.onBackground.withOpacity(0.85) : AppColors.onBackground.withOpacity(0.55),
+                color: met ? AppColors.onBackground.withValues(alpha: 0.85) : AppColors.onBackground.withValues(alpha: 0.55),
                 fontSize: 12.sp,
                 fontWeight: met ? FontWeight.w600 : FontWeight.w400,
                 height: 1.35,

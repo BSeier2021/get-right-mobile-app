@@ -40,11 +40,11 @@ class _TrainerReviewsScreenState extends State<TrainerReviewsScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     5,
-                    (index) => Icon(Icons.star, color: index < (trainer['rating'] ?? 4.8).floor() ? AppColors.upcoming : Colors.white.withOpacity(0.3), size: 24),
+                    (index) => Icon(Icons.star, color: index < (trainer['rating'] ?? 4.8).floor() ? AppColors.upcoming : Colors.white.withValues(alpha: 0.3), size: 24),
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text('Based on ${trainer['totalReviews'] ?? 127} reviews', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onAccent.withOpacity(0.9))),
+                Text('Based on ${trainer['totalReviews'] ?? 127} reviews', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onAccent.withValues(alpha: 0.9))),
               ],
             ),
           ),
@@ -79,7 +79,7 @@ class _TrainerReviewsScreenState extends State<TrainerReviewsScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.rate_review_outlined, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+                        Icon(Icons.rate_review_outlined, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
                         const SizedBox(height: 16),
                         Text('No reviews found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
                       ],
@@ -131,7 +131,7 @@ class _TrainerReviewsScreenState extends State<TrainerReviewsScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,7 +170,7 @@ class _TrainerReviewsScreenState extends State<TrainerReviewsScreen> {
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

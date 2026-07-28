@@ -265,15 +265,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               borderRadius: BorderRadius.circular(36),
               boxShadow: [
                 // Deep outer shadow for elevation
-                BoxShadow(color: _blackPrimary.withOpacity(0.15), blurRadius: 40, offset: const Offset(0, 20), spreadRadius: -8),
+                BoxShadow(color: _blackPrimary.withValues(alpha: 0.15), blurRadius: 40, offset: const Offset(0, 20), spreadRadius: -8),
                 // Mid shadow for depth
-                BoxShadow(color: _blackPrimary.withOpacity(0.1), blurRadius: 24, offset: const Offset(0, 12), spreadRadius: -4),
+                BoxShadow(color: _blackPrimary.withValues(alpha: 0.1), blurRadius: 24, offset: const Offset(0, 12), spreadRadius: -4),
                 // Soft ambient shadow
-                BoxShadow(color: _blackPrimary.withOpacity(0.05), blurRadius: 12, offset: const Offset(0, 6)),
+                BoxShadow(color: _blackPrimary.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 6)),
                 // Top highlight for 3D pop
-                BoxShadow(color: Colors.white.withOpacity(0.9), blurRadius: 2, offset: const Offset(0, -2), spreadRadius: 0),
+                BoxShadow(color: Colors.white.withValues(alpha: 0.9), blurRadius: 2, offset: const Offset(0, -2), spreadRadius: 0),
                 // Side highlight
-                BoxShadow(color: Colors.white.withOpacity(0.5), blurRadius: 4, offset: const Offset(-2, 0)),
+                BoxShadow(color: Colors.white.withValues(alpha: 0.5), blurRadius: 4, offset: const Offset(-2, 0)),
               ],
             ),
             child: ClipRRect(
@@ -291,7 +291,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [Colors.white.withOpacity(0.6), Colors.white.withOpacity(0.2), Colors.transparent],
+                          colors: [Colors.white.withValues(alpha: 0.6), Colors.white.withValues(alpha: 0.2), Colors.transparent],
                         ),
                       ),
                     ),
@@ -300,7 +300,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(
-                        gradient: RadialGradient(center: Alignment.center, radius: 0.8, colors: [Colors.white.withOpacity(0.3), Colors.transparent]),
+                        gradient: RadialGradient(center: Alignment.center, radius: 0.8, colors: [Colors.white.withValues(alpha: 0.3), Colors.transparent]),
                       ),
                     ),
                   ),
@@ -320,10 +320,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                 decoration: BoxDecoration(
-                                  gradient: LinearGradient(colors: [_greenAccent.withOpacity(0.12), _greenAccent.withOpacity(0.08)]),
+                                  gradient: LinearGradient(colors: [_greenAccent.withValues(alpha: 0.12), _greenAccent.withValues(alpha: 0.08)]),
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: _greenAccent.withOpacity(0.25), width: 1.5),
-                                  boxShadow: [BoxShadow(color: _greenAccent.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 2))],
+                                  border: Border.all(color: _greenAccent.withValues(alpha: 0.25), width: 1.5),
+                                  boxShadow: [BoxShadow(color: _greenAccent.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))],
                                 ),
                                 child: Text(
                                   'WEEKLY GOAL',
@@ -344,8 +344,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                       height: 0.85,
                                       letterSpacing: -4,
                                       shadows: [
-                                        Shadow(color: _greenAccent.withOpacity(0.2), offset: const Offset(0, 6), blurRadius: 12),
-                                        Shadow(color: _blackPrimary.withOpacity(0.08), offset: const Offset(0, 3), blurRadius: 6),
+                                        Shadow(color: _greenAccent.withValues(alpha: 0.2), offset: const Offset(0, 6), blurRadius: 12),
+                                        Shadow(color: _blackPrimary.withValues(alpha: 0.08), offset: const Offset(0, 3), blurRadius: 6),
                                       ],
                                     ),
                                   ),
@@ -358,7 +358,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                         fontSize: 34,
                                         fontWeight: FontWeight.w900,
                                         height: 1.0,
-                                        shadows: [Shadow(color: _greenAccent.withOpacity(0.3), offset: const Offset(0, 2), blurRadius: 4)],
+                                        shadows: [Shadow(color: _greenAccent.withValues(alpha: 0.3), offset: const Offset(0, 2), blurRadius: 4)],
                                       ),
                                     ),
                                   ),
@@ -373,9 +373,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                     width: 6,
                                     height: 6,
                                     decoration: BoxDecoration(
-                                      gradient: LinearGradient(colors: [_greenAccent, _greenAccent.withOpacity(0.7)]),
+                                      gradient: LinearGradient(colors: [_greenAccent, _greenAccent.withValues(alpha: 0.7)]),
                                       shape: BoxShape.circle,
-                                      boxShadow: [BoxShadow(color: _greenAccent.withOpacity(0.4), blurRadius: 4, spreadRadius: 1)],
+                                      boxShadow: [BoxShadow(color: _greenAccent.withValues(alpha: 0.4), blurRadius: 4, spreadRadius: 1)],
                                     ),
                                   ),
                                   const SizedBox(width: 8),
@@ -405,7 +405,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                 height: 130,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  boxShadow: [BoxShadow(color: _greenAccent.withOpacity(0.25), blurRadius: 32, spreadRadius: 8)],
+                                  boxShadow: [BoxShadow(color: _greenAccent.withValues(alpha: 0.25), blurRadius: 32, spreadRadius: 8)],
                                 ),
                               ),
                               // Progress ring
@@ -422,7 +422,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                   gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFFFFFFFF), Color(0xFFF5F5F5), Color(0xFFEEEEEE)]),
                                   boxShadow: [
                                     // Outer shadow
-                                    BoxShadow(color: _blackPrimary.withOpacity(0.12), blurRadius: 16, offset: const Offset(0, 6)),
+                                    BoxShadow(color: _blackPrimary.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 6)),
                                     // Inner highlight
                                     BoxShadow(color: Colors.white, blurRadius: 4, offset: const Offset(-2, -2)),
                                   ],
@@ -434,9 +434,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                       Container(
                                         padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          gradient: LinearGradient(colors: [_greenAccent, _greenAccent.withOpacity(0.8)]),
+                                          gradient: LinearGradient(colors: [_greenAccent, _greenAccent.withValues(alpha: 0.8)]),
                                           shape: BoxShape.circle,
-                                          boxShadow: [BoxShadow(color: _greenAccent.withOpacity(0.3), blurRadius: 8, spreadRadius: 2)],
+                                          boxShadow: [BoxShadow(color: _greenAccent.withValues(alpha: 0.3), blurRadius: 8, spreadRadius: 2)],
                                         ),
                                         child: Icon(Icons.trending_up_rounded, color: Colors.white, size: 24),
                                       ),
@@ -493,7 +493,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           color: isPrimary ? _greenAccent : _cardWhite,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
-            BoxShadow(color: isPrimary ? _greenAccent.withOpacity(0.3) : _blackPrimary.withOpacity(0.06), blurRadius: isPrimary ? 20 : 16, offset: Offset(0, isPrimary ? 8 : 6)),
+            BoxShadow(color: isPrimary ? _greenAccent.withValues(alpha: 0.3) : _blackPrimary.withValues(alpha: 0.06), blurRadius: isPrimary ? 20 : 16, offset: Offset(0, isPrimary ? 8 : 6)),
           ],
         ),
         child: Column(
@@ -527,7 +527,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       decoration: BoxDecoration(
         color: _cardWhite,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: _blackPrimary.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, 6))],
+        boxShadow: [BoxShadow(color: _blackPrimary.withValues(alpha: 0.06), blurRadius: 16, offset: const Offset(0, 6))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -554,7 +554,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       decoration: BoxDecoration(
         color: _cardWhite,
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [BoxShadow(color: _blackPrimary.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 8))],
+        boxShadow: [BoxShadow(color: _blackPrimary.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, 8))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,7 +563,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: _greenAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: _greenAccent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
                 child: Icon(Icons.fitness_center_rounded, color: _greenAccent, size: 24),
               ),
               const SizedBox(width: 16),
@@ -623,14 +623,14 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       decoration: BoxDecoration(
         color: _cardWhite,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: _blackPrimary.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: _blackPrimary.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Row(
         children: [
           Container(
             width: 48,
             height: 48,
-            decoration: BoxDecoration(color: completed ? _greenAccent.withOpacity(0.15) : _blackPrimary.withOpacity(0.05), borderRadius: BorderRadius.circular(14)),
+            decoration: BoxDecoration(color: completed ? _greenAccent.withValues(alpha: 0.15) : _blackPrimary.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(14)),
             child: Icon(completed ? Icons.check_circle_rounded : Icons.schedule_rounded, color: completed ? _greenAccent : _textSecondary, size: 24),
           ),
           const SizedBox(width: 16),
@@ -653,7 +653,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           if (completed)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: _greenAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: _greenAccent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
               child: Text(
                 'Done',
                 style: TextStyle(color: _greenAccent, fontSize: 12, fontWeight: FontWeight.w700),
@@ -690,7 +690,7 @@ class _UltraPremium3DRingPainter extends CustomPainter {
 
     // Background track with neumorphic inner shadow
     final bgPaint = Paint()
-      ..color = color.withOpacity(0.06)
+      ..color = color.withValues(alpha: 0.06)
       ..style = PaintingStyle.stroke
       ..strokeWidth = baseStrokeWidth
       ..strokeCap = StrokeCap.round;
@@ -699,7 +699,7 @@ class _UltraPremium3DRingPainter extends CustomPainter {
 
     // Inner shadow for depth (neumorphism)
     final innerShadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.1)
+      ..color = Colors.black.withValues(alpha: 0.1)
       ..style = PaintingStyle.stroke
       ..strokeWidth = baseStrokeWidth - 3
       ..strokeCap = StrokeCap.round
@@ -726,7 +726,7 @@ class _UltraPremium3DRingPainter extends CustomPainter {
 
       // Color variation for depth (lighter at top, darker at bottom)
       final colorT = (math.sin(angle + math.pi / 2) + 1) / 2;
-      progressPaint.color = Color.lerp(color.withOpacity(0.7), color, colorT)!;
+      progressPaint.color = Color.lerp(color.withValues(alpha: 0.7), color, colorT)!;
       progressPaint.strokeWidth = strokeWidth;
 
       canvas.drawArc(Rect.fromCircle(center: center, radius: radius), angle, nextAngle - angle, false, progressPaint);
@@ -734,7 +734,7 @@ class _UltraPremium3DRingPainter extends CustomPainter {
 
     // Outer glow shadow for progress (stronger at top)
     final outerGlowPaint = Paint()
-      ..color = color.withOpacity(0.4)
+      ..color = color.withValues(alpha: 0.4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = baseStrokeWidth + 10
       ..strokeCap = StrokeCap.round
@@ -744,7 +744,7 @@ class _UltraPremium3DRingPainter extends CustomPainter {
 
     // Top highlight for glossy curved 3D effect
     final highlightPaint = Paint()
-      ..color = Colors.white.withOpacity(0.5)
+      ..color = Colors.white.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 5
       ..strokeCap = StrokeCap.round;
@@ -753,7 +753,7 @@ class _UltraPremium3DRingPainter extends CustomPainter {
 
     // Bottom shadow for 3D depth
     final bottomShadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.2)
+      ..color = Colors.black.withValues(alpha: 0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.round;
@@ -762,7 +762,7 @@ class _UltraPremium3DRingPainter extends CustomPainter {
 
     // Inner highlight on the left side for curve
     final innerHighlightPaint = Paint()
-      ..color = Colors.white.withOpacity(0.3)
+      ..color = Colors.white.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;

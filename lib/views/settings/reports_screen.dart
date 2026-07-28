@@ -79,9 +79,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           icon: Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.accent.withOpacity(0.15), width: 1),
+              border: Border.all(color: AppColors.accent.withValues(alpha: 0.15), width: 1),
             ),
             child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 25),
           ),
@@ -284,7 +284,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent.withOpacity(0.12) : AppColors.white,
+          color: selected ? AppColors.accent.withValues(alpha: 0.12) : AppColors.white,
           borderRadius: BorderRadius.circular(50),
           border: Border.all(color: selected ? AppColors.accent : const Color(0xFFE6F0DA), width: 1),
         ),
@@ -331,7 +331,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             SafeCircleNetworkAvatar(
               radius: 22,
               imageUrl: r.avatarUrl,
-              backgroundColor: AppColors.accent.withOpacity(0.15),
+              backgroundColor: AppColors.accent.withValues(alpha: 0.15),
               fallback: Icon(_iconForRefType(refType), color: AppColors.accent, size: 20),
             ),
             const SizedBox(width: 12),
@@ -381,9 +381,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(50),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Text(
         text,

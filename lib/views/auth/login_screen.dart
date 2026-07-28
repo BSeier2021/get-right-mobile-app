@@ -233,7 +233,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 decoration: BoxDecoration(
                                   color: _rememberMe ? AppColors.accent : Colors.transparent,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: _rememberMe ? AppColors.accent : AppColors.primaryGray.withOpacity(0.5), width: 2),
+                                  border: Border.all(color: _rememberMe ? AppColors.accent : AppColors.primaryGray.withValues(alpha: 0.5), width: 2),
                                 ),
                                 child: _rememberMe ? const Icon(Icons.check_rounded, size: 14, color: AppColors.onAccent) : null,
                               ),
@@ -241,7 +241,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               Text(
                                 'Remember Me',
                                 style: AppTextStyles.bodyMedium.copyWith(
-                                  color: AppColors.onBackground.withOpacity(0.7),
+                                  color: AppColors.onBackground.withValues(alpha: 0.7),
                                   fontSize: 14.sp,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -288,7 +288,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         Expanded(
                           child: Container(
                             height: 1,
-                            decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.transparent, AppColors.primaryGray.withOpacity(0.3)])),
+                            decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.transparent, AppColors.primaryGray.withValues(alpha: 0.3)])),
                           ),
                         ),
                         Padding(
@@ -301,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         Expanded(
                           child: Container(
                             height: 1,
-                            decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.primaryGray.withOpacity(0.3), Colors.transparent])),
+                            decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.primaryGray.withValues(alpha: 0.3), Colors.transparent])),
                           ),
                         ),
                       ],
@@ -327,7 +327,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         children: [
                           Text(
                             'Don\'t have an account? ',
-                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.7), fontSize: 15.sp),
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.7), fontSize: 15.sp),
                           ).paddingOnly(top: 4),
                           TextButton(
                             onPressed: () => Get.toNamed(AppRoutes.signup),

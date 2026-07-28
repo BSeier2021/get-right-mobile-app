@@ -132,7 +132,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         leading: GestureDetector(
           onTap: () => Get.back(),
           child: Container(
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ).paddingAll(8),
         ),
@@ -207,7 +207,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+                        Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
                         const SizedBox(height: 16),
                         Text('No muscle groups found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
                       ],

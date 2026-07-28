@@ -494,7 +494,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
           leading: IconButton(
             icon: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
               child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 16),
             ),
             onPressed: () => Get.offAllNamed(AppRoutes.home),
@@ -583,7 +583,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
         child: Text(
           label,
           style: AppTextStyles.bodyMedium.copyWith(
-            color: selected ? Colors.white : AppColors.onPrimary.withOpacity(0.7),
+            color: selected ? Colors.white : AppColors.onPrimary.withValues(alpha: 0.7),
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
             fontSize: 13.sp,
           ),
@@ -598,7 +598,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: MediaQuery.of(context).size.height * 0.15),
-          Icon(Icons.fitness_center, size: 72, color: AppColors.primaryGray.withOpacity(0.4)),
+          Icon(Icons.fitness_center, size: 72, color: AppColors.primaryGray.withValues(alpha: 0.4)),
           const SizedBox(height: 16),
           Center(
             child: Text(_emptyTitleForTab(), style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
@@ -718,7 +718,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
             color: const Color(0xFFF8FFE9),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFCDE7C8)),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 4))],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4))],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -727,9 +727,9 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: AppColors.accentVariant.withOpacity(0.12),
+                  color: AppColors.accentVariant.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.accentVariant.withOpacity(0.25)),
+                  border: Border.all(color: AppColors.accentVariant.withValues(alpha: 0.25)),
                 ),
                 child: const Icon(Icons.event_busy_outlined, color: AppColors.accentVariant, size: 28),
               ),
@@ -754,7 +754,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.onSurface,
                         padding: const EdgeInsets.symmetric(vertical: 13),
-                        side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 1.2),
+                        side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.5), width: 1.2),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                       ),
                       child: Text(
@@ -826,7 +826,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFCDE7C8), width: 1),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 3))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -969,7 +969,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFCDE7C8), width: 1),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 3))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1049,7 +1049,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
           child: LinearProgressIndicator(
             value: progress / 100,
             minHeight: 8,
-            backgroundColor: AppColors.primaryGray.withOpacity(0.15),
+            backgroundColor: AppColors.primaryGray.withValues(alpha: 0.15),
             valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentVariant),
           ),
         ),
@@ -1085,7 +1085,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.onSurface,
               padding: const EdgeInsets.symmetric(vertical: 13),
-              side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 1.2),
+              side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.5), width: 1.2),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
             ),
             child: Text(
@@ -1144,7 +1144,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.onSurface,
               padding: const EdgeInsets.symmetric(vertical: 13),
-              side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 1.2),
+              side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.5), width: 1.2),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
             ),
             child: isCancelling
@@ -1185,7 +1185,7 @@ class _MyProgramsScreenState extends State<MyProgramsScreen> {
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.onSurface,
               padding: const EdgeInsets.symmetric(vertical: 13),
-              side: BorderSide(color: AppColors.primaryGray.withOpacity(0.5), width: 1.2),
+              side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.5), width: 1.2),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
             ),
             child: Text(

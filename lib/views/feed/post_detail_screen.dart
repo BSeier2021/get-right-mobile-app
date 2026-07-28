@@ -132,9 +132,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.black.withValues(alpha: 0.6),
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 2))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 2))],
                   ),
                   child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
                 ),
@@ -153,9 +153,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
+                      color: Colors.black.withValues(alpha: 0.6),
                       shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 2))],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 2))],
                     ),
                     child: const Icon(Icons.more_vert, color: Colors.white),
                   ),
@@ -177,7 +177,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) => Container(
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)]),
+                              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.6)]),
                             ),
                           ),
                         ),
@@ -188,7 +188,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [Colors.black.withOpacity(0.3), Colors.transparent, Colors.black.withOpacity(0.5)],
+                            colors: [Colors.black.withValues(alpha: 0.3), Colors.transparent, Colors.black.withValues(alpha: 0.5)],
                             stops: const [0.0, 0.5, 1.0],
                           ),
                         ),
@@ -199,9 +199,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
                           child: Container(
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.7),
+                              color: Colors.black.withValues(alpha: 0.7),
                               shape: BoxShape.circle,
-                              boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 20, spreadRadius: 2)],
+                              boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 20, spreadRadius: 2)],
                             ),
                             child: const Icon(Icons.play_arrow, color: Colors.white, size: 56),
                           ),
@@ -214,9 +214,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.8),
+                              color: Colors.black.withValues(alpha: 0.8),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.white.withOpacity(0.2)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -244,7 +244,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
                                   Icons.favorite,
                                   color: Colors.white,
                                   size: 120,
-                                  shadows: [Shadow(color: AppColors.error.withOpacity(0.5), blurRadius: 30)],
+                                  shadows: [Shadow(color: AppColors.error.withValues(alpha: 0.5), blurRadius: 30)],
                                 ),
                               ),
                             );
@@ -315,7 +315,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
                       children: [
                         CircleAvatar(
                           radius: 18,
-                          backgroundColor: AppColors.accent.withOpacity(0.2),
+                          backgroundColor: AppColors.accent.withValues(alpha: 0.2),
                           child: Text(
                             _post['creatorInitials'] ?? 'U',
                             style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
@@ -382,7 +382,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
                   ),
                   const SizedBox(height: 16),
 
-                  Divider(height: 1, thickness: 1, color: AppColors.primaryGray.withOpacity(0.2)),
+                  Divider(height: 1, thickness: 1, color: AppColors.primaryGray.withValues(alpha: 0.2)),
                   const SizedBox(height: 16),
 
                   // Comments Section Header
@@ -465,7 +465,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
           // User Avatar
           CircleAvatar(
             radius: 18,
-            backgroundColor: AppColors.accent.withOpacity(0.2),
+            backgroundColor: AppColors.accent.withValues(alpha: 0.2),
             child: Text(
               comment['userInitials'],
               style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
@@ -539,7 +539,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
       padding: EdgeInsets.only(left: 16, right: 16, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 8),
       decoration: BoxDecoration(
         color: AppColors.background,
-        border: Border(top: BorderSide(color: AppColors.primaryGray.withOpacity(0.2), width: 1)),
+        border: Border(top: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1)),
       ),
       child: SafeArea(
         child: Row(
@@ -547,7 +547,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
             // User avatar
             CircleAvatar(
               radius: 18,
-              backgroundColor: AppColors.accent.withOpacity(0.2),
+              backgroundColor: AppColors.accent.withValues(alpha: 0.2),
               child: Text(
                 'YU',
                 style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
@@ -612,7 +612,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
             Container(
               width: 40,
               height: 4,
-              decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 8),
             _buildOptionItem(Icons.edit_outlined, 'Edit Post', () {
@@ -623,7 +623,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
               Navigator.pop(context);
               // TODO: Delete post
             }),
-            Divider(height: 1, thickness: 1, color: AppColors.primaryGray.withOpacity(0.2)),
+            Divider(height: 1, thickness: 1, color: AppColors.primaryGray.withValues(alpha: 0.2)),
             _buildOptionItem(Icons.share_outlined, 'Share Post', () {
               Navigator.pop(context);
               _showShareOptions();
@@ -661,7 +661,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
               Container(
                 width: 40,
                 height: 4,
-                decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
               ),
               const SizedBox(height: 20),
               Text(
@@ -733,9 +733,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> with SingleTickerPr
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.15),
+              color: AppColors.accent.withValues(alpha: 0.15),
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 1),
+              border: Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 1),
             ),
             child: Icon(icon, color: AppColors.accent, size: 28),
           ),

@@ -134,7 +134,7 @@ class _SupportTicketDetailScreenState extends State<SupportTicketDetailScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(result: true),
@@ -300,7 +300,7 @@ class _SupportTicketDetailScreenState extends State<SupportTicketDetailScreen> {
         padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 8.h),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.primaryGray.withOpacity(0.15))),
+          border: Border(top: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.15))),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,

@@ -131,7 +131,7 @@ class SearchScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, -2))],
             ),
             child: Row(
               children: [
@@ -193,7 +193,7 @@ class SearchScreen extends StatelessWidget {
                 selected: selected,
                 onSelected: (_) => onTap(option),
                 backgroundColor: AppColors.surface,
-                selectedColor: AppColors.accent.withOpacity(0.2),
+                selectedColor: AppColors.accent.withValues(alpha: 0.2),
                 checkmarkColor: AppColors.accent,
                 side: BorderSide(color: selected ? AppColors.accent : AppColors.primaryGray, width: selected ? 2 : 1),
                 labelStyle: AppTextStyles.labelMedium.copyWith(
@@ -238,7 +238,7 @@ class SearchScreen extends StatelessWidget {
                 max: 5,
                 divisions: 10,
                 activeColor: AppColors.accent,
-                inactiveColor: AppColors.primaryGray.withOpacity(0.3),
+                inactiveColor: AppColors.primaryGray.withValues(alpha: 0.3),
                 onChanged: (value) => controller.setTrainerRating(value > 0 ? value : null),
               ),
             ],
@@ -310,7 +310,7 @@ class SearchScreen extends StatelessWidget {
                 max: 200,
                 divisions: 20,
                 activeColor: AppColors.accent,
-                inactiveColor: AppColors.primaryGray.withOpacity(0.3),
+                inactiveColor: AppColors.primaryGray.withValues(alpha: 0.3),
                 labels: RangeLabels('\$${minPrice.toStringAsFixed(0)}', '\$${maxPrice.toStringAsFixed(0)}'),
                 onChanged: (values) {
                   controller.setPriceRange(values.start > 0 ? values.start : null, values.end < 200 ? values.end : null);

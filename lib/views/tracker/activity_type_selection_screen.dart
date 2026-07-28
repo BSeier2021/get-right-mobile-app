@@ -58,7 +58,7 @@ class _ActivityTypeSelectionScreenState extends State<ActivityTypeSelectionScree
         leading: GestureDetector(
           onTap: () => Get.back(),
           child: Container(
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ).paddingAll(8),
         ),
@@ -84,9 +84,9 @@ class _ActivityTypeSelectionScreenState extends State<ActivityTypeSelectionScree
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppColors.accent.withOpacity(0.1),
+                        color: AppColors.accent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 1.5),
+                        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 1.5),
                       ),
                       child: Row(
                         children: [
@@ -160,7 +160,7 @@ class _ActivityTypeSelectionScreenState extends State<ActivityTypeSelectionScree
                     disabledForegroundColor: Colors.white,
 
                     shape: RoundedRectangleBorder(
-                      side: BorderSide(color: AppColors.accent.withOpacity(0.5), width: 2),
+                      side: BorderSide(color: AppColors.accent.withValues(alpha: 0.5), width: 2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 2,
@@ -188,12 +188,12 @@ class _ActivityTypeSelectionScreenState extends State<ActivityTypeSelectionScree
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : AppColors.surface,
+          color: isSelected ? color.withValues(alpha: 0.1) : AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isSelected ? color : AppColors.primaryGray.withOpacity(0.3), width: isSelected ? 2 : 1),
+          border: Border.all(color: isSelected ? color : AppColors.primaryGray.withValues(alpha: 0.3), width: isSelected ? 2 : 1),
           boxShadow: isSelected
-              ? [BoxShadow(color: color.withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4))]
-              : [BoxShadow(color: AppColors.secondary.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+              ? [BoxShadow(color: color.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))]
+              : [BoxShadow(color: AppColors.secondary.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Row(
           children: [
@@ -202,7 +202,7 @@ class _ActivityTypeSelectionScreenState extends State<ActivityTypeSelectionScree
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: color.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
                 border: Border.all(color: color, width: 2),
               ),

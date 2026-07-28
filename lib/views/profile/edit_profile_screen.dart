@@ -335,13 +335,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1.5),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                         child: Icon(Icons.photo_library_rounded, color: AppColors.accent, size: 24),
                       ),
                       const SizedBox(width: 16),
@@ -376,13 +376,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1.5),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                         child: Icon(Icons.camera_alt_rounded, color: AppColors.accent, size: 24),
                       ),
                       const SizedBox(width: 16),
@@ -432,8 +432,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.surface,
-              border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 2),
-              boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.1), blurRadius: 20, spreadRadius: 0, offset: const Offset(0, 8))],
+              border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 2),
+              boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.1), blurRadius: 20, spreadRadius: 0, offset: const Offset(0, 8))],
             ),
             child: _profileImagePath != null
                 ? ClipOval(
@@ -547,7 +547,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -759,10 +759,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(50),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1.5),
       ),
       child: DropdownButtonFormField<String>(
-        value: effective,
+        initialValue: effective,
         decoration: InputDecoration(
           labelText: label,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
@@ -853,10 +853,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       padding: const EdgeInsets.all(16),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.accent.withOpacity(0.08),
+        color: AppColors.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.18), width: 1),
-        boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 6))],
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.18), width: 1),
+        boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 6))],
       ),
       child: Wrap(
         spacing: 4,
@@ -875,13 +875,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 }
               });
             },
-            selectedColor: AppColors.accent.withOpacity(0.18),
+            selectedColor: AppColors.accent.withValues(alpha: 0.18),
             labelStyle: TextStyle(color: AppColors.onBackground, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500),
-            backgroundColor: AppColors.accent.withOpacity(0.08),
+            backgroundColor: AppColors.accent.withValues(alpha: 0.08),
             checkmarkColor: Colors.transparent,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(50),
-              side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray.withOpacity(0.25), width: 1),
+              side: BorderSide(color: isSelected ? AppColors.accent : AppColors.primaryGray.withValues(alpha: 0.25), width: 1),
             ),
           );
         }).toList(),
@@ -911,10 +911,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(50),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1.5),
       ),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: InputDecoration(
           labelText: label,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),

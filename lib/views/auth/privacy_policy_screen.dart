@@ -20,9 +20,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.accent.withOpacity(0.15), width: 1),
+              border: Border.all(color: AppColors.accent.withValues(alpha: 0.15), width: 1),
             ),
             child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 20),
           ),
@@ -210,9 +210,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.accent.withOpacity(0.1),
+          color: AppColors.accent.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.accent.withOpacity(0.2), width: 1),
+          border: Border.all(color: AppColors.accent.withValues(alpha: 0.2), width: 1),
         ),
         child: Row(
           children: [
@@ -229,7 +229,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     'Last updated: $_lastUpdated',
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withOpacity(0.6)),
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.onBackground.withValues(alpha: 0.6)),
                   ),
                 ],
               ),
@@ -251,7 +251,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground, fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 10),
-          Text(content, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75), fontSize: 14.5, height: 1.6)),
+          Text(content, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.75), fontSize: 14.5, height: 1.6)),
         ],
       ),
     );
@@ -277,20 +277,20 @@ class PrivacyPolicyScreen extends StatelessWidget {
             ),
             if (intro != null) ...[
               const SizedBox(height: 14),
-              Text(intro, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75), fontSize: 14, height: 1.55)),
+              Text(intro, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.75), fontSize: 14, height: 1.55)),
             ],
             if (bullets != null && bullets.isNotEmpty) ...[
               const SizedBox(height: 16),
               ...bullets.map(
                 (b) => Padding(
                   padding: const EdgeInsets.only(bottom: 14),
-                  child: Text(b, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75), fontSize: 14, height: 1.55)),
+                  child: Text(b, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.75), fontSize: 14, height: 1.55)),
                 ),
               ),
             ],
             if (footer != null) ...[
               const SizedBox(height: 4),
-              Text(footer, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75), fontSize: 14, height: 1.55)),
+              Text(footer, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.75), fontSize: 14, height: 1.55)),
             ],
           ],
         ),

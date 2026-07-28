@@ -685,7 +685,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
         offset: const Offset(0, 28),
         constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
         enabled: !_commentActionInFlight && !_submittingComment && !_reportInFlight,
-        icon: Icon(Icons.more_vert, size: 18, color: AppColors.primaryGray.withOpacity(0.85)),
+        icon: Icon(Icons.more_vert, size: 18, color: AppColors.primaryGray.withValues(alpha: 0.85)),
         onSelected: (value) {
           if (value == 'reply') onReply();
           if (value == 'report') onReport?.call();
@@ -832,11 +832,11 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     final url = ImageUrlSanitizer.asHttpUrlOrNull((comment['avatarUrl'] ?? '').toString());
     final initials = (comment['authorInitials'] ?? 'U').toString();
     if (url != null) {
-      return CircleAvatar(radius: 16, backgroundColor: AppColors.accent.withOpacity(0.2), backgroundImage: NetworkImage(url));
+      return CircleAvatar(radius: 16, backgroundColor: AppColors.accent.withValues(alpha: 0.2), backgroundImage: NetworkImage(url));
     }
     return CircleAvatar(
       radius: 16,
-      backgroundColor: AppColors.accent.withOpacity(0.2),
+      backgroundColor: AppColors.accent.withValues(alpha: 0.2),
       child: Text(initials, style: AppTextStyles.labelMedium),
     );
   }
@@ -857,7 +857,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
             Container(
               width: 40,
               height: 4,
-              decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.4), borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 12),
             Row(
@@ -881,7 +881,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
             if (_replyParentId != null) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   children: [
                     Expanded(
@@ -894,7 +894,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
                     ),
                     GestureDetector(
                       onTap: _cancelReply,
-                      child: Icon(Icons.close, size: 18, color: AppColors.primaryGray.withOpacity(0.9)),
+                      child: Icon(Icons.close, size: 18, color: AppColors.primaryGray.withValues(alpha: 0.9)),
                     ),
                   ],
                 ),
@@ -917,7 +917,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                        borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),

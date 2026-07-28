@@ -130,7 +130,7 @@ class _PreferenceSelectionScreenState extends State<PreferenceSelectionScreen> {
                             onPressed: auth.isLoading ? null : () => _onSkip(auth),
                             child: Text(
                               'Skip',
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 16, fontWeight: FontWeight.w500),
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.6), fontSize: 16, fontWeight: FontWeight.w500),
                             ),
                           ),
                         ),
@@ -155,7 +155,7 @@ class _PreferenceSelectionScreenState extends State<PreferenceSelectionScreen> {
                                     Text(
                                       auth.preferencesError!,
                                       textAlign: TextAlign.center,
-                                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.75)),
+                                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.75)),
                                     ),
                                     const SizedBox(height: 16),
                                     TextButton(
@@ -187,7 +187,7 @@ class _PreferenceSelectionScreenState extends State<PreferenceSelectionScreen> {
                                       Text(
                                         'Choose your primary\nfocus to personalize\nyour experience',
                                         style: AppTextStyles.bodyLarge.copyWith(
-                                          color: AppColors.onBackground.withOpacity(0.8),
+                                          color: AppColors.onBackground.withValues(alpha: 0.8),
                                           fontSize: 15.sp,
                                           fontWeight: FontWeight.w400,
                                           height: 1.35,
@@ -259,7 +259,7 @@ class _PreferenceSelectionScreenState extends State<PreferenceSelectionScreen> {
               const SizedBox(height: 2),
               Text(
                 description.trim(),
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.85), fontSize: 15, fontWeight: FontWeight.w400, height: 1.25),
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.85), fontSize: 15, fontWeight: FontWeight.w400, height: 1.25),
               ),
             ],
           ],

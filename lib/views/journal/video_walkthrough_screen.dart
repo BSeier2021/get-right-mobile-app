@@ -139,7 +139,7 @@ class _VideoWalkthroughScreenState extends State<VideoWalkthroughScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -188,7 +188,7 @@ class _VideoWalkthroughScreenState extends State<VideoWalkthroughScreen> {
                             child: Container(
                               width: 64,
                               height: 64,
-                              decoration: BoxDecoration(color: Colors.white.withOpacity(0.92), shape: BoxShape.circle),
+                              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.92), shape: BoxShape.circle),
                               child: Icon(_playerStarted && _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: AppColors.accent, size: 40),
                             ),
                           ),
@@ -261,7 +261,7 @@ class _VideoWalkthroughScreenState extends State<VideoWalkthroughScreen> {
     return Container(
       color: AppColors.surface,
       child: Center(
-        child: showLoader ? const CircularProgressIndicator(color: AppColors.accent) : Icon(Icons.fitness_center, size: 48, color: AppColors.primaryGray.withOpacity(0.5)),
+        child: showLoader ? const CircularProgressIndicator(color: AppColors.accent) : Icon(Icons.fitness_center, size: 48, color: AppColors.primaryGray.withValues(alpha: 0.5)),
       ),
     );
   }

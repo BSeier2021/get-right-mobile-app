@@ -758,9 +758,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withOpacity(0.08),
+                      color: AppColors.error.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.error.withOpacity(0.25)),
+                      border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
                     ),
                     child: Row(
                       children: [
@@ -887,7 +887,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
             key: ValueKey(_conversationId ?? _trainerId ?? name),
             radius: 20,
             imageUrl: imageUrl,
-            backgroundColor: AppColors.accent.withOpacity(0.15),
+            backgroundColor: AppColors.accent.withValues(alpha: 0.15),
             fallback: Text(
               name.isNotEmpty ? name[0].toUpperCase() : '?',
               style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
@@ -920,7 +920,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
                 if (_programTitle != null)
                   Text(
                     _programTitle!,
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.onPrimary.withOpacity(0.7)),
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.onPrimary.withValues(alpha: 0.7)),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -941,7 +941,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () {
@@ -1155,7 +1155,7 @@ class _MediaComposerSheetState extends State<_MediaComposerSheet> {
                               : Container(
                                   width: 108,
                                   height: 108,
-                                  color: AppColors.primaryGray.withOpacity(0.25),
+                                  color: AppColors.primaryGray.withValues(alpha: 0.25),
                                   child: const Icon(Icons.videocam, size: 40, color: AppColors.onSurface),
                                 ),
                         ),

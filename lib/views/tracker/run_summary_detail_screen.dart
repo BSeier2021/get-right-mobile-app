@@ -152,9 +152,9 @@ class _RunSummaryDetailScreenState extends State<RunSummaryDetailScreen> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [AppColors.accent.withOpacity(0.15), AppColors.surface], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: LinearGradient(colors: [AppColors.accent.withValues(alpha: 0.15), AppColors.surface], begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 1.5),
       ),
       child: Column(
         children: [
@@ -228,7 +228,7 @@ class _RunSummaryDetailScreenState extends State<RunSummaryDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: AppColors.secondary.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: AppColors.secondary.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,7 +274,7 @@ class _RunSummaryDetailScreenState extends State<RunSummaryDetailScreen> {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: AppColors.secondary.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+              boxShadow: [BoxShadow(color: AppColors.secondary.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
             ),
             child: Column(
               children: [
@@ -282,7 +282,7 @@ class _RunSummaryDetailScreenState extends State<RunSummaryDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryGrayLight.withOpacity(0.3),
+                    color: AppColors.primaryGrayLight.withValues(alpha: 0.3),
                     borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
                   ),
                   child: Row(
@@ -320,7 +320,7 @@ class _RunSummaryDetailScreenState extends State<RunSummaryDetailScreen> {
                   return Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      border: !isLast ? Border(bottom: BorderSide(color: AppColors.primaryGray.withOpacity(0.1), width: 1)) : null,
+                      border: !isLast ? Border(bottom: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.1), width: 1)) : null,
                     ),
                     child: Row(
                       children: [
@@ -373,7 +373,7 @@ class _RunSummaryDetailScreenState extends State<RunSummaryDetailScreen> {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: AppColors.secondary.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+              boxShadow: [BoxShadow(color: AppColors.secondary.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
             ),
             child: TextField(
               controller: _notesController,
@@ -545,7 +545,7 @@ class _RunSummaryDetailScreenState extends State<RunSummaryDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: AppColors.secondary.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: AppColors.secondary.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

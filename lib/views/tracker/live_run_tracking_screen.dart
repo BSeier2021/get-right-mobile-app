@@ -181,9 +181,9 @@ class _LiveRunTrackingScreenState extends State<LiveRunTrackingScreen> {
           margin: const EdgeInsets.all(16),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppColors.surface.withOpacity(0.95),
+            color: AppColors.surface.withValues(alpha: 0.95),
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [BoxShadow(color: AppColors.secondary.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 4))],
+            boxShadow: [BoxShadow(color: AppColors.secondary.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, 4))],
           ),
           child: Column(
             children: [
@@ -193,7 +193,7 @@ class _LiveRunTrackingScreenState extends State<LiveRunTrackingScreen> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                    decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
                     child: Row(
                       children: [
                         Icon(_getActivityIcon(), color: AppColors.accent, size: 16),
@@ -262,7 +262,7 @@ class _LiveRunTrackingScreenState extends State<LiveRunTrackingScreen> {
   Widget _buildMetricItem({required String label, required String value, required IconData icon, Color? iconColor}) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.primaryGrayLight.withOpacity(0.3), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: AppColors.primaryGrayLight.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -296,9 +296,9 @@ class _LiveRunTrackingScreenState extends State<LiveRunTrackingScreen> {
           margin: const EdgeInsets.all(16),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           decoration: BoxDecoration(
-            color: AppColors.surface.withOpacity(0.95),
+            color: AppColors.surface.withValues(alpha: 0.95),
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [BoxShadow(color: AppColors.secondary.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, -4))],
+            boxShadow: [BoxShadow(color: AppColors.secondary.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, -4))],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -336,7 +336,7 @@ class _LiveRunTrackingScreenState extends State<LiveRunTrackingScreen> {
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
+              boxShadow: [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
             ),
             child: Icon(icon, color: Colors.white, size: isLarge ? 36 : 28),
           ),
@@ -354,7 +354,7 @@ class _LiveRunTrackingScreenState extends State<LiveRunTrackingScreen> {
     return GestureDetector(
       onTap: _toggleLock,
       child: Container(
-        color: AppColors.secondary.withOpacity(0.8),
+        color: AppColors.secondary.withValues(alpha: 0.8),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -365,7 +365,7 @@ class _LiveRunTrackingScreenState extends State<LiveRunTrackingScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 20, spreadRadius: 5)],
+                  boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 20, spreadRadius: 5)],
                 ),
                 child: const Icon(Icons.lock, size: 48, color: AppColors.accent),
               ),

@@ -84,7 +84,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -165,7 +165,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(
                   height: 200,
-                  color: AppColors.accent.withOpacity(0.2),
+                  color: AppColors.accent.withValues(alpha: 0.2),
                   child: const Center(child: Icon(Icons.restaurant, size: 64, color: AppColors.accent)),
                 ),
               ),
@@ -207,7 +207,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primaryGrayLight.withOpacity(0.6)),
+                border: Border.all(color: AppColors.primaryGrayLight.withValues(alpha: 0.6)),
               ),
               child: Column(children: recipe.ingredients.asMap().entries.map((entry) => _buildIngredientItem(entry.key + 1, entry.value)).toList()),
             ),
@@ -234,7 +234,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
                         height: 220.h,
-                        color: AppColors.accent.withOpacity(0.2),
+                        color: AppColors.accent.withValues(alpha: 0.2),
                         child: const Center(child: Icon(Icons.play_circle_outline, size: 64, color: AppColors.accent)),
                       ),
                     ),
@@ -242,7 +242,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Colors.black.withOpacity(0.55), Colors.black.withOpacity(0.75)],
+                            colors: [Colors.black.withValues(alpha: 0.55), Colors.black.withValues(alpha: 0.75)],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                           ),
@@ -261,7 +261,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             style: AppTextStyles.titleMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 4),
-                          Text('Watch step-by-step instructions', style: AppTextStyles.bodySmall.copyWith(color: Colors.white.withOpacity(0.9))),
+                          Text('Watch step-by-step instructions', style: AppTextStyles.bodySmall.copyWith(color: Colors.white.withValues(alpha: 0.9))),
                           const SizedBox(height: 12),
                           ElevatedButton(
                             onPressed: _openWalkthroughVideo,
@@ -427,8 +427,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGrayLight.withOpacity(0.6)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 3))],
+        border: Border.all(color: AppColors.primaryGrayLight.withValues(alpha: 0.6)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -459,8 +459,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primaryGrayLight.withOpacity(0.6)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 3))],
+        border: Border.all(color: AppColors.primaryGrayLight.withValues(alpha: 0.6)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 3))],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -482,7 +482,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         Container(
           width: 60,
           height: 60,
-          decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
           child: Center(
             child: Text(
               value,
@@ -528,8 +528,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGrayLight.withOpacity(0.6)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 3))],
+        border: Border.all(color: AppColors.primaryGrayLight.withValues(alpha: 0.6)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,

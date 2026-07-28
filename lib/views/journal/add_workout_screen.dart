@@ -312,7 +312,7 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -508,14 +508,14 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primaryGray.withOpacity(0.6)),
-          boxShadow: [BoxShadow(color: AppColors.blackOverlay.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+          border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.6)),
+          boxShadow: [BoxShadow(color: AppColors.blackOverlay.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
               child: const Icon(Icons.calendar_today, color: AppColors.accent, size: 20),
             ),
             const SizedBox(width: 12),

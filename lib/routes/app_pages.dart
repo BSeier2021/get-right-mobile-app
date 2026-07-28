@@ -31,6 +31,7 @@ import 'package:get_right/views/journal/workout_journal_screen.dart';
 import 'package:get_right/views/journal/workout_timer_screen.dart';
 import 'package:get_right/views/journal/add_workout_screen.dart';
 import 'package:get_right/views/journal/add_exercise_screen.dart';
+import 'package:get_right/views/journal/new_workout_screen.dart';
 import 'package:get_right/views/journal/exercise_selection_screen.dart';
 import 'package:get_right/views/journal/exercise_configuration_screen.dart';
 import 'package:get_right/views/journal/add_notes_screen.dart';
@@ -140,6 +141,7 @@ class AppPages {
     GetPage(name: AppRoutes.workoutTimer, page: () => const WorkoutTimerScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.addWorkout, page: () => const AddWorkoutScreen(), transition: Transition.downToUp),
     GetPage(name: AppRoutes.addExercise, page: () => const AddExerciseScreen(), transition: Transition.downToUp),
+    GetPage(name: AppRoutes.newWorkout, page: () => const NewWorkoutScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.exerciseSelection, page: () => const ExerciseSelectionScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.exerciseConfiguration, page: () => const ExerciseConfigurationScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.addNotes, page: () => const AddNotesScreen(), transition: Transition.rightToLeft),

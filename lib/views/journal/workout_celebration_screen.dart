@@ -132,11 +132,11 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: LinearGradient(
-                            colors: [AppColors.accent.withOpacity(0.3), AppColors.accent.withOpacity(0.1)],
+                            colors: [AppColors.accent.withValues(alpha: 0.3), AppColors.accent.withValues(alpha: 0.1)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 30, spreadRadius: 5)],
+                          boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 30, spreadRadius: 5)],
                         ),
                         child: const Icon(Icons.celebration, size: 60, color: AppColors.accent),
                       ),
@@ -162,9 +162,9 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: AppColors.accent.withOpacity(0.1),
+                          color: AppColors.accent.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 1),
+                          border: Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 1),
                         ),
                         child: Text(
                           _getRandomQuote(),
@@ -187,13 +187,13 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(12),
-                        boxShadow: [BoxShadow(color: AppColors.secondary.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+                        boxShadow: [BoxShadow(color: AppColors.secondary.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
                       ),
                       child: Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
                             child: const Icon(Icons.check_circle, color: AppColors.accent, size: 24),
                           ),
                           const SizedBox(width: 12),
@@ -272,7 +272,7 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: AppColors.secondary.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: AppColors.secondary.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 2))],
       ),
       child: Column(
         children: [
@@ -280,9 +280,9 @@ class _WorkoutCelebrationScreenState extends State<WorkoutCelebrationScreen> wit
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.15),
+              color: AppColors.accent.withValues(alpha: 0.15),
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 2),
+              border: Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 2),
             ),
             child: Icon(icon, color: AppColors.accent, size: 28),
           ),

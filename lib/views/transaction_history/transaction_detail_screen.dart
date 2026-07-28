@@ -80,7 +80,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
         leading: GestureDetector(
           onTap: () => Get.back(),
           child: Container(
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ).paddingAll(8),
         ),
@@ -195,9 +195,9 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(50),
-                    border: Border.all(color: statusColor.withOpacity(0.3), width: 1),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1),
                   ),
                   child: Text(
                     transaction.status.displayLabel.toUpperCase(),
@@ -217,9 +217,9 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
       width: 56,
       height: 56,
       decoration: BoxDecoration(
-        color: AppColors.accent.withOpacity(0.12),
+        color: AppColors.accent.withValues(alpha: 0.12),
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.accent.withOpacity(0.25), width: 1),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.25), width: 1),
       ),
       child: Icon(isRefund ? Icons.replay_rounded : Icons.shopping_bag_outlined, color: AppColors.accent, size: 26),
     );

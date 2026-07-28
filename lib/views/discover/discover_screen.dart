@@ -149,7 +149,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     width: 40,
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.35), borderRadius: BorderRadius.circular(2)),
+                    decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(2)),
                   ),
                 ),
                 Text('Sort by', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold)),
@@ -205,7 +205,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -287,13 +287,13 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           setState(() => _roleFilter = role);
           _load(reset: true);
         },
-        selectedColor: AppColors.accent.withOpacity(0.15),
+        selectedColor: AppColors.accent.withValues(alpha: 0.15),
         checkmarkColor: AppColors.accent,
         labelStyle: AppTextStyles.labelSmall.copyWith(
           color: selected ? AppColors.accent : AppColors.onSurface,
           fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
         ),
-        side: BorderSide(color: selected ? AppColors.accent.withOpacity(0.45) : const Color(0xFFCDE7C8)),
+        side: BorderSide(color: selected ? AppColors.accent.withValues(alpha: 0.45) : const Color(0xFFCDE7C8)),
         backgroundColor: AppColors.surface,
       ),
     );
@@ -327,7 +327,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.person_search_outlined, size: 64, color: AppColors.accent.withOpacity(0.6)),
+              Icon(Icons.person_search_outlined, size: 64, color: AppColors.accent.withValues(alpha: 0.6)),
               const SizedBox(height: 16),
               Text('No users found', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
@@ -376,7 +376,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFCDE7C8)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Material(
         color: Colors.transparent,
@@ -390,7 +390,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 SafeCircleNetworkAvatar(
                   radius: 28,
                   imageUrl: user.avatarUrl,
-                  backgroundColor: AppColors.accent.withOpacity(0.15),
+                  backgroundColor: AppColors.accent.withValues(alpha: 0.15),
                   fallback: Text(initials, style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 12),
@@ -455,7 +455,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.accent.withOpacity(0.1),
+        color: AppColors.accent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

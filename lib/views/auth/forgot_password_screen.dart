@@ -94,7 +94,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Ticker
                         GestureDetector(
                           onTap: () => Get.back(),
                           child: Container(
-                            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18).paddingAll(8),
                           ),
                         ),
@@ -110,7 +110,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Ticker
                           height: 100,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withOpacity(0.8)]),
+                            gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.8)]),
                           ),
                           child: const Icon(Icons.email_rounded, size: 40, color: AppColors.onAccent),
                         ),
@@ -129,7 +129,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Ticker
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'Enter your email address and we\'ll send you a code to reset your password',
-                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 15, height: 1.5),
+                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.6), fontSize: 15, height: 1.5),
                         textAlign: TextAlign.center,
                       ),
                     ),

@@ -31,8 +31,6 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
   final ScrollController _scrollController = ScrollController();
   final MarketplaceRepository _repo = MarketplaceRepository();
 
-  bool _isWarmup = false;
-  JournalExerciseType _exerciseType = JournalExerciseType.workout;
   bool _selectOnly = false;
   String? _workoutJournalId;
   List<String> _journalWorkoutIds = const [];
@@ -54,11 +52,9 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
     super.initState();
     final args = Get.arguments as Map<String, dynamic>?;
     if (args != null) {
-      _isWarmup = args['isWarmup'] ?? false;
-      _exerciseType = JournalExerciseType.fromArgs(args) ?? JournalExerciseType.fromIsWarmup(_isWarmup);
-      _isWarmup = _exerciseType.isWarmup;
       _selectOnly = args['selectOnly'] ?? false;
       _workoutJournalId = args['workoutJournalId']?.toString() ?? args['workoutJournal']?.toString();
+      _isSuperset = args['isSuperset'] ?? false;
       final rawJournalWorkoutIds = args['journalWorkoutIds'];
       if (rawJournalWorkoutIds is List) {
         _journalWorkoutIds = rawJournalWorkoutIds.map((e) => e.toString()).toList();
@@ -178,8 +174,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
     Get.toNamed(
       AppRoutes.exerciseConfiguration,
       arguments: {
-        'isWarmup': _isWarmup,
-        'exerciseType': _exerciseType,
+        'exerciseType': JournalExerciseType.workout,
         'isSuperset': _isSuperset,
         'workoutJournalId': _workoutJournalId,
         'journalWorkoutIds': _journalWorkoutIds,
@@ -192,8 +187,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
   }
 
   void _onManual() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {
-        'isWarmup': _isWarmup,
-        'exerciseType': _exerciseType,
+        'exerciseType': JournalExerciseType.workout,
         'isManual': true,
         'workoutJournalId': _workoutJournalId,
         'journalWorkoutIds': _journalWorkoutIds,

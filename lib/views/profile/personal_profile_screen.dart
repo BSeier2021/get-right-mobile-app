@@ -176,7 +176,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -202,7 +202,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                     Text(
                       auth.customerProfileError!,
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.85)),
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.85)),
                     ),
                     const SizedBox(height: 16),
                     TextButton(
@@ -289,7 +289,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
             height: 100.h,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 2),
+              border: Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 2),
             ),
             child: ClipOval(
               child: url != null && url.isNotEmpty
@@ -361,7 +361,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
             width: 36,
             height: 36,
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), shape: BoxShape.circle),
             child: Image.asset(image),
           ),
           const SizedBox(width: 14),
@@ -401,7 +401,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), shape: BoxShape.circle),
                 child: Icon(icon, color: AppColors.accent, size: 20),
               ),
               const SizedBox(width: 14),
@@ -462,14 +462,14 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
         decoration: BoxDecoration(
           color: const Color(0xFFFFF0EE),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE85050).withOpacity(0.2), width: 1),
+          border: Border.all(color: const Color(0xFFE85050).withValues(alpha: 0.2), width: 1),
         ),
         child: Row(
           children: [
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(color: const Color(0xFFE85050).withOpacity(0.12), shape: BoxShape.circle),
+              decoration: BoxDecoration(color: const Color(0xFFE85050).withValues(alpha: 0.12), shape: BoxShape.circle),
               child: const Icon(Icons.logout, color: Color(0xFFE85050), size: 20),
             ),
             const SizedBox(width: 14),
@@ -482,7 +482,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                     style: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFFE85050), fontWeight: FontWeight.w700, fontSize: 14),
                   ),
                   const SizedBox(height: 2),
-                  Text('Sign out of your account', style: AppTextStyles.labelSmall.copyWith(color: const Color(0xFFE85050).withOpacity(0.7), fontSize: 12)),
+                  Text('Sign out of your account', style: AppTextStyles.labelSmall.copyWith(color: const Color(0xFFE85050).withValues(alpha: 0.7), fontSize: 12)),
                 ],
               ),
             ),

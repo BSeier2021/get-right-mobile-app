@@ -245,7 +245,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -314,7 +314,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 64, color: AppColors.accent.withOpacity(0.6)),
+            Icon(Icons.people_outline, size: 64, color: AppColors.accent.withValues(alpha: 0.6)),
             const SizedBox(height: 16),
             Text(_isFollowers ? 'No followers yet' : 'Not following anyone', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
@@ -343,7 +343,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -351,7 +351,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
             onTap: () => _openProfile(user),
             child: CircleAvatar(
               radius: 28,
-              backgroundColor: AppColors.accent.withOpacity(0.2),
+              backgroundColor: AppColors.accent.withValues(alpha: 0.2),
               backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
               child: avatarUrl == null
                   ? Text(
@@ -401,7 +401,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
       return OutlinedButton(
         onPressed: busy ? null : () => _toggleFollow(user),
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: AppColors.primaryGray.withOpacity(0.55), width: 1.5),
+          side: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.55), width: 1.5),
           foregroundColor: AppColors.onSurface,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           minimumSize: const Size(0, 32),
@@ -409,7 +409,7 @@ class _UserFollowListScreenState extends State<UserFollowListScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         child: busy
-            ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onSurface.withOpacity(0.7)))
+            ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onSurface.withValues(alpha: 0.7)))
             : Text(
                 'Unfollow',
                 style: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.w600, color: AppColors.onSurface),

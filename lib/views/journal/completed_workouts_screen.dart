@@ -185,7 +185,7 @@ class _CompletedWorkoutsScreenState extends State<CompletedWorkoutsScreen> {
           onTap: () => Get.back(),
           child: Container(
             margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
         ),
@@ -232,7 +232,7 @@ class _CompletedWorkoutsScreenState extends State<CompletedWorkoutsScreen> {
                 fontWeight: FontWeight.w600,
               ),
               backgroundColor: Colors.white,
-              side: BorderSide(color: AppColors.accent.withOpacity(0.25)),
+              side: BorderSide(color: AppColors.accent.withValues(alpha: 0.25)),
             ),
           );
         }).toList(),
@@ -268,7 +268,7 @@ class _CompletedWorkoutsScreenState extends State<CompletedWorkoutsScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.fitness_center_outlined, size: 64, color: AppColors.primaryGray.withOpacity(0.4)),
+              Icon(Icons.fitness_center_outlined, size: 64, color: AppColors.primaryGray.withValues(alpha: 0.4)),
               const SizedBox(height: 16),
               Text(
                 'No completed workouts',
@@ -322,8 +322,8 @@ class _CompletedWorkoutsScreenState extends State<CompletedWorkoutsScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.accent.withOpacity(0.18)),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3))],
+            border: Border.all(color: AppColors.accent.withValues(alpha: 0.18)),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3))],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,7 +332,7 @@ class _CompletedWorkoutsScreenState extends State<CompletedWorkoutsScreen> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                    decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
                     child: const Icon(Icons.check_circle_outline, color: AppColors.accent, size: 22),
                   ),
                   const SizedBox(width: 12),
@@ -346,7 +346,7 @@ class _CompletedWorkoutsScreenState extends State<CompletedWorkoutsScreen> {
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: AppColors.primaryGray.withOpacity(0.7)),
+                  Icon(Icons.chevron_right, color: AppColors.primaryGray.withValues(alpha: 0.7)),
                 ],
               ),
               const SizedBox(height: 14),
@@ -376,7 +376,7 @@ class _CompletedWorkoutsScreenState extends State<CompletedWorkoutsScreen> {
                   entry.notes!.trim(),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface.withOpacity(0.75), fontStyle: FontStyle.italic),
+                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface.withValues(alpha: 0.75), fontStyle: FontStyle.italic),
                 ),
               ],
             ],
@@ -389,7 +389,7 @@ class _CompletedWorkoutsScreenState extends State<CompletedWorkoutsScreen> {
   Widget _statChip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: AppColors.primaryGrayLight.withOpacity(0.35), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: AppColors.primaryGrayLight.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(20)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -47,7 +47,7 @@ class SearchResultsScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withOpacity(0.5)),
+                Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
                 const SizedBox(height: 16),
                 Text('No results found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground)),
                 const SizedBox(height: 8),
@@ -85,7 +85,7 @@ class SearchResultsScreen extends StatelessWidget {
                   if (controller.filters.hasActiveFilters)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                      decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                       child: Text(
                         '${controller.filters.activeFilterCount} filter${controller.filters.activeFilterCount > 1 ? 's' : ''}',
                         style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
@@ -121,7 +121,7 @@ class SearchResultsScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3), width: 1),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1),
       ),
       child: InkWell(
         onTap: () {
@@ -144,12 +144,12 @@ class SearchResultsScreen extends StatelessWidget {
                   child: Container(
                     height: 160,
                     width: double.infinity,
-                    color: AppColors.primaryGray.withOpacity(0.2),
+                    color: AppColors.primaryGray.withValues(alpha: 0.2),
                     child: Image.asset(
                       item['image'],
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
-                        return Center(child: Icon(isProgram ? Icons.fitness_center : Icons.play_circle_outline, size: 60, color: AppColors.accent.withOpacity(0.5)));
+                        return Center(child: Icon(isProgram ? Icons.fitness_center : Icons.play_circle_outline, size: 60, color: AppColors.accent.withValues(alpha: 0.5)));
                       },
                     ),
                   ),
@@ -284,9 +284,9 @@ class SearchResultsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.primaryGray.withOpacity(0.1),
+        color: AppColors.primaryGray.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

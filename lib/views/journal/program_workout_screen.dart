@@ -315,7 +315,7 @@ class _ProgramWorkoutScreenState extends State<ProgramWorkoutScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,7 +325,7 @@ class _ProgramWorkoutScreenState extends State<ProgramWorkoutScreen> {
               Container(
                 width: 28,
                 height: 28,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
                 alignment: Alignment.center,
                 child: Text('$order', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700)),
               ),
@@ -359,7 +359,7 @@ class _ProgramWorkoutScreenState extends State<ProgramWorkoutScreen> {
   Widget _metricChip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -401,7 +401,7 @@ class _ProgramWorkoutScreenState extends State<ProgramWorkoutScreen> {
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(color: AppColors.primaryGrayLight.withOpacity(0.3), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(color: AppColors.primaryGrayLight.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(20)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -443,9 +443,9 @@ class _ProgramWorkoutScreenState extends State<ProgramWorkoutScreen> {
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.accent.withOpacity(0.15), width: 1),
+              border: Border.all(color: AppColors.accent.withValues(alpha: 0.15), width: 1),
             ),
             child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 20),
           ),
@@ -476,7 +476,7 @@ class _ProgramWorkoutScreenState extends State<ProgramWorkoutScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: statusColor.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                          decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
                           child: Text(statusLabel, style: AppTextStyles.labelSmall.copyWith(color: statusColor, fontWeight: FontWeight.w600)),
                         ),
                         const SizedBox(width: 10),
@@ -532,9 +532,9 @@ class _ProgramWorkoutScreenState extends State<ProgramWorkoutScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
-                            color: AppColors.completed.withOpacity(0.12),
+                            color: AppColors.completed.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.completed.withOpacity(0.35)),
+                            border: Border.all(color: AppColors.completed.withValues(alpha: 0.35)),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -570,7 +570,7 @@ class _ProgramWorkoutScreenState extends State<ProgramWorkoutScreen> {
                           label: Text('Enter Duration Manually', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.accent)),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.accent,
-                            side: BorderSide(color: AppColors.accent.withOpacity(0.7)),
+                            side: BorderSide(color: AppColors.accent.withValues(alpha: 0.7)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                           ),
                         ),

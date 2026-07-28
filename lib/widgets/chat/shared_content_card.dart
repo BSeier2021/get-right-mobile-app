@@ -30,7 +30,7 @@ class SharedContentCard extends StatelessWidget {
     final imageUrl = _imageUrl();
     final accent = isCurrentUser ? AppColors.onAccent : AppColors.accent;
     final textColor = isCurrentUser ? AppColors.onAccent : AppColors.onSurface;
-    final muted = isCurrentUser ? AppColors.onAccent.withOpacity(0.75) : AppColors.primaryGray;
+    final muted = isCurrentUser ? AppColors.onAccent.withValues(alpha: 0.75) : AppColors.primaryGray;
 
     return Material(
       color: Colors.transparent,
@@ -41,9 +41,9 @@ class SharedContentCard extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: isCurrentUser ? AppColors.onAccent.withOpacity(0.12) : AppColors.background,
+            color: isCurrentUser ? AppColors.onAccent.withValues(alpha: 0.12) : AppColors.background,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: accent.withOpacity(0.25)),
+            border: Border.all(color: accent.withValues(alpha: 0.25)),
           ),
           child: Row(
             children: [
@@ -63,7 +63,7 @@ class SharedContentCard extends StatelessWidget {
                 Container(
                   width: 52,
                   height: 52,
-                  decoration: BoxDecoration(color: accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
                   child: Icon(_icon(), color: accent, size: 24),
                 ),
                 const SizedBox(width: 10),

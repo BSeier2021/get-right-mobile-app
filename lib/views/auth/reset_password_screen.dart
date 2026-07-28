@@ -135,7 +135,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -165,9 +165,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
                           height: 120,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: LinearGradient(colors: [AppColors.surface, AppColors.surface.withOpacity(0.8)]),
-                            border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1.5),
-                            boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.2), blurRadius: 30, spreadRadius: 5)],
+                            gradient: LinearGradient(colors: [AppColors.surface, AppColors.surface.withValues(alpha: 0.8)]),
+                            border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1.5),
+                            boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.2), blurRadius: 30, spreadRadius: 5)],
                           ),
                           child: Center(
                             child: Container(
@@ -175,7 +175,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
                               height: 60,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withOpacity(0.8)]),
+                                gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.8)]),
                               ),
                               child: const Icon(Icons.lock_reset_rounded, size: 30, color: AppColors.onAccent),
                             ),
@@ -197,7 +197,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           'Create a strong new password for your account',
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 15, height: 1.5),
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.6), fontSize: 15, height: 1.5),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -220,9 +220,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.surface.withOpacity(0.5),
+                          color: AppColors.surface.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
+                          border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,13 +275,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> with TickerPr
       padding: const EdgeInsets.only(top: 8),
       child: Row(
         children: [
-          Icon(met ? Icons.check_circle_rounded : Icons.circle_outlined, size: 18, color: met ? AppColors.accent : AppColors.primaryGray.withOpacity(0.45)),
+          Icon(met ? Icons.check_circle_rounded : Icons.circle_outlined, size: 18, color: met ? AppColors.accent : AppColors.primaryGray.withValues(alpha: 0.45)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
               style: AppTextStyles.bodySmall.copyWith(
-                color: met ? AppColors.onBackground.withOpacity(0.85) : AppColors.onBackground.withOpacity(0.55),
+                color: met ? AppColors.onBackground.withValues(alpha: 0.85) : AppColors.onBackground.withValues(alpha: 0.55),
                 fontSize: 13,
                 fontWeight: met ? FontWeight.w600 : FontWeight.w400,
               ),

@@ -17,7 +17,7 @@ class AddExerciseScreen extends StatelessWidget {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -31,7 +31,7 @@ class AddExerciseScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'What would you like to add?',
+              'Choose an exercise from the library',
               style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground),
               textAlign: TextAlign.center,
             ),
@@ -40,25 +40,9 @@ class AddExerciseScreen extends StatelessWidget {
               width: double.infinity,
               height: 60,
               child: ElevatedButton.icon(
-                onPressed: () => Get.toNamed(AppRoutes.exerciseSelection, arguments: {'isWarmup': true}),
-                icon: const Icon(Icons.whatshot_outlined, size: 26),
-                label: Text('Warmup Exercise', style: AppTextStyles.buttonLarge),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  foregroundColor: AppColors.onSecondary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  elevation: 2,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 60,
-              child: ElevatedButton.icon(
-                onPressed: () => Get.toNamed(AppRoutes.exerciseSelection, arguments: {'isWarmup': false}),
+                onPressed: () => Get.toNamed(AppRoutes.exerciseSelection, arguments: {'journalFlow': true}),
                 icon: const Icon(Icons.fitness_center, size: 26),
-                label: Text('Workout Exercise', style: AppTextStyles.buttonLarge),
+                label: Text('Browse Exercise Library', style: AppTextStyles.buttonLarge),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
                   foregroundColor: AppColors.onAccent,

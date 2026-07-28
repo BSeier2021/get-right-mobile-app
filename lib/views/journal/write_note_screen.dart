@@ -83,16 +83,16 @@ class _WriteNoteScreenState extends State<WriteNoteScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [const Color(0xFF9C27B0).withOpacity(0.15), AppColors.surface], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  gradient: LinearGradient(colors: [const Color(0xFF9C27B0).withValues(alpha: 0.15), AppColors.surface], begin: Alignment.topLeft, end: Alignment.bottomRight),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF9C27B0).withOpacity(0.3)),
+                  border: Border.all(color: const Color(0xFF9C27B0).withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
                     Container(
                       width: 60,
                       height: 60,
-                      decoration: BoxDecoration(color: const Color(0xFF9C27B0).withOpacity(0.2), shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: const Color(0xFF9C27B0).withValues(alpha: 0.2), shape: BoxShape.circle),
                       child: const Icon(Icons.notes, color: Color(0xFF9C27B0), size: 32),
                     ),
                     const SizedBox(width: 16),
@@ -130,7 +130,7 @@ class _WriteNoteScreenState extends State<WriteNoteScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -167,7 +167,7 @@ class _WriteNoteScreenState extends State<WriteNoteScreen> {
                           decoration: BoxDecoration(
                             color: isSelected ? mood['color'].withOpacity(0.2) : AppColors.surface,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: isSelected ? mood['color'] : AppColors.primaryGray.withOpacity(0.3), width: isSelected ? 2 : 1),
+                            border: Border.all(color: isSelected ? mood['color'] : AppColors.primaryGray.withValues(alpha: 0.3), width: isSelected ? 2 : 1),
                           ),
                           child: Column(
                             children: [
@@ -205,7 +205,7 @@ class _WriteNoteScreenState extends State<WriteNoteScreen> {
                   fillColor: AppColors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                    borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                   ),
                 ),
                 validator: (value) {
@@ -232,7 +232,7 @@ class _WriteNoteScreenState extends State<WriteNoteScreen> {
                   fillColor: AppColors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.3)),
+                    borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3)),
                   ),
                   alignLabelWithHint: true,
                 ),
@@ -261,7 +261,7 @@ class _WriteNoteScreenState extends State<WriteNoteScreen> {
                     backgroundColor: const Color(0xFF9C27B0),
                     foregroundColor: AppColors.onAccent,
                     elevation: 4,
-                    shadowColor: const Color(0xFF9C27B0).withOpacity(0.5),
+                    shadowColor: const Color(0xFF9C27B0).withValues(alpha: 0.5),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   child: Row(

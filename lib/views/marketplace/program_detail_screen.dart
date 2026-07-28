@@ -913,7 +913,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                     child: Container(
                       width: 40,
                       height: 4,
-                      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
+                      decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(2)),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -921,7 +921,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
                         child: const Icon(Icons.calendar_month, color: AppColors.accent, size: 22),
                       ),
                       const SizedBox(width: 12),
@@ -995,7 +995,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                         decoration: BoxDecoration(
                           color: AppColors.background,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.accent.withOpacity(0.35)),
+                          border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
                         ),
                         child: Row(
                           children: [
@@ -1333,7 +1333,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
           leading: IconButton(
             icon: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
               child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
             ),
             onPressed: () => Get.back(),
@@ -1394,12 +1394,12 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                               fallback: Container(
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
-                                    colors: [AppColors.accent.withOpacity(0.8), AppColors.accentVariant],
+                                    colors: [AppColors.accent.withValues(alpha: 0.8), AppColors.accentVariant],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
                                 ),
-                                child: Center(child: Icon(Icons.fitness_center, size: 80, color: AppColors.accent.withOpacity(0.3))),
+                                child: Center(child: Icon(Icons.fitness_center, size: 80, color: AppColors.accent.withValues(alpha: 0.3))),
                               ),
                             ),
                           ),
@@ -1407,7 +1407,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                           Positioned.fill(
                             child: Center(
                               child: Container(
-                                decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle),
+                                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), shape: BoxShape.circle),
                                 child: GestureDetector(
                                   onTap: () => _playDemoVideo(),
                                   child: Image.asset('assets/images/playbutton.png', width: 65.w),
@@ -1478,7 +1478,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                           color: const Color(0xFFF8FFE9),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: const Color(0xFFE8EFE0)),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
                         ),
                         child: Row(
                           children: [
@@ -1670,7 +1670,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, -2))],
       ),
       child: SafeArea(
         child: Column(
@@ -1724,7 +1724,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, -2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, -2))],
       ),
       child: SafeArea(
         top: false,
@@ -1838,7 +1838,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
                 child: Text(
                   statusLabel,
                   style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
@@ -1851,7 +1851,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
           const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(value: frac, minHeight: 8, backgroundColor: AppColors.primaryGray.withOpacity(0.2), color: AppColors.accent),
+            child: LinearProgressIndicator(value: frac, minHeight: 8, backgroundColor: AppColors.primaryGray.withValues(alpha: 0.2), color: AppColors.accent),
           ),
           const SizedBox(height: 4),
           Text(
@@ -1874,7 +1874,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   Widget _buildEnrollmentDateTile(IconData icon, String label, String value) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.7), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(10)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1941,7 +1941,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
               child: Text(
                 '${days.length} days · $totalExercises exercises',
                 style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
@@ -1966,7 +1966,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         color: const Color(0xFFF8FFE9),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE8EFE0)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -1977,7 +1977,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
           leading: Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
             alignment: Alignment.center,
             child: Text(
               dayNumber > 0 ? '$dayNumber' : '•',
@@ -2022,7 +2022,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2033,7 +2033,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
               Container(
                 width: 28,
                 height: 28,
-                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
                 alignment: Alignment.center,
                 child: Text(
                   '$order',
@@ -2075,7 +2075,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   Widget _buildWorkoutMetricChip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -2113,7 +2113,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.25)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.25)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2149,7 +2149,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         color: const Color(0xFFF8FFE9),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE8EFE0)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         children: [
@@ -2193,7 +2193,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.3)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2242,7 +2242,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                           PopupMenuButton<String>(
                             padding: EdgeInsets.zero,
                             enabled: !_reviewActionInFlight,
-                            icon: Icon(Icons.more_vert, color: AppColors.primaryGray.withOpacity(0.9), size: 20),
+                            icon: Icon(Icons.more_vert, color: AppColors.primaryGray.withValues(alpha: 0.9), size: 20),
                             color: AppColors.surface,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             onSelected: (value) => _onMyReviewMenuSelected(value, review),
@@ -2378,7 +2378,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
               child: Icon(icon, color: AppColors.accent, size: 28),
             ),
             const SizedBox(width: 16),
@@ -2408,7 +2408,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2462,7 +2462,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

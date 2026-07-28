@@ -270,7 +270,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
                 Container(
                   width: 80,
                   height: 80,
-                  decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
                   child: const Icon(Icons.location_searching, size: 40, color: AppColors.accent),
                 ),
                 const SizedBox(height: 16),
@@ -310,9 +310,9 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      AppColors.backgroundColor.withOpacity(0.95),
-                      AppColors.backgroundColor.withOpacity(0.72),
-                      AppColors.backgroundColor.withOpacity(0.0),
+                      AppColors.backgroundColor.withValues(alpha: 0.95),
+                      AppColors.backgroundColor.withValues(alpha: 0.72),
+                      AppColors.backgroundColor.withValues(alpha: 0.0),
                     ],
                     stops: const [0.0, 0.55, 1.0],
                   ),
@@ -330,8 +330,8 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.accent,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.white.withOpacity(0.35), width: 1.5),
-                    boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 2))],
+                    border: Border.all(color: AppColors.white.withValues(alpha: 0.35), width: 1.5),
+                    boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -446,7 +446,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
               Container(
                 width: 80,
                 height: 80,
-                decoration: BoxDecoration(color: AppColors.upcoming.withOpacity(0.15), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.upcoming.withValues(alpha: 0.15), shape: BoxShape.circle),
                 child: const Icon(Icons.map_outlined, size: 40, color: AppColors.upcoming),
               ),
               const SizedBox(height: 16),
@@ -464,9 +464,9 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.1),
+                  color: AppColors.accent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   children: [
@@ -541,7 +541,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
       decoration: BoxDecoration(
         color: AppColors.backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -5))],
+        boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, -5))],
       ),
       child: ListView(
         controller: scrollController,
@@ -563,7 +563,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFF3E7F6),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.accent.withOpacity(0.35)),
+                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
                 ),
                 child: Row(
                   children: [
@@ -630,7 +630,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
                       onPressed: _startActivity,
                       style: OutlinedButton.styleFrom(
                         backgroundColor: AppColors.accentVariant,
-                        side: BorderSide(color: AppColors.accent.withOpacity(0.5), width: 2),
+                        side: BorderSide(color: AppColors.accent.withValues(alpha: 0.5), width: 2),
                         foregroundColor: AppColors.accent,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                         padding: EdgeInsets.zero,
@@ -663,7 +663,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
                         Get.toNamed(AppRoutes.runHistory);
                       },
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.accentVariant.withOpacity(0.5), width: 2),
+                        side: BorderSide(color: AppColors.accentVariant.withValues(alpha: 0.5), width: 2),
                         foregroundColor: AppColors.onSurface,
                         backgroundColor: AppColors.accentVariant,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
@@ -734,7 +734,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
               color: bgColor,
               shape: BoxShape.circle,
               border: Border.all(color: isSelected ? const Color(0xFF5BA3FF) : Colors.transparent, width: 2),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
             ),
             child: Padding(
               padding: const EdgeInsets.all(10),
@@ -760,12 +760,12 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: isSelected ? color.withOpacity(0.2) : AppColors.backgroundColor,
+              color: isSelected ? color.withValues(alpha: 0.2) : AppColors.backgroundColor,
               shape: BoxShape.circle,
-              border: Border.all(color: isSelected ? color : AppColors.primaryGray.withOpacity(0.3), width: isSelected ? 3 : 2),
+              border: Border.all(color: isSelected ? color : AppColors.primaryGray.withValues(alpha: 0.3), width: isSelected ? 3 : 2),
               boxShadow: isSelected
-                  ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))]
-                  : [BoxShadow(color: AppColors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
+                  ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))]
+                  : [BoxShadow(color: AppColors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
             ),
             child: Icon(icon, color: color, size: 32),
           ),

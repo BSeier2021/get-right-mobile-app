@@ -613,7 +613,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Ticker
       'Copied!',
       '$label copied to clipboard',
       snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: color.withOpacity(0.1),
+      backgroundColor: color.withValues(alpha: 0.1),
       colorText: color,
       duration: const Duration(seconds: 2),
       margin: const EdgeInsets.all(16),
@@ -731,7 +731,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Ticker
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Wrap(spacing: 15, runSpacing: 25, children: _socialAccounts.entries.map((e) => _buildSocialLinkChip(e.key, e.value)).toList()),
     );
@@ -826,7 +826,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Ticker
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                 child: Icon(icon, color: color, size: 22),
               ),
               const SizedBox(width: 14),
@@ -865,13 +865,13 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Ticker
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) ...[const SizedBox(height: 12), Divider(height: 1, color: AppColors.primaryGray.withOpacity(0.15)), const SizedBox(height: 12)],
+            if (i > 0) ...[const SizedBox(height: 12), Divider(height: 1, color: AppColors.primaryGray.withValues(alpha: 0.15)), const SizedBox(height: 12)],
             children[i],
           ],
         ],
@@ -1483,7 +1483,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Ticker
         child: TextButton(
           onPressed: null,
           style: TextButton.styleFrom(
-            backgroundColor: AppColors.primaryGray.withOpacity(0.25),
+            backgroundColor: AppColors.primaryGray.withValues(alpha: 0.25),
             foregroundColor: AppColors.primaryGrayDark,
             padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 5),
             minimumSize: Size(buttonWidth, 36),
@@ -1555,7 +1555,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Ticker
   }
 
   TextStyle _bioTextStyle() {
-    return AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withOpacity(0.8), fontSize: 14, height: 1.4);
+    return AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface.withValues(alpha: 0.8), fontSize: 14, height: 1.4);
   }
 
   Widget _buildExpandableBio() {
@@ -1683,7 +1683,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Ticker
           },
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.primaryGrayLight.withOpacity(0.3), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: AppColors.primaryGrayLight.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(8)),
             child: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 18),
           ),
         ),
@@ -1922,14 +1922,14 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Ticker
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Container(
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)]),
+                            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.6)]),
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                       )
                     : Container(
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withOpacity(0.6)]),
+                          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.6)]),
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
@@ -1938,8 +1938,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Ticker
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
-                    child: Icon(Icons.play_arrow, color: Colors.white.withOpacity(0.9), size: 28),
+                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
+                    child: Icon(Icons.play_arrow, color: Colors.white.withValues(alpha: 0.9), size: 28),
                   ),
                 ),
             ],
@@ -2047,7 +2047,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Ticker
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+          border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2108,7 +2108,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> with Ticker
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primaryGray.withOpacity(0.2)),
+          border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [

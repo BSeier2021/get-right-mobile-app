@@ -85,7 +85,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
         title: Text('OTP Expired', style: AppTextStyles.titleLarge.copyWith(color: AppColors.black)),
         content: Text(
           'This code has expired. Tap Resend Code to receive a new verification code.',
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.85)),
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.85)),
         ),
         actions: [
           TextButton(
@@ -170,7 +170,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                             child: IconButton(
                               icon: Container(
                                 padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                                 child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
                               ),
                               onPressed: _handleBack,
@@ -201,7 +201,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                           padding: EdgeInsets.symmetric(horizontal: 40.w),
                           child: Text(
                             email != null ? 'We\'ve sent a 6-digit verification code to\n$email' : 'We\'ve sent a 6-digit verification code to',
-                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 14.sp, height: 1.5),
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.6), fontSize: 14.sp, height: 1.5),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -228,7 +228,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                                     backgroundColor: AppColors.accentVariant,
                                     foregroundColor: AppColors.onAccent,
                                     elevation: 0,
-                                    disabledBackgroundColor: AppColors.accentVariant.withOpacity(0.6),
+                                    disabledBackgroundColor: AppColors.accentVariant.withValues(alpha: 0.6),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                                   ),
                                   child: auth.isLoading
@@ -245,7 +245,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                           children: [
                             Text(
                               'Didn\'t receive the code? ',
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withOpacity(0.6), fontSize: 14),
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onBackground.withValues(alpha: 0.6), fontSize: 14),
                             ),
                             if (_remainingSeconds > 0)
                               Text(
@@ -303,15 +303,15 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
           decoration: InputDecoration(
             counterText: '',
             hintText: '–',
-            hintStyle: AppTextStyles.bodyLarge.copyWith(color: AppColors.primaryGray.withOpacity(0.5), fontWeight: FontWeight.w400, fontSize: 18),
+            hintStyle: AppTextStyles.bodyLarge.copyWith(color: AppColors.primaryGray.withValues(alpha: 0.5), fontWeight: FontWeight.w400, fontSize: 18),
             contentPadding: EdgeInsets.zero,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(50),
-              borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.35), width: 1.2),
+              borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.35), width: 1.2),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(50),
-              borderSide: BorderSide(color: AppColors.accent.withOpacity(0.6), width: 1.5),
+              borderSide: BorderSide(color: AppColors.accent.withValues(alpha: 0.6), width: 1.5),
             ),
           ),
           onChanged: (value) {

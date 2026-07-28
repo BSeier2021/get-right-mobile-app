@@ -40,7 +40,7 @@ class _AddFoodGatewayScreenState extends State<AddFoodGatewayScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -90,7 +90,7 @@ class _AddFoodGatewayScreenState extends State<AddFoodGatewayScreen> {
           color: const Color(0xFFF8FFE9),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFCDE7C8), width: 1),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,7 +149,7 @@ class _AddFoodGatewayScreenState extends State<AddFoodGatewayScreen> {
           color: const Color(0xFFF8FFE9),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFCDE7C8), width: 1),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
         ),
         child: Row(
           children: [

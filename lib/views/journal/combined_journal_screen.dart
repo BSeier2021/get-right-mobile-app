@@ -69,16 +69,16 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            AppColors.backgroundColor.withOpacity(0.97),
-            AppColors.backgroundColor.withOpacity(0.92),
-            AppColors.backgroundColor.withOpacity(0.72),
-            AppColors.backgroundColor.withOpacity(0.0),
+            AppColors.backgroundColor.withValues(alpha: 0.97),
+            AppColors.backgroundColor.withValues(alpha: 0.92),
+            AppColors.backgroundColor.withValues(alpha: 0.72),
+            AppColors.backgroundColor.withValues(alpha: 0.0),
           ],
           stops: const [0.0, 0.45, 0.78, 1.0],
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.black.withOpacity(0.08),
+            color: AppColors.black.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),

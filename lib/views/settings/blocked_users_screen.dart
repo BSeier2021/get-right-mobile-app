@@ -35,9 +35,9 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
           icon: Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.accent.withOpacity(0.15), width: 1),
+              border: Border.all(color: AppColors.accent.withValues(alpha: 0.15), width: 1),
             ),
             child: const Icon(Icons.chevron_left, color: AppColors.accent, size: 25),
           ),
@@ -131,7 +131,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
             SafeCircleNetworkAvatar(
               radius: 22,
               imageUrl: u.avatarUrl,
-              backgroundColor: AppColors.accent.withOpacity(0.15),
+              backgroundColor: AppColors.accent.withValues(alpha: 0.15),
               fallback: Text(
                 _initials(u.name),
                 style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),

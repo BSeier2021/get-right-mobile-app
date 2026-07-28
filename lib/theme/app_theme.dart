@@ -73,7 +73,7 @@ class AppTheme {
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 2, // Subtle shadow
-          shadowColor: AppColors.secondary.withOpacity(0.2), // Black shadow
+          shadowColor: AppColors.secondary.withValues(alpha: 0.2), // Black shadow
           minimumSize: const Size(120, 56),
         ),
       ),
@@ -134,7 +134,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: AppColors.surface, // White surface
         elevation: 2, // Subtle shadow
-        shadowColor: AppColors.secondary.withOpacity(0.1), // Black shadow
+        shadowColor: AppColors.secondary.withValues(alpha: 0.1), // Black shadow
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide.none, // No border, using shadow instead
@@ -180,7 +180,7 @@ class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.surface, // White surface
         elevation: 8,
-        shadowColor: AppColors.secondary.withOpacity(0.2), // Black shadow
+        shadowColor: AppColors.secondary.withValues(alpha: 0.2), // Black shadow
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         titleTextStyle: AppTextStyles.titleLarge.copyWith(color: AppColors.black),
         contentTextStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),

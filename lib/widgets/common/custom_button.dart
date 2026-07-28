@@ -47,7 +47,7 @@ class _CustomButtonState extends State<CustomButton> {
             ? LinearGradient(
                 colors: widget.onPressed == null || widget.isLoading
                     ? [actualBackgroundColor, actualBackgroundColor]
-                    : [const Color.fromARGB(255, 29, 68, 43), AppColors.accentVariant.withOpacity(0.85)],
+                    : [const Color.fromARGB(255, 29, 68, 43), AppColors.accentVariant.withValues(alpha: 0.85)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
@@ -111,7 +111,7 @@ class _CustomOutlineButtonState extends State<CustomOutlineButton> {
 
   @override
   Widget build(BuildContext context) {
-    final actualBorderColor = widget.borderColor ?? AppColors.primaryGray.withOpacity(0.4);
+    final actualBorderColor = widget.borderColor ?? AppColors.primaryGray.withValues(alpha: 0.4);
     final actualTextColor = widget.textColor ?? AppColors.onBackground;
 
     return MouseRegion(
@@ -124,7 +124,7 @@ class _CustomOutlineButtonState extends State<CustomOutlineButton> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(50),
           border: Border.all(color: _isHovered ? AppColors.accent : const Color.fromARGB(255, 7, 7, 8), width: 2),
-          color: _isHovered ? AppColors.accent.withOpacity(0.05) : Colors.transparent,
+          color: _isHovered ? AppColors.accent.withValues(alpha: 0.05) : Colors.transparent,
         ),
         child: Material(
           color: Colors.transparent,

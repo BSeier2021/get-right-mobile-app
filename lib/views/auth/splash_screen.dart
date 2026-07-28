@@ -103,7 +103,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [const Color.fromARGB(0, 214, 214, 214), const Color.fromARGB(0, 192, 192, 192).withOpacity(0.3)],
+                        colors: [const Color.fromARGB(0, 214, 214, 214), const Color.fromARGB(0, 192, 192, 192).withValues(alpha: 0.3)],
                       ),
                     ),
                   );
@@ -161,7 +161,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 height: size * _scaleAnimation.value,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: RadialGradient(colors: [AppColors.accent.withOpacity(0.08), AppColors.accent.withOpacity(0.02), Colors.transparent]),
+                  gradient: RadialGradient(colors: [AppColors.accent.withValues(alpha: 0.08), AppColors.accent.withValues(alpha: 0.02), Colors.transparent]),
                 ),
               );
             },
@@ -179,7 +179,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
         alignment: Alignment.center,
         children: [
           // Outer ring
-          SizedBox(width: 50, height: 50, child: CircularProgressIndicator(strokeWidth: 3, valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent.withOpacity(0.3)))),
+          SizedBox(width: 50, height: 50, child: CircularProgressIndicator(strokeWidth: 3, valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent.withValues(alpha: 0.3)))),
           // Inner ring
           SizedBox(width: 35, height: 35, child: CircularProgressIndicator(strokeWidth: 3, valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent))),
         ],

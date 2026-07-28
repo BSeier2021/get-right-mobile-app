@@ -256,7 +256,7 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: _isSaving ? null : () => Get.back(),
@@ -279,7 +279,7 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFF8FFE9),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.accent.withOpacity(0.25)),
+                        border: Border.all(color: AppColors.accent.withValues(alpha: 0.25)),
                       ),
                       child: Row(
                         children: [
@@ -333,7 +333,7 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
                           selectedColor: AppColors.accent,
                           backgroundColor: AppColors.white,
                           shape: StadiumBorder(
-                            side: BorderSide(color: selected ? AppColors.accent : AppColors.primaryGray.withOpacity(0.35)),
+                            side: BorderSide(color: selected ? AppColors.accent : AppColors.primaryGray.withValues(alpha: 0.35)),
                           ),
                           labelStyle: AppTextStyles.labelMedium.copyWith(
                             color: selected ? AppColors.onAccent : AppColors.onSurface,
@@ -359,7 +359,7 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
                         decoration: BoxDecoration(
                           color: AppColors.white,
                           borderRadius: BorderRadius.circular(50),
-                          border: Border.all(color: AppColors.primaryGray.withOpacity(0.35)),
+                          border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.35)),
                         ),
                         child: Row(
                           children: [
@@ -451,15 +451,15 @@ class _AddManualRunScreenState extends State<AddManualRunScreen> {
       fillColor: AppColors.white,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(50),
-        borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.35)),
+        borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.35)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(50),
-        borderSide: BorderSide(color: AppColors.primaryGray.withOpacity(0.35)),
+        borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.35)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(50),
-        borderSide: BorderSide(color: AppColors.accent.withOpacity(0.6)),
+        borderSide: BorderSide(color: AppColors.accent.withValues(alpha: 0.6)),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );

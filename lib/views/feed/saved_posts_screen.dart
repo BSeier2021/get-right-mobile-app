@@ -65,7 +65,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
           onPressed: () => Get.back(),
@@ -99,7 +99,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(Icons.bookmark_border, size: 64, color: AppColors.accent),
           ),
           const SizedBox(height: 24),
@@ -136,8 +136,8 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withOpacity(0.2), width: 1),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,7 +147,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
               radius: 20,
-              backgroundColor: AppColors.accent.withOpacity(0.2),
+              backgroundColor: AppColors.accent.withValues(alpha: 0.2),
               child: Text(
                 post['creatorInitials'] ?? post['creator']?[0]?.toUpperCase() ?? 'U',
                 style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
@@ -189,7 +189,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Container(
                       height: 300,
-                      color: AppColors.primaryGray.withOpacity(0.2),
+                      color: AppColors.primaryGray.withValues(alpha: 0.2),
                       child: Icon(Icons.image_not_supported, size: 48, color: AppColors.primaryGray),
                     ),
                   ),
@@ -199,7 +199,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
                       right: 12,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(8)),
+                        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(8)),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -261,9 +261,9 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: AppColors.accent.withOpacity(0.1),
+                              color: AppColors.accent.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+                              border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
                             ),
                             child: Text(
                               post['category'],
@@ -276,7 +276,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
                               .map(
                                 (tag) => Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(color: AppColors.primaryGray.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                                  decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                                   child: Text(tag.toString(), style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray)),
                                 ),
                               ),
