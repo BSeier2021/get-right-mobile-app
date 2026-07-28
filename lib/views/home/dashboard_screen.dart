@@ -824,10 +824,14 @@ class HomeNavigationController extends GetxController {
     plannedRouteIdForSession.value = null;
   }
 
+  void refreshWorkoutJournal() {
+    workoutJournalRefreshNonce.value++;
+  }
+
   void openWorkoutJournalFromNav() {
     clearJournalPlannerContext();
     changeTab(2, journalTab: 0);
-    workoutJournalRefreshNonce.value++;
+    refreshWorkoutJournal();
   }
 
   void changeTab(int index, {int? journalTab}) {

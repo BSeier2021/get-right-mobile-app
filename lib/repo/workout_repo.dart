@@ -38,6 +38,13 @@ class WorkoutRepository {
     return trimmed != null && trimmed.isNotEmpty && _mongoIdRe.hasMatch(trimmed);
   }
 
+  /// Only marketplace exercise ids are valid `refExercise` values for the workout API.
+  static String? refExerciseForApi(String? refId) {
+    final trimmed = refId?.trim() ?? '';
+    if (trimmed.isEmpty || trimmed.startsWith('manual_')) return null;
+    return isValidMongoId(trimmed) ? trimmed : null;
+  }
+
   static bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 
   /// Normalizes a calendar day to UTC midnight ISO — required for journal date matching.

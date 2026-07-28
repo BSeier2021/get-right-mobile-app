@@ -11,6 +11,7 @@ import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/repo/calendar_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
+import 'package:get_right/utils/journal_flow.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/gr_catalog_image.dart';
 import 'package:get_right/widgets/safe_network_image.dart';
@@ -270,32 +271,6 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     );
   }
 
-  void _openExerciseSelectionForCard(int cardIndex) {
-    Get.toNamed(
-      AppRoutes.exerciseSelection,
-      arguments: {
-        'isWarmup': _isWarmup,
-        'exerciseType': _exerciseType,
-        'isSuperset': false,
-        'workoutJournalId': _workoutJournalId,
-        'journalWorkoutIds': _journalWorkoutIds,
-        'addedExerciseIds': _addedExerciseIds,
-        if (_journalDay != null) 'journalDay': _journalDay,
-      },
-    )?.then((result) {
-      if (result != null && result['exercise'] != null) {
-        final ex = result['exercise'] as ExerciseLibraryModel;
-        setState(() {
-          // Update the specific card's exercise name
-          if (cardIndex < _configs.length) {
-            _configs[cardIndex].name = ex.name;
-            _configs[cardIndex].id = ex.id;
-          }
-        });
-      }
-    });
-  }
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -374,11 +349,29 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     return null;
   }
 
+  void _showSaveMessage(String title, String message) {
+    if (!mounted) return;
+    final text = title.isEmpty ? message : '$title: $message';
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger != null) {
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(text, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onError)),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    debugPrint(text);
+  }
+
   Future<void> _onSave() async {
     for (var i = 0; i < _configs.length; i++) {
       final err = _validateConfig(_configs[i], i + 1);
       if (err != null) {
-        Get.snackbar('Invalid values', err, backgroundColor: AppColors.error, colorText: AppColors.onError);
+        _showSaveMessage('Invalid values', err);
         return;
       }
     }
@@ -390,7 +383,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     String? savedSupersetIdentifier;
     if (_isEditing) {
       if (!WorkoutRepository.isValidMongoId(_editingWorkoutId)) {
-        Get.snackbar('Error', 'Workout id is missing or invalid', backgroundColor: AppColors.error, colorText: AppColors.onError);
+        _showSaveMessage('Error', 'Workout id is missing or invalid');
         return;
       }
       setState(() => _isSaving = true);
@@ -402,7 +395,8 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         }
       } catch (e) {
         if (mounted) setState(() => _isSaving = false);
-        Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+        debugPrint('Exercise configuration update failed: $e');
+        _showSaveMessage('Error', e.toString().replaceFirst('Exception: ', ''));
         return;
       }
       if (mounted) setState(() => _isSaving = false);
@@ -443,7 +437,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
             type: _exerciseType.apiValue,
             name: name,
             exercise: _buildApiExerciseSets(cfg),
-            refExercise: refId.isNotEmpty && !refId.startsWith('manual_') ? refId : null,
+            refExercise: WorkoutRepository.refExerciseForApi(refId),
             supersetIdentifier: supersetIdentifier,
             workoutJournal: journalId,
             date: journalId == null ? WorkoutRepository.toJournalDate(journalDay) : null,
@@ -473,7 +467,8 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         }
       } catch (e) {
         if (mounted) setState(() => _isSaving = false);
-        Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+        debugPrint('Exercise configuration save failed: $e');
+        _showSaveMessage('Error', e.toString().replaceFirst('Exception: ', ''));
         return;
       }
       if (mounted) setState(() => _isSaving = false);
@@ -483,21 +478,26 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     for (var i = 0; i < _configs.length; i++) {
       final cfg = _configs[i];
       final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
-      final sets = cfg.sets.asMap().entries.where((e) => _setHasData(e.value, cfg)).map((e) {
-        final setIdx = e.key;
-        final s = e.value;
-        return ExerciseSetModel(
-          id: 'set_${setIdx + 1}_${now.millisecondsSinceEpoch}',
-          setNumber: setIdx + 1,
-          reps: cfg.mainType != 'Time' ? (s.repsType == 'AMRAP' || s.repsType == 'FAILURE' ? null : s.reps) : null,
-          repsType: cfg.mainType != 'Time' ? (s.repsType ?? 'standard') : null,
-          timeSeconds: cfg.mainType == 'Time' && s.time > 0 ? s.time : null,
-          weight: cfg.extraType == 'Weight' ? s.weight : null,
-          weightType: cfg.extraType == 'Weight' ? (s.isBodyweight ? 'BW' : (s.weight > 0 ? 'standard' : null)) : null,
-          distance: cfg.extraType == 'Distance' ? s.distance : null,
-          distanceUnit: cfg.extraType == 'Distance' ? s.distanceUnit : null,
+      final sets = <ExerciseSetModel>[];
+      var setNum = 0;
+      for (var setIdx = 0; setIdx < cfg.sets.length; setIdx++) {
+        final s = cfg.sets[setIdx];
+        if (!_setHasData(s, cfg)) continue;
+        setNum++;
+        sets.add(
+          ExerciseSetModel(
+            id: 'set_${setNum}_${now.millisecondsSinceEpoch}',
+            setNumber: setNum,
+            reps: cfg.mainType != 'Time' ? (s.repsType == 'AMRAP' || s.repsType == 'FAILURE' ? null : s.reps) : null,
+            repsType: cfg.mainType != 'Time' ? (s.repsType ?? 'standard') : null,
+            timeSeconds: cfg.mainType == 'Time' && s.time > 0 ? s.time : null,
+            weight: cfg.extraType == 'Weight' ? s.weight : null,
+            weightType: cfg.extraType == 'Weight' ? (s.isBodyweight ? 'BW' : (s.weight > 0 ? 'standard' : null)) : null,
+            distance: cfg.extraType == 'Distance' ? s.distance : null,
+            distanceUnit: cfg.extraType == 'Distance' ? s.distanceUnit : null,
+          ),
         );
-      }).toList();
+      }
       final apiId = _isEditing ? _editingWorkoutId : (i < createdApiIds.length ? createdApiIds[i] : null);
       final supersetParsed = WorkoutExerciseModel.parseSupersetIdentifier(savedSupersetIdentifier);
       exercises.add(
@@ -517,20 +517,36 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         ),
       );
     }
-    Get.back(result: {'exercises': exercises, 'isWarmup': _isWarmup, 'exerciseType': _exerciseType, if (_workoutJournalId != null) 'workoutJournalId': _workoutJournalId});
+    if (!mounted) return;
+    _returnAfterSave({
+      'exercises': exercises,
+      'isWarmup': _isWarmup,
+      'exerciseType': _exerciseType,
+      if (_workoutJournalId != null) 'workoutJournalId': _workoutJournalId,
+    });
+  }
+
+  void _returnAfterSave(Map<String, dynamic> result) {
+    JournalFlowNavigator.completeAfterSave(
+      result,
+      journalFlow: _journalFlow,
+      isEditing: _isEditing,
+    );
   }
 
   List<Map<String, dynamic>> _buildApiExerciseSets(_Config cfg) {
     final models = <ExerciseSetModel>[];
+    var setNum = 0;
 
     for (var i = 0; i < cfg.sets.length; i++) {
       final s = cfg.sets[i];
       if (!_setHasData(s, cfg)) continue;
+      setNum++;
 
       models.add(
         ExerciseSetModel(
-          id: 'set_${i + 1}',
-          setNumber: i + 1,
+          id: 'set_$setNum',
+          setNumber: setNum,
           reps: cfg.mainType != 'Time' && s.repsType != 'AMRAP' && s.repsType != 'FAILURE' ? s.reps : null,
           repsType: cfg.mainType != 'Time' ? s.repsType : null,
           timeSeconds: cfg.mainType == 'Time' && s.time > 0 ? s.time : null,
@@ -554,160 +570,6 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     if (cfg.extraType == 'Weight' && (setData.weight > 0 || setData.isBodyweight)) return true;
     if (cfg.extraType == 'Distance' && setData.distance > 0) return true;
     return false;
-  }
-
-  void _showPercentageCalc(int cfgIdx, int setIdx) {
-    const double pr = 315.0;
-    double pct = 75.0;
-    Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        elevation: 8,
-        child: StatefulBuilder(
-          builder: (ctx, setDlg) {
-            final calc = (pr * pct / 100).round();
-            return Container(
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 30, offset: const Offset(0, 10))],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: [AppColors.accent.withValues(alpha: 0.2), AppColors.accent.withValues(alpha: 0.1)]),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(Icons.calculate_rounded, color: AppColors.accent, size: 20),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Percentage Calculator',
-                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        onPressed: () => Get.back(),
-                        icon: Icon(Icons.close_rounded, color: AppColors.primaryGrayDark),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppColors.accent.withValues(alpha: 0.1), AppColors.accent.withValues(alpha: 0.05)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          'PERSONAL RECORD',
-                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w700, letterSpacing: 1),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Bench Press',
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w500),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${pr.toInt()} lbs',
-                          style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w800),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  Text(
-                    'SELECT PERCENTAGE',
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w700, letterSpacing: 0.8),
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    alignment: WrapAlignment.center,
-                    children: [50, 60, 70, 75, 80, 85, 90, 95]
-                        .map(
-                          (p) => GestureDetector(
-                            onTap: () => setDlg(() => pct = p.toDouble()),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                              decoration: BoxDecoration(
-                                gradient: pct == p ? LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.85)]) : null,
-                                color: pct == p ? null : AppColors.primaryGrayLight.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: pct == p ? AppColors.accent : AppColors.primaryGrayLight.withValues(alpha: 0.5), width: 1.5),
-                                boxShadow: pct == p ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))] : null,
-                              ),
-                              child: Text(
-                                '$p%',
-                                style: AppTextStyles.labelLarge.copyWith(color: pct == p ? AppColors.onAccent : AppColors.onSurface, fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.trending_up_rounded, color: AppColors.accent, size: 24),
-                        const SizedBox(width: 12),
-                        Text('≈ $calc lbs', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.w800)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        setState(() => _configs[cfgIdx].sets[setIdx].weight = calc.toDouble());
-                        Get.back();
-                      },
-                      icon: const Icon(Icons.check_circle_rounded, size: 22),
-                      label: Text('Apply to Set ${setIdx + 1}', style: AppTextStyles.buttonMedium),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: AppColors.onAccent,
-                        elevation: 2,
-                        shadowColor: AppColors.accent.withValues(alpha: 0.3),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
   }
 
   void _applyRepsTypeToSet(_SetData setData, _Config cfg, String type) {
@@ -965,7 +827,6 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     final keyboardOpen = keyboardInset > 0;
-    final showSaveButton = _focusedFieldType == null && !keyboardOpen;
     final showKeyboardToolbar = _focusedFieldType != null && keyboardOpen;
 
     return GestureDetector(
@@ -1041,14 +902,11 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
                               child: _buildCard(e.value, e.key),
                             ),
                           ),
-                      if (showSaveButton) ...[
-                        SizedBox(height: 32.h),
-                        _buildSaveButton(embedded: true),
-                      ],
                     ],
                   ),
                 ),
               ),
+              if (!keyboardOpen) _buildSaveButton(embedded: false),
               AnimatedPadding(
                 duration: const Duration(milliseconds: 100),
                 padding: EdgeInsets.only(bottom: keyboardOpen ? keyboardInset : 0),
@@ -1305,36 +1163,66 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
               SizedBox(height: 14.h),
               ...cfg.sets.asMap().entries.map((e) => _buildSetRow(cfg, idx, e.key, e.value)),
               SizedBox(height: 12.h),
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => setState(() => cfg.sets.add(_SetData())),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: 14.h),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _kInputBorder, width: 1.5),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add, color: AppColors.accent, size: 18.sp),
-                        SizedBox(width: 6.w),
-                        Text(
-                          'Add Set',
-                          style: AppTextStyles.labelLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
-                        ),
-                      ],
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSetActionButton(
+                      label: 'Remove Set',
+                      icon: Icons.remove,
+                      enabled: cfg.sets.length > 1,
+                      onTap: () => setState(() => cfg.sets.removeLast()),
                     ),
                   ),
-                ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: _buildSetActionButton(
+                      label: 'Add Set',
+                      icon: Icons.add,
+                      enabled: true,
+                      onTap: () => setState(() => cfg.sets.add(_SetData())),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSetActionButton({
+    required String label,
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    final color = enabled ? AppColors.accent : _kMutedText.withValues(alpha: 0.45);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 14.h),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: enabled ? _kInputBorder : _kInputBorder.withValues(alpha: 0.6), width: 1.5),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 18.sp),
+              SizedBox(width: 6.w),
+              Text(
+                label,
+                style: AppTextStyles.labelLarge.copyWith(color: color, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

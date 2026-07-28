@@ -7,6 +7,7 @@ import 'package:get_right/models/journal_exercise_type.dart';
 import 'package:get_right/models/workout_group_type.dart';
 import 'package:get_right/repo/marketplace_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/utils/journal_flow.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/gr_catalog_image.dart';
@@ -214,20 +215,13 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
   }
 
   void _openAddToWorkout(ExerciseLibraryModel ex) {
-    Get.toNamed(
+    JournalFlowNavigator.pushChildAndBubble(
       AppRoutes.addToWorkout,
       arguments: {
-        'journalFlow': true,
-        'exerciseType': _exerciseType,
-        'workoutJournalId': _workoutJournalId,
-        'journalWorkoutIds': _journalWorkoutIds,
-        'addedExerciseIds': _addedExerciseIds,
-        if (Get.arguments is Map && (Get.arguments as Map)['journalDay'] != null) 'journalDay': (Get.arguments as Map)['journalDay'],
+        ...JournalFlowContext.fromArgs(Get.arguments as Map<String, dynamic>?).toRouteArgs(),
         'exercise': ex,
       },
-    )?.then((r) {
-      if (r != null) Get.back(result: r);
-    });
+    );
   }
 
   void _onContinue() {
@@ -275,9 +269,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
         'exercise': selectedList.length == 1 ? selectedList.first : null,
         'exercises': selectedList.length > 1 ? selectedList : null,
       },
-    )?.then((r) {
-      if (r != null) Get.back(result: r);
-    });
+    )?.then(JournalFlowNavigator.bubbleResult);
   }
 
   void _onManual() => Get.toNamed(AppRoutes.exerciseConfiguration, arguments: {

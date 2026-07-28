@@ -30,7 +30,6 @@ import 'package:get_right/views/journal/program_workout_screen.dart';
 import 'package:get_right/views/journal/workout_journal_screen.dart';
 import 'package:get_right/views/journal/workout_timer_screen.dart';
 import 'package:get_right/views/journal/add_workout_screen.dart';
-import 'package:get_right/views/journal/add_exercise_screen.dart';
 import 'package:get_right/views/journal/new_workout_screen.dart';
 import 'package:get_right/views/journal/journal_exercise_library_screen.dart';
 import 'package:get_right/views/journal/add_to_workout_screen.dart';
@@ -141,7 +140,6 @@ class AppPages {
     GetPage(name: AppRoutes.completedWorkouts, page: () => const CompletedWorkoutsScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.workoutTimer, page: () => const WorkoutTimerScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.addWorkout, page: () => const AddWorkoutScreen(), transition: Transition.downToUp),
-    GetPage(name: AppRoutes.addExercise, page: () => const AddExerciseScreen(), transition: Transition.downToUp),
     GetPage(name: AppRoutes.newWorkout, page: () => const NewWorkoutScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.journalExerciseLibrary, page: () => const JournalExerciseLibraryScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.addToWorkout, page: () => const AddToWorkoutScreen(), transition: Transition.rightToLeft),
@@ -178,6 +176,19 @@ class AppPages {
       }
       return PlannerScreen(initialDate: initialDate);
     }, transition: Transition.fade),
+    GetPage(name: AppRoutes.calendar, page: () {
+      final args = Get.arguments;
+      DateTime? initialDate;
+      if (args is Map) {
+        final raw = args['selectedDate'];
+        if (raw is DateTime) {
+          initialDate = raw;
+        } else if (raw is String) {
+          initialDate = DateTime.tryParse(raw);
+        }
+      }
+      return PlannerScreen(initialDate: initialDate);
+    }, transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.createPlan, page: () => const CreatePlanScreen(), transition: Transition.downToUp),
 
     // Marketplace Pages

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/models/workout_group_type.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/utils/journal_flow.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/gr_catalog_image.dart';
@@ -30,21 +31,12 @@ class _AddToWorkoutScreenState extends State<AddToWorkoutScreen> {
 
   Map<String, dynamic> get _args => (Get.arguments as Map<String, dynamic>?) ?? {};
 
+  JournalFlowContext get _flowContext => JournalFlowContext.fromArgs(_args);
+
   ExerciseLibraryModel? get _exercise {
     final raw = _args['exercise'];
     if (raw is ExerciseLibraryModel) return raw;
     return null;
-  }
-
-  Map<String, dynamic> get _journalContext {
-    return {
-      if (_args['workoutJournalId'] != null) 'workoutJournalId': _args['workoutJournalId'],
-      if (_args['journalWorkoutIds'] != null) 'journalWorkoutIds': _args['journalWorkoutIds'],
-      if (_args['addedExerciseIds'] != null) 'addedExerciseIds': _args['addedExerciseIds'],
-      if (_args['journalDay'] != null) 'journalDay': _args['journalDay'],
-      if (_args['exerciseType'] != null) 'exerciseType': _args['exerciseType'],
-      'journalFlow': true,
-    };
   }
 
   Future<void> _onContinue() async {
@@ -56,30 +48,29 @@ class _AddToWorkoutScreenState extends State<AddToWorkoutScreen> {
 
     switch (_selectedType) {
       case WorkoutGroupType.single:
-        final result = await Get.toNamed(
+        final result = await JournalFlowNavigator.pushAndBubble(
           AppRoutes.exerciseConfiguration,
           arguments: {
-            ..._journalContext,
+            ..._flowContext.toRouteArgs(),
             'workoutGroupType': WorkoutGroupType.single.apiValue,
             'isSuperset': false,
             'exercise': exercise,
           },
         );
-        if (result != null) Get.back(result: result);
+        JournalFlowNavigator.bubbleResult(result);
         break;
       case WorkoutGroupType.superset:
       case WorkoutGroupType.circuit:
-        final result = await Get.toNamed(
+        await JournalFlowNavigator.pushChildAndBubble(
           AppRoutes.exerciseSelection,
           arguments: {
-            ..._journalContext,
+            ..._flowContext.toRouteArgs(),
             'pickAdditional': true,
             'workoutGroupType': _selectedType.apiValue,
             'preselected': [exercise],
             'requiredTotal': _selectedType.minExercises,
           },
         );
-        if (result != null) Get.back(result: result);
         break;
     }
   }

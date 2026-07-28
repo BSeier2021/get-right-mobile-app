@@ -5,6 +5,7 @@ import 'package:get_right/data/gr_exercise_catalog.dart';
 import 'package:get_right/models/exercise_library_category.dart';
 import 'package:get_right/models/gr_exercise_entry.dart';
 import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/utils/journal_flow.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/widgets/gr_catalog_image.dart';
@@ -30,6 +31,8 @@ class _JournalExerciseLibraryScreenState extends State<JournalExerciseLibraryScr
   bool _loading = true;
   String? _error;
   String _searchQuery = '';
+
+  JournalFlowContext get _flowContext => JournalFlowContext.fromArgs(_journalArgs);
 
   Map<String, dynamic> get _journalArgs => (Get.arguments as Map<String, dynamic>?) ?? {};
 
@@ -76,29 +79,24 @@ class _JournalExerciseLibraryScreenState extends State<JournalExerciseLibraryScr
   }
 
   void _openCategory(ExerciseLibraryCategory category) {
-    Get.toNamed(
+    JournalFlowNavigator.pushChildAndBubble(
       AppRoutes.exerciseSelection,
       arguments: {
-        ..._journalArgs,
-        'journalFlow': true,
+        ..._flowContext.toRouteArgs(),
         'muscleGroupKey': category.id,
         'muscleGroupName': category.name,
       },
-    )?.then((result) {
-      if (result != null) Get.back(result: result);
-    });
+    );
   }
 
   void _openExercise(GrExerciseEntry entry) {
-    Get.toNamed(
+    JournalFlowNavigator.pushChildAndBubble(
       AppRoutes.addToWorkout,
       arguments: {
-        ..._journalArgs,
+        ..._flowContext.toRouteArgs(),
         'exercise': entry.toExerciseLibraryModel(),
       },
-    )?.then((result) {
-      if (result != null) Get.back(result: result);
-    });
+    );
   }
 
   void _onFilterTap() {

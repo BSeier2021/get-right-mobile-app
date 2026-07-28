@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:get_right/models/journal_exercise_type.dart';
-import 'package:get_right/routes/app_routes.dart';
+import 'package:get_right/utils/journal_flow.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 
@@ -17,22 +16,13 @@ const Color _kDivider = Color(0xFFE2E8DE);
 class NewWorkoutScreen extends StatelessWidget {
   const NewWorkoutScreen({super.key});
 
+  JournalFlowContext get _flowContext => JournalFlowContext.fromArgs(_args);
+
   Map<String, dynamic> get _args => (Get.arguments as Map<String, dynamic>?) ?? {};
 
   Future<void> _onBuildWorkout() async {
-    final result = await Get.toNamed(
-      AppRoutes.journalExerciseLibrary,
-      arguments: {
-        'exerciseType': JournalExerciseType.workout,
-        'workoutJournalId': _args['workoutJournalId'],
-        'journalWorkoutIds': _args['journalWorkoutIds'],
-        'addedExerciseIds': _args['addedExerciseIds'],
-        'journalDay': _args['journalDay'],
-      },
-    );
-    if (result != null) {
-      Get.back(result: result);
-    }
+    final result = await JournalFlowNavigator.openExerciseLibrary(_flowContext);
+    JournalFlowNavigator.bubbleResult(result);
   }
 
   void _onCopyPrevious() {

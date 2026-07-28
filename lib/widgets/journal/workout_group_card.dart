@@ -3,7 +3,7 @@ import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/models/workout_group_type.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
-import 'package:get_right/widgets/journal/exercise_card.dart';
+import 'package:get_right/widgets/journal/journal_exercise_card.dart';
 
 /// Displays grouped exercises (superset or circuit) in the journal.
 class WorkoutGroupCard extends StatelessWidget {
@@ -79,11 +79,12 @@ class WorkoutGroupCard extends StatelessWidget {
           for (var i = 0; i < exercises.length; i++) ...[
             Padding(
               padding: EdgeInsets.fromLTRB(12, i == 0 ? 12 : 6, 12, i == exercises.length - 1 ? 12 : 6),
-              child: ExerciseCard(
+              child: JournalExerciseCard(
+                embedded: true,
+                index: i + 1,
                 exercise: exercises[i],
                 onMenuTap: onMenuTap != null ? () => onMenuTap!(exercises[i]) : null,
                 onTimerTap: onTimerTap != null ? () => onTimerTap!(exercises[i]) : null,
-                showBorder: false,
               ),
             ),
             if (i < exercises.length - 1)
