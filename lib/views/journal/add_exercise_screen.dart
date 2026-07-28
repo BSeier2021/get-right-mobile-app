@@ -31,7 +31,7 @@ class AddExerciseScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Choose an exercise from the library',
+              'What would you like to add?',
               style: AppTextStyles.headlineSmall.copyWith(color: AppColors.onBackground),
               textAlign: TextAlign.center,
             ),
@@ -40,9 +40,25 @@ class AddExerciseScreen extends StatelessWidget {
               width: double.infinity,
               height: 60,
               child: ElevatedButton.icon(
-                onPressed: () => Get.toNamed(AppRoutes.exerciseSelection, arguments: {'journalFlow': true}),
+                onPressed: () => Get.toNamed(AppRoutes.exerciseSelection, arguments: {'isWarmup': true}),
+                icon: const Icon(Icons.whatshot_outlined, size: 26),
+                label: Text('Warmup Exercise', style: AppTextStyles.buttonLarge),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: AppColors.onSecondary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 2,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 60,
+              child: ElevatedButton.icon(
+                onPressed: () => Get.toNamed(AppRoutes.exerciseSelection, arguments: {'isWarmup': false}),
                 icon: const Icon(Icons.fitness_center, size: 26),
-                label: Text('Browse Exercise Library', style: AppTextStyles.buttonLarge),
+                label: Text('Workout Exercise', style: AppTextStyles.buttonLarge),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
                   foregroundColor: AppColors.onAccent,
