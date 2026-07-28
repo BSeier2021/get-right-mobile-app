@@ -1,0 +1,74 @@
+{
+  "cardioList": [
+    {
+      "id": "run",
+      "name": "Run",
+      "description": "Track your outdoor or treadmill run.",
+      "icon": "directions_run",
+      "metrics": ["Distance", "Time", "Pace"],
+      "activityType": "Run",
+      "trackingMode": "gps",
+      "tags": ["outdoor", "running"]
+    },
+    {
+      "id": "walk",
+      "name": "Walk",
+      "description": "Log your walk and track your progress.",
+      "icon": "directions_walk",
+      "metrics": ["Distance", "Time", "Steps"],
+      "activityType": "Walk",
+      "trackingMode": "gps",
+      "tags": ["outdoor", "walking"]
+    },
+    {
+      "id": "jog",
+      "name": "Jog",
+      "description": "Record your jog and keep improving.",
+      "icon": "directions_walk",
+      "metrics": ["Distance", "Time", "Pace"],
+      "activityType": "Jog",
+      "trackingMode": "gps",
+      "tags": ["outdoor", "running"]
+    },
+    {
+      "id": "outdoor_bike",
+      "name": "Outdoor Bike",
+      "description": "Track your ride and mileage.",
+      "icon": "directions_bike",
+      "metrics": ["Distance", "Time", "Speed"],
+      "activityType": "Bike",
+      "trackingMode": "gps",
+      "tags": ["outdoor", "cycling"]
+    },
+    {
+      "id": "indoor_bike",
+      "name": "Indoor Bike",
+      "description": "Log your indoor cycling session.",
+      "icon": "pedal_bike",
+      "metrics": ["Time", "Calories", "Resistance"],
+      "activityType": "Bike",
+      "trackingMode": "manual",
+      "tags": ["indoor", "cycling"]
+    },
+    {
+      "id": "treadmill",
+      "name": "Treadmill",
+      "description": "Track your treadmill workout.",
+      "icon": "fitness_center",
+      "metrics": ["Time", "Incline", "Speed"],
+      "activityType": "Run",
+      "trackingMode": "manual",
+      "tags": ["indoor", "running"]
+    },
+    {
+      "id": "other",
+      "name": "Other",
+      "description": "Log any other type of cardio.",
+      "icon": "favorite_border",
+      "metrics": ["Custom"],
+      "activityType": "Other",
+      "trackingMode": "manual",
+      "tags": ["other"]
+    }
+  ]
+}

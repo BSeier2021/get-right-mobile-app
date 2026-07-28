@@ -391,9 +391,9 @@ class _FeedReelChromeOverlayState extends State<FeedReelChromeOverlay> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.accentVariant,
+        color: Colors.black.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))],
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
       child: child,
     );

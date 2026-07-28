@@ -94,19 +94,23 @@ class _HomeScreenState extends State<HomeScreen> {
       canPop: false,
       child: Obx(() {
         final _ = _navController.refreshTrigger.value;
+        final isFeedTab = _navController.currentIndex == 1;
 
         return Scaffold(
-          backgroundColor: AppColors.backgroundColor,
+          backgroundColor: isFeedTab ? Colors.black : AppColors.backgroundColor,
           key: _scaffoldKey,
-          drawer: const AppDrawer(), // Professional app drawer
+          drawer: const AppDrawer(),
           body: IndexedStack(index: _navController.currentIndex, children: _screens),
-          bottomNavigationBar: _buildProfessionalBottomNav(key: ValueKey('nav_${_navController.currentIndex}')),
+          bottomNavigationBar: _buildProfessionalBottomNav(
+            key: ValueKey('nav_${_navController.currentIndex}'),
+            darkMode: isFeedTab,
+          ),
         );
       }),
     );
   }
 
-  Widget _buildProfessionalBottomNav({Key? key}) {
+  Widget _buildProfessionalBottomNav({Key? key, bool darkMode = false}) {
     final navItems = [
       // Left
       {'icon': 'assets/icons/shop.svg', 'activeIcon': 'assets/icons/shop.svg', 'label': 'Market'},
@@ -116,6 +120,9 @@ class _HomeScreenState extends State<HomeScreen> {
       {'icon': 'assets/icons/personal.svg', 'activeIcon': 'assets/icons/personal.svg', 'label': 'Profile'},
     ];
 
+    final barColor = darkMode ? const Color(0xFF0B0B0B) : AppColors.white;
+    final borderColor = darkMode ? Colors.white.withValues(alpha: 0.08) : AppColors.primaryGrayLight;
+
     return ClipRRect(
       key: key,
       clipBehavior: Clip.none,
@@ -123,9 +130,9 @@ class _HomeScreenState extends State<HomeScreen> {
         filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: barColor,
             borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
-            border: Border(top: BorderSide(color: AppColors.primaryGrayLight, width: 1)),
+            border: Border(top: BorderSide(color: borderColor, width: 1)),
           ),
           child: SafeArea(
             top: false,
@@ -143,6 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     index: index,
                     isSelected: _navController.currentIndex == index,
                     isCenter: isCenter,
+                    darkMode: darkMode,
                   );
                 }),
               ),
@@ -154,10 +162,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Modern navigation item
-  Widget _buildNavItem({required String icon, required String activeIcon, required String label, required int index, required bool isSelected, bool isCenter = false}) {
+  Widget _buildNavItem({
+    required String icon,
+    required String activeIcon,
+    required String label,
+    required int index,
+    required bool isSelected,
+    bool isCenter = false,
+    bool darkMode = false,
+  }) {
     const greenAccent = Color(0xFF214E31);
-    const blackPrimary = Color(0xFF000000);
-    const textSecondary = Color(0xFF404040);
+    final selectedLabel = darkMode ? Colors.white : const Color(0xFF000000);
+    final unselectedLabel = darkMode ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF404040);
+    final selectedIconBg = darkMode ? Colors.white.withValues(alpha: 0.12) : greenAccent.withValues(alpha: 0.12);
+    final selectedIconColor = darkMode ? Colors.white : greenAccent;
 
     return Expanded(
       child: GestureDetector(
@@ -187,7 +205,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     offset: Offset(0, isCenter ? -18 : 0),
                     child: AnimatedContainer(
                       clipBehavior: Clip.none,
-
                       duration: const Duration(milliseconds: 250),
                       curve: Curves.easeOutCubic,
                       width: isCenter ? 65 : (isSelected ? 40 : 34),
@@ -196,10 +213,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: isCenter
                             ? greenAccent
                             : isSelected
-                            ? greenAccent.withValues(alpha: 0.12)
+                            ? selectedIconBg
                             : Colors.transparent,
-                        borderRadius: BorderRadius.circular(isCenter ? 50 : 50),
-                        boxShadow: isCenter ? [BoxShadow(color: greenAccent.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 4))] : null,
+                        borderRadius: BorderRadius.circular(50),
+                        boxShadow: isCenter ? [BoxShadow(color: greenAccent.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 4))] : null,
                       ),
                       child: Center(
                         child: isSelected
@@ -212,11 +229,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                   activeIcon,
                                   isCenter: isCenter,
                                   isSelected: true,
-                                  selectedColor: isCenter ? Colors.white : greenAccent,
-                                  unselectedColor: textSecondary,
+                                  selectedColor: isCenter ? Colors.white : selectedIconColor,
+                                  unselectedColor: unselectedLabel,
                                 ),
                               )
-                            : _buildNavGraphic(icon, isCenter: isCenter, isSelected: false, selectedColor: isCenter ? Colors.white : greenAccent, unselectedColor: textSecondary),
+                            : _buildNavGraphic(
+                                icon,
+                                isCenter: isCenter,
+                                isSelected: false,
+                                selectedColor: isCenter ? Colors.white : selectedIconColor,
+                                unselectedColor: unselectedLabel,
+                              ),
                       ),
                     ),
                   ),
@@ -231,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? blackPrimary : textSecondary,
+                    color: isSelected ? selectedLabel : unselectedLabel,
                     letterSpacing: 0.2,
                     height: 1.0,
                   ),

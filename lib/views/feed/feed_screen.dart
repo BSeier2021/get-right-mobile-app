@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_right/controllers/notification_controller.dart';
+import 'package:get_right/models/discover_user.dart';
+import 'package:get_right/repo/discover_repo.dart';
 import 'package:get_right/repo/feed_repo.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/routes/app_routes.dart';
@@ -17,6 +20,7 @@ import 'package:get_right/services/feed_playback_coordinator.dart';
 import 'package:get_right/views/feed/feed_reel_overlay.dart';
 import 'package:get_right/views/feed/feed_vertical_reels.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
+import 'package:get_right/widgets/safe_circle_network_avatar.dart';
 import 'package:video_player/video_player.dart';
 
 /// Community Feed - Social Media Platform for fitness content
@@ -486,31 +490,30 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.backgroundColor, AppColors.backgroundColor, AppColors.backgroundColor]),
-      ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent),
       child: Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.black,
+        // Keep media below the For You / Following bar (do not draw under the AppBar).
+        extendBodyBehindAppBar: false,
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
+          backgroundColor: Colors.black,
           elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
+          systemOverlayStyle: SystemUiOverlayStyle.light,
           leading: Obx(() {
-            if (!Get.isRegistered<NotificationController>()) {
-              return IconButton(
-                icon: Image.asset('assets/images/humburger.png', width: 25.w),
-                onPressed: _openHomeDrawer,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ).paddingOnly(left: 10);
-            }
-            final notificationController = Get.find<NotificationController>();
-            final unreadCount = notificationController.unreadCount.value;
+            final unreadCount = Get.isRegistered<NotificationController>()
+                ? Get.find<NotificationController>().unreadCount.value
+                : 0;
             return Stack(
               clipBehavior: Clip.none,
               children: [
                 IconButton(
-                  icon: Image.asset('assets/images/humburger.png', width: 25.w),
+                  icon: ColorFiltered(
+                    colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                    child: Image.asset('assets/images/humburger.png', width: 25.w),
+                  ),
                   onPressed: _openHomeDrawer,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -548,10 +551,20 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                       children: [
                         Text(
                           'For You',
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: isForYou ? Colors.white : Colors.white.withValues(alpha: 0.55),
+                            fontWeight: isForYou ? FontWeight.w800 : FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: 2),
-                        Container(width: 48, height: 2, color: isForYou ? AppColors.accent : Colors.transparent),
+                        Container(
+                          width: 48,
+                          height: 2.5,
+                          decoration: BoxDecoration(
+                            color: isForYou ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -563,10 +576,20 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                       children: [
                         Text(
                           'Following',
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface.withValues(alpha: 0.8), fontWeight: FontWeight.w600),
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: isFollowing ? Colors.white : Colors.white.withValues(alpha: 0.55),
+                            fontWeight: isFollowing ? FontWeight.w800 : FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: 2),
-                        Container(width: 62, height: 2, color: isFollowing ? AppColors.accent : Colors.transparent),
+                        Container(
+                          width: 62,
+                          height: 2.5,
+                          decoration: BoxDecoration(
+                            color: isFollowing ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -587,22 +610,26 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                     IconButton(
                       tooltip: 'Refresh feed',
                       icon: busy
-                          ? SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentVariant))
-                          : Icon(Icons.refresh_rounded, color: AppColors.onSurface, size: 22),
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.refresh_rounded, color: Colors.white, size: 22),
                       onPressed: busy ? null : () => _refreshActiveFeedTab(),
                     ),
                     IconButton(
-                      icon: Image.asset('assets/images/search-normal000.png', width: 20.w),
-                      onPressed: () {
-                        _showSearchScreen();
-                      },
+                      icon: ColorFiltered(
+                        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                        child: Image.asset('assets/images/search-normal000.png', width: 20.w),
+                      ),
+                      onPressed: _showSearchScreen,
                     ).paddingOnly(right: 5),
                   ],
                 );
               },
             ),
           ],
-          bottom: PreferredSize(preferredSize: const Size.fromHeight(0), child: Container()),
         ),
         body: ColoredBox(
           color: Colors.black,
@@ -624,7 +651,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     if (_loadingForYou && _feedPosts.isEmpty) {
       return _wrapFeedRefreshIndicator(
         onRefresh: _refreshActiveFeedTab,
-        child: _refreshScrollableBody(child: const Center(child: CircularProgressIndicator())),
+        child: _refreshScrollableBody(child: const Center(child: CircularProgressIndicator(color: Colors.white))),
       );
     }
     return _wrapFeedRefreshIndicator(
@@ -661,7 +688,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     if (_loadingFollowing && _followingPosts.isEmpty) {
       return _wrapFeedRefreshIndicator(
         onRefresh: _refreshActiveFeedTab,
-        child: _refreshScrollableBody(child: const Center(child: CircularProgressIndicator())),
+        child: _refreshScrollableBody(child: const Center(child: CircularProgressIndicator(color: Colors.white))),
       );
     }
 
@@ -673,11 +700,15 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.people_outline, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
+                Icon(Icons.people_outline, size: 80, color: Colors.white.withValues(alpha: 0.35)),
                 const SizedBox(height: 16),
-                Text('No posts from followed creators', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+                Text('No posts from followed creators', style: AppTextStyles.titleMedium.copyWith(color: Colors.white.withValues(alpha: 0.75))),
                 const SizedBox(height: 8),
-                TextButton(onPressed: () => _tabController.animateTo(0), child: const Text('Browse For You')),
+                TextButton(
+                  onPressed: () => _tabController.animateTo(0),
+                  style: TextButton.styleFrom(foregroundColor: Colors.white),
+                  child: const Text('Browse For You'),
+                ),
               ],
             ),
           ),
@@ -714,17 +745,17 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.wifi_off_rounded, size: 72, color: AppColors.primaryGray.withValues(alpha: 0.55)),
+            Icon(Icons.wifi_off_rounded, size: 72, color: Colors.white.withValues(alpha: 0.4)),
             const SizedBox(height: 12),
             Text(
               'Could not load feed',
-              style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray),
+              style: AppTextStyles.titleMedium.copyWith(color: Colors.white.withValues(alpha: 0.85)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
               message,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray.withValues(alpha: 0.9)),
+              style: AppTextStyles.bodySmall.copyWith(color: Colors.white.withValues(alpha: 0.55)),
               textAlign: TextAlign.center,
               maxLines: 4,
               overflow: TextOverflow.ellipsis,
@@ -732,7 +763,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
             const SizedBox(height: 14),
             ElevatedButton(
               onPressed: onRetry,
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black),
               child: const Text('Retry'),
             ),
           ],
@@ -849,7 +880,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   }
 }
 
-/// Search Screen - `GET /user/feed?search=` with explore grid fallback when query is empty.
+/// Search Screen — People (discover) + Videos (feed search).
 class _SearchScreen extends StatefulWidget {
   final List<Map<String, dynamic>> allPosts;
   final List<Map<String, dynamic>> Function(List<dynamic> feedsRaw) mapFeedDocuments;
@@ -862,20 +893,35 @@ class _SearchScreen extends StatefulWidget {
   State<_SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<_SearchScreen> {
+class _SearchScreenState extends State<_SearchScreen> with SingleTickerProviderStateMixin {
   static const int _searchPerPage = 10;
 
   final FeedRepository _feedRepo = FeedRepository();
+  final DiscoverRepository _discoverRepo = DiscoverRepository();
   final TextEditingController _searchController = TextEditingController();
+  late final TabController _tabController;
   Timer? _searchDebounce;
+
   String _searchQuery = '';
-  List<Map<String, dynamic>> _searchResults = <Map<String, dynamic>>[];
-  bool _loading = false;
-  String? _error;
+  List<Map<String, dynamic>> _videoResults = <Map<String, dynamic>>[];
+  List<DiscoverUser> _peopleResults = <DiscoverUser>[];
+  bool _loadingPeople = false;
+  bool _loadingVideos = false;
+  String? _peopleError;
+  String? _videoError;
 
   List<Map<String, dynamic>> get _displayPosts {
     if (_searchQuery.trim().isEmpty) return widget.allPosts;
-    return _searchResults;
+    return _videoResults;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   void _onSearchChanged(String value) {
@@ -885,9 +931,12 @@ class _SearchScreenState extends State<_SearchScreen> {
     final query = value.trim();
     if (query.isEmpty) {
       setState(() {
-        _searchResults = <Map<String, dynamic>>[];
-        _loading = false;
-        _error = null;
+        _videoResults = <Map<String, dynamic>>[];
+        _peopleResults = <DiscoverUser>[];
+        _loadingPeople = false;
+        _loadingVideos = false;
+        _peopleError = null;
+        _videoError = null;
       });
       return;
     }
@@ -898,10 +947,43 @@ class _SearchScreenState extends State<_SearchScreen> {
   Future<void> _loadSearch(String query) async {
     if (!mounted) return;
     setState(() {
-      _loading = true;
-      _error = null;
+      _loadingPeople = true;
+      _loadingVideos = true;
+      _peopleError = null;
+      _videoError = null;
     });
 
+    await Future.wait([
+      _loadPeople(query),
+      _loadVideos(query),
+    ]);
+  }
+
+  Future<void> _loadPeople(String query) async {
+    try {
+      final page = await _discoverRepo.fetchDiscoverUsers(
+        search: query.replaceFirst(RegExp(r'^@+'), ''),
+        sort: DiscoverSort.nameAsc,
+        page: 1,
+        limit: 20,
+      );
+      if (!mounted || _searchController.text.trim() != query) return;
+      setState(() {
+        _peopleResults = page.users;
+        _loadingPeople = false;
+        _peopleError = null;
+      });
+    } catch (e) {
+      if (!mounted || _searchController.text.trim() != query) return;
+      setState(() {
+        _peopleResults = <DiscoverUser>[];
+        _loadingPeople = false;
+        _peopleError = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  Future<void> _loadVideos(String query) async {
     try {
       final raw = await _feedRepo.getFeedsRepo(page: 1, limit: _searchPerPage, search: query);
       if (!mounted || _searchController.text.trim() != query) return;
@@ -910,29 +992,36 @@ class _SearchScreenState extends State<_SearchScreen> {
       final feedsRaw = (data['feeds'] is List) ? List.from(data['feeds'] as List) : const <dynamic>[];
 
       setState(() {
-        _searchResults = widget.mapFeedDocuments(feedsRaw);
-        _loading = false;
-        _error = null;
+        _videoResults = widget.mapFeedDocuments(feedsRaw);
+        _loadingVideos = false;
+        _videoError = null;
       });
     } catch (e) {
       if (!mounted || _searchController.text.trim() != query) return;
       setState(() {
-        _searchResults = <Map<String, dynamic>>[];
-        _loading = false;
-        _error = e.toString();
+        _videoResults = <Map<String, dynamic>>[];
+        _loadingVideos = false;
+        _videoError = e.toString();
       });
     }
+  }
+
+  void _openProfile(DiscoverUser user) {
+    Get.toNamed(AppRoutes.trainerProfile, arguments: user.toProfileArgs());
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
     _searchController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final hasQuery = _searchQuery.trim().isNotEmpty;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -945,93 +1034,242 @@ class _SearchScreenState extends State<_SearchScreen> {
         title: Text('Search', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.w900)),
         centerTitle: true,
       ),
-      body: CustomScrollView(
-        slivers: [
-          // Search Bar
-          SliverToBoxAdapter(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: TextField(
-                controller: _searchController,
-                autofocus: true,
-                onChanged: _onSearchChanged,
-                style: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF000000)),
-                decoration: InputDecoration(
-                  hintText: 'Search videos, creators, categories...',
-                  hintStyle: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF404040)),
-                  prefixIcon: const Icon(Icons.search, color: Color(0xFF404040)),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, color: Color(0xFF404040)),
-                          onPressed: () {
-                            _searchController.clear();
-                            _onSearchChanged('');
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: AppColors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: TextField(
+              controller: _searchController,
+              autofocus: true,
+              onChanged: _onSearchChanged,
+              style: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF000000)),
+              decoration: InputDecoration(
+                hintText: 'Search @username, people, or videos...',
+                hintStyle: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF404040)),
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF404040)),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Color(0xFF404040)),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: AppColors.white,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
           ),
-
-          if (_searchQuery.trim().isNotEmpty && _loading)
-            const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator()))
-          else if (_searchQuery.trim().isNotEmpty && _error != null)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('Could not search', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
-                      const SizedBox(height: 8),
-                      Text(
-                        _error!,
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-                        textAlign: TextAlign.center,
+          if (hasQuery)
+            TabBar(
+              controller: _tabController,
+              labelColor: AppColors.accent,
+              unselectedLabelColor: AppColors.primaryGrayDark,
+              indicatorColor: AppColors.accent,
+              labelStyle: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w800),
+              tabs: [
+                Tab(text: 'People${_peopleResults.isNotEmpty ? ' (${_peopleResults.length})' : ''}'),
+                Tab(text: 'Videos${_videoResults.isNotEmpty ? ' (${_videoResults.length})' : ''}'),
+              ],
+            ),
+          Expanded(
+            child: !hasQuery
+                ? CustomScrollView(
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        sliver: SliverGrid(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            mainAxisSpacing: 4,
+                            crossAxisSpacing: 4,
+                            childAspectRatio: 1.0,
+                          ),
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              return GestureDetector(
+                                onTap: () => widget.onPostTap(_displayPosts[index]),
+                                child: widget.buildExploreGridItem(_displayPosts[index]),
+                              );
+                            },
+                            childCount: _displayPosts.length,
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      TextButton(onPressed: () => _loadSearch(_searchQuery.trim()), child: const Text('Retry')),
+                      const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                    ],
+                  )
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildPeopleTab(),
+                      _buildVideosTab(),
                     ],
                   ),
-                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeopleTab() {
+    if (_loadingPeople) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+    }
+    if (_peopleError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Could not search people', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+              const SizedBox(height: 8),
+              Text(_peopleError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray), textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              TextButton(onPressed: () => _loadPeople(_searchQuery.trim()), child: const Text('Retry')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_peopleResults.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.person_search_outlined, size: 72, color: AppColors.primaryGray.withValues(alpha: 0.5)),
+            const SizedBox(height: 16),
+            Text('No people found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+            const SizedBox(height: 8),
+            Text('Try a name or @username', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      itemCount: _peopleResults.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) => _buildPersonTile(_peopleResults[index]),
+    );
+  }
+
+  Widget _buildPersonTile(DiscoverUser user) {
+    final initials = user.name.isNotEmpty
+        ? user.name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2).map((p) => p[0].toUpperCase()).join()
+        : 'U';
+
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _openProfile(user),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              SafeCircleNetworkAvatar(
+                radius: 26,
+                imageUrl: user.avatarUrl,
+                backgroundColor: AppColors.accent.withValues(alpha: 0.15),
+                fallback: Text(initials, style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold)),
               ),
-            )
-          else if (_searchQuery.trim().isNotEmpty && _displayPosts.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
+              const SizedBox(width: 12),
+              Expanded(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
-                    const SizedBox(height: 16),
-                    Text('No videos found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
-                    const SizedBox(height: 8),
-                    Text('Try different keywords', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                    Text(
+                      user.name,
+                      style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (user.handle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(user.handle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+                    ],
+                    if (user.role.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(user.role, style: AppTextStyles.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600)),
+                    ],
                   ],
                 ),
               ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisSpacing: 4, crossAxisSpacing: 4, childAspectRatio: 1.0),
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  return GestureDetector(onTap: () => widget.onPostTap(_displayPosts[index]), child: widget.buildExploreGridItem(_displayPosts[index]));
-                }, childCount: _displayPosts.length),
-              ),
-            ),
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
-        ],
+              const Icon(Icons.chevron_right_rounded, color: AppColors.primaryGray),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+
+  Widget _buildVideosTab() {
+    if (_loadingVideos) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+    }
+    if (_videoError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Could not search videos', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+              const SizedBox(height: 8),
+              Text(_videoError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray), textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              TextButton(onPressed: () => _loadVideos(_searchQuery.trim()), child: const Text('Retry')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_displayPosts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 80, color: AppColors.primaryGray.withValues(alpha: 0.5)),
+            const SizedBox(height: 16),
+            Text('No videos found', style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGray)),
+            const SizedBox(height: 8),
+            Text('Try different keywords', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray)),
+          ],
+        ),
+      );
+    }
+
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+              childAspectRatio: 1.0,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                return GestureDetector(
+                  onTap: () => widget.onPostTap(_displayPosts[index]),
+                  child: widget.buildExploreGridItem(_displayPosts[index]),
+                );
+              },
+              childCount: _displayPosts.length,
+            ),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+      ],
     );
   }
 }

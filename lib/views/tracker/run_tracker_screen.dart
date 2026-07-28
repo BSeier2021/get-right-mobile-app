@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
@@ -36,10 +34,10 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> with AutomaticKeepA
   Widget? _cachedMapWidget;
   Position? _lastCameraPosition;
   DateTime? _lastCameraUpdate;
-  String? _selectedActivity;
   Worker? _plannerReloadWorker;
   Worker? _journalTabWorker;
   Worker? _runnerLogVisibilityWorker;
+  MapType _mapType = MapType.normal;
 
   /// GoogleMap should only be created after the Runner Log tab is first shown.
   bool _isRunnerLogVisible = false;
@@ -49,14 +47,6 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> with AutomaticKeepA
 
   @override
   bool get wantKeepAlive => true;
-
-  // ignore: unused_field
-  final List<Map<String, dynamic>> _activities = [
-    {'type': 'Walk', 'icon': Icons.directions_walk, 'color': const Color(0xFF4CAF50), 'description': 'Low intensity cardio'},
-    {'type': 'Jog', 'icon': Icons.directions_walk_outlined, 'color': const Color(0xFFFF9800), 'description': 'Moderate pace activity'},
-    {'type': 'Run', 'icon': Icons.directions_run, 'color': const Color(0xFFF44336), 'description': 'High intensity running'},
-    {'type': 'Bike', 'icon': Icons.directions_bike, 'color': const Color(0xFF2196F3), 'description': 'Cycling activity'},
-  ];
 
   @override
   void initState() {
@@ -234,20 +224,17 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> with AutomaticKeepA
     return Scaffold(
       body: Stack(
         children: [
-          // Map Preview - Full Screen
           _buildMapPreview(),
-
-          // Draggable Bottom Sheet with Activity Selection
-          DraggableScrollableSheet(
-            initialChildSize: 0.20,
-            minChildSize: 0.20,
-            maxChildSize: 0.38,
-            snap: true,
-            snapSizes: const [0.20, 0.30, 0.38],
-            builder: (context, scrollController) => _buildDraggableBottomSheet(scrollController),
-          ),
-
-          // Plan Route Button - Top Right
+          _buildMapControls(),
+          if (_isLoadingReusedRoute)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(color: AppColors.accent, minHeight: 3),
+            ),
+          if (_reusedPlannedRoute != null) _buildReusedRouteChip(),
+          _buildSelectWorkoutButton(),
         ],
       ),
     );
@@ -301,60 +288,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> with AutomaticKeepA
       return SizedBox(
         height: double.infinity,
         width: double.infinity,
-        child: Stack(
-          children: [
-            ColoredBox(color: AppColors.surface, child: mapContent),
-
-            // Light top scrim so controls stay readable over the map (especially on iOS while tiles load).
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      AppColors.backgroundColor.withValues(alpha: 0.95),
-                      AppColors.backgroundColor.withValues(alpha: 0.72),
-                      AppColors.backgroundColor.withValues(alpha: 0.0),
-                    ],
-                    stops: const [0.0, 0.55, 1.0],
-                  ),
-                ),
-              ),
-            ),
-
-            // Map info badge
-            if (hasPosition)
-              Positioned(
-                top: MediaQuery.of(Get.context!).padding.top + 72,
-                right: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.accent,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.white.withValues(alpha: 0.35), width: 1.5),
-                    boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.gps_fixed, color: AppColors.white, size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        'GPS Ready',
-                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
+        child: ColoredBox(color: AppColors.surface, child: mapContent),
       );
     });
   }
@@ -413,6 +347,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> with AutomaticKeepA
         zoomControlsEnabled: false,
         mapToolbarEnabled: false,
         compassEnabled: false,
+        mapType: _mapType,
         liteModeEnabled: false, // Disable lite mode to prevent buffer issues
         buildingsEnabled: true,
         indoorViewEnabled: false,
@@ -542,251 +477,153 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> with AutomaticKeepA
     controller.setMapStyle(null);
   }
 
-  /// Build draggable bottom sheet with activity selection
-  Widget _buildDraggableBottomSheet(ScrollController scrollController) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.backgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, -5))],
-      ),
-      child: ListView(
-        controller: scrollController,
-        physics: const ClampingScrollPhysics(),
-        padding: EdgeInsets.zero,
+  Widget _buildMapControls() {
+    final top = MediaQuery.paddingOf(context).top + 72;
+    return Positioned(
+      top: top,
+      right: 16,
+      child: Column(
         children: [
-          8.h.verticalSpace,
-          if (_isLoadingReusedRoute)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
-              child: LinearProgressIndicator(color: AppColors.accent, minHeight: 3),
-            ),
-          if (_reusedPlannedRoute != null) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3E7F6),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.route, color: AppColors.accent, size: 22),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Reusing saved route',
-                            style: AppTextStyles.labelLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${(_reusedPlannedRoute!.estimatedDistance / 1000).toStringAsFixed(2)} km · ${_reusedPlannedRoute!.routePoints.length} points',
-                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-                          ),
-                        ],
-                      ),
-                    ),
-                    TextButton(onPressed: _clearReusedPlannedRoute, child: const Text('Clear')),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          // Plan Route - full width primary CTA
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-            child: SizedBox(
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () => Get.toNamed(AppRoutes.routePlanning),
-
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accentVariant,
-                  foregroundColor: AppColors.onAccent,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                  elevation: 0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.route, size: 20),
-                    const SizedBox(width: 8),
-                    Text('Plan Route', style: AppTextStyles.labelLarge.copyWith(color: AppColors.onAccent)),
-                  ],
-                ),
-              ),
-            ),
+          _mapControlButton(
+            icon: Icons.my_location,
+            onTap: _recenterOnUser,
           ),
-          // Action Buttons - Non-scrollable section
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-            child: Row(
-              children: [
-                // Start Tracking Button
-                Expanded(
-                  child: SizedBox(
-                    height: 52,
-                    child: OutlinedButton(
-                      onPressed: _startActivity,
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: AppColors.accentVariant,
-                        side: BorderSide(color: AppColors.accent.withValues(alpha: 0.5), width: 2),
-                        foregroundColor: AppColors.accent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                        padding: EdgeInsets.zero,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SvgPicture.asset('assets/icons/play.svg', width: 20, height: 20),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              'Start Activity',
-                              style: AppTextStyles.labelLarge.copyWith(color: AppColors.white),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // View History Button
-                Expanded(
-                  child: SizedBox(
-                    height: 52,
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Get.toNamed(AppRoutes.runHistory);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.accentVariant.withValues(alpha: 0.5), width: 2),
-                        foregroundColor: AppColors.onSurface,
-                        backgroundColor: AppColors.accentVariant,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                        padding: EdgeInsets.zero,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.history_rounded, size: 20, color: AppColors.white),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              'View History',
-                              style: AppTextStyles.labelLarge.copyWith(color: AppColors.white),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Activity Type Icons
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Select Activity Type',
-                  style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildActivityOption(type: 'walk', label: 'Walk', asset: 'assets/images/run111.png', bgColor: const Color(0xFFE4F3E9)),
-                    _buildActivityOption(type: 'jog', label: 'Jog', asset: 'assets/images/jog.png', bgColor: const Color(0xFFFEEFDA)),
-                    _buildActivityOption(type: 'run', label: 'Run', asset: 'assets/images/runing.png', bgColor: const Color(0xFFF3E7F6)),
-                    _buildActivityOption(type: 'bike', label: 'Bike', asset: 'assets/images/byke.png', bgColor: const Color(0xFFE3F0FF)),
-                  ],
-                ),
-              ],
-            ),
+          const SizedBox(height: 10),
+          _mapControlButton(
+            icon: Icons.layers_outlined,
+            onTap: _cycleMapType,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActivityOption({required String type, required String label, required String asset, required Color bgColor}) {
-    final bool isSelected = _selectedActivity == type;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedActivity = type),
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: bgColor,
-              shape: BoxShape.circle,
-              border: Border.all(color: isSelected ? const Color(0xFF5BA3FF) : Colors.transparent, width: 2),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Image.asset(asset, fit: BoxFit.contain),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.onSurface)),
-        ],
+  Widget _mapControlButton({required IconData icon, required VoidCallback onTap}) {
+    return Material(
+      color: AppColors.white,
+      shape: const CircleBorder(),
+      elevation: 2,
+      shadowColor: AppColors.black.withValues(alpha: 0.18),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Icon(icon, color: AppColors.primaryGrayDark, size: 22),
+        ),
       ),
     );
   }
 
-  /// Build activity type icon button
-  // ignore: unused_element
-  Widget _buildActivityIcon({required String type, required IconData icon, required Color color, required bool isSelected, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: isSelected ? color.withValues(alpha: 0.2) : AppColors.backgroundColor,
-              shape: BoxShape.circle,
-              border: Border.all(color: isSelected ? color : AppColors.primaryGray.withValues(alpha: 0.3), width: isSelected ? 3 : 2),
-              boxShadow: isSelected
-                  ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))]
-                  : [BoxShadow(color: AppColors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
-            ),
-            child: Icon(icon, color: color, size: 32),
+  void _recenterOnUser() {
+    final position = _trackingController.currentPosition.value;
+    if (position == null) {
+      _initializeLocation();
+      return;
+    }
+    _updateCameraPosition(position);
+  }
+
+  void _cycleMapType() {
+    setState(() {
+      _mapType = switch (_mapType) {
+        MapType.normal => MapType.hybrid,
+        MapType.hybrid => MapType.satellite,
+        _ => MapType.normal,
+      };
+      // MapType is baked into the cached GoogleMap — rebuild once on user toggle.
+      _cachedMapWidget = null;
+      _isMapCreated = false;
+      _mapController = null;
+    });
+  }
+
+  Widget _buildReusedRouteChip() {
+    final route = _reusedPlannedRoute!;
+    return Positioned(
+      left: 20,
+      right: 20,
+      bottom: 88,
+      child: Material(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        elevation: 2,
+        shadowColor: AppColors.black.withValues(alpha: 0.12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              const Icon(Icons.route, color: AppColors.accent, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Route ready · ${(route.estimatedDistance / 1000).toStringAsFixed(2)} km',
+                  style: AppTextStyles.labelMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              TextButton(
+                onPressed: _clearReusedPlannedRoute,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accent,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Clear'),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            type,
-            style: AppTextStyles.labelSmall.copyWith(
-              color: isSelected ? color : AppColors.onSurface,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            ),
-          ),
-        ],
+        ),
       ),
     );
+  }
+
+  Widget _buildSelectWorkoutButton() {
+    return Positioned(
+      left: 20,
+      right: 20,
+      bottom: 20,
+      child: SizedBox(
+        height: 56,
+        child: ElevatedButton(
+          onPressed: _openWorkoutSelection,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.accent,
+            foregroundColor: AppColors.onAccent,
+            elevation: 4,
+            shadowColor: AppColors.black.withValues(alpha: 0.25),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.directions_run, size: 22, color: AppColors.onAccent),
+              const SizedBox(width: 10),
+              Text(
+                'Select Workout',
+                style: AppTextStyles.labelLarge.copyWith(
+                  color: AppColors.onAccent,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openWorkoutSelection() {
+    final args = <String, dynamic>{};
+    if (_reusedPlannedRoute != null) {
+      args['plannedRoute'] = _reusedPlannedRoute;
+    }
+    Get.toNamed(AppRoutes.cardioLibrary, arguments: args.isEmpty ? null : args)?.then((_) {
+      if (mounted) _loadStats();
+    });
   }
 
   Set<Polyline> _plannedRoutePolylines() {
@@ -876,22 +713,5 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> with AutomaticKeepA
       maxLng = maxLng > point.longitude ? maxLng : point.longitude;
     }
     return LatLngBounds(southwest: LatLng(minLat, minLng), northeast: LatLng(maxLat, maxLng));
-  }
-
-  /// Start activity with selected type
-  void _startActivity() {
-    if (_selectedActivity == null) {
-      Get.snackbar('Select Activity', 'Please choose an activity type', backgroundColor: AppColors.error, colorText: AppColors.onError);
-      return;
-    }
-
-    final args = <String, dynamic>{'activityType': _selectedActivity};
-    if (_reusedPlannedRoute != null) {
-      args['plannedRoute'] = _reusedPlannedRoute;
-    }
-
-    Get.toNamed(AppRoutes.runTracking, arguments: args)?.then((_) {
-      if (mounted) _loadStats();
-    });
   }
 }

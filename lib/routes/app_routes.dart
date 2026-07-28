@@ -63,6 +63,7 @@ class AppRoutes {
   static const String runDetail = '/run-detail';
   static const String routePlanning = '/route-planning';
   static const String activityTypeSelection = '/activity-type-selection';
+  static const String cardioLibrary = '/cardio-library';
 
   // Planner Routes
   static const String planner = '/planner';

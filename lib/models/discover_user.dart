@@ -28,6 +28,7 @@ class DiscoverUser {
   const DiscoverUser({
     required this.id,
     required this.name,
+    required this.username,
     required this.role,
     required this.avatarUrl,
     required this.followersCount,
@@ -38,6 +39,7 @@ class DiscoverUser {
 
   final String id;
   final String name;
+  final String username;
   final String role;
   final String? avatarUrl;
   final int followersCount;
@@ -47,6 +49,8 @@ class DiscoverUser {
 
   bool get isTrainer => role.toLowerCase() == 'trainer';
 
+  String get handle => username.isNotEmpty ? '@$username' : '';
+
   factory DiscoverUser.fromJson(Map<String, dynamic> json) {
     final pic = json['profilePicture'];
     String? avatarUrl;
@@ -55,9 +59,13 @@ class DiscoverUser {
     }
     avatarUrl ??= ImageUrlSanitizer.asHttpUrlOrNull(json['profilePictureUrl']?.toString());
 
+    final rawUsername = (json['username'] ?? '').toString().trim().replaceFirst(RegExp(r'^@+'), '');
+    final name = json['name']?.toString().trim().isNotEmpty == true ? json['name'].toString().trim() : 'User';
+
     return DiscoverUser(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
-      name: json['name']?.toString().trim().isNotEmpty == true ? json['name'].toString().trim() : 'User',
+      name: name,
+      username: rawUsername.isNotEmpty ? rawUsername.toLowerCase() : '',
       role: json['role']?.toString() ?? '',
       avatarUrl: avatarUrl,
       followersCount: _toInt(json['followersCount']),
@@ -72,6 +80,7 @@ class DiscoverUser {
       '_id': id,
       'id': id,
       'name': name,
+      'username': username,
       'avatarUrl': avatarUrl,
       'role': role,
       'followersCount': followersCount,

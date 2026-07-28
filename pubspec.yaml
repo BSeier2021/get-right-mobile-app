@@ -103,6 +103,7 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/gr_json/ExerciseList.json
+    - assets/gr_json/CardioList.json
     - assets/gr_json/RecipeBook.json
     - assets/gr_json/assets/Categories/
     - assets/gr_json/assets/Categories/armsExercises/

@@ -404,6 +404,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (user.handle.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          user.handle,
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Row(
                         children: [

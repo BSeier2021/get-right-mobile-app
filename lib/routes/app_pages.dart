@@ -46,6 +46,7 @@ import 'package:get_right/views/tracker/active_run_screen.dart';
 import 'package:get_right/views/tracker/tracker_screen.dart';
 import 'package:get_right/views/tracker/run_tracker_screen.dart';
 import 'package:get_right/views/tracker/activity_type_selection_screen.dart';
+import 'package:get_right/views/tracker/cardio_library_screen.dart';
 import 'package:get_right/views/tracker/route_planning_screen.dart';
 import 'package:get_right/views/tracker/run_summary_screen.dart';
 import 'package:get_right/views/tracker/run_history_screen.dart';
@@ -163,6 +164,7 @@ class AppPages {
     GetPage(name: AppRoutes.progress, page: () => const ProgressScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.routePlanning, page: () => const RoutePlanningScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.activityTypeSelection, page: () => const ActivityTypeSelectionScreen(), transition: Transition.rightToLeft),
+    GetPage(name: AppRoutes.cardioLibrary, page: () => const CardioLibraryScreen(), transition: Transition.rightToLeft),
 
     // Planner Pages
     GetPage(name: AppRoutes.planner, page: () {
