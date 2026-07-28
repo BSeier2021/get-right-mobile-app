@@ -51,6 +51,7 @@ class AppRoutes {
   static const String logRun = '/log-run';
   static const String logMeal = '/log-meal';
   static const String writeNote = '/write-note';
+  static const String shareWorkout = '/share-workout';
 
   // Tracker Routes
   static const String tracker = '/tracker';

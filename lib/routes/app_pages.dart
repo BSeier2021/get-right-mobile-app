@@ -41,6 +41,7 @@ import 'package:get_right/views/journal/reorder_exercises_screen.dart';
 import 'package:get_right/views/journal/log_run_screen.dart';
 import 'package:get_right/views/journal/log_meal_screen.dart';
 import 'package:get_right/views/journal/write_note_screen.dart';
+import 'package:get_right/views/journal/share_workout_screen.dart';
 import 'package:get_right/views/tracker/active_run_screen.dart';
 import 'package:get_right/views/tracker/tracker_screen.dart';
 import 'package:get_right/views/tracker/run_tracker_screen.dart';
@@ -151,6 +152,7 @@ class AppPages {
     GetPage(name: AppRoutes.logRun, page: () => const LogRunScreen(), transition: Transition.downToUp),
     GetPage(name: AppRoutes.logMeal, page: () => const LogMealScreen(), transition: Transition.downToUp),
     GetPage(name: AppRoutes.writeNote, page: () => const WriteNoteScreen(), transition: Transition.downToUp),
+    GetPage(name: AppRoutes.shareWorkout, page: () => const ShareWorkoutScreen(), transition: Transition.rightToLeft),
 
     // Tracker Pages
     GetPage(name: AppRoutes.tracker, page: () => const TrackerScreen(), transition: Transition.fade),

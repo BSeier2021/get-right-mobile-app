@@ -7,10 +7,8 @@ import 'package:get/get.dart';
 import 'package:get_right/models/workout_journal_model.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/models/journal_exercise_type.dart';
-import 'package:get_right/models/shared_content_model.dart';
 import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/repo/calendar_repo.dart';
-import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
@@ -778,7 +776,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
           Get.snackbar('Cannot share', 'Save at least one exercise first', backgroundColor: AppColors.error, colorText: AppColors.onError);
           return;
         }
-        ShareToChatService.share(context: context, type: SharedContentType.workoutJournal, contentId: journalId!);
+        Get.toNamed(AppRoutes.shareWorkout, arguments: {'workoutJournalId': journalId});
         break;
       case 'copy':
         Get.snackbar('Link Copied', 'Workout link copied to clipboard', backgroundColor: AppColors.completed, colorText: AppColors.onError);

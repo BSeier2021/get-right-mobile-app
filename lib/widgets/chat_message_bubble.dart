@@ -25,6 +25,16 @@ class ChatMessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayName = message.displaySenderName;
+    final sharedType = SharedContentType.fromApi(message.sharedContentType);
+    final isWorkoutShare = sharedType == SharedContentType.workoutJournal && message.sharedContent != null;
+
+    if (isWorkoutShare) {
+      return _buildWorkoutShareLayout(context, displayName, sharedType!);
+    }
+
+    final outgoingBubble = const Color(0xFFE4EED8);
+    final bubbleColor = isCurrentUser ? outgoingBubble : AppColors.white;
+    final textColor = AppColors.onSurface;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -37,43 +47,23 @@ class ChatMessageBubble extends StatelessWidget {
             child: Column(
               crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
-                // if (!isCurrentUser)
-                //   Padding(
-                //     padding: const EdgeInsets.only(left: 4, bottom: 4),
-                //     child: Text(displayName, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w600)),
-                //   ),
                 Container(
                   constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isCurrentUser ? AppColors.accent : AppColors.surface,
-                    borderRadius: BorderRadius.circular(
-                      16,
-                    ).copyWith(bottomRight: isCurrentUser ? const Radius.circular(4) : null, bottomLeft: !isCurrentUser ? const Radius.circular(4) : null),
-                    border: isCurrentUser ? null : Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2)),
+                    color: bubbleColor,
+                    borderRadius: BorderRadius.circular(16).copyWith(
+                      bottomRight: isCurrentUser ? const Radius.circular(4) : null,
+                      bottomLeft: !isCurrentUser ? const Radius.circular(4) : null,
+                    ),
+                    border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.18)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildMessageContent(context),
+                      _buildMessageContent(context, textColor: textColor),
                       const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-                        children: [
-                          Text(
-                            _formatTimestamp(message.timestamp),
-                            style: AppTextStyles.labelSmall.copyWith(color: isCurrentUser ? AppColors.onAccent.withValues(alpha: 0.7) : AppColors.onSurface.withValues(alpha: 0.7)),
-                          ),
-                          if (isCurrentUser && !message.isPending) ...[
-                            const SizedBox(width: 4),
-                            Icon(
-                              message.isRead ? Icons.done_all : Icons.done,
-                              size: 14,
-                              color: message.isRead ? AppColors.onAccent.withValues(alpha: 0.7) : AppColors.onAccent.withValues(alpha: 0.5),
-                            ),
-                          ],
-                        ],
-                      ),
+                      _buildTimestampRow(textColor: AppColors.primaryGrayDark),
                     ],
                   ),
                 ),
@@ -85,7 +75,78 @@ class ChatMessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildMessageContent(BuildContext context) {
+  Widget _buildWorkoutShareLayout(BuildContext context, String displayName, SharedContentType sharedType) {
+    final caption = message.displayCaption.trim().isNotEmpty
+        ? message.displayCaption.trim()
+        : (message.message.trim().isNotEmpty && message.message.trim() != 'Shared content' ? message.message.trim() : '');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        mainAxisAlignment: isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!isCurrentUser) ...[_SenderAvatar(name: displayName, imageUrl: message.senderImage), const SizedBox(width: 8)],
+          Flexible(
+            child: Column(
+              crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                if (caption.isNotEmpty) ...[
+                  Container(
+                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isCurrentUser ? const Color(0xFFE4EED8) : AppColors.white,
+                      borderRadius: BorderRadius.circular(16).copyWith(
+                        bottomRight: isCurrentUser ? const Radius.circular(4) : null,
+                        bottomLeft: !isCurrentUser ? const Radius.circular(4) : null,
+                      ),
+                      border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.18)),
+                    ),
+                    child: Text(caption, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface)),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+                  child: SharedContentCard(
+                    type: sharedType,
+                    data: message.sharedContent!,
+                    isCurrentUser: isCurrentUser,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _buildTimestampRow(textColor: AppColors.primaryGrayDark),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimestampRow({required Color textColor}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+      children: [
+        Text(
+          _formatTimestamp(message.timestamp),
+          style: AppTextStyles.labelSmall.copyWith(color: textColor.withValues(alpha: 0.8)),
+        ),
+        if (isCurrentUser && !message.isPending) ...[
+          const SizedBox(width: 4),
+          Icon(
+            message.isRead ? Icons.done_all : Icons.done,
+            size: 14,
+            color: message.isRead ? AppColors.accent : AppColors.primaryGray,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMessageContent(BuildContext context, {required Color textColor}) {
     final sharedType = SharedContentType.fromApi(message.sharedContentType);
     final sharedWidget = sharedType != null && message.sharedContent != null
         ? SharedContentCard(type: sharedType, data: message.sharedContent!, isCurrentUser: isCurrentUser)
@@ -100,7 +161,7 @@ class ChatMessageBubble extends StatelessWidget {
             if (message.hasMediaAttachments) _buildImageAttachments(context),
             if (message.displayCaption.isNotEmpty) ...[
               if (message.hasMediaAttachments) const SizedBox(height: 8),
-              Text(message.displayCaption, style: AppTextStyles.bodyMedium.copyWith(color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface)),
+              Text(message.displayCaption, style: AppTextStyles.bodyMedium.copyWith(color: textColor)),
             ],
           ],
         );
@@ -127,10 +188,10 @@ class ChatMessageBubble extends StatelessWidget {
               ),
             if (message.displayCaption.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(message.displayCaption, style: AppTextStyles.bodyMedium.copyWith(color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface)),
+              Text(message.displayCaption, style: AppTextStyles.bodyMedium.copyWith(color: textColor)),
             ] else if (message.message.isNotEmpty && message.message != '🎥 Video') ...[
               const SizedBox(height: 8),
-              Text(message.message, style: AppTextStyles.bodyMedium.copyWith(color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface)),
+              Text(message.message, style: AppTextStyles.bodyMedium.copyWith(color: textColor)),
             ],
           ],
         );
@@ -141,7 +202,7 @@ class ChatMessageBubble extends StatelessWidget {
       default:
         final text = message.displayCaption.isNotEmpty ? message.displayCaption : message.message;
         body = text.trim().isNotEmpty
-            ? Text(text, style: AppTextStyles.bodyMedium.copyWith(color: isCurrentUser ? AppColors.onAccent : AppColors.onSurface))
+            ? Text(text, style: AppTextStyles.bodyMedium.copyWith(color: textColor))
             : null;
     }
 
@@ -295,16 +356,18 @@ class ChatMessageBubble extends StatelessWidget {
 
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
-    final difference = now.difference(timestamp);
+    final local = timestamp.toLocal();
+    final difference = now.difference(local);
+    final time = DateFormat('h:mm a').format(local);
 
-    if (difference.inDays == 0) {
-      return DateFormat('HH:mm').format(timestamp);
-    } else if (difference.inDays == 1) {
-      return 'Yesterday ${DateFormat('HH:mm').format(timestamp)}';
+    if (difference.inDays == 0 && now.day == local.day) {
+      return time;
+    } else if (difference.inDays <= 1 && now.difference(DateTime(local.year, local.month, local.day)).inDays == 1) {
+      return 'Yesterday $time';
     } else if (difference.inDays < 7) {
-      return DateFormat('EEE HH:mm').format(timestamp);
+      return '${DateFormat('EEE').format(local)} $time';
     } else {
-      return DateFormat('MMM d, HH:mm').format(timestamp);
+      return DateFormat('MMM d, h:mm a').format(local);
     }
   }
 }

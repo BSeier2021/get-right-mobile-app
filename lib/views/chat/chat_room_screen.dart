@@ -801,53 +801,75 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
       }
 
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.primaryGray, width: 1)),
+          color: AppColors.white,
+          border: Border(top: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.25), width: 1)),
         ),
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.attach_file, color: AppColors.onSurface),
-              onPressed: _showAttachmentOptions,
-            ),
-            Expanded(
-              child: TextField(
-                controller: _messageController,
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
-                decoration: InputDecoration(
-                  hintText: 'Type a message...',
-                  hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: AppColors.primaryGray),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: AppColors.primaryGray),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: AppColors.accent, width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                maxLines: null,
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: _chatController!.notifyTypingInRoom,
-                onSubmitted: (_) => _sendMessage(),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.attach_file, color: AppColors.onSurface),
+                onPressed: _showAttachmentOptions,
               ),
-            ),
-            const SizedBox(width: 8),
-            Obx(() {
-              final isSending = _chatController!.isSending.value;
-              return IconButton(
-                icon: isSending ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send, color: AppColors.accent),
-                onPressed: isSending ? null : _sendMessage,
-              );
-            }),
-          ],
+              Expanded(
+                child: TextField(
+                  controller: _messageController,
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
+                  decoration: InputDecoration(
+                    hintText: 'Message...',
+                    hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
+                    filled: true,
+                    fillColor: const Color(0xFFF2F2F2),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: const BorderSide(color: AppColors.accent, width: 1.2),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  maxLines: null,
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: _chatController!.notifyTypingInRoom,
+                  onSubmitted: (_) => _sendMessage(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Obx(() {
+                final isSending = _chatController!.isSending.value;
+                return Material(
+                  color: AppColors.accent,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: isSending ? null : _sendMessage,
+                    child: SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Center(
+                        child: isSending
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent),
+                              )
+                            : const Icon(Icons.send_rounded, color: AppColors.onAccent, size: 20),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
         ),
       );
     });
@@ -877,8 +899,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
       final imageUrl = other?.imageUrl ?? _trainerImage;
       final isOnline = _chatController!.otherUserIsOnline.value;
       final isTyping = _chatController!.isOtherUserTyping.value;
-      final statusText = isTyping ? 'typing...' : (isOnline ? 'Online' : 'Offline');
-      final statusColor = isTyping ? AppColors.accent : (isOnline ? Colors.green : AppColors.primaryGrayDark);
+      final statusText = isTyping ? 'typing...' : (isOnline ? 'Active now' : 'Offline');
+      final statusColor = isTyping ? AppColors.accent : (isOnline ? AppColors.completed : AppColors.primaryGrayDark);
 
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -901,26 +923,34 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
               children: [
                 Text(
                   name,
-                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent),
+                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(color: isTyping ? AppColors.accent : (isOnline ? Colors.green : AppColors.primaryGray), shape: BoxShape.circle),
+                    if (!isTyping)
+                      Container(
+                        width: 7,
+                        height: 7,
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                      ),
+                    Flexible(
+                      child: Text(
+                        statusText,
+                        style: AppTextStyles.labelSmall.copyWith(color: statusColor),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    const SizedBox(width: 6),
-                    Text(statusText, style: AppTextStyles.labelSmall.copyWith(color: statusColor)),
                   ],
                 ),
                 if (_programTitle != null)
                   Text(
                     _programTitle!,
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.onPrimary.withValues(alpha: 0.7)),
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -949,8 +979,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with WidgetsBindingObse
             Get.back();
           },
         ),
-        actions: [IconButton(icon: const Icon(Icons.more_vert), onPressed: _showReportBlockOptions)],
+        actions: [IconButton(icon: const Icon(Icons.info_outline, color: AppColors.onSurface), onPressed: _showReportBlockOptions)],
       ),
+      backgroundColor: AppColors.white,
       body: _chatController == null
           ? const Center(child: CircularProgressIndicator())
           : Obx(() {
