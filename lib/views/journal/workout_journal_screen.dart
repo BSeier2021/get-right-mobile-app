@@ -32,7 +32,7 @@ class WorkoutJournalScreen extends StatefulWidget {
   State<WorkoutJournalScreen> createState() => _WorkoutJournalScreenState();
 }
 
-class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
+class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with AutomaticKeepAliveClientMixin {
   static const _exerciseSectionPrefsPrefix = 'workout_journal_exercise_sections_v1';
 
   WorkoutJournalModel? _workout;
@@ -55,6 +55,9 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   DateTime? _loadedJournalDay;
   Worker? _plannerReloadWorker;
   Worker? _journalRefreshWorker;
+
+  @override
+  bool get wantKeepAlive => widget.isEmbedded;
 
   @override
   void initState() {
@@ -570,14 +573,15 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     if (widget.isEmbedded) {
-      // When embedded in combined screen, no AppBar or Scaffold needed
+      // Combined journal uses extendBodyBehindAppBar (keeps swipe smooth). Scaffold already
+      // injects the full app-bar height into MediaQuery.padding.top — use that only.
       return Container(
         color: AppColors.backgroundColor,
-
+        padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
         child: Column(
           children: [
-            // Actions bar
             Expanded(
               child: _isLoading
                   ? Center(child: CircularProgressIndicator(color: AppColors.accent))

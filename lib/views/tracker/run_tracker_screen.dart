@@ -23,7 +23,7 @@ class RunTrackerScreen extends StatefulWidget {
   State<RunTrackerScreen> createState() => _RunTrackerScreenState();
 }
 
-class _RunTrackerScreenState extends State<RunTrackerScreen> {
+class _RunTrackerScreenState extends State<RunTrackerScreen> with AutomaticKeepAliveClientMixin {
   final RunTrackingController _trackingController = Get.put(RunTrackingController());
   final RunningLogRepository _runningLogRepo = RunningLogRepository();
   GoogleMapController? _mapController;
@@ -41,11 +41,14 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
   Worker? _journalTabWorker;
   Worker? _runnerLogVisibilityWorker;
 
-  /// GoogleMap must not be created while this tab is offstage in TabBarView (blank map).
+  /// GoogleMap should only be created after the Runner Log tab is first shown.
   bool _isRunnerLogVisible = false;
   PlannedRouteModel? _reusedPlannedRoute;
   bool _isLoadingReusedRoute = false;
   String? _pendingPlannedRouteId;
+
+  @override
+  bool get wantKeepAlive => true;
 
   // ignore: unused_field
   final List<Map<String, dynamic>> _activities = [
@@ -69,9 +72,9 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
         _isRunnerLogVisible = visible;
         if (visible) {
           _onRunnerLogBecameVisible();
-        } else {
-          _tearDownMapForOffstage();
         }
+        // Keep the GoogleMap instance alive when leaving the tab — recreating it
+        // on every swipe is a major source of lag. Only pause camera updates.
         if (mounted) setState(() {});
       });
     } else {
@@ -86,6 +89,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
     }
     // Listen to position updates and update camera only (with debouncing)
     ever(_trackingController.currentPosition, (position) {
+      if (!_isRunnerLogVisible) return;
       if (position != null && _mapController != null && _isMapCreated && mounted) {
         final now = DateTime.now();
         // Debounce camera updates to prevent buffer overflow (max 1 update per 500ms)
@@ -102,10 +106,12 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
   }
 
   void _onRunnerLogBecameVisible() {
-    // Recreate the map on-screen so tiles render (offstage GoogleMap often stays blank).
-    _tearDownMapForOffstage();
+    // Map is kept alive across tab switches; only refresh location if needed.
     if (_trackingController.currentPosition.value == null) {
       _initializeLocation();
+    } else if (_mapController != null && _isMapCreated) {
+      final position = _trackingController.currentPosition.value!;
+      _updateCameraPosition(position);
     }
   }
 
@@ -224,6 +230,7 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       body: Stack(
         children: [
@@ -254,12 +261,12 @@ class _RunTrackerScreenState extends State<RunTrackerScreen> {
 
       // Build the map widget separately - it should never rebuild once created
       Widget mapContent;
-      if (!_isRunnerLogVisible) {
-        // Avoid creating GoogleMap while this TabBarView page is offstage.
-        mapContent = Container(color: AppColors.surface);
-      } else if (_isMapCreated && _cachedMapWidget != null) {
-        // Map is already created - use cached widget and NEVER rebuild it
+      if (_isMapCreated && _cachedMapWidget != null) {
+        // Keep the map mounted even while this tab is offstage so swipe stays smooth.
         mapContent = _cachedMapWidget!;
+      } else if (!_isRunnerLogVisible) {
+        // First visit still pending — show a light placeholder until the tab is opened.
+        mapContent = Container(color: AppColors.surface);
       } else if (!hasPosition) {
         mapContent = Container(
           color: AppColors.surface,

@@ -24,6 +24,12 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
   late final Worker _journalTabWorker;
   bool _isDisposed = false;
 
+  /// Keep both tab pages mounted so swipe does not rebuild/dispose heavy children.
+  static const _tabChildren = <Widget>[
+    WorkoutJournalScreen(isEmbedded: true),
+    RunTrackerScreen(),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -35,7 +41,7 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
     _journalTabWorker = ever<int>(_navController.journalTabIndex, (idx) {
       if (_isDisposed || !mounted) return;
       final target = idx.clamp(0, 1);
-      if (_tabController.index != target && _tabController.indexIsChanging == false) {
+      if (_tabController.index != target && !_tabController.indexIsChanging) {
         try {
           _tabController.animateTo(target);
         } catch (e) {
@@ -47,13 +53,11 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
 
   void _handleTabChange() {
     if (_isDisposed || !mounted) return;
-    // Keep controller in sync (and update UI)
+    // Only sync after the swipe/animation settles — avoid setState on every animation tick.
+    if (_tabController.indexIsChanging) return;
     final idx = _tabController.index.clamp(0, 1);
     if (_navController.journalTabIndex.value != idx) {
       _navController.journalTabIndex.value = idx;
-    }
-    if (mounted) {
-      setState(() {});
     }
   }
 
@@ -98,20 +102,29 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
 
   @override
   Widget build(BuildContext context) {
-    final isRunnerLogTab = _tabController.index == 1;
-
     return Container(
       color: AppColors.backgroundColor,
       child: Scaffold(
         backgroundColor: AppColors.backgroundColor,
-        extendBodyBehindAppBar: isRunnerLogTab,
+        // Keep body behind app bar always so swipe does not relayout the scaffold.
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           toolbarHeight: 56,
           clipBehavior: Clip.none,
-          flexibleSpace: isRunnerLogTab ? _runnerLogHeaderScrim() : null,
-          systemOverlayStyle: SystemUiOverlayStyle(
+          flexibleSpace: AnimatedBuilder(
+            animation: _tabController.animation ?? _tabController,
+            builder: (context, _) {
+              final t = (_tabController.animation?.value ?? _tabController.index.toDouble()).clamp(0.0, 1.0);
+              // Solid header on Workout Journal; map scrim on Runner Log — no scaffold relayout.
+              if (t <= 0.5) {
+                return const ColoredBox(color: AppColors.backgroundColor);
+              }
+              return _runnerLogHeaderScrim();
+            },
+          ),
+          systemOverlayStyle: const SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.dark,
             statusBarBrightness: Brightness.light,
@@ -146,61 +159,72 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
               ],
             );
           }),
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                onTap: () {
-                  if (!_isDisposed && mounted) {
-                    try {
-                      _tabController.animateTo(0);
-                    } catch (e) {
-                      debugPrint('Error animating to tab 0: $e');
-                    }
-                  }
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Workout Journal',
-                      style: AppTextStyles.titleMedium.copyWith(
-                        fontSize: 16.sp,
-                        color: _journalTabColor(isActive: _tabController.index == 0, isRunnerLogTab: isRunnerLogTab),
-                        fontWeight: _tabController.index == 0 ? FontWeight.w900 : FontWeight.w600,
-                      ),
+          title: AnimatedBuilder(
+            animation: _tabController.animation ?? _tabController,
+            builder: (context, _) {
+              final animValue = _tabController.animation?.value ?? _tabController.index.toDouble();
+              final activeIndex = animValue.round().clamp(0, 1);
+              final isRunnerLogTab = animValue > 0.5;
+
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      if (!_isDisposed && mounted) {
+                        try {
+                          _tabController.animateTo(0);
+                        } catch (e) {
+                          debugPrint('Error animating to tab 0: $e');
+                        }
+                      }
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Workout Journal',
+                          style: AppTextStyles.titleMedium.copyWith(
+                            fontSize: 16.sp,
+                            color: _journalTabColor(isActive: activeIndex == 0, isRunnerLogTab: isRunnerLogTab),
+                            fontWeight: activeIndex == 0 ? FontWeight.w900 : FontWeight.w600,
+                          ),
+                        ),
+                        if (activeIndex == 0)
+                          Container(height: 3, width: 100, margin: const EdgeInsets.only(top: 2), color: AppColors.accent),
+                      ],
                     ),
-                    if (_tabController.index == 0) Container(height: 3, width: 100, margin: const EdgeInsets.only(top: 2), color: AppColors.accent),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 15),
-              GestureDetector(
-                onTap: () {
-                  if (!_isDisposed && mounted) {
-                    try {
-                      _tabController.animateTo(1);
-                    } catch (e) {
-                      debugPrint('Error animating to tab 1: $e');
-                    }
-                  }
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Runner Log',
-                      style: AppTextStyles.titleMedium.copyWith(
-                        fontSize: 16.sp,
-                        color: _journalTabColor(isActive: _tabController.index == 1, isRunnerLogTab: isRunnerLogTab),
-                        fontWeight: _tabController.index == 1 ? FontWeight.w900 : FontWeight.w600,
-                      ),
+                  ),
+                  const SizedBox(width: 15),
+                  GestureDetector(
+                    onTap: () {
+                      if (!_isDisposed && mounted) {
+                        try {
+                          _tabController.animateTo(1);
+                        } catch (e) {
+                          debugPrint('Error animating to tab 1: $e');
+                        }
+                      }
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Runner Log',
+                          style: AppTextStyles.titleMedium.copyWith(
+                            fontSize: 16.sp,
+                            color: _journalTabColor(isActive: activeIndex == 1, isRunnerLogTab: isRunnerLogTab),
+                            fontWeight: activeIndex == 1 ? FontWeight.w900 : FontWeight.w600,
+                          ),
+                        ),
+                        if (activeIndex == 1)
+                          Container(height: 3, width: 80, margin: const EdgeInsets.only(top: 2), color: AppColors.accent),
+                      ],
                     ),
-                    if (_tabController.index == 1) Container(height: 3, width: 80, margin: const EdgeInsets.only(top: 2), color: AppColors.accent),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                ],
+              );
+            },
           ),
           centerTitle: true,
           actions: [
@@ -210,10 +234,12 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
             ).paddingOnly(right: 15, bottom: 10),
           ],
         ),
-
-        body: !_isDisposed && mounted
-            ? TabBarView(controller: _tabController, children: const [WorkoutJournalScreen(isEmbedded: true), RunTrackerScreen()])
-            : const SizedBox.shrink(),
+        body: TabBarView(
+          controller: _tabController,
+          // Smoother physics for tab paging.
+          physics: const BouncingScrollPhysics(parent: PageScrollPhysics()),
+          children: _tabChildren,
+        ),
       ),
     );
   }
