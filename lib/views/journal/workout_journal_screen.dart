@@ -21,6 +21,7 @@ import 'package:get_right/widgets/journal/workout_group_card.dart';
 import 'package:get_right/views/journal/workout_celebration_screen.dart';
 import 'package:get_right/utils/journal_flow.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
+import 'package:intl/intl.dart';
 
 const Color _kJournalLime = Color(0xFFCBE870);
 const Color _kJournalActionCircle = Color(0xFFE1EAD8);
@@ -53,6 +54,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   int _seconds = 0;
   int _calories = 0;
   DateTime? _startTime;
+  DateTime? _loadedJournalDay;
   Worker? _plannerReloadWorker;
   Worker? _journalRefreshWorker;
 
@@ -86,6 +88,39 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   }
 
   Future<void> _loadWorkoutJournal() async {
+    final day = _journalDay;
+    final dayChanged = _loadedJournalDay == null ||
+        _loadedJournalDay!.year != day.year ||
+        _loadedJournalDay!.month != day.month ||
+        _loadedJournalDay!.day != day.day;
+    if (dayChanged) {
+      _timer?.cancel();
+      if (mounted) {
+        setState(() {
+          _isStarted = false;
+          _isPaused = false;
+          _seconds = 0;
+          _calories = 0;
+          _startTime = null;
+          _workout = null;
+          _workoutJournalId = null;
+          _journalEntries = [];
+          _workoutJournalByExerciseId = {};
+          _loadedJournalDay = day;
+        });
+      } else {
+        _isStarted = false;
+        _isPaused = false;
+        _seconds = 0;
+        _calories = 0;
+        _startTime = null;
+        _workout = null;
+        _workoutJournalId = null;
+        _journalEntries = [];
+        _workoutJournalByExerciseId = {};
+        _loadedJournalDay = day;
+      }
+    }
     await _loadExerciseSections();
     await _refreshWorkoutJournalFromApi(showLoading: true);
   }
@@ -195,8 +230,8 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
 
     try {
       final day = _journalDay;
-      final fromPlanner = _navController?.journalAnchorDate.value != null;
-      final strictDay = fromPlanner;
+      // Always filter strictly to the selected calendar day so past/future days never mix.
+      const strictDay = true;
       var page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: day, dateTo: day);
       var rawEntries = WorkoutRepository.entriesForDay(page, day: day, strict: strictDay);
 
@@ -219,7 +254,10 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       if (WorkoutRepository.isValidMongoId(detailJournalId)) {
         try {
           final detail = await _workoutRepo.fetchWorkoutJournalById(detailJournalId!);
-          if (detail != null) {
+          if (detail != null &&
+              detail.date.year == day.year &&
+              detail.date.month == day.month &&
+              detail.date.day == day.day) {
             rawEntries = WorkoutRepository.entriesWithDetailReplacing(rawEntries, detail);
           }
         } catch (_) {
@@ -234,6 +272,8 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       }
       final startFresh = !hasJournalForDay && nav?.startFreshJournal.value == true;
       final preferredId = nav?.preferredJournalId.value;
+      final preferredMatchesDay = WorkoutRepository.isValidMongoId(preferredId) &&
+          rawEntries.any((e) => e.id == preferredId);
       final today = startFresh ? null : WorkoutRepository.todayEntryFrom(page, day: day, strict: strictDay);
       if (!mounted) return;
 
@@ -241,11 +281,10 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
       setState(() {
         _journalEntries = rawEntries;
         _workoutJournalByExerciseId = WorkoutRepository.exerciseJournalMapFrom(rawEntries);
-        _workoutJournalId =
-            WorkoutRepository.primaryJournalIdForDay(rawEntries, day: day, strict: strictDay) ??
-            (WorkoutRepository.isValidMongoId(preferredId) ? preferredId : null) ??
-            _workoutJournalId;
         if (today != null && today.id.isNotEmpty) {
+          _workoutJournalId = WorkoutRepository.primaryJournalIdForDay(rawEntries, day: day, strict: strictDay) ??
+              (preferredMatchesDay ? preferredId : null) ??
+              today.id;
           _workout = _applyStoredExerciseSections(
             today.copyWith(
               startedAt: _isStarted && !today.isCompleted ? (previousWorkout?.startedAt ?? today.startedAt) : today.startedAt,
@@ -257,8 +296,9 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
               status: today.status ?? previousWorkout?.status,
             ),
           );
-        } else if (_workout == null || startFresh) {
-          _workoutJournalId = null;
+        } else {
+          // Empty day (or startFresh) — clear any previous day's journal/exercises.
+          _workoutJournalId = preferredMatchesDay ? preferredId : null;
           _workout = _emptyWorkoutShell();
         }
         _isLoading = false;
@@ -507,14 +547,14 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   String _formatTime(int s) => '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
   Future<void> _ensureWorkoutJournalId() async {
-    _workoutJournalId = await _workoutRepo.findWorkoutJournalIdForToday(date: _journalDay) ?? _workoutJournalId;
+    // Never reuse a journal id from another calendar day.
+    _workoutJournalId = await _workoutRepo.findWorkoutJournalIdForToday(date: _journalDay);
   }
 
   Future<void> _linkJournalToPlannerCalendar(String journalId) async {
-    final anchor = _navController?.journalAnchorDate.value;
-    if (anchor == null || !WorkoutRepository.isValidMongoId(journalId)) return;
+    if (!WorkoutRepository.isValidMongoId(journalId)) return;
     try {
-      await _calendarRepo.attachWorkoutJournalToCalendar(date: anchor, workoutJournalId: journalId);
+      await _calendarRepo.attachWorkoutJournalToCalendar(date: _journalDay, workoutJournalId: journalId);
     } catch (_) {
       /* non-blocking — exercises are saved even if calendar link fails */
     }
@@ -773,6 +813,11 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   }
 
   Widget _buildTodaySectionHeader() {
+    final day = _journalDay;
+    final today = DateTime.now();
+    final isToday = day.year == today.year && day.month == today.month && day.day == today.day;
+    final title = isToday ? "Today's Workout" : DateFormat('EEEE, MMM d').format(day);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -780,11 +825,13 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
           children: [
             Icon(Icons.calendar_today_outlined, color: AppColors.accent, size: 18.sp),
             SizedBox(width: 8.w),
-            Text(
-              "Today's Workout",
-              style: AppTextStyles.titleMedium.copyWith(
-                color: AppColors.accent,
-                fontWeight: FontWeight.w800,
+            Expanded(
+              child: Text(
+                title,
+                style: AppTextStyles.titleMedium.copyWith(
+                  color: AppColors.accent,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],

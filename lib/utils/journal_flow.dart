@@ -40,6 +40,16 @@ class JournalFlowContext {
     final rawAddedExerciseIds = map['addedExerciseIds'];
     final rawJournalDay = map['journalDay'];
 
+    DateTime? journalDay;
+    if (rawJournalDay is DateTime) {
+      journalDay = DateTime(rawJournalDay.year, rawJournalDay.month, rawJournalDay.day);
+    } else if (rawJournalDay is String && rawJournalDay.isNotEmpty) {
+      final parsed = DateTime.tryParse(rawJournalDay);
+      if (parsed != null) {
+        journalDay = DateTime(parsed.year, parsed.month, parsed.day);
+      }
+    }
+
     return JournalFlowContext(
       workoutJournalId: map['workoutJournalId']?.toString() ?? map['workoutJournal']?.toString(),
       journalWorkoutIds: rawJournalWorkoutIds is List
@@ -48,7 +58,7 @@ class JournalFlowContext {
       addedExerciseIds: rawAddedExerciseIds is List
           ? rawAddedExerciseIds.map((e) => e.toString()).where((id) => id.isNotEmpty).toList()
           : const [],
-      journalDay: rawJournalDay is DateTime ? rawJournalDay : null,
+      journalDay: journalDay,
       exerciseType: JournalExerciseType.fromArgs(map) ?? JournalExerciseType.workout,
     );
   }

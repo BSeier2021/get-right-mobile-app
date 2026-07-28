@@ -87,8 +87,14 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       }
       final rawJournalDay = args['journalDay'];
       if (rawJournalDay is DateTime) {
-        _journalDay = rawJournalDay;
+        _journalDay = DateTime(rawJournalDay.year, rawJournalDay.month, rawJournalDay.day);
+      } else if (rawJournalDay is String && rawJournalDay.isNotEmpty) {
+        final parsed = DateTime.tryParse(rawJournalDay);
+        if (parsed != null) {
+          _journalDay = DateTime(parsed.year, parsed.month, parsed.day);
+        }
       }
+      _journalDay ??= HomeNavigationController.journalDayOrNow();
       if (args['supersetPartnerOf'] is WorkoutExerciseModel) {
         _supersetPartnerOf = args['supersetPartnerOf'] as WorkoutExerciseModel;
         _isSuperset = false;
@@ -164,6 +170,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         _configs.add(_Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}'));
       }
     }
+    _journalDay ??= HomeNavigationController.journalDayOrNow();
     if (_configs.isEmpty) {
       _configs.add(_Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}'));
     }
@@ -403,11 +410,9 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     } else if (!_isEditing) {
       setState(() => _isSaving = true);
       try {
-        // One journal id per day — always attach warmups and workouts to the same entry.
         final journalDay = _journalDay ?? HomeNavigationController.journalDayOrNow();
         var journalId = WorkoutRepository.isValidMongoId(_workoutJournalId) ? _workoutJournalId!.trim() : null;
         journalId ??= await _workoutRepo.findWorkoutJournalIdForToday(date: journalDay);
-        final hadJournalBeforeSave = WorkoutRepository.isValidMongoId(journalId);
         final sharedSupersetIdentifier = _isSuperset ? WorkoutRepository.generateSupersetIdentifier() : null;
         String? partnerSupersetIdentifier;
 
@@ -455,14 +460,11 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         }
 
         _workoutJournalId = journalId;
-        if (!hadJournalBeforeSave && WorkoutRepository.isValidMongoId(journalId)) {
-          final anchor = Get.isRegistered<HomeNavigationController>() ? Get.find<HomeNavigationController>().journalAnchorDate.value : null;
-          if (anchor != null) {
-            try {
-              await _calendarRepo.attachWorkoutJournalToCalendar(date: anchor, workoutJournalId: journalId!);
-            } catch (_) {
-              /* journal saved; calendar link is best-effort */
-            }
+        if (WorkoutRepository.isValidMongoId(journalId)) {
+          try {
+            await _calendarRepo.attachWorkoutJournalToCalendar(date: journalDay, workoutJournalId: journalId!);
+          } catch (_) {
+            /* journal saved; calendar link is best-effort */
           }
         }
       } catch (e) {

@@ -16,6 +16,7 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/planner/add_date_screen.dart';
 import 'package:get_right/views/planner/calendar_type_dialog.dart';
+import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/widgets/safe_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -334,6 +335,49 @@ class _PlannerScreenState extends State<PlannerScreen> {
     } else {
       _loadSelectedDayDetail();
     }
+  }
+
+  String? _journalIdForSelectedDate() {
+    final data = _getDataForDate(_selectedDate);
+    final workout = data?['workout'];
+    if (workout is Map) {
+      final id = workout['journalId']?.toString().trim();
+      if (WorkoutRepository.isValidMongoId(id)) return id;
+    }
+    final journalId = data?['workoutJournalId']?.toString().trim() ?? data?['journalId']?.toString().trim();
+    if (WorkoutRepository.isValidMongoId(journalId)) return journalId;
+    return null;
+  }
+
+  /// Opens the Workout Journal for the selected calendar day (past log or future plan).
+  void _openSelectedDateJournal() {
+    final journalId = _journalIdForSelectedDate();
+    final contextArgs = {
+      'date': _selectedDate.toIso8601String(),
+      if (journalId != null) 'journalId': journalId,
+      'startFresh': false,
+    };
+
+    if (Get.isRegistered<HomeNavigationController>()) {
+      if (Get.currentRoute != AppRoutes.home) {
+        Get.until((route) => route.settings.name == AppRoutes.home || route.isFirst);
+      }
+      if (Get.currentRoute == AppRoutes.home) {
+        final nav = Get.find<HomeNavigationController>();
+        nav.changeTab(2, journalTab: 0);
+        nav.setJournalPlannerContext(date: _selectedDate, journalId: journalId);
+        return;
+      }
+    }
+
+    Get.offNamed(
+      AppRoutes.home,
+      arguments: {
+        'navigateToTab': 2,
+        'journalTabIndex': 0,
+        'journalPlannerContext': contextArgs,
+      },
+    );
   }
 
   Future<void> _loadSelectedDayDetail({bool isRefresh = false}) async {
@@ -2888,7 +2932,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     ] else if (!hasContent) ...[
                       const SizedBox(height: 4),
                       Text(
-                        'No workout logged',
+                        _isSelectedDateInFuture
+                            ? 'No workout planned — open this date to plan ahead'
+                            : CalendarRepository.isSameCalendarDay(_selectedDate, DateTime.now())
+                                ? 'No workout logged yet — open this date to start'
+                                : 'No workout logged — open this date to view or add',
                         style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
                       ),
                     ],
@@ -2914,11 +2962,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: hasContent
-                  ? () => setState(() => _showFullDayDetail = !_showFullDayDetail)
-                  : (_canAddWorkoutToSelectedDay ? _showAddWorkoutDialog : null),
-              icon: Icon(hasContent ? Icons.open_in_new_rounded : Icons.add_rounded, size: 20),
-              label: Text(hasContent ? (_showFullDayDetail ? 'Hide Data' : 'Open Data') : 'Add Data'),
+              onPressed: _openSelectedDateJournal,
+              icon: const Icon(Icons.open_in_new_rounded, size: 20),
+              label: const Text('Open Date'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accent,
                 foregroundColor: AppColors.onAccent,
@@ -2928,6 +2974,15 @@ class _PlannerScreenState extends State<PlannerScreen> {
               ),
             ),
           ),
+          if (hasContent) ...[
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed: () => setState(() => _showFullDayDetail = !_showFullDayDetail),
+                child: Text(_showFullDayDetail ? 'Hide day details' : 'Show day details'),
+              ),
+            ),
+          ],
           if (_showFullDayDetail && hasContent) ...[
             const SizedBox(height: 20),
             if (!_isSelectedDateInFuture) ...[_buildProgressPhotosSection(), const SizedBox(height: 12)],
