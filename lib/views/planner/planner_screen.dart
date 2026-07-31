@@ -2986,7 +2986,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           if (_showFullDayDetail && hasContent) ...[
             const SizedBox(height: 20),
             if (!_isSelectedDateInFuture) ...[_buildProgressPhotosSection(), const SizedBox(height: 12)],
-            if (data!['program'] != null) _buildProgramWorkoutSection(data['program'], dayData: data, isRestDay: isRestDay),
+            if (data['program'] != null) _buildProgramWorkoutSection(data['program'], dayData: data, isRestDay: isRestDay),
             if (data['workout'] != null) _buildWorkoutSummarySection(data['workout']),
             if (CalendarRepository.runsFromDayData(data).isNotEmpty)
               _buildRunsSection(CalendarRepository.runsFromDayData(data)),

@@ -7,7 +7,6 @@ import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
-import 'package:get_right/routes/app_routes.dart';
 
 /// Post-Run Summary Screen
 /// Detailed summary after completing a run activity

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:get_right/constants/asset_paths.dart';
 import 'package:get_right/theme/color_constants.dart';
 
 /// Reusable app logo widget

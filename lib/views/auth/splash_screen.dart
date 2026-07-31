@@ -4,8 +4,6 @@ import 'package:get/get.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
-import 'package:get_right/theme/text_styles.dart';
-import 'package:get_right/widgets/common/app_logo.dart';
 
 /// Modern splash screen with elegant animations and premium feel
 class SplashScreen extends StatefulWidget {
