@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:get_right/Local%20Storage/local_storage.dart';
@@ -29,6 +29,7 @@ import 'package:get_right/network/network_services.dart';
 import 'package:get_right/utils/bundle_card_mapper.dart';
 import 'package:get_right/utils/customer_profile_enums.dart';
 import 'package:get_right/utils/image_url_sanitizer.dart';
+import 'package:get_right/utils/safe_snackbar.dart';
 import 'package:get_right/utils/trainer_certification_helper.dart';
 
 /// Routes after async work + [GetxController.update] in the same frame can hit
@@ -213,7 +214,8 @@ class AuthController extends GetxController {
 
   void _snackError(String title, Object e) {
     final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
-    Get.snackbar(title, msg, snackPosition: SnackPosition.BOTTOM);
+    debugPrint('[Auth] $title: $msg');
+    showSafeSnackbar(title, msg);
   }
 
   /// Login / profile flags: only [bool] false or string "false"/"0" count as false; null or missing → not false.
@@ -1704,8 +1706,11 @@ class AuthController extends GetxController {
       }
       _snackError('Login', e.message);
       return LoginStatus.failed;
-    } on NoInternetException catch (e) {
-      _snackError('No connection', e.message);
+    } on NoInternetException {
+      showSafeSnackbar(
+        'Cannot reach server',
+        'Check your connection, or confirm the Get Right API is running at getright.prodservers.com:8004.',
+      );
       return LoginStatus.failed;
     } on RequestTimeoutException catch (e) {
       _snackError('Login', e.message);

@@ -4,10 +4,10 @@ class AppUrl {
   // static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
   // static const String socketUrl = 'http://getright.prodservers.com:8003';
 
-  // client url
-  static const String baseUrl = 'http://getright.prodservers.com:8004/api/v1';
-  static const String imnageUrl = 'http://getright.prodservers.com:8004/api/v1';
-  static const String socketUrl = 'http://getright.prodservers.com:8004';
+  // client url — local Mac API (same Wi‑Fi as phone)
+  static const String baseUrl = 'http://192.168.40.32:8004/api/v1';
+  static const String imnageUrl = 'http://192.168.40.32:8004/api/v1';
+  static const String socketUrl = 'http://192.168.40.32:8004';
 
 
 

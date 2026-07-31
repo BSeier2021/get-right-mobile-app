@@ -193,21 +193,20 @@ class GetRightApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // 2. WRAP the entire app in AnnotatedRegio
     // Updated for Steel Grey background with dark icons
+    // ScreenUtilInit must wrap GetMaterialApp so .sp/.w/.h are ready on first build.
+    // Snackbars use a safe fallback in AuthController when Overlay isn't available yet.
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: lightSystemOverlay,
       child: ScreenUtilInit(
-        designSize: const Size(375, 812), // iPhone X design size (standard)
+        designSize: const Size(375, 812),
         minTextAdapt: true,
         splitScreenMode: true,
+        ensureScreenSize: true,
         builder: (context, child) {
           return GetMaterialApp(
             title: 'Get Right',
             debugShowCheckedModeBanner: false,
-
-            // Apply App Theme with Google Fonts fallback for Inter
             theme: AppTheme.lightTheme.copyWith(textTheme: GoogleFonts.interTextTheme(AppTheme.lightTheme.textTheme)),
-
-            // GetX Routing
             initialRoute: AppPages.initial,
             getPages: AppPages.routes,
             navigatorObservers: [appRouteObserver],
@@ -217,8 +216,6 @@ class GetRightApp extends StatelessWidget {
                 FeedPlaybackCoordinator.instance.requestPause();
               }
             },
-
-            // Default transition
             defaultTransition: Transition.cupertino,
             transitionDuration: const Duration(milliseconds: 300),
           );

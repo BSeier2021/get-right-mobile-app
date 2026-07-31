@@ -8,6 +8,7 @@ import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/utils/no_emoji_input_formatter.dart';
+import 'package:get_right/utils/safe_snackbar.dart';
 import 'package:get_right/widgets/common/custom_button.dart';
 import 'package:get_right/widgets/common/custom_text_field.dart';
 
@@ -73,11 +74,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     if (email.isEmpty || !email.contains('@')) {
-      Get.snackbar('Login', 'Please enter a valid email address', snackPosition: SnackPosition.BOTTOM);
+      showSafeSnackbar('Login', 'Please enter a valid email address');
       return;
     }
     if (password.isEmpty) {
-      Get.snackbar('Login', 'Please enter your password', snackPosition: SnackPosition.BOTTOM);
+      showSafeSnackbar('Login', 'Please enter your password');
       return;
     }
     final authController = Get.find<AuthController>();
