@@ -129,12 +129,24 @@ class _ExerciseListScreenState extends State<ExerciseListScreen> {
         backgroundColor: _kLibraryListBg,
         elevation: 0,
         centerTitle: true,
-        leading: GestureDetector(
-          onTap: () => Get.back(),
-          child: Container(
-            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+        leading: IconButton(
+          onPressed: () {
+            if (Get.key.currentState?.canPop() ?? false) {
+              Get.back();
+            } else if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          },
+          padding: EdgeInsets.only(left: 8.w),
+          icon: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
-          ).paddingAll(8),
+          ),
         ),
         title: Text(
           muscleGroupName,

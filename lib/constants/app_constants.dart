@@ -6,12 +6,11 @@ class AppConstants {
 
   // App Info
   static const String appName = 'Get Right';
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '2.0.0';
   static const String appTagline = 'Your fitness journey starts here';
 
   // API Configuration (Update with your backend URLs)
-  static const String baseUrl =
-      'https://api.getright.app'; // TODO: Update with actual API
+  static const String baseUrl = 'https://get-right-api.onrender.com/api';
   static const String apiVersion = 'v1';
 
   // Storage Keys

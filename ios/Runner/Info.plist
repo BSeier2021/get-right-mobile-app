@@ -40,20 +40,6 @@
 	<string>Get Right may save images you choose to your photo library when you update your profile.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Get Right needs photo library access to allow you to select and upload photos for your profile and workout logs.</string>
-	<!-- API currently uses HTTP on getright.prodservers.com — required for iOS device login. -->
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSExceptionDomains</key>
-		<dict>
-			<key>getright.prodservers.com</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-				<key>NSIncludesSubdomains</key>
-				<true/>
-			</dict>
-		</dict>
-	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

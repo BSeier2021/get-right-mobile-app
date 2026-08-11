@@ -57,8 +57,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   bool _reviewsLoading = false;
   String? _reviewsError;
 
-  static const String _webPurchaseNotice =
-      'Program and bundle purchases are only available on the Marketplace \nwebsite: http://getright.prodservers.com:8011/ \nPurchases cannot be made through the app.';
+  static String get _webPurchaseNotice =>
+      'Program and bundle purchases are only available on the Marketplace \nwebsite: ${AppUrl.webAppBaseUrl}/ \nPurchases cannot be made through the app.';
   bool _reviewActionInFlight = false;
 
   static final RegExp _mongoIdRe = RegExp(r'^[a-fA-F0-9]{24}$');

@@ -1709,7 +1709,7 @@ class AuthController extends GetxController {
     } on NoInternetException {
       showSafeSnackbar(
         'Cannot reach server',
-        'Check your connection, or confirm the Get Right API is running at getright.prodservers.com:8004.',
+        'Check your connection, or confirm the Get Right API is reachable.',
       );
       return LoginStatus.failed;
     } on RequestTimeoutException catch (e) {

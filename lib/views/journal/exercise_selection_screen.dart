@@ -440,6 +440,16 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
     );
   }
 
+  void _onBack() {
+    if (Get.key.currentState?.canPop() ?? false) {
+      Get.back();
+      return;
+    }
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final showButtons = _pickAdditional
@@ -452,12 +462,16 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
       appBar: AppBar(
         backgroundColor: _kExerciseCardBg,
         elevation: 0,
-        leading: GestureDetector(
-          onTap: () => Get.back(),
-          child: Container(
-            margin: EdgeInsets.only(left: 16.w, top: 16.h),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+        leading: IconButton(
+          onPressed: _onBack,
+          padding: EdgeInsets.only(left: 8.w),
+          icon: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
           ),
         ),

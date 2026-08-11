@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get_right/app_url.dart';
 import 'package:get_right/controllers/auth_controller.dart';
 import 'package:get_right/controllers/favorites_controller.dart';
 import 'package:get_right/repo/favourites_repo.dart';
@@ -32,8 +33,8 @@ class _BundleDetailScreenState extends State<BundleDetailScreen> {
   String? _bundleId;
   bool _isEnrolled = false;
 
-  static const String _webPurchaseNotice =
-      'Program and bundle purchases are only available on the Marketplace website: http://getright.prodservers.com:8011/ Purchases cannot be made through the app.';
+  static String get _webPurchaseNotice =>
+      'Program and bundle purchases are only available on the Marketplace website: ${AppUrl.webAppBaseUrl}/ Purchases cannot be made through the app.';
 
   @override
   void initState() {

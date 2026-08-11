@@ -1,9 +1,4 @@
 class AppUrl {
-  // development url
-  // static const String baseUrl = 'http://getright.prodservers.com:8003/api/v1';
-  // static const String imnageUrl = 'http://getright.prodservers.com:8003/api/v1';
-  // static const String socketUrl = 'http://getright.prodservers.com:8003';
-
   // client url — Render dev API (HTTPS, always on)
   static const String baseUrl = 'https://get-right-api.onrender.com/api/v1';
   static const String imnageUrl = 'https://get-right-api.onrender.com/api/v1';
@@ -144,7 +139,7 @@ class AppUrl {
   static String feedShareAnalytics(String feedId) => '$baseUrl/user/feed/${Uri.encodeComponent(feedId.trim())}/share';
 
   /// Public web app origin for reel deep links (`/reels/:feedId`).
-  static const String webAppBaseUrl = 'http://getright.prodservers.com:8011';
+  static const String webAppBaseUrl = 'https://getright.app';
 
   static String reelShareLink(String feedId) => '$webAppBaseUrl/reels/${Uri.encodeComponent(feedId.trim())}';
 
