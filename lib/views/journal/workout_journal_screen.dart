@@ -2,27 +2,26 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/workout_journal_model.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
+import 'package:get_right/models/exercise_set_model.dart';
 import 'package:get_right/models/journal_exercise_type.dart';
+import 'package:get_right/models/shared_content_model.dart';
 import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/repo/calendar_repo.dart';
+import 'package:get_right/services/share_to_chat_service.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/services/storage_service.dart';
 import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
-import 'package:get_right/models/workout_group_type.dart';
-import 'package:get_right/widgets/journal/journal_exercise_card.dart';
-import 'package:get_right/widgets/journal/workout_group_card.dart';
+import 'package:get_right/widgets/journal/exercise_card.dart';
+import 'package:get_right/widgets/journal/superset_card.dart';
 import 'package:get_right/views/journal/workout_celebration_screen.dart';
-import 'package:get_right/utils/journal_flow.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
-import 'package:intl/intl.dart';
-
-const Color _kJournalLime = Color(0xFFCBE870);
-const Color _kJournalActionCircle = Color(0xFFE1EAD8);
 
 class WorkoutJournalScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -32,7 +31,7 @@ class WorkoutJournalScreen extends StatefulWidget {
   State<WorkoutJournalScreen> createState() => _WorkoutJournalScreenState();
 }
 
-class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with AutomaticKeepAliveClientMixin {
+class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> {
   static const _exerciseSectionPrefsPrefix = 'workout_journal_exercise_sections_v1';
 
   WorkoutJournalModel? _workout;
@@ -47,17 +46,13 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
   final CalendarRepository _calendarRepo = CalendarRepository();
   bool _isStarted = false;
   bool _isPaused = false;
-  // Journal add-exercise flow is handled by JournalFlowNavigator (see lib/utils/journal_flow.dart).
+  // Dialog is now used instead of inline add-exercise content
   Timer? _timer;
   int _seconds = 0;
   int _calories = 0;
   DateTime? _startTime;
-  DateTime? _loadedJournalDay;
   Worker? _plannerReloadWorker;
   Worker? _journalRefreshWorker;
-
-  @override
-  bool get wantKeepAlive => widget.isEmbedded;
 
   @override
   void initState() {
@@ -89,39 +84,6 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
   }
 
   Future<void> _loadWorkoutJournal() async {
-    final day = _journalDay;
-    final dayChanged = _loadedJournalDay == null ||
-        _loadedJournalDay!.year != day.year ||
-        _loadedJournalDay!.month != day.month ||
-        _loadedJournalDay!.day != day.day;
-    if (dayChanged) {
-      _timer?.cancel();
-      if (mounted) {
-        setState(() {
-          _isStarted = false;
-          _isPaused = false;
-          _seconds = 0;
-          _calories = 0;
-          _startTime = null;
-          _workout = null;
-          _workoutJournalId = null;
-          _journalEntries = [];
-          _workoutJournalByExerciseId = {};
-          _loadedJournalDay = day;
-        });
-      } else {
-        _isStarted = false;
-        _isPaused = false;
-        _seconds = 0;
-        _calories = 0;
-        _startTime = null;
-        _workout = null;
-        _workoutJournalId = null;
-        _journalEntries = [];
-        _workoutJournalByExerciseId = {};
-        _loadedJournalDay = day;
-      }
-    }
     await _loadExerciseSections();
     await _refreshWorkoutJournalFromApi(showLoading: true);
   }
@@ -189,36 +151,16 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
   bool get _isWorkoutCompleted =>
       _workout?.isCompleted == true || _journalEntries.any((entry) => entry.isCompleted);
 
-  WorkoutJournalModel _applyStoredExerciseSections(WorkoutJournalModel fromApi) {
-    final warmup = <WorkoutExerciseModel>[];
-    final workout = <WorkoutExerciseModel>[];
+  WorkoutJournalModel _normalizeJournalExercises(WorkoutJournalModel fromApi) {
     final seen = <String>{};
-    var sectionsChanged = false;
+    final unified = <WorkoutExerciseModel>[];
 
     for (final ex in fromApi.allExercises) {
       if (!seen.add(ex.id)) continue;
-
-      final type = ex.exerciseType ?? _exerciseSectionById[ex.id] ?? JournalExerciseType.workout;
-      if (ex.exerciseType != null && WorkoutRepository.isValidMongoId(ex.id)) {
-        if (_exerciseSectionById[ex.id] != ex.exerciseType) {
-          _exerciseSectionById[ex.id] = ex.exerciseType!;
-          sectionsChanged = true;
-        }
-      }
-
-      final typed = ex.exerciseType == null ? ex.copyWith(exerciseType: type) : ex;
-      if (type.isWarmup) {
-        warmup.add(typed);
-      } else {
-        workout.add(typed);
-      }
+      unified.add(ex.copyWith(exerciseType: JournalExerciseType.workout));
     }
 
-    if (sectionsChanged) {
-      unawaited(_persistExerciseSections());
-    }
-
-    return fromApi.copyWith(warmupExercises: warmup, workoutExercises: workout);
+    return fromApi.copyWith(warmupExercises: const [], workoutExercises: unified);
   }
 
   Future<void> _refreshWorkoutJournalFromApi({bool showLoading = false}) async {
@@ -231,8 +173,8 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
 
     try {
       final day = _journalDay;
-      // Always filter strictly to the selected calendar day so past/future days never mix.
-      const strictDay = true;
+      final fromPlanner = _navController?.journalAnchorDate.value != null;
+      final strictDay = fromPlanner;
       var page = await _workoutRepo.fetchWorkoutJournalEntries(dateFrom: day, dateTo: day);
       var rawEntries = WorkoutRepository.entriesForDay(page, day: day, strict: strictDay);
 
@@ -255,10 +197,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
       if (WorkoutRepository.isValidMongoId(detailJournalId)) {
         try {
           final detail = await _workoutRepo.fetchWorkoutJournalById(detailJournalId!);
-          if (detail != null &&
-              detail.date.year == day.year &&
-              detail.date.month == day.month &&
-              detail.date.day == day.day) {
+          if (detail != null) {
             rawEntries = WorkoutRepository.entriesWithDetailReplacing(rawEntries, detail);
           }
         } catch (_) {
@@ -273,8 +212,6 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
       }
       final startFresh = !hasJournalForDay && nav?.startFreshJournal.value == true;
       final preferredId = nav?.preferredJournalId.value;
-      final preferredMatchesDay = WorkoutRepository.isValidMongoId(preferredId) &&
-          rawEntries.any((e) => e.id == preferredId);
       final today = startFresh ? null : WorkoutRepository.todayEntryFrom(page, day: day, strict: strictDay);
       if (!mounted) return;
 
@@ -282,11 +219,12 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
       setState(() {
         _journalEntries = rawEntries;
         _workoutJournalByExerciseId = WorkoutRepository.exerciseJournalMapFrom(rawEntries);
+        _workoutJournalId =
+            WorkoutRepository.primaryJournalIdForDay(rawEntries, day: day, strict: strictDay) ??
+            (WorkoutRepository.isValidMongoId(preferredId) ? preferredId : null) ??
+            _workoutJournalId;
         if (today != null && today.id.isNotEmpty) {
-          _workoutJournalId = WorkoutRepository.primaryJournalIdForDay(rawEntries, day: day, strict: strictDay) ??
-              (preferredMatchesDay ? preferredId : null) ??
-              today.id;
-          _workout = _applyStoredExerciseSections(
+          _workout = _normalizeJournalExercises(
             today.copyWith(
               startedAt: _isStarted && !today.isCompleted ? (previousWorkout?.startedAt ?? today.startedAt) : today.startedAt,
               completedAt: today.completedAt ?? (today.isCompleted ? today.updatedAt : previousWorkout?.completedAt),
@@ -297,9 +235,8 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
               status: today.status ?? previousWorkout?.status,
             ),
           );
-        } else {
-          // Empty day (or startFresh) — clear any previous day's journal/exercises.
-          _workoutJournalId = preferredMatchesDay ? preferredId : null;
+        } else if (_workout == null || startFresh) {
+          _workoutJournalId = null;
           _workout = _emptyWorkoutShell();
         }
         _isLoading = false;
@@ -326,58 +263,54 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
     }
   }
 
-  Future<void> _deleteExercise(WorkoutExerciseModel ex, bool isWarmup) async {
-    if (_workout == null) return;
+  WorkoutJournalModel? _journalEntryForExercise(String exerciseId) {
+    final journalId = _workoutJournalByExerciseId[exerciseId];
+    if (journalId == null) return null;
+    return WorkoutRepository.journalEntryById(_journalEntries, journalId);
+  }
 
-    setState(() {
-      if (isWarmup) {
-        _workout = _workout!.copyWith(warmupExercises: _workout!.warmupExercises.where((e) => e.id != ex.id).toList());
-      } else {
-        _workout = _workout!.copyWith(workoutExercises: _workout!.workoutExercises.where((e) => e.id != ex.id).toList());
-      }
-    });
-
-    if (!WorkoutRepository.isValidMongoId(ex.id)) return;
-
-    final entriesToUpdate = _journalEntries.where((entry) => WorkoutRepository.workoutIdsFrom(entry).contains(ex.id)).toList();
-    if (entriesToUpdate.isEmpty) return;
+  Future<bool> _persistJournalEntry({required String journalId, required List<String> workoutIds, int? duration, String? notes}) async {
+    final entry = WorkoutRepository.journalEntryById(_journalEntries, journalId);
+    if (entry == null) return false;
 
     setState(() => _isSavingJournal = true);
     try {
-      for (final entry in entriesToUpdate) {
-        final remaining = WorkoutRepository.workoutIdsFrom(entry).where((id) => id != ex.id).toList();
-        if (remaining.isEmpty) {
-          await _workoutRepo.deleteWorkoutJournal(entry.id);
-        } else {
-          await _workoutRepo.updateWorkoutJournal(
-            journalId: entry.id,
-            workoutIds: remaining,
-            duration: entry.durationSeconds ?? 1,
-            notes: entry.notes ?? '',
-          );
-        }
-      }
-
-      await _forgetExerciseSection(ex.id);
-
-      try {
-        await _workoutRepo.deleteWorkout(ex.id);
-      } catch (_) {
-        // Journal unlink succeeded; workout doc may already be removed.
-      }
-
+      await _workoutRepo.updateWorkoutJournal(
+        journalId: journalId,
+        workoutIds: workoutIds,
+        duration: duration ?? entry.durationSeconds ?? 0,
+        notes: notes ?? '',
+      );
       await _refreshWorkoutJournalFromApi();
+      return true;
     } catch (e) {
       if (mounted) {
         Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
-        await _refreshWorkoutJournalFromApi();
       }
+      return false;
     } finally {
       if (mounted) setState(() => _isSavingJournal = false);
     }
   }
 
-  Future<void> _reorderExercises(List<WorkoutExerciseModel> reordered, bool isWarmup) async {
+  Future<void> _deleteExercise(WorkoutExerciseModel ex) async {
+    final journalId = _workoutJournalByExerciseId[ex.id];
+    if (journalId == null || !WorkoutRepository.isValidMongoId(journalId)) {
+      setState(() {
+        _workout = _workout!.copyWith(workoutExercises: _workout!.workoutExercises.where((e) => e.id != ex.id).toList());
+      });
+      return;
+    }
+
+    final entry = WorkoutRepository.journalEntryById(_journalEntries, journalId);
+    if (entry == null) return;
+
+    final remainingIds = WorkoutRepository.workoutIdsFrom(entry).where((id) => id != ex.id).toList();
+    await _forgetExerciseSection(ex.id);
+    await _persistJournalEntry(journalId: journalId, workoutIds: remainingIds);
+  }
+
+  Future<void> _reorderExercises(List<WorkoutExerciseModel> reordered) async {
     final idsByJournal = <String, List<String>>{};
     for (final ex in reordered) {
       final journalId = _workoutJournalByExerciseId[ex.id];
@@ -387,11 +320,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
 
     if (idsByJournal.isEmpty) {
       setState(() {
-        if (isWarmup) {
-          _workout = _workout!.copyWith(warmupExercises: reordered);
-        } else {
-          _workout = _workout!.copyWith(workoutExercises: reordered);
-        }
+        _workout = _workout!.copyWith(workoutExercises: reordered);
       });
       return;
     }
@@ -403,6 +332,37 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
         if (entry == null) continue;
         await _workoutRepo.updateWorkoutJournal(journalId: journalId, workoutIds: idsByJournal[journalId]!, duration: entry.durationSeconds ?? 0, notes: '');
       }
+      await _refreshWorkoutJournalFromApi();
+    } catch (e) {
+      if (mounted) {
+        Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingJournal = false);
+    }
+  }
+
+  List<WorkoutExerciseModel> _applyExerciseNotes(List<WorkoutExerciseModel> exercises, String targetExerciseId, String notes) {
+    final trimmed = notes.trim();
+    return exercises.map((e) => e.id == targetExerciseId ? e.copyWith(notes: trimmed.isEmpty ? null : trimmed) : e).toList();
+  }
+
+  Future<void> _saveJournalNotes(WorkoutExerciseModel ex, String notes) async {
+    setState(() {
+      if (_workout == null) return;
+      _workout = _workout!.copyWith(
+        workoutExercises: _applyExerciseNotes(_workout!.workoutExercises, ex.id, notes),
+      );
+    });
+
+    if (!WorkoutRepository.isValidMongoId(ex.id)) return;
+
+    setState(() => _isSavingJournal = true);
+    try {
+      await _workoutRepo.updateWorkout(
+        ex.id,
+        WorkoutRepository.updateWorkoutBody(name: ex.exerciseName, exercise: WorkoutRepository.exerciseSetsToApi(ex.sets), notes: notes.trim()),
+      );
       await _refreshWorkoutJournalFromApi();
     } catch (e) {
       if (mounted) {
@@ -522,7 +482,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
 
   String _getWorkoutName() {
     if (_workout == null) return 'Workout';
-    final exerciseCount = _workout!.warmupExercises.length + _workout!.workoutExercises.length;
+    final exerciseCount = _workout!.workoutExercises.length;
     return '$exerciseCount Exercise${exerciseCount != 1 ? 's' : ''}';
   }
 
@@ -554,14 +514,14 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
   String _formatTime(int s) => '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
   Future<void> _ensureWorkoutJournalId() async {
-    // Never reuse a journal id from another calendar day.
-    _workoutJournalId = await _workoutRepo.findWorkoutJournalIdForToday(date: _journalDay);
+    _workoutJournalId = await _workoutRepo.findWorkoutJournalIdForToday(date: _journalDay) ?? _workoutJournalId;
   }
 
   Future<void> _linkJournalToPlannerCalendar(String journalId) async {
-    if (!WorkoutRepository.isValidMongoId(journalId)) return;
+    final anchor = _navController?.journalAnchorDate.value;
+    if (anchor == null || !WorkoutRepository.isValidMongoId(journalId)) return;
     try {
-      await _calendarRepo.attachWorkoutJournalToCalendar(date: _journalDay, workoutJournalId: journalId);
+      await _calendarRepo.attachWorkoutJournalToCalendar(date: anchor, workoutJournalId: journalId);
     } catch (_) {
       /* non-blocking — exercises are saved even if calendar link fails */
     }
@@ -577,17 +537,268 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
     return _workout!.allExercises.map((e) => e.exerciseId).where((id) => id.isNotEmpty).toSet().toList();
   }
 
+  Future<void> _openAddExerciseFlow() async {
+    try {
+      await _ensureWorkoutJournalId();
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+      return;
+    }
+
+    await Get.toNamed(
+      AppRoutes.exerciseConfiguration,
+      arguments: {
+        'exerciseType': JournalExerciseType.workout,
+        'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _currentJournalWorkoutIds(),
+        'addedExerciseIds': _currentAddedLibraryExerciseIds(),
+        'journalDay': _journalDay,
+      },
+    )?.then((r) async {
+      if (r is! Map || r['exercises'] == null) return;
+      final returnedJournalId = r['workoutJournalId']?.toString();
+      if (WorkoutRepository.isValidMongoId(returnedJournalId)) {
+        _workoutJournalId = returnedJournalId;
+        await _linkJournalToPlannerCalendar(returnedJournalId!);
+      }
+      final exercises = (r['exercises'] as List).whereType<WorkoutExerciseModel>();
+      await _rememberExerciseSections(exercises, JournalExerciseType.workout);
+      await _refreshWorkoutJournalFromApi();
+    });
+  }
+
+  Future<void> _openSupersetPartnerFlow(WorkoutExerciseModel existing) async {
+    if (_isWorkoutCompleted) {
+      Get.snackbar('Workout completed', 'You cannot add exercises to a completed workout.', snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (!WorkoutRepository.isValidMongoId(existing.id)) {
+      Get.snackbar('Cannot add superset', 'Save this exercise first.', backgroundColor: AppColors.error, colorText: AppColors.onError);
+      return;
+    }
+
+    try {
+      await _ensureWorkoutJournalId();
+    } catch (e) {
+      if (!mounted) return;
+      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+      return;
+    }
+
+    await Get.toNamed(
+      AppRoutes.exerciseConfiguration,
+      arguments: {
+        'exerciseType': JournalExerciseType.workout,
+        'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _currentJournalWorkoutIds(),
+        'addedExerciseIds': _currentAddedLibraryExerciseIds(),
+        'journalDay': _journalDay,
+        'supersetPartnerOf': existing,
+      },
+    )?.then((r) async {
+      if (r is! Map || r['exercises'] == null) return;
+      final returnedJournalId = r['workoutJournalId']?.toString();
+      if (WorkoutRepository.isValidMongoId(returnedJournalId)) {
+        _workoutJournalId = returnedJournalId;
+        await _linkJournalToPlannerCalendar(returnedJournalId!);
+      }
+      final exercises = (r['exercises'] as List).whereType<WorkoutExerciseModel>();
+      await _rememberExerciseSections(exercises, JournalExerciseType.workout);
+      await _refreshWorkoutJournalFromApi();
+    });
+  }
+
+  // ignore: unused_element
+  void _showQuickAddDialog({required bool isTimer}) {
+    final TextEditingController nameController = TextEditingController();
+    final TextEditingController setsController = TextEditingController(text: '3');
+    final TextEditingController repsController = TextEditingController(text: '10');
+    final TextEditingController timeController = TextEditingController(text: '60');
+
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: AppColors.backgroundColor, borderRadius: BorderRadius.circular(20)),
+          child: StatefulBuilder(
+            builder: (context, setDialogState) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isTimer ? 'Quick Add Timer Exercise' : 'Quick Add Exercise',
+                          style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: AppColors.primaryGray),
+                          onPressed: () => Get.back(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        labelText: 'Exercise Name',
+                        hintText: 'Enter exercise name',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        prefixIcon: const Icon(Icons.fitness_center, color: AppColors.accent),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (isTimer) ...[
+                      TextField(
+                        controller: setsController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        decoration: InputDecoration(
+                          labelText: 'Number of Sets',
+                          hintText: '3',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          prefixIcon: const Icon(Icons.repeat, color: AppColors.accent),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: timeController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        decoration: InputDecoration(
+                          labelText: 'Time per Set (seconds)',
+                          hintText: '60',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          prefixIcon: const Icon(Icons.timer, color: AppColors.accent),
+                        ),
+                      ),
+                    ] else ...[
+                      TextField(
+                        controller: setsController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        decoration: InputDecoration(
+                          labelText: 'Number of Sets',
+                          hintText: '3',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          prefixIcon: const Icon(Icons.repeat, color: AppColors.accent),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: repsController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        decoration: InputDecoration(
+                          labelText: 'Reps per Set',
+                          hintText: '10',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          prefixIcon: const Icon(Icons.numbers, color: AppColors.accent),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              nameController.dispose();
+                              setsController.dispose();
+                              repsController.dispose();
+                              timeController.dispose();
+                              Get.back();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              side: const BorderSide(color: AppColors.primaryGray),
+                            ),
+                            child: Text('Cancel', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.primaryGray)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              final name = nameController.text.trim();
+                              if (name.isEmpty) {
+                                Get.snackbar('Error', 'Please enter exercise name', backgroundColor: AppColors.error, colorText: Colors.white);
+                                return;
+                              }
+
+                              final sets = int.tryParse(setsController.text) ?? 3;
+                              final now = DateTime.now();
+                              final List<ExerciseSetModel> exerciseSets = [];
+
+                              for (int i = 0; i < sets; i++) {
+                                exerciseSets.add(
+                                  ExerciseSetModel(
+                                    id: 'set_${i + 1}_${now.millisecondsSinceEpoch}',
+                                    setNumber: i + 1,
+                                    reps: isTimer ? null : (int.tryParse(repsController.text) ?? 10),
+                                    repsType: isTimer ? null : 'standard',
+                                    timeSeconds: isTimer ? (int.tryParse(timeController.text) ?? 60) : null,
+                                  ),
+                                );
+                              }
+
+                              final exercise = WorkoutExerciseModel(
+                                id: 'ex_${now.millisecondsSinceEpoch}',
+                                exerciseName: name,
+                                exerciseId: 'quick_${now.millisecondsSinceEpoch}',
+                                sets: exerciseSets,
+                                date: now,
+                                createdAt: now,
+                              );
+
+                              setState(() {
+                                _workout = _workout!.copyWith(workoutExercises: [..._workout!.workoutExercises, exercise]);
+                              });
+
+                              nameController.dispose();
+                              setsController.dispose();
+                              repsController.dispose();
+                              timeController.dispose();
+                              Get.back();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.accent,
+                              foregroundColor: AppColors.onAccent,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: Text('Add Exercise', style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     if (widget.isEmbedded) {
-      // Combined journal uses extendBodyBehindAppBar (keeps swipe smooth). Scaffold already
-      // injects the full app-bar height into MediaQuery.padding.top — use that only.
+      // When embedded in combined screen, no AppBar or Scaffold needed
       return Container(
         color: AppColors.backgroundColor,
-        padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+
         child: Column(
           children: [
+            // Actions bar
             Expanded(
               child: _isLoading
                   ? Center(child: CircularProgressIndicator(color: AppColors.accent))
@@ -609,25 +820,27 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
         backgroundColor: AppColors.backgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 20.sp),
-          onPressed: () => Get.back(),
+          icon: const Icon(Icons.menu, color: AppColors.accent),
+          onPressed: () {},
         ),
         title: Text(
-          'WORKOUT JOURNAL',
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.accent,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.1,
-            fontSize: 14.sp,
-          ),
+          'Workout Journal',
+          style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.event_available_outlined, color: AppColors.accent, size: 24.sp),
+            icon: const Icon(Icons.calendar_month, color: AppColors.accent),
             onPressed: () => Get.toNamed(AppRoutes.calendar),
           ),
-          SizedBox(width: 4.w),
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+              child: const Icon(Icons.add, color: AppColors.onAccent, size: 20),
+            ),
+            onPressed: _isWorkoutCompleted ? null : _showAddExerciseDialog,
+          ),
         ],
       ),
       body: _isLoading
@@ -738,9 +951,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
     );
   }
 
-  void _showAddExerciseDialog() => _openAddExerciseFlow();
-
-  Future<void> _openAddExerciseFlow() async {
+  Future<void> _openNewWorkoutScreen() async {
     if (_isWorkoutCompleted) {
       Get.snackbar('Workout completed', 'You cannot add more exercises to a completed workout.', snackPosition: SnackPosition.BOTTOM);
       return;
@@ -754,27 +965,29 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
       return;
     }
 
-    final flowContext = JournalFlowContext(
-      workoutJournalId: _workoutJournalId,
-      journalWorkoutIds: _currentJournalWorkoutIds(),
-      addedExerciseIds: _currentAddedLibraryExerciseIds(),
-      journalDay: _journalDay,
-    );
+    await Get.toNamed(
+      AppRoutes.newWorkout,
+      arguments: {
+        'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _currentJournalWorkoutIds(),
+        'addedExerciseIds': _currentAddedLibraryExerciseIds(),
+        'journalDay': _journalDay,
+      },
+    )?.then((r) async {
+      if (r is! Map || r['exercises'] == null) return;
+      final returnedJournalId = r['workoutJournalId']?.toString();
+      if (WorkoutRepository.isValidMongoId(returnedJournalId)) {
+        _workoutJournalId = returnedJournalId;
+        await _linkJournalToPlannerCalendar(returnedJournalId!);
+      }
+      final exercises = (r['exercises'] as List).whereType<WorkoutExerciseModel>();
+      await _rememberExerciseSections(exercises, JournalExerciseType.workout);
+      await _refreshWorkoutJournalFromApi();
+    });
+  }
 
-    final result = await JournalFlowNavigator.openAddExerciseFlow(
-      context: flowContext,
-      workoutIsEmpty: _workout == null || _workout!.isEmpty,
-    );
-
-    final parsed = JournalFlowSaveResult.tryParse(result);
-    if (parsed == null) return;
-
-    if (parsed.workoutJournalId != null) {
-      _workoutJournalId = parsed.workoutJournalId;
-      await _linkJournalToPlannerCalendar(parsed.workoutJournalId!);
-    }
-    await _rememberExerciseSections(parsed.exercises, parsed.exerciseType);
-    await _refreshWorkoutJournalFromApi();
+  void _showAddExerciseDialog() {
+    _openNewWorkoutScreen();
   }
 
   void _shareVia(String method) {
@@ -786,7 +999,7 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
           Get.snackbar('Cannot share', 'Save at least one exercise first', backgroundColor: AppColors.error, colorText: AppColors.onError);
           return;
         }
-        Get.toNamed(AppRoutes.shareWorkout, arguments: {'workoutJournalId': journalId});
+        ShareToChatService.share(context: context, type: SharedContentType.workoutJournal, contentId: journalId!);
         break;
       case 'copy':
         Get.snackbar('Link Copied', 'Workout link copied to clipboard', backgroundColor: AppColors.completed, colorText: AppColors.onError);
@@ -797,166 +1010,113 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
   }
 
   Widget _buildContent() {
-    final exercises = _workout!.allExercises;
-
     return Column(
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 20.h),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (_isStarted) _buildMetrics(),
-                _buildTodaySectionHeader(),
-                SizedBox(height: 16.h),
-                ..._buildExercisesList(exercises, false),
+
+                if (_workout!.workoutExercises.isNotEmpty) ...[
+                  _buildExerciseSummaryHeader(),
+                  ..._buildExercisesList(_workout!.workoutExercises),
+                ],
+
+                const SizedBox(height: 20),
               ],
             ),
           ),
         ),
-        if (!_isStarted && !_workout!.isEmpty) _buildBottomActions(),
-      ],
-    );
-  }
 
-  Widget _buildTodaySectionHeader() {
-    final day = _journalDay;
-    final today = DateTime.now();
-    final isToday = day.year == today.year && day.month == today.month && day.day == today.day;
-    final title = isToday ? "Today's Workout" : DateFormat('EEEE, MMM d').format(day);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.calendar_today_outlined, color: AppColors.accent, size: 18.sp),
-            SizedBox(width: 8.w),
-            Expanded(
-              child: Text(
-                title,
-                style: AppTextStyles.titleMedium.copyWith(
-                  color: AppColors.accent,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 10.h),
-        Container(
-          height: 2,
-          width: 160.w,
-          decoration: BoxDecoration(
-            color: AppColors.accent,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBottomActions() {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 16.h),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_isWorkoutCompleted)
-              Padding(
-                padding: EdgeInsets.only(bottom: 12.h),
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.completed.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.completed.withValues(alpha: 0.35)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.check_circle_outline, color: AppColors.completed, size: 18.sp),
-                      SizedBox(width: 8.w),
-                      Text(
-                        'Workout completed',
-                        style: AppTextStyles.labelMedium.copyWith(color: AppColors.completed, fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            Row(
+        /// Bottom Buttons
+        if (!_isStarted && !_workout!.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _buildCircleActionButton(
-                  icon: Icons.ios_share,
-                  onPressed: () => _shareVia('message'),
-                ),
-                SizedBox(width: 12.w),
-                Expanded(
-                  child: SizedBox(
-                    height: 52.h,
-                    child: ElevatedButton.icon(
-                      onPressed: _isWorkoutCompleted ? null : _startWorkout,
-                      icon: Icon(Icons.play_arrow_rounded, color: AppColors.onAccent, size: 24.sp),
-                      label: Text(
-                        'Start Workout',
-                        style: AppTextStyles.labelLarge.copyWith(
-                          color: AppColors.onAccent,
-                          fontWeight: FontWeight.w800,
+                if (_isWorkoutCompleted) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.completed.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.completed.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle_outline, color: AppColors.completed, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Workout completed',
+                          style: AppTextStyles.labelMedium.copyWith(color: AppColors.completed, fontWeight: FontWeight.w700),
                         ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color.fromARGB(33, 33, 78, 49),
+                          borderRadius: BorderRadius.circular(50),
+                          border: Border.all(color: AppColors.accentVariant.withValues(alpha: 0.25), width: 2),
+                        ),
+                        child: SvgPicture.asset(
+                          'assets/icons/share.svg',
+                          width: 22,
+                          colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
+                        ).paddingAll(5),
                       ),
+                      onPressed: () => _shareVia('message'),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _isWorkoutCompleted ? null : _startWorkout,
+                      icon: Icon(Icons.play_arrow, color: AppColors.white, size: 25),
+
+                      label: Text('Start Workout', style: AppTextStyles.buttonMedium),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.accent,
                         foregroundColor: AppColors.onAccent,
                         disabledBackgroundColor: AppColors.primaryGrayLight,
                         disabledForegroundColor: AppColors.primaryGray,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                        elevation: 2,
                       ),
                     ),
-                  ),
-                ),
-                SizedBox(width: 12.w),
-                _buildCircleActionButton(
-                  icon: Icons.add,
-                  onPressed: _isWorkoutCompleted ? null : _showAddExerciseDialog,
+
+                    if (_workout != null && !_workout!.isEmpty)
+                      IconButton(
+                        icon: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color.fromARGB(33, 33, 78, 49),
+                            borderRadius: BorderRadius.circular(50),
+                            border: Border.all(color: AppColors.accentVariant.withValues(alpha: 0.25), width: 2),
+                          ),
+                          child: Icon(
+                            Icons.add,
+                            color: _isWorkoutCompleted ? AppColors.primaryGray : AppColors.accentVariant,
+                            size: 30.sp,
+                          ),
+                        ),
+                        onPressed: _isWorkoutCompleted ? null : _showAddExerciseDialog,
+                      ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCircleActionButton({
-    required IconData icon,
-    required VoidCallback? onPressed,
-  }) {
-    final enabled = onPressed != null;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(28),
-        child: Ink(
-          width: 52.w,
-          height: 52.w,
-          decoration: BoxDecoration(
-            color: enabled ? _kJournalActionCircle : AppColors.primaryGrayLight.withValues(alpha: 0.5),
-            shape: BoxShape.circle,
           ),
-          child: Icon(
-            icon,
-            color: enabled ? AppColors.accent : AppColors.primaryGray,
-            size: 24.sp,
-          ),
-        ),
-      ),
+      ],
     );
   }
 
@@ -1014,6 +1174,14 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
     );
   }
 
+  Widget _buildExerciseSummaryHeader() => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Text(
+          '${_workout!.workoutExercises.length} ${_workout!.workoutExercises.length == 1 ? 'Exercise' : 'Exercises'}',
+          style: AppTextStyles.titleMedium.copyWith(color: AppColors.onBackground, fontWeight: FontWeight.bold),
+        ),
+      );
+
   WorkoutExerciseModel _exerciseWithJournalNotes(WorkoutExerciseModel ex) => ex;
 
   String? _supersetGroupKey(WorkoutExerciseModel ex) {
@@ -1034,74 +1202,109 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
     return keyA != null && keyA == keyB;
   }
 
-  /// Build exercises list with grouped superset/circuit support.
-  List<Widget> _buildExercisesList(List<WorkoutExerciseModel> exercises, bool isWarmup) {
+  (WorkoutExerciseModel, WorkoutExerciseModel) _orderedSupersetPair(
+    WorkoutExerciseModel a,
+    WorkoutExerciseModel b,
+    List<WorkoutExerciseModel> exercises,
+  ) {
+    if (a.supersetOrder != null && b.supersetOrder != null && a.supersetOrder != b.supersetOrder) {
+      return a.supersetOrder! <= b.supersetOrder! ? (a, b) : (b, a);
+    }
+    final indexA = exercises.indexWhere((e) => e.id == a.id);
+    final indexB = exercises.indexWhere((e) => e.id == b.id);
+    if (indexA >= 0 && indexB >= 0 && indexA != indexB) {
+      return indexA <= indexB ? (a, b) : (b, a);
+    }
+    return (a, b);
+  }
+
+  /// Build exercises list with superset grouping support
+  List<Widget> _buildExercisesList(List<WorkoutExerciseModel> exercises) {
     final List<Widget> widgets = [];
-    final Set<String> processedGroups = {};
-    var displayIndex = 0;
+    final Set<String> processedSupersets = {};
 
-    for (final raw in exercises) {
-      final exercise = _exerciseWithJournalNotes(raw);
-      final groupKey = _supersetGroupKey(exercise);
+    for (int i = 0; i < exercises.length; i++) {
+      final exercise = _exerciseWithJournalNotes(exercises[i]);
 
-      if (exercise.isSuperset && groupKey != null) {
-        if (processedGroups.contains(groupKey)) continue;
+      // Check if this exercise is part of a superset
+      if (exercise.isSuperset && _supersetGroupKey(exercise) != null) {
+        final groupKey = _supersetGroupKey(exercise)!;
+        // Skip if we've already processed this superset group
+        if (processedSupersets.contains(groupKey)) {
+          continue;
+        }
 
-        final groupMembers = exercises
-            .where((e) => _inSameSupersetGroup(exercise, e))
-            .map(_exerciseWithJournalNotes)
-            .toList()
-          ..sort((a, b) {
-            final orderA = a.supersetOrder ?? exercises.indexWhere((e) => e.id == a.id);
-            final orderB = b.supersetOrder ?? exercises.indexWhere((e) => e.id == b.id);
-            return orderA.compareTo(orderB);
-          });
+        // Find the partner exercise in the same superset group
+        final otherRaw = exercises.firstWhereOrNull((e) => _inSameSupersetGroup(exercise, e));
+        final otherExercise = otherRaw != null ? _exerciseWithJournalNotes(otherRaw) : null;
 
-        if (groupMembers.length >= 2) {
-          displayIndex++;
-          final groupType = groupMembers.length >= 3 ? WorkoutGroupType.circuit : WorkoutGroupType.superset;
+        if (otherExercise != null) {
+          final pair = _orderedSupersetPair(exercise, otherExercise, exercises);
+          final ex1 = pair.$1;
+          final ex2 = pair.$2;
+          // Add superset card
           widgets.add(
             Padding(
-              padding: EdgeInsets.only(bottom: 12.h),
-              child: WorkoutGroupCard(
-                exercises: groupMembers,
-                groupType: groupType,
-                onMenuTap: (ex) => _showMenu(ex, isWarmup),
-                onTimerTap: (ex) {
-                  if (ex.hasTimedSets) {
-                    Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': ex});
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: SupersetCard(
+                exercise1: ex1,
+                exercise2: ex2,
+                onMenuTap1: () => _showMenu(ex1),
+                onMenuTap2: () => _showMenu(ex2),
+                onTimerTap1: () {
+                  if (ex1.hasTimedSets) {
+                    Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': ex1});
+                  }
+                },
+                onTimerTap2: () {
+                  if (ex2.hasTimedSets) {
+                    Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': ex2});
                   }
                 },
               ),
             ),
           );
-          processedGroups.add(groupKey);
-          continue;
+          processedSupersets.add(groupKey);
+        } else {
+          // Superset partner not found, display as regular exercise
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ExerciseCard(
+                exercise: exercise,
+                onMenuTap: () => _showMenu(exercise),
+                onTimerTap: () {
+                  if (exercise.hasTimedSets) {
+                    Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': exercise});
+                  }
+                },
+              ),
+            ),
+          );
         }
-      }
-
-      displayIndex++;
-      widgets.add(
-        Padding(
-          padding: EdgeInsets.only(bottom: 12.h),
-          child: JournalExerciseCard(
-            exercise: exercise,
-            index: displayIndex,
-            onMenuTap: () => _showMenu(exercise, isWarmup),
-            onTimerTap: () {
-              if (exercise.hasTimedSets) {
-                Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': exercise});
-              }
-            },
+      } else {
+        // Regular exercise (not a superset)
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: ExerciseCard(
+              exercise: exercise,
+              onMenuTap: () => _showMenu(exercise),
+              onTimerTap: () {
+                if (exercise.hasTimedSets) {
+                  Get.toNamed(AppRoutes.workoutTimer, arguments: {'exercise': exercise});
+                }
+              },
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
 
     return widgets;
   }
 
-  void _showMenu(WorkoutExerciseModel ex, bool isWarmup) {
+  void _showMenu(WorkoutExerciseModel ex) {
     Get.bottomSheet(
       Container(
         decoration: const BoxDecoration(
@@ -1118,60 +1321,136 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
                 margin: const EdgeInsets.only(top: 12),
                 decoration: BoxDecoration(color: AppColors.primaryGray, borderRadius: BorderRadius.circular(2)),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               ListTile(
-                leading: Icon(Icons.edit_outlined, color: AppColors.accent, size: 22.sp),
-                title: Text('Edit', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
                 onTap: () {
                   Get.back();
                   Get.toNamed(
                     AppRoutes.exerciseConfiguration,
-                    arguments: {
-                      'isEditing': true,
-                      'existingExercise': ex,
-                      'journalFlow': true,
-                      'exerciseType': JournalExerciseType.fromIsWarmup(isWarmup),
-                      'workoutJournalId': _workoutJournalId,
-                      'journalWorkoutIds': _currentJournalWorkoutIds(),
-                      'journalDay': _journalDay,
-                    },
+                    arguments: {'isEditing': true, 'existingExercise': ex, 'exerciseType': JournalExerciseType.workout},
                   )?.then((r) async {
                     if (r != null) await _refreshWorkoutJournalFromApi();
                   });
                 },
+                title: Center(
+                  child: Text(
+                    'Edit',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ),
+              if (!_isWorkoutCompleted && !ex.isSuperset && WorkoutRepository.isValidMongoId(ex.id))
+                ListTile(
+                  onTap: _isSavingJournal
+                      ? null
+                      : () {
+                          Get.back();
+                          _openSupersetPartnerFlow(ex);
+                        },
+                  title: Center(
+                    child: Text(
+                      'Add Superset Partner',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ),
+              ListTile(
+                onTap: () {
+                  Get.back();
+                  final displayEx = _exerciseWithJournalNotes(ex);
+                  Get.toNamed(
+                    AppRoutes.videoWalkthrough,
+                    arguments: {
+                      'exerciseName': displayEx.exerciseName,
+                      'exerciseId': displayEx.exerciseId,
+                      'videoUrl': displayEx.videoUrl,
+                      'videoThumbnailUrl': displayEx.videoThumbnailUrl ?? displayEx.iconUrl,
+                    },
+                  );
+                },
+                title: Center(
+                  child: Text(
+                    'Video Walkthrough',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w500),
+                  ),
+                ),
               ),
               ListTile(
-                leading: Icon(Icons.swap_vert, color: AppColors.accent, size: 22.sp),
-                title: Text('Reorder', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                onTap: _isSavingJournal
+                    ? null
+                    : () {
+                        Get.back();
+                        _deleteExercise(ex);
+                      },
+                title: Center(
+                  child: Text(
+                    'Delete',
+                    style: AppTextStyles.bodyMedium.copyWith(color: Colors.red, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ),
+              ListTile(
                 onTap: _isSavingJournal
                     ? null
                     : () {
                         Get.back();
                         Get.toNamed(
                           AppRoutes.reorderExercises,
-                          arguments: {'exercises': _workout!.allExercises},
+                          arguments: {'exercises': _workout!.workoutExercises},
                         )?.then((r) {
                           if (r != null && r['exercises'] != null) {
-                            _reorderExercises(r['exercises'] as List<WorkoutExerciseModel>, isWarmup);
+                            _reorderExercises(r['exercises'] as List<WorkoutExerciseModel>);
                           }
                         });
                       },
+                title: Center(
+                  child: Text(
+                    'Move/Reorder',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w500),
+                  ),
+                ),
               ),
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.red, size: 22),
-                title: Text('Delete', style: AppTextStyles.bodyMedium.copyWith(color: Colors.red, fontWeight: FontWeight.w600)),
                 onTap: _isSavingJournal
                     ? null
                     : () {
                         Get.back();
-                        _deleteExercise(ex, isWarmup);
+                        Get.toNamed(AppRoutes.addNotes, arguments: {'exerciseName': ex.exerciseName, 'existingNotes': ex.notes ?? ''})?.then((r) {
+                          if (r != null && r['notes'] != null) {
+                            _saveJournalNotes(ex, r['notes'] as String);
+                          }
+                        });
                       },
+                title: Center(
+                  child: Text(
+                    'Add Notes',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w500),
+                  ),
+                ),
               ),
-              SizedBox(height: 8.h),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Get.back(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentVariant,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Text('Cancel', style: AppTextStyles.buttonMedium),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
       ),
+      isScrollControlled: true,
     );
   }
 }

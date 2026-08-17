@@ -1,35 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_right/models/exercise_set_model.dart';
 import 'package:get_right/models/exercise_library_model.dart';
 import 'package:get_right/models/journal_exercise_type.dart';
-import 'package:get_right/models/workout_group_type.dart';
 import 'package:get_right/models/workout_exercise_model.dart';
 import 'package:get_right/repo/workout_repo.dart';
 import 'package:get_right/repo/calendar_repo.dart';
 import 'package:get_right/routes/app_routes.dart';
 import 'package:get_right/theme/color_constants.dart';
-import 'package:get_right/utils/journal_flow.dart';
 import 'package:get_right/theme/text_styles.dart';
-import 'package:get_right/widgets/gr_catalog_image.dart';
-import 'package:get_right/widgets/safe_network_image.dart';
 import 'package:get_right/views/home/dashboard_screen.dart';
-
-const Color _kScreenBg = Color(0xFFFAFFEF);
-const Color _kCardBg = Color(0xFFFFFFFF);
-const Color _kCardBorder = Color(0xFFE2EBD8);
-const Color _kMutedText = Color(0xFF6B7A6E);
-const Color _kInputBorder = Color(0xFFE5EAE0);
-
-class _TrackingOption {
-  const _TrackingOption({required this.key, required this.label, required this.icon, required this.isMain});
-  final String key;
-  final String label;
-  final IconData icon;
-  final bool isMain;
-}
 
 class ExerciseConfigurationScreen extends StatefulWidget {
   const ExerciseConfigurationScreen({super.key});
@@ -38,15 +21,11 @@ class ExerciseConfigurationScreen extends StatefulWidget {
 }
 
 class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScreen> {
-  bool _isWarmup = false;
   JournalExerciseType _exerciseType = JournalExerciseType.workout;
   bool _isManual = false;
   bool _isSuperset = false;
-  WorkoutGroupType _workoutGroupType = WorkoutGroupType.single;
-  bool _journalFlow = false;
   bool _isEditing = false;
   String? _editingWorkoutId;
-  bool _hasAskedWarmupWorkout = false;
   bool _isSaving = false;
   String? _workoutJournalId;
   List<String> _journalWorkoutIds = const [];
@@ -57,22 +36,18 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
   final CalendarRepository _calendarRepo = CalendarRepository();
   final TextEditingController _nameController = TextEditingController();
   List<_Config> _configs = [];
+  String? _focusedFieldType; // 'reps' or 'weight'
+  int? _focusedConfigIdx;
+  int? _focusedSetIdx;
 
   @override
   void initState() {
     super.initState();
     final args = Get.arguments as Map<String, dynamic>?;
     if (args != null) {
-      _isWarmup = args['isWarmup'] ?? false;
-      _exerciseType = JournalExerciseType.fromArgs(args) ?? JournalExerciseType.fromIsWarmup(_isWarmup);
-      _isWarmup = _exerciseType.isWarmup;
+      _exerciseType = JournalExerciseType.workout;
       _isManual = args['isManual'] ?? false;
       _isSuperset = args['isSuperset'] ?? false;
-      _workoutGroupType = WorkoutGroupType.fromArgs(args['workoutGroupType']) ??
-          (_isSuperset ? WorkoutGroupType.superset : WorkoutGroupType.single);
-      _journalFlow = args['journalFlow'] == true;
-      if (_workoutGroupType.isGrouped) _isSuperset = true;
-      _hasAskedWarmupWorkout = args['isWarmup'] != null; // If isWarmup is provided, we've already asked
       _workoutJournalId = args['workoutJournalId']?.toString() ?? args['workoutJournal']?.toString();
       final rawJournalWorkoutIds = args['journalWorkoutIds'];
       if (rawJournalWorkoutIds is List) {
@@ -84,14 +59,8 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
       }
       final rawJournalDay = args['journalDay'];
       if (rawJournalDay is DateTime) {
-        _journalDay = DateTime(rawJournalDay.year, rawJournalDay.month, rawJournalDay.day);
-      } else if (rawJournalDay is String && rawJournalDay.isNotEmpty) {
-        final parsed = DateTime.tryParse(rawJournalDay);
-        if (parsed != null) {
-          _journalDay = DateTime(parsed.year, parsed.month, parsed.day);
-        }
+        _journalDay = rawJournalDay;
       }
-      _journalDay ??= HomeNavigationController.journalDayOrNow();
       if (args['supersetPartnerOf'] is WorkoutExerciseModel) {
         _supersetPartnerOf = args['supersetPartnerOf'] as WorkoutExerciseModel;
         _isSuperset = false;
@@ -129,6 +98,9 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
             setData.time = set.timeSeconds ?? 0;
           } else {
             setData.reps = set.reps ?? 0;
+            if (set.repsType == 'FAILURE' || set.repsType == 'AMRAP') {
+              setData.repsType = set.repsType;
+            }
           }
           if (extraType == 'Distance') {
             setData.distance = set.distance ?? 0;
@@ -150,126 +122,44 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         _configs.add(_Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}'));
       } else if (_isSuperset && args['exercises'] != null) {
         for (var ex in args['exercises'] as List<ExerciseLibraryModel>) {
-          _configs.add(_Config(name: ex.name, id: ex.id, iconUrl: ex.iconUrl, primaryMuscle: ex.primaryMuscle));
-        }
-        if (_configs.length > 1) _workoutGroupType = _workoutGroupType.isGrouped ? _workoutGroupType : WorkoutGroupType.superset;
-        if (_configs.length >= 3 && _workoutGroupType != WorkoutGroupType.superset) {
-          _workoutGroupType = WorkoutGroupType.circuit;
+          _configs.add(_Config(name: ex.name, id: ex.id, iconUrl: ex.iconUrl));
         }
       } else if (args['exercise'] != null) {
         final ex = args['exercise'] as ExerciseLibraryModel;
         _nameController.text = ex.name; // Pre-fill name for library exercises
-        _configs.add(_Config(name: ex.name, id: ex.id, iconUrl: ex.iconUrl, primaryMuscle: ex.primaryMuscle));
+        _configs.add(_Config(name: ex.name, id: ex.id, iconUrl: ex.iconUrl));
       } else if (_isManual) {
         _configs.add(_Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}'));
       }
     }
-    _journalDay ??= HomeNavigationController.journalDayOrNow();
     if (_configs.isEmpty) {
       _configs.add(_Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}'));
     }
-
-    // Show popup asking warmup/workout if not already determined
-    if (!_hasAskedWarmupWorkout && !_journalFlow) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _showWarmupWorkoutDialog());
-    }
   }
 
-  String _configTitle() {
-    if (_supersetPartnerOf != null) return 'Add Superset Partner';
-    return switch (_workoutGroupType) {
-      WorkoutGroupType.superset => 'Configure Superset',
-      WorkoutGroupType.circuit => 'Configure Circuit',
-      WorkoutGroupType.single => 'Configure Exercise',
-    };
-  }
-
-  void _showWarmupWorkoutDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        elevation: 8,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, 8))],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Add Exercise',
-                style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Would you like to add this exercise to warmup or workout?',
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _exerciseType = JournalExerciseType.warmup;
-                          _isWarmup = true;
-                          _hasAskedWarmupWorkout = true;
-                        });
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.error,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 4,
-                        shadowColor: AppColors.error.withValues(alpha: 0.4),
-                      ),
-                      child: Text(
-                        'Warmup',
-                        style: AppTextStyles.buttonMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _exerciseType = JournalExerciseType.workout;
-                          _isWarmup = false;
-                          _hasAskedWarmupWorkout = true;
-                        });
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: AppColors.onAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 4,
-                        shadowColor: AppColors.accent.withValues(alpha: 0.4),
-                      ),
-                      child: Text(
-                        'Workout',
-                        style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _openExerciseSelectionForCard(int cardIndex) {
+    Get.toNamed(
+      AppRoutes.exerciseSelection,
+      arguments: {
+        'exerciseType': JournalExerciseType.workout,
+        'isSuperset': false,
+        'workoutJournalId': _workoutJournalId,
+        'journalWorkoutIds': _journalWorkoutIds,
+        'addedExerciseIds': _addedExerciseIds,
+        if (_journalDay != null) 'journalDay': _journalDay,
+      },
+    )?.then((result) {
+      if (result != null && result['exercise'] != null) {
+        final ex = result['exercise'] as ExerciseLibraryModel;
+        setState(() {
+          // Update the specific card's exercise name
+          if (cardIndex < _configs.length) {
+            _configs[cardIndex].name = ex.name;
+            _configs[cardIndex].id = ex.id;
+          }
+        });
+      }
+    });
   }
 
   @override
@@ -330,7 +220,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     if (cfg.mainType == 'Time') {
       if (setData.time <= 0) return 'Set $setNumber: enter a valid time greater than 0';
       if (setData.time > _maxTimeSeconds) return 'Set $setNumber: time cannot exceed $_maxTimeSeconds seconds';
-    } else {
+    } else if (setData.repsType != 'AMRAP' && setData.repsType != 'FAILURE') {
       if (setData.reps <= 0) return 'Set $setNumber: enter reps between 1 and $_maxReps';
       if (setData.reps > _maxReps) return 'Set $setNumber: reps cannot exceed $_maxReps';
     }
@@ -350,29 +240,11 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     return null;
   }
 
-  void _showSaveMessage(String title, String message) {
-    if (!mounted) return;
-    final text = title.isEmpty ? message : '$title: $message';
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger != null) {
-      messenger.clearSnackBars();
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(text, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onError)),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-    debugPrint(text);
-  }
-
   Future<void> _onSave() async {
     for (var i = 0; i < _configs.length; i++) {
       final err = _validateConfig(_configs[i], i + 1);
       if (err != null) {
-        _showSaveMessage('Invalid values', err);
+        Get.snackbar('Invalid values', err, backgroundColor: AppColors.error, colorText: AppColors.onError);
         return;
       }
     }
@@ -384,7 +256,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     String? savedSupersetIdentifier;
     if (_isEditing) {
       if (!WorkoutRepository.isValidMongoId(_editingWorkoutId)) {
-        _showSaveMessage('Error', 'Workout id is missing or invalid');
+        Get.snackbar('Error', 'Workout id is missing or invalid', backgroundColor: AppColors.error, colorText: AppColors.onError);
         return;
       }
       setState(() => _isSaving = true);
@@ -396,17 +268,18 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         }
       } catch (e) {
         if (mounted) setState(() => _isSaving = false);
-        debugPrint('Exercise configuration update failed: $e');
-        _showSaveMessage('Error', e.toString().replaceFirst('Exception: ', ''));
+        Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
         return;
       }
       if (mounted) setState(() => _isSaving = false);
     } else if (!_isEditing) {
       setState(() => _isSaving = true);
       try {
+        // One journal id per day — always attach warmups and workouts to the same entry.
         final journalDay = _journalDay ?? HomeNavigationController.journalDayOrNow();
         var journalId = WorkoutRepository.isValidMongoId(_workoutJournalId) ? _workoutJournalId!.trim() : null;
         journalId ??= await _workoutRepo.findWorkoutJournalIdForToday(date: journalDay);
+        final hadJournalBeforeSave = WorkoutRepository.isValidMongoId(journalId);
         final sharedSupersetIdentifier = _isSuperset ? WorkoutRepository.generateSupersetIdentifier() : null;
         String? partnerSupersetIdentifier;
 
@@ -436,7 +309,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
             type: _exerciseType.apiValue,
             name: name,
             exercise: _buildApiExerciseSets(cfg),
-            refExercise: WorkoutRepository.refExerciseForApi(refId),
+            refExercise: refId.isNotEmpty && !refId.startsWith('manual_') ? refId : null,
             supersetIdentifier: supersetIdentifier,
             workoutJournal: journalId,
             date: journalId == null ? WorkoutRepository.toJournalDate(journalDay) : null,
@@ -454,17 +327,19 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         }
 
         _workoutJournalId = journalId;
-        if (WorkoutRepository.isValidMongoId(journalId)) {
-          try {
-            await _calendarRepo.attachWorkoutJournalToCalendar(date: journalDay, workoutJournalId: journalId!);
-          } catch (_) {
-            /* journal saved; calendar link is best-effort */
+        if (!hadJournalBeforeSave && WorkoutRepository.isValidMongoId(journalId)) {
+          final anchor = Get.isRegistered<HomeNavigationController>() ? Get.find<HomeNavigationController>().journalAnchorDate.value : null;
+          if (anchor != null) {
+            try {
+              await _calendarRepo.attachWorkoutJournalToCalendar(date: anchor, workoutJournalId: journalId!);
+            } catch (_) {
+              /* journal saved; calendar link is best-effort */
+            }
           }
         }
       } catch (e) {
         if (mounted) setState(() => _isSaving = false);
-        debugPrint('Exercise configuration save failed: $e');
-        _showSaveMessage('Error', e.toString().replaceFirst('Exception: ', ''));
+        Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
         return;
       }
       if (mounted) setState(() => _isSaving = false);
@@ -474,26 +349,21 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     for (var i = 0; i < _configs.length; i++) {
       final cfg = _configs[i];
       final name = cfg.name.isNotEmpty ? cfg.name : _nameController.text;
-      final sets = <ExerciseSetModel>[];
-      var setNum = 0;
-      for (var setIdx = 0; setIdx < cfg.sets.length; setIdx++) {
-        final s = cfg.sets[setIdx];
-        if (!_setHasData(s, cfg)) continue;
-        setNum++;
-        sets.add(
-          ExerciseSetModel(
-            id: 'set_${setNum}_${now.millisecondsSinceEpoch}',
-            setNumber: setNum,
-            reps: cfg.mainType != 'Time' ? s.reps : null,
-            repsType: cfg.mainType != 'Time' ? 'standard' : null,
-            timeSeconds: cfg.mainType == 'Time' && s.time > 0 ? s.time : null,
-            weight: cfg.extraType == 'Weight' ? s.weight : null,
-            weightType: cfg.extraType == 'Weight' ? (s.isBodyweight ? 'BW' : (s.weight > 0 ? 'standard' : null)) : null,
-            distance: cfg.extraType == 'Distance' ? s.distance : null,
-            distanceUnit: cfg.extraType == 'Distance' ? s.distanceUnit : null,
-          ),
+      final sets = cfg.sets.asMap().entries.where((e) => _setHasData(e.value, cfg)).map((e) {
+        final setIdx = e.key;
+        final s = e.value;
+        return ExerciseSetModel(
+          id: 'set_${setIdx + 1}_${now.millisecondsSinceEpoch}',
+          setNumber: setIdx + 1,
+          reps: cfg.mainType != 'Time' ? (s.repsType == 'AMRAP' || s.repsType == 'FAILURE' ? null : s.reps) : null,
+          repsType: cfg.mainType != 'Time' ? (s.repsType ?? 'standard') : null,
+          timeSeconds: cfg.mainType == 'Time' && s.time > 0 ? s.time : null,
+          weight: cfg.extraType == 'Weight' ? s.weight : null,
+          weightType: cfg.extraType == 'Weight' ? (s.isBodyweight ? 'BW' : (s.weight > 0 ? 'standard' : null)) : null,
+          distance: cfg.extraType == 'Distance' ? s.distance : null,
+          distanceUnit: cfg.extraType == 'Distance' ? s.distanceUnit : null,
         );
-      }
+      }).toList();
       final apiId = _isEditing ? _editingWorkoutId : (i < createdApiIds.length ? createdApiIds[i] : null);
       final supersetParsed = WorkoutExerciseModel.parseSupersetIdentifier(savedSupersetIdentifier);
       exercises.add(
@@ -513,38 +383,22 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         ),
       );
     }
-    if (!mounted) return;
-    _returnAfterSave({
-      'exercises': exercises,
-      'isWarmup': _isWarmup,
-      'exerciseType': _exerciseType,
-      if (_workoutJournalId != null) 'workoutJournalId': _workoutJournalId,
-    });
-  }
-
-  void _returnAfterSave(Map<String, dynamic> result) {
-    JournalFlowNavigator.completeAfterSave(
-      result,
-      journalFlow: _journalFlow,
-      isEditing: _isEditing,
-    );
+    Get.back(result: {'exercises': exercises, 'exerciseType': _exerciseType, if (_workoutJournalId != null) 'workoutJournalId': _workoutJournalId});
   }
 
   List<Map<String, dynamic>> _buildApiExerciseSets(_Config cfg) {
     final models = <ExerciseSetModel>[];
-    var setNum = 0;
 
     for (var i = 0; i < cfg.sets.length; i++) {
       final s = cfg.sets[i];
       if (!_setHasData(s, cfg)) continue;
-      setNum++;
 
       models.add(
         ExerciseSetModel(
-          id: 'set_$setNum',
-          setNumber: setNum,
-          reps: cfg.mainType != 'Time' ? s.reps : null,
-          repsType: cfg.mainType != 'Time' ? 'standard' : null,
+          id: 'set_${i + 1}',
+          setNumber: i + 1,
+          reps: cfg.mainType != 'Time' && s.repsType != 'AMRAP' && s.repsType != 'FAILURE' ? s.reps : null,
+          repsType: cfg.mainType != 'Time' ? s.repsType : null,
           timeSeconds: cfg.mainType == 'Time' && s.time > 0 ? s.time : null,
           weight: cfg.extraType == 'Weight' ? s.weight : null,
           weightType: cfg.extraType == 'Weight'
@@ -561,186 +415,474 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
 
   bool _setHasData(_SetData setData, _Config cfg) {
     if (cfg.mainType == 'Time') return setData.time > 0;
+    if (setData.repsType == 'FAILURE' || setData.repsType == 'AMRAP') return true;
     if (setData.reps > 0) return true;
     if (cfg.extraType == 'Weight' && (setData.weight > 0 || setData.isBodyweight)) return true;
     if (cfg.extraType == 'Distance' && setData.distance > 0) return true;
     return false;
   }
 
-  void _toggleBodyweight(_SetData data) {
-    setState(() {
-      data.isBodyweight = !data.isBodyweight;
-      if (data.isBodyweight) data.weight = 0;
-      data.updateWeightControllerText(force: true);
-    });
-    FocusScope.of(context).unfocus();
-  }
-
-  Widget _buildSaveButton({bool embedded = false}) {
-    final button = SizedBox(
-      width: double.infinity,
-      height: 46.h,
-      child: ElevatedButton(
-        onPressed: _isSaving ? null : _onSave,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.accent,
-          foregroundColor: AppColors.onAccent,
-          disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.6),
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-        child: _isSaving
-            ? SizedBox(width: 20.w, height: 20.w, child: const CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+  void _showPercentageCalc(int cfgIdx, int setIdx) {
+    const double pr = 315.0;
+    double pct = 75.0;
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        elevation: 8,
+        child: StatefulBuilder(
+          builder: (ctx, setDlg) {
+            final calc = (pr * pct / 100).round();
+            return Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 30, offset: const Offset(0, 10))],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_rounded, size: 18.sp, color: AppColors.onAccent),
-                  SizedBox(width: 6.w),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: [AppColors.accent.withValues(alpha: 0.2), AppColors.accent.withValues(alpha: 0.1)]),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.calculate_rounded, color: AppColors.accent, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Percentage Calculator',
+                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        onPressed: () => Get.back(),
+                        icon: Icon(Icons.close_rounded, color: AppColors.primaryGrayDark),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.accent.withValues(alpha: 0.1), AppColors.accent.withValues(alpha: 0.05)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'PERSONAL RECORD',
+                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w700, letterSpacing: 1),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Bench Press',
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${pr.toInt()} lbs',
+                          style: AppTextStyles.headlineMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
                   Text(
-                    _isSaving ? 'Saving...' : 'Save Exercise',
-                    style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w700),
+                    'SELECT PERCENTAGE',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGrayDark, fontWeight: FontWeight.w700, letterSpacing: 0.8),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.center,
+                    children: [50, 60, 70, 75, 80, 85, 90, 95]
+                        .map(
+                          (p) => GestureDetector(
+                            onTap: () => setDlg(() => pct = p.toDouble()),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              decoration: BoxDecoration(
+                                gradient: pct == p ? LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.85)]) : null,
+                                color: pct == p ? null : AppColors.primaryGrayLight.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: pct == p ? AppColors.accent : AppColors.primaryGrayLight.withValues(alpha: 0.5), width: 1.5),
+                                boxShadow: pct == p ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))] : null,
+                              ),
+                              child: Text(
+                                '$p%',
+                                style: AppTextStyles.labelLarge.copyWith(color: pct == p ? AppColors.onAccent : AppColors.onSurface, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.trending_up_rounded, color: AppColors.accent, size: 24),
+                        const SizedBox(width: 12),
+                        Text('≈ $calc lbs', style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.w800)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() => _configs[cfgIdx].sets[setIdx].weight = calc.toDouble());
+                        Get.back();
+                      },
+                      icon: const Icon(Icons.check_circle_rounded, size: 22),
+                      label: Text('Apply to Set ${setIdx + 1}', style: AppTextStyles.buttonMedium),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.onAccent,
+                        elevation: 2,
+                        shadowColor: AppColors.accent.withValues(alpha: 0.3),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                      ),
+                    ),
                   ),
                 ],
               ),
-      ),
-    );
-
-    if (embedded) return button;
-
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(20.w, 6.h, 20.w, 10.h),
-        child: button,
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => Get.back(),
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                width: 40.w,
-                height: 40.w,
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
+  void _applyRepsTypeToSet(_SetData setData, _Config cfg, String type) {
+    setData.repsTimeFocusNode.unfocus();
+    setData.repsType = type;
+    setData.reps = 0;
+    setData.updateControllerText(cfg.mainType, force: true);
+    _focusedFieldType = null;
+    _focusedConfigIdx = null;
+    _focusedSetIdx = null;
+  }
+
+  Widget _buildKeyboardToolbar() {
+    return Container(
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, -2))],
+      ),
+      child: _focusedFieldType == 'reps'
+          ? Row(
+              children: [
+                // AMRAP button
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (_focusedConfigIdx != null && _focusedSetIdx != null) {
+                        final cfg = _configs[_focusedConfigIdx!];
+                        final setData = cfg.sets[_focusedSetIdx!];
+                        setState(() => _applyRepsTypeToSet(setData, cfg, 'AMRAP'));
+                        FocusScope.of(context).unfocus();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 4,
+                      shadowColor: AppColors.accent.withValues(alpha: 0.3),
+                    ),
+                    child: Text(
+                      'AMRAP',
+                      style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                  ),
                 ),
-                child: Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18.sp),
-              ),
+                const SizedBox(width: 8),
+                // FAILURE button
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (_focusedConfigIdx != null && _focusedSetIdx != null) {
+                        final cfg = _configs[_focusedConfigIdx!];
+                        final setData = cfg.sets[_focusedSetIdx!];
+                        setState(() => _applyRepsTypeToSet(setData, cfg, 'FAILURE'));
+                        FocusScope.of(context).unfocus();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 4,
+                      shadowColor: AppColors.accent.withValues(alpha: 0.3),
+                    ),
+                    child: Text(
+                      'FAILURE',
+                      style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Done button
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      FocusScope.of(context).unfocus();
+                      setState(() {
+                        _focusedFieldType = null;
+                        _focusedConfigIdx = null;
+                        _focusedSetIdx = null;
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 4,
+                      shadowColor: AppColors.accent.withValues(alpha: 0.3),
+                    ),
+                    child: Text(
+                      'Done',
+                      style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // BW button for weight field
+                _focusedFieldType == 'weight'
+                    ? ElevatedButton(
+                        onPressed: () {
+                          if (_focusedConfigIdx != null && _focusedSetIdx != null) {
+                            final cfg = _configs[_focusedConfigIdx!];
+                            final setData = cfg.sets[_focusedSetIdx!];
+                            setState(() {
+                              setData.weight = 0; // 0 represents Bodyweight
+                              setData.isBodyweight = true; // Mark as explicitly set to BW
+                              _focusedFieldType = null;
+                              _focusedConfigIdx = null;
+                              _focusedSetIdx = null;
+                            });
+                            FocusScope.of(context).unfocus();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          foregroundColor: AppColors.onAccent,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 4,
+                          shadowColor: AppColors.accent.withValues(alpha: 0.3),
+                        ),
+                        child: Text(
+                          'BW',
+                          style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+                // Done button
+                ElevatedButton(
+                  onPressed: () {
+                    FocusScope.of(context).unfocus();
+                    setState(() {
+                      _focusedFieldType = null;
+                      _focusedConfigIdx = null;
+                      _focusedSetIdx = null;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.onAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 4,
+                    shadowColor: AppColors.accent.withValues(alpha: 0.3),
+                  ),
+                  child: Text(
+                    'Done',
+                    style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: _isSaving ? null : _onSave,
+            icon: _isSaving
+                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent))
+                : const Icon(Icons.check_rounded, size: 22),
+            label: Text(
+              _isSaving ? 'Saving...' : 'Save Exercise',
+              style: AppTextStyles.buttonMedium.copyWith(color: AppColors.onAccent, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: AppColors.onAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+              elevation: 6,
+              shadowColor: AppColors.accent.withValues(alpha: 0.4),
             ),
           ),
         ),
-        SizedBox(height: 16.h),
-        Text(
-          _configTitle(),
-          style: AppTextStyles.headlineSmall.copyWith(
-            color: AppColors.black,
-            fontWeight: FontWeight.w800,
-            height: 1.2,
-          ),
-        ),
-        if (_workoutGroupType == WorkoutGroupType.single && _supersetPartnerOf == null) ...[
-          SizedBox(height: 8.h),
-          Text(
-            'Customize how you want to track this exercise.',
-            style: AppTextStyles.bodyMedium.copyWith(color: _kMutedText, height: 1.45),
-          ),
-        ],
-        if (_supersetPartnerOf != null) ...[
-          SizedBox(height: 8.h),
-          Text(
-            'Pair with ${_supersetPartnerOf!.exerciseName}',
-            style: AppTextStyles.bodyMedium.copyWith(color: _kMutedText, height: 1.45),
-          ),
-        ],
-      ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+    final keyboardOpen = keyboardInset > 0;
+    final showSaveButton = _focusedFieldType == null && !keyboardOpen;
+    final showKeyboardToolbar = _focusedFieldType != null && keyboardOpen;
+
     return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
+      onTap: () {
+        FocusScope.of(context).unfocus();
+        setState(() {
+          _focusedFieldType = null;
+          _focusedConfigIdx = null;
+          _focusedSetIdx = null;
+        });
+      },
       child: Scaffold(
-        backgroundColor: _kScreenBg,
-        resizeToAvoidBottomInset: true,
-        body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 16.h),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildHeader(),
-                      SizedBox(height: 16.h),
-                      if (_supersetPartnerOf == null && !_isEditing && !_journalFlow && _workoutGroupType == WorkoutGroupType.single)
-                        Padding(
-                          padding: EdgeInsets.only(bottom: 20.h),
-                          child: Row(
-                            children: [
-                              Checkbox(
-                                value: _isSuperset,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _isSuperset = value ?? false;
-                                    _workoutGroupType = _isSuperset ? WorkoutGroupType.superset : WorkoutGroupType.single;
-                                    if (_isSuperset && _configs.length < 2) {
-                                      final firstConfig = _configs[0];
-                                      final secondConfig = _Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}');
-                                      secondConfig.mainType = firstConfig.mainType;
-                                      secondConfig.extraType = firstConfig.extraType;
-                                      secondConfig.sets.clear();
-                                      for (var set in firstConfig.sets) {
-                                        final newSet = _SetData();
-                                        newSet.reps = set.reps;
-                                        newSet.time = set.time;
-                                        newSet.weight = set.weight;
-                                        newSet.distance = set.distance;
-                                        newSet.distanceUnit = set.distanceUnit;
-                                        newSet.isBodyweight = set.isBodyweight;
-                                        secondConfig.sets.add(newSet);
-                                      }
-                                      _configs.add(secondConfig);
-                                    } else if (!_isSuperset && _configs.length > 1) {
-                                      _configs.removeRange(1, _configs.length);
-                                    }
-                                  });
-                                },
-                                activeColor: AppColors.accent,
-                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              Text(
-                                'Create Superset',
-                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
-                              ),
-                            ],
+        backgroundColor: AppColors.background,
+        resizeToAvoidBottomInset: false,
+        appBar: AppBar(
+          backgroundColor: AppColors.backgroundColor,
+          elevation: 0,
+          leading: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 18),
+            ),
+            onPressed: () => Get.back(),
+          ),
+          title: Text(
+            _supersetPartnerOf != null ? 'Add Superset Partner' : 'Configure Exercise',
+            style: AppTextStyles.titleLarge.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w600),
+          ),
+          centerTitle: true,
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+                child: Column(
+                  children: [
+                    if (_supersetPartnerOf == null && !_isEditing)
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _isSuperset,
+                            onChanged: (value) {
+                              setState(() {
+                                _isSuperset = value ?? false;
+                                if (_isSuperset && _configs.length < 2) {
+                                  final firstConfig = _configs[0];
+                                  final secondConfig = _Config(name: '', id: 'manual_${DateTime.now().millisecondsSinceEpoch}');
+                                  secondConfig.mainType = firstConfig.mainType;
+                                  secondConfig.extraType = firstConfig.extraType;
+                                  secondConfig.sets.clear();
+                                  for (var set in firstConfig.sets) {
+                                    final newSet = _SetData();
+                                    newSet.reps = set.reps;
+                                    newSet.time = set.time;
+                                    newSet.weight = set.weight;
+                                    newSet.distance = set.distance;
+                                    newSet.distanceUnit = set.distanceUnit;
+                                    newSet.isBodyweight = set.isBodyweight;
+                                    secondConfig.sets.add(newSet);
+                                  }
+                                  _configs.add(secondConfig);
+                                } else if (!_isSuperset && _configs.length > 1) {
+                                  _configs.removeRange(1, _configs.length);
+                                }
+                              });
+                            },
+                            activeColor: AppColors.accent,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                        ),
-                      ..._configs.asMap().entries.map(
-                            (e) => Padding(
-                              padding: EdgeInsets.only(bottom: e.key < _configs.length - 1 ? 28.h : 0),
-                              child: _buildCard(e.value, e.key),
-                            ),
+                          Text(
+                            'Create Superset',
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
                           ),
+                        ],
+                      ),
+                    if (_supersetPartnerOf == null && !_isEditing) const SizedBox(height: 20),
+                    if (_supersetPartnerOf != null) ...[
+                      Text(
+                        'Pair with ${_supersetPartnerOf!.exerciseName}',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGrayDark),
+                      ),
+                      const SizedBox(height: 20),
                     ],
-                  ),
+                    ..._configs
+                        .asMap()
+                        .entries
+                        .map(
+                          (e) => Padding(
+                            padding: EdgeInsets.only(bottom: e.key < _configs.length - 1 ? 20 : 0),
+                            child: _buildCard(e.value, e.key),
+                          ),
+                        )
+                        .toList(),
+                  ],
                 ),
               ),
-              _buildSaveButton(embedded: false),
-            ],
-          ),
+            ),
+            AnimatedPadding(
+              duration: const Duration(milliseconds: 100),
+              padding: EdgeInsets.only(bottom: keyboardOpen ? keyboardInset : 0),
+              child: showKeyboardToolbar
+                  ? _buildKeyboardToolbar()
+                  : showSaveButton
+                  ? _buildSaveButton()
+                  : const SizedBox.shrink(),
+            ),
+          ],
         ),
       ),
     );
@@ -750,8 +892,7 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
     final result = await Get.toNamed(
       AppRoutes.exerciseSelection,
       arguments: {
-        'isWarmup': _isWarmup,
-        'exerciseType': _exerciseType,
+        'exerciseType': JournalExerciseType.workout,
         'selectOnly': true,
         'workoutJournalId': _workoutJournalId,
         'journalWorkoutIds': _journalWorkoutIds,
@@ -765,507 +906,546 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
         if (cfgIndex < _configs.length) {
           _configs[cfgIndex].name = exercise.name;
           _configs[cfgIndex].id = exercise.id;
-          _configs[cfgIndex].iconUrl = exercise.iconUrl;
-          _configs[cfgIndex].primaryMuscle = exercise.primaryMuscle;
           _configs[cfgIndex].nameController.text = exercise.name;
         }
       });
     }
   }
 
-  Widget _buildExerciseInfoCard(_Config cfg, int idx) {
-    final hasName = cfg.name.trim().isNotEmpty;
-    final showEditableName = _isManual || !hasName || _isEditing;
-
+  Widget _buildCard(_Config cfg, int idx) {
+    // final isMan = cfg.name.isEmpty || _isEditing;
     return Container(
-      padding: EdgeInsets.all(12.w),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _kCardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kCardBorder),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 2),
+        boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, 4))],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: SizedBox(
-              width: 56.w,
-              height: 56.w,
-              child: _buildExerciseImage(cfg),
+          TextField(
+            controller: cfg.nameController,
+            maxLength: _maxExerciseNameLength,
+            inputFormatters: [LengthLimitingTextInputFormatter(_maxExerciseNameLength)],
+            onChanged: (value) {
+              setState(() {
+                cfg.name = value;
+              });
+            },
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: AppColors.white,
+              hintText: 'Enter exercise name',
+              hintStyle: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryGrayDark.withValues(alpha: 0.6)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(50),
+                borderSide: BorderSide(color: AppColors.primaryGrayDark.withValues(alpha: 0.3)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(50),
+                borderSide: BorderSide(color: AppColors.primaryGrayDark.withValues(alpha: 0.3)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(50),
+                borderSide: BorderSide(color: AppColors.accent.withValues(alpha: 0.3), width: 2),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              suffixIcon: IconButton(
+                icon: SizedBox(width: 22, height: 22, child: SvgPicture.asset('assets/icons/search-normal.svg', width: 22, height: 22)),
+                onPressed: () => _openExerciseSelection(idx),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
             ),
+            style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
           ),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: showEditableName
-                ? TextField(
-                    controller: cfg.nameController,
-                    maxLength: _maxExerciseNameLength,
-                    inputFormatters: [LengthLimitingTextInputFormatter(_maxExerciseNameLength)],
-                    onChanged: (value) => setState(() => cfg.name = value),
-                    decoration: InputDecoration(
-                      counterText: '',
-                      isDense: true,
-                      filled: true,
-                      fillColor: _kScreenBg,
-                      hintText: 'Enter exercise name',
-                      hintStyle: AppTextStyles.bodyMedium.copyWith(color: _kMutedText),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kInputBorder)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kInputBorder)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.accent.withValues(alpha: 0.5))),
-                      suffixIcon: IconButton(
-                        icon: Icon(Icons.search, color: AppColors.accent, size: 20.sp),
-                        onPressed: () => _openExerciseSelection(idx),
-                      ),
-                    ),
-                    style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w800),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        cfg.name,
-                        style: AppTextStyles.titleSmall.copyWith(color: AppColors.black, fontWeight: FontWeight.w800),
-                      ),
-                      if (cfg.primaryMuscle != null && cfg.primaryMuscle!.trim().isNotEmpty) ...[
-                        SizedBox(height: 8.h),
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F4EC),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.accessibility_new, size: 14.sp, color: _kMutedText),
-                              SizedBox(width: 4.w),
-                              Text(
-                                cfg.primaryMuscle!,
-                                style: AppTextStyles.labelSmall.copyWith(color: _kMutedText, fontWeight: FontWeight.w600),
+          const SizedBox(height: 24),
+          // "Two tabs" selector (like the screenshot): main metric (Reps/Time) + extra metric (Weight/Distance)
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(10)),
+                  child: Row(
+                    children: ['Reps', 'Time'].map((t) {
+                      final sel = cfg.mainType == t;
+                      final icons = {'Reps': Icons.repeat_rounded, 'Time': Icons.timer_outlined};
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _setMainTypeForConfig(cfg, t)),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeInOut,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                            decoration: BoxDecoration(
+                              gradient: sel
+                                  ? LinearGradient(
+                                      colors: [AppColors.accentVariant, AppColors.accentVariant.withValues(alpha: 0.85)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    )
+                                  : null,
+                              color: sel ? null : Colors.transparent,
+                              borderRadius: BorderRadius.circular(50),
+                              boxShadow: sel ? [BoxShadow(color: AppColors.accentVariant.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))] : null,
+                            ),
+                            child: Center(
+                              child: Text(
+                                t,
+                                style: AppTextStyles.labelMedium.copyWith(
+                                  color: sel ? AppColors.onAccent : AppColors.onSurface.withValues(alpha: 0.8),
+                                  fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                                ),
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ],
-                    ],
+                      );
+                    }).toList(),
                   ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExerciseImage(_Config cfg) {
-    final iconUrl = cfg.iconUrl;
-    if (iconUrl != null && iconUrl.isNotEmpty) {
-      if (iconUrl.startsWith('assets/')) {
-        return GrCatalogImage(assetPath: iconUrl, borderRadius: 12, scale: 1.06, width: double.infinity, height: double.infinity);
-      }
-      return SafeNetworkImage(
-        url: iconUrl,
-        fit: BoxFit.cover,
-        fallback: ColoredBox(
-          color: const Color(0xFFE8F0E4),
-          child: Icon(Icons.fitness_center, color: AppColors.accent, size: 28.sp),
-        ),
-      );
-    }
-    return ColoredBox(
-      color: const Color(0xFFE8F0E4),
-      child: Icon(Icons.fitness_center, color: AppColors.accent, size: 28.sp),
-    );
-  }
-
-  Widget _buildTrackingModeBar(_Config cfg) {
-    final options = [
-      _TrackingOption(key: 'Reps', label: 'Reps', icon: Icons.looks_one_outlined, isMain: true),
-      _TrackingOption(key: 'Time', label: 'Time', icon: Icons.timer_outlined, isMain: true),
-      _TrackingOption(key: 'Weight', label: 'Weight', icon: Icons.fitness_center_outlined, isMain: false),
-      _TrackingOption(key: 'Distance', label: 'Distance', icon: Icons.straighten_rounded, isMain: false),
-    ];
-
-    return Container(
-      padding: EdgeInsets.all(3.w),
-      decoration: BoxDecoration(
-        color: _kCardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _kCardBorder),
-      ),
-      child: Row(
-        children: options.map((option) {
-          final selected = option.isMain ? cfg.mainType == option.key : cfg.extraType == option.key;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() {
-                if (option.isMain) {
-                  _setMainTypeForConfig(cfg, option.key);
-                } else {
-                  cfg.extraType = option.key;
-                }
-              }),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: EdgeInsets.symmetric(vertical: 8.h),
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.accent : Colors.transparent,
-                  borderRadius: BorderRadius.circular(9),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(option.icon, size: 15.sp, color: selected ? AppColors.onAccent : _kMutedText),
-                    SizedBox(width: 4.w),
-                    Text(
-                      option.label,
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: selected ? AppColors.onAccent : _kMutedText,
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                        fontSize: 11.sp,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(10)),
+                  child: Row(
+                    children: ['Weight', 'Distance'].map((t) {
+                      final sel = cfg.extraType == t;
+                      final icons = {'Weight': Icons.fitness_center, 'Distance': Icons.straighten_rounded};
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => cfg.extraType = t),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeInOut,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                            decoration: BoxDecoration(
+                              gradient: sel
+                                  ? LinearGradient(
+                                      colors: [AppColors.accentVariant, AppColors.accentVariant.withValues(alpha: 0.85)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    )
+                                  : null,
+                              color: sel ? null : Colors.transparent,
+                              borderRadius: BorderRadius.circular(50),
+                              boxShadow: sel ? [BoxShadow(color: AppColors.accentVariant.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))] : null,
+                            ),
+                            child: Center(
+                              child: Text(
+                                t,
+                                style: AppTextStyles.labelMedium.copyWith(
+                                  color: sel ? AppColors.onAccent : AppColors.onSurface.withValues(alpha: 0.8),
+                                  fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+          Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      'SET',
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.black, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      (cfg.mainType == 'Time' ? 'TIME (s)' : 'REPS').toUpperCase(),
+                      textAlign: TextAlign.left,
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.black, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                    ).paddingOnly(left: 10),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      (cfg.extraType == 'Distance' ? 'DISTANCE (mi)' : 'WEIGHT (lbs)').toUpperCase(),
+                      textAlign: TextAlign.left,
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.black, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                    ),
+                  ),
+                ],
+              ).paddingSymmetric(horizontal: 10),
+
+              const SizedBox(height: 12),
+              ...cfg.sets.asMap().entries.map((e) => Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: _buildSetRow(cfg, idx, e.key, e.value))),
+              const SizedBox(height: 24),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 50.h,
+                  child: ElevatedButton.icon(
+                    onPressed: cfg.sets.length > 1 ? () => setState(() => cfg.sets.removeLast()) : null,
+                    icon: Icon(Icons.remove_rounded, size: 18.sp, color: const Color.fromARGB(255, 87, 86, 86)),
+                    label: Text('Set', style: AppTextStyles.buttonMedium.copyWith(color: const Color.fromARGB(255, 87, 86, 86))),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: cfg.sets.length > 1 ? const Color.fromARGB(0, 41, 96, 60) : const Color.fromARGB(0, 209, 213, 219),
+                      elevation: cfg.sets.length > 1 ? 2 : 0,
+                      // Added side for border
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50),
+                        side: BorderSide(color: cfg.sets.length > 1 ? Colors.grey : Colors.grey.shade400, width: 1.5),
                       ),
+                      padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
+                      minimumSize: const Size(0, 36),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildCard(_Config cfg, int idx) {
-    final mainLabel = cfg.mainType == 'Time' ? 'Time' : 'Reps';
-    final extraLabel = cfg.extraType == 'Distance' ? 'Dist' : 'Weight';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_configs.length > 1) ...[
-          Text(
-            'Exercise ${idx + 1}',
-            style: AppTextStyles.labelLarge.copyWith(color: AppColors.accent, fontWeight: FontWeight.w800),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 50.h,
+                  child: ElevatedButton.icon(
+                    onPressed: () => setState(() => cfg.sets.add(_SetData())),
+                    icon: Icon(Icons.add_rounded, size: 18),
+                    label: Text('Set', style: AppTextStyles.buttonMedium),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
+                      elevation: 2,
+                      shadowColor: AppColors.accent.withValues(alpha: 0.3),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                      padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
+                      minimumSize: const Size(0, 36),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: 10.h),
         ],
-        _buildExerciseInfoCard(cfg, idx),
-        SizedBox(height: 12.h),
-        _buildTrackingModeBar(cfg),
-        SizedBox(height: 12.h),
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 10.h),
-          decoration: BoxDecoration(
-            color: _kCardBg,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _kCardBorder),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 28.w,
-                    child: Text(
-                      'Set',
-                      style: AppTextStyles.labelSmall.copyWith(color: _kMutedText, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      mainLabel,
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.labelSmall.copyWith(color: _kMutedText, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      extraLabel,
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.labelSmall.copyWith(color: _kMutedText, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 10.h),
-              ...cfg.sets.asMap().entries.map((e) => _buildSetRow(cfg, idx, e.key, e.value)),
-              SizedBox(height: 8.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildSetActionButton(
-                      label: 'Remove',
-                      icon: Icons.remove,
-                      enabled: cfg.sets.length > 1,
-                      onTap: () => setState(() => cfg.sets.removeLast()),
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: _buildSetActionButton(
-                      label: 'Add Set',
-                      icon: Icons.add,
-                      enabled: true,
-                      onTap: () => setState(() => cfg.sets.add(_SetData())),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSetActionButton({
-    required String label,
-    required IconData icon,
-    required bool enabled,
-    required VoidCallback onTap,
-  }) {
-    final color = enabled ? AppColors.accent : _kMutedText.withValues(alpha: 0.45);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 10.h),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: enabled ? _kInputBorder : _kInputBorder.withValues(alpha: 0.6)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 16.sp),
-              SizedBox(width: 4.w),
-              Text(
-                label,
-                style: AppTextStyles.labelMedium.copyWith(color: color, fontWeight: FontWeight.w600, fontSize: 12.sp),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSetValueField({
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required String hint,
-    required Color textColor,
-    required ValueChanged<String> onChanged,
-    required VoidCallback onSubmitted,
-    List<TextInputFormatter>? inputFormatters,
-    TextInputType keyboardType = TextInputType.number,
-  }) {
-    return SizedBox(
-      height: 36,
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        textAlign: TextAlign.center,
-        keyboardType: keyboardType,
-        textInputAction: TextInputAction.done,
-        inputFormatters: inputFormatters,
-        decoration: InputDecoration(
-          isDense: true,
-          filled: true,
-          fillColor: _kScreenBg,
-          hintText: hint,
-          hintStyle: AppTextStyles.bodySmall.copyWith(color: _kMutedText, fontSize: 13),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: _kInputBorder),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.accent.withValues(alpha: 0.45)),
-          ),
-        ),
-        style: AppTextStyles.bodyMedium.copyWith(color: textColor, fontWeight: FontWeight.w700, fontSize: 14),
-        onChanged: onChanged,
-        onSubmitted: (_) => onSubmitted(),
-      ),
-    );
-  }
-
-  Widget _buildBodyweightChip(_SetData data) {
-    return Material(
-      color: data.isBodyweight ? AppColors.accent : AppColors.accent.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: () => _toggleBodyweight(data),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 8.h),
-          child: Text(
-            'BW',
-            style: AppTextStyles.labelSmall.copyWith(
-              color: data.isBodyweight ? AppColors.onAccent : AppColors.accent,
-              fontWeight: FontWeight.w800,
-              fontSize: 11.sp,
-            ),
-          ),
-        ),
       ),
     );
   }
 
   Widget _buildSetRow(_Config cfg, int cfgIdx, int setIdx, _SetData data) {
+    final isAmrapOrFailure = cfg.mainType != 'Time' && (data.repsType == 'AMRAP' || data.repsType == 'FAILURE');
+    // Create unique key for this set row to maintain TextField state
     final rowKey = ValueKey('set_${cfgIdx}_$setIdx');
-
-    void dismissFieldFocus() => FocusScope.of(context).unfocus();
-
     return Padding(
       key: rowKey,
-      padding: EdgeInsets.only(bottom: 10.h),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 28.w,
-            child: Text(
-              '${setIdx + 1}',
-              style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent, fontWeight: FontWeight.w800),
+          Expanded(
+            flex: 1,
+            child: Container(
+              height: 44,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${setIdx + 1}',
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 14),
+              ),
             ),
           ),
           Expanded(
-            child: Builder(
-              builder: (context) {
-                data.updateControllerText(cfg.mainType);
-                return _buildSetValueField(
-                  controller: data.repsTimeController,
-                  focusNode: data.repsTimeFocusNode,
-                  hint: cfg.mainType == 'Time' ? '30' : '10',
-                  textColor: AppColors.black,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (v) {
-                    if (cfg.mainType == 'Time') {
-                      final n = int.tryParse(v) ?? 0;
-                      final maxDisplay = data.timeUnit == 'M' ? _maxTimeMinutes : _maxTimeSeconds;
-                      setState(() {
-                        data.time = data.timeUnit == 'M' ? n.clamp(0, maxDisplay) * 60 : n.clamp(0, maxDisplay);
-                      });
-                    } else {
-                      final n = int.tryParse(v) ?? 0;
-                      setState(() => data.reps = n.clamp(0, _maxReps));
-                    }
-                  },
-                  onSubmitted: dismissFieldFocus,
-                );
-              },
+            flex: 2,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(50),
+                      border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
+                    ),
+                    child: Builder(
+                      builder: (context) {
+                        // Update controller text when data changes
+                        data.updateControllerText(cfg.mainType);
+                        return TextField(
+                          key: ValueKey('reps_${cfgIdx}_${setIdx}_${data.repsType}_${cfg.mainType}_${cfg.mainType == 'Time' ? data.timeUnit : ''}'),
+                          focusNode: data.repsTimeFocusNode,
+                          controller: data.repsTimeController,
+                          textAlign: TextAlign.center,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.done,
+                          inputFormatters: cfg.mainType == 'Time' || !isAmrapOrFailure ? [FilteringTextInputFormatter.digitsOnly] : null,
+                          readOnly: isAmrapOrFailure,
+                          showCursor: !isAmrapOrFailure,
+                          enableInteractiveSelection: !isAmrapOrFailure,
+                          canRequestFocus: !isAmrapOrFailure,
+                          decoration: InputDecoration(
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(50),
+                              borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1),
+                            ),
+                            border: InputBorder.none,
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(50),
+                              borderSide: BorderSide(color: AppColors.accent.withValues(alpha: 0.3), width: 2),
+                            ),
+                            filled: true,
+                            fillColor: AppColors.white,
+                            hintText: cfg.mainType == 'Time' ? '30' : '10',
+                            hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontSize: 14),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                          style: AppTextStyles.bodyMedium.copyWith(color: isAmrapOrFailure ? AppColors.accent : AppColors.black, fontWeight: FontWeight.w600, fontSize: 15),
+                          onTap: () {
+                            if (isAmrapOrFailure) {
+                              setState(() {
+                                data.clearRepsType();
+                                _focusedFieldType = null;
+                                _focusedConfigIdx = null;
+                                _focusedSetIdx = null;
+                              });
+                              return;
+                            }
+                            setState(() {
+                              _focusedFieldType = cfg.mainType == 'Time' ? null : 'reps';
+                              _focusedConfigIdx = cfgIdx;
+                              _focusedSetIdx = setIdx;
+                            });
+                          },
+                          onChanged: (v) {
+                            if (cfg.mainType == 'Time') {
+                              final n = int.tryParse(v) ?? 0;
+                              final maxDisplay = data.timeUnit == 'M' ? _maxTimeMinutes : _maxTimeSeconds;
+                              final clamped = n.clamp(0, maxDisplay);
+                              setState(() {
+                                data.time = data.timeUnit == 'M' ? clamped * 60 : clamped;
+                              });
+                            } else if (data.repsType == null || data.repsType == 'standard') {
+                              final n = int.tryParse(v) ?? 0;
+                              setState(() {
+                                data.reps = n.clamp(0, _maxReps);
+                                data.repsType = null;
+                              });
+                            }
+                          },
+                          onSubmitted: (_) {
+                            setState(() {
+                              _focusedFieldType = null;
+                              _focusedConfigIdx = null;
+                              _focusedSetIdx = null;
+                            });
+                            data.repsTimeFocusNode.unfocus();
+                            FocusScope.of(context).unfocus();
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                if (cfg.mainType == 'Time')
+                  Padding(
+                    padding: const EdgeInsets.only(left: 3),
+                    child: Container(
+                      height: 44,
+                      decoration: BoxDecoration(color: const Color.fromARGB(255, 149, 151, 155).withValues(alpha: 0.3), borderRadius: BorderRadius.circular(10)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              if (data.timeUnit != 'M') {
+                                setState(() {
+                                  // Switch to minutes mode (time stays in seconds, just display changes)
+                                  data.timeUnit = 'M';
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 10),
+                              decoration: BoxDecoration(
+                                gradient: data.timeUnit == 'M'
+                                    ? LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.85)], begin: Alignment.topLeft, end: Alignment.bottomRight)
+                                    : null,
+                                color: data.timeUnit == 'M' ? null : Colors.transparent,
+                                borderRadius: BorderRadius.circular(50),
+                                boxShadow: data.timeUnit == 'M' ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))] : null,
+                              ),
+                              child: Text(
+                                'M',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: data.timeUnit == 'M' ? AppColors.onAccent : AppColors.onSurface.withValues(alpha: 0.8),
+                                  fontWeight: data.timeUnit == 'M' ? FontWeight.w700 : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              if (data.timeUnit != 'S') {
+                                setState(() {
+                                  // Switch to seconds mode (time stays in seconds, just display changes)
+                                  data.timeUnit = 'S';
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 10),
+                              decoration: BoxDecoration(
+                                gradient: data.timeUnit == 'S'
+                                    ? LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.85)], begin: Alignment.topLeft, end: Alignment.bottomRight)
+                                    : null,
+                                color: data.timeUnit == 'S' ? null : Colors.transparent,
+                                borderRadius: BorderRadius.circular(50),
+                                boxShadow: data.timeUnit == 'S' ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))] : null,
+                              ),
+                              child: Text(
+                                'S',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: data.timeUnit == 'S' ? AppColors.onAccent : AppColors.onSurface.withValues(alpha: 0.8),
+                                  fontWeight: data.timeUnit == 'S' ? FontWeight.w700 : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-          if (cfg.mainType == 'Time') ...[
-            SizedBox(width: 6.w),
-            _buildTimeUnitToggle(data),
-          ],
-          SizedBox(width: 10.w),
+          const SizedBox(width: 8),
           Expanded(
+            flex: 2,
             child: cfg.extraType == 'Distance'
-                ? Builder(
-                    builder: (context) {
-                      data.updateDistanceControllerText();
-                      return _buildSetValueField(
-                        controller: data.distanceController,
-                        focusNode: data.distanceFocusNode,
-                        hint: '0.0',
-                        textColor: AppColors.black,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [_decimalInputFormatter],
-                        onChanged: (v) {
-                          final parsed = double.tryParse(v) ?? 0;
-                          setState(() => data.distance = parsed.clamp(0, _maxDistance));
-                        },
-                        onSubmitted: dismissFieldFocus,
-                      );
-                    },
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.circular(50),
+                            border: Border.all(color: AppColors.primaryGray, width: 1),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
+                          ),
+                          child: TextField(
+                            controller: TextEditingController(text: data.distance > 0 ? data.distance.toString() : ''),
+                            textAlign: TextAlign.center,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            textInputAction: TextInputAction.done,
+                            inputFormatters: [_decimalInputFormatter],
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: AppColors.white,
+                              border: InputBorder.none,
+                              hintText: '0.0',
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(50),
+                                borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1),
+                              ),
+                              hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGrayDark.withValues(alpha: 0.4), fontSize: 14),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            ),
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600, fontSize: 15),
+                            onChanged: (v) {
+                              final parsed = double.tryParse(v) ?? 0;
+                              setState(() => data.distance = parsed.clamp(0, _maxDistance));
+                            },
+                            onSubmitted: (_) => FocusScope.of(context).unfocus(),
+                          ),
+                        ),
+                      ),
+                    ],
                   )
                 : Row(
                     children: [
                       Expanded(
-                        child: Builder(
-                          builder: (context) {
-                            data.updateWeightControllerText();
-                            return _buildSetValueField(
-                              controller: data.weightController,
-                              focusNode: data.weightFocusNode,
-                              hint: '0',
-                              textColor: data.isBodyweight ? AppColors.accent : AppColors.black,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              inputFormatters: [_decimalInputFormatter],
-                              onChanged: (v) {
-                                if (v.toUpperCase() == 'BW' || v.toLowerCase() == 'bw') {
-                                  data.weight = 0;
-                                  data.isBodyweight = true;
-                                } else if (v.isEmpty) {
-                                  data.weight = 0;
+                        child: Container(
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(50),
+                            border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
+                          ),
+                          child: TextField(
+                            key: ValueKey('weight_${cfgIdx}_${setIdx}'),
+                            controller: TextEditingController(text: data.isBodyweight && data.weight == 0 ? 'BW' : (data.weight > 0 ? data.weight.toInt().toString() : ''))
+                              ..selection = TextSelection.collapsed(
+                                offset: data.isBodyweight && data.weight == 0
+                                    ? 2 // 'BW'.length
+                                    : (data.weight > 0 ? data.weight.toInt().toString().length : 0),
+                              ),
+                            textAlign: TextAlign.center,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            textInputAction: TextInputAction.done,
+                            inputFormatters: [_decimalInputFormatter],
+                            decoration: InputDecoration(
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(50),
+                                borderSide: BorderSide(color: AppColors.accent.withValues(alpha: 0.3), width: 2),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(50),
+                                borderSide: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.2), width: 1),
+                              ),
+                              border: InputBorder.none,
+                              filled: true,
+                              fillColor: AppColors.white,
+                              hintText: '0',
+                              hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.black, fontSize: 14),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            ),
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.black, fontWeight: FontWeight.w600, fontSize: 15),
+                            onTap: () {
+                              setState(() {
+                                _focusedFieldType = 'weight';
+                                _focusedConfigIdx = cfgIdx;
+                                _focusedSetIdx = setIdx;
+                              });
+                            },
+                            onChanged: (v) {
+                              if (v.toUpperCase() == 'BW' || v.toLowerCase() == 'bw') {
+                                data.weight = 0;
+                                data.isBodyweight = true;
+                              } else if (v.isEmpty) {
+                                data.weight = 0;
+                                data.isBodyweight = false;
+                              } else {
+                                final parsed = double.tryParse(v);
+                                if (parsed != null) {
+                                  data.weight = parsed.clamp(0, _maxWeight);
                                   data.isBodyweight = false;
-                                } else {
-                                  final parsed = double.tryParse(v);
-                                  if (parsed != null) {
-                                    data.weight = parsed.clamp(0, _maxWeight);
-                                    data.isBodyweight = false;
-                                  }
                                 }
-                                setState(() {});
-                              },
-                              onSubmitted: dismissFieldFocus,
-                            );
-                          },
+                              }
+                            },
+                            onSubmitted: (_) {
+                              FocusScope.of(context).unfocus();
+                              setState(() {
+                                _focusedFieldType = null;
+                                _focusedConfigIdx = null;
+                                _focusedSetIdx = null;
+                              });
+                            },
+                          ),
                         ),
                       ),
-                      SizedBox(width: 6.w),
-                      _buildBodyweightChip(data),
                     ],
                   ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeUnitToggle(_SetData data) {
-    Widget unitChip(String unit, String label) {
-      final selected = data.timeUnit == unit;
-      return GestureDetector(
-        onTap: () => setState(() => data.timeUnit = unit),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.accent : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            label,
-            style: AppTextStyles.labelSmall.copyWith(
-              color: selected ? AppColors.onAccent : _kMutedText,
-              fontWeight: FontWeight.w700,
-              fontSize: 10.sp,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: _kScreenBg,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _kInputBorder),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          unitChip('M', 'M'),
-          unitChip('S', 'S'),
         ],
       ),
     );
@@ -1275,14 +1455,13 @@ class _ExerciseConfigurationScreenState extends State<ExerciseConfigurationScree
 class _Config {
   String name, id;
   String? iconUrl;
-  String? primaryMuscle;
   String mainType = 'Reps';
   String extraType = 'Weight';
   List<_SetData> sets;
   final TextEditingController nameController;
 
-  _Config({required this.name, required this.id, this.iconUrl, this.primaryMuscle})
-    : sets = [_SetData()..reps = 10, _SetData()..reps = 10, _SetData()..reps = 10],
+  _Config({required this.name, required this.id, this.iconUrl})
+    : sets = [_SetData(), _SetData(), _SetData()],
       nameController = TextEditingController(text: name.isNotEmpty ? name : '');
 
   void dispose() {
@@ -1297,30 +1476,19 @@ class _SetData {
   double distance = 0;
   String distanceUnit = 'miles';
   bool isBodyweight = false; // Track if BW was explicitly set
+  String? repsType; // 'AMRAP', 'FAILURE', or null (standard)
   String timeUnit = 'S'; // 'M' for minutes, 'S' for seconds
   late final FocusNode repsTimeFocusNode;
   late final TextEditingController repsTimeController;
-  late final FocusNode weightFocusNode;
-  late final TextEditingController weightController;
-  late final FocusNode distanceFocusNode;
-  late final TextEditingController distanceController;
 
   _SetData() {
     repsTimeFocusNode = FocusNode();
     repsTimeController = TextEditingController();
-    weightFocusNode = FocusNode();
-    weightController = TextEditingController();
-    distanceFocusNode = FocusNode();
-    distanceController = TextEditingController();
   }
 
   void dispose() {
     repsTimeFocusNode.dispose();
     repsTimeController.dispose();
-    weightFocusNode.dispose();
-    weightController.dispose();
-    distanceFocusNode.dispose();
-    distanceController.dispose();
   }
 
   void updateControllerText(String mainType, {bool force = false}) {
@@ -1328,27 +1496,19 @@ class _SetData {
 
     final text = mainType == 'Time'
         ? (time > 0 ? (timeUnit == 'M' ? (time / 60).round().toString() : time.toString()) : '')
-        : (reps > 0 ? reps.toString() : '');
+        : (repsType == 'AMRAP'
+              ? 'AMRAP'
+              : repsType == 'FAILURE'
+              ? 'FAILURE'
+              : (reps > 0 ? reps.toString() : ''));
     if (repsTimeController.text != text) {
       repsTimeController.text = text;
     }
   }
 
-  void updateWeightControllerText({bool force = false}) {
-    if (!force && weightFocusNode.hasFocus) return;
-    final text = isBodyweight && weight == 0
-        ? 'BW'
-        : (weight > 0 ? (weight == weight.roundToDouble() ? weight.toInt().toString() : weight.toString()) : '');
-    if (weightController.text != text) {
-      weightController.text = text;
-    }
-  }
-
-  void updateDistanceControllerText({bool force = false}) {
-    if (!force && distanceFocusNode.hasFocus) return;
-    final text = distance > 0 ? distance.toString() : '';
-    if (distanceController.text != text) {
-      distanceController.text = text;
-    }
+  void clearRepsType() {
+    repsType = null;
+    reps = 0;
+    repsTimeController.text = '';
   }
 }
