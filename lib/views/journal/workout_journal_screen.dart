@@ -326,49 +326,55 @@ class _WorkoutJournalScreenState extends State<WorkoutJournalScreen> with Automa
     }
   }
 
-  Future<bool> _persistJournalEntry({required String journalId, required List<String> workoutIds, int? duration, String? notes}) async {
-    final entry = WorkoutRepository.journalEntryById(_journalEntries, journalId);
-    if (entry == null) return false;
+  Future<void> _deleteExercise(WorkoutExerciseModel ex, bool isWarmup) async {
+    if (_workout == null) return;
+
+    setState(() {
+      if (isWarmup) {
+        _workout = _workout!.copyWith(warmupExercises: _workout!.warmupExercises.where((e) => e.id != ex.id).toList());
+      } else {
+        _workout = _workout!.copyWith(workoutExercises: _workout!.workoutExercises.where((e) => e.id != ex.id).toList());
+      }
+    });
+
+    if (!WorkoutRepository.isValidMongoId(ex.id)) return;
+
+    final entriesToUpdate = _journalEntries.where((entry) => WorkoutRepository.workoutIdsFrom(entry).contains(ex.id)).toList();
+    if (entriesToUpdate.isEmpty) return;
 
     setState(() => _isSavingJournal = true);
     try {
-      await _workoutRepo.updateWorkoutJournal(
-        journalId: journalId,
-        workoutIds: workoutIds,
-        duration: duration ?? entry.durationSeconds ?? 0,
-        notes: notes ?? '',
-      );
+      for (final entry in entriesToUpdate) {
+        final remaining = WorkoutRepository.workoutIdsFrom(entry).where((id) => id != ex.id).toList();
+        if (remaining.isEmpty) {
+          await _workoutRepo.deleteWorkoutJournal(entry.id);
+        } else {
+          await _workoutRepo.updateWorkoutJournal(
+            journalId: entry.id,
+            workoutIds: remaining,
+            duration: entry.durationSeconds ?? 1,
+            notes: entry.notes ?? '',
+          );
+        }
+      }
+
+      await _forgetExerciseSection(ex.id);
+
+      try {
+        await _workoutRepo.deleteWorkout(ex.id);
+      } catch (_) {
+        // Journal unlink succeeded; workout doc may already be removed.
+      }
+
       await _refreshWorkoutJournalFromApi();
-      return true;
     } catch (e) {
       if (mounted) {
         Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''), backgroundColor: AppColors.error, colorText: AppColors.onError);
+        await _refreshWorkoutJournalFromApi();
       }
-      return false;
     } finally {
       if (mounted) setState(() => _isSavingJournal = false);
     }
-  }
-
-  Future<void> _deleteExercise(WorkoutExerciseModel ex, bool isWarmup) async {
-    final journalId = _workoutJournalByExerciseId[ex.id];
-    if (journalId == null || !WorkoutRepository.isValidMongoId(journalId)) {
-      setState(() {
-        if (isWarmup) {
-          _workout = _workout!.copyWith(warmupExercises: _workout!.warmupExercises.where((e) => e.id != ex.id).toList());
-        } else {
-          _workout = _workout!.copyWith(workoutExercises: _workout!.workoutExercises.where((e) => e.id != ex.id).toList());
-        }
-      });
-      return;
-    }
-
-    final entry = WorkoutRepository.journalEntryById(_journalEntries, journalId);
-    if (entry == null) return;
-
-    final remainingIds = WorkoutRepository.workoutIdsFrom(entry).where((id) => id != ex.id).toList();
-    await _forgetExerciseSection(ex.id);
-    await _persistJournalEntry(journalId: journalId, workoutIds: remainingIds);
   }
 
   Future<void> _reorderExercises(List<WorkoutExerciseModel> reordered, bool isWarmup) async {

@@ -256,10 +256,25 @@ class WorkoutRepository {
     final workoutItems = entry['workout'];
     if (workoutItems is List) {
       for (final item in workoutItems) {
-        if (item is! Map) continue;
-        final map = Map<String, dynamic>.from(item);
-        final exercise = workoutExerciseFromApi(map, exerciseType: JournalExerciseType.workout);
-        workoutExercises.add(exercise.copyWith(exerciseType: JournalExerciseType.workout));
+        if (item is Map) {
+          final map = Map<String, dynamic>.from(item);
+          final exercise = workoutExerciseFromApi(map, exerciseType: JournalExerciseType.workout);
+          workoutExercises.add(exercise.copyWith(exerciseType: JournalExerciseType.workout));
+          continue;
+        }
+        final workoutId = _mongoId(item);
+        if (workoutId != null) {
+          workoutExercises.add(
+            WorkoutExerciseModel(
+              id: workoutId,
+              exerciseName: '',
+              exerciseId: '',
+              sets: const [],
+              date: createdAt,
+              createdAt: createdAt,
+            ),
+          );
+        }
       }
     }
 
@@ -876,6 +891,24 @@ class WorkoutRepository {
     return Map<String, dynamic>.from(raw as Map);
   }
 
+  /// `DELETE /customer/workout/:workoutId` — only after unlinking from journal entries.
+  Future<void> deleteWorkout(String workoutId) async {
+    if (!isValidMongoId(workoutId)) throw Exception('Invalid workout id');
+    final raw = await _network.delete(AppUrl.customerWorkoutDelete(workoutId));
+    if (!_isOk(raw)) {
+      throw Exception(_messageFrom(raw) ?? 'Could not delete workout');
+    }
+  }
+
+  /// `DELETE /customer/workout-journal/:journalId`.
+  Future<void> deleteWorkoutJournal(String journalId) async {
+    if (!isValidMongoId(journalId)) throw Exception('Invalid journal id');
+    final raw = await _network.delete(AppUrl.customerWorkoutJournalDelete(journalId));
+    if (!_isOk(raw)) {
+      throw Exception(_messageFrom(raw) ?? 'Could not delete workout journal');
+    }
+  }
+
   /// Journal id returned when `POST /customer/workout` auto-creates today's journal.
   static String? journalIdFromCreateWorkout(dynamic response) => journalIdFrom(response);
 
@@ -890,11 +923,9 @@ class WorkoutRepository {
       if (journalDoc is Map) {
         final doc = Map<String, dynamic>.from(journalDoc);
         final workoutRefs = doc['workout'];
-        if (workoutRefs is List) {
-          for (final ref in workoutRefs.reversed) {
-            final id = _mongoId(ref);
-            if (id != null) return id;
-          }
+        if (workoutRefs is List && workoutRefs.isNotEmpty) {
+          final id = _mongoId(workoutRefs.last);
+          if (id != null) return id;
         }
       }
       for (final key in ['workout', 'createdWorkout', 'result']) {

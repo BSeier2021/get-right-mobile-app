@@ -58,6 +58,9 @@ class AuthRepository {
       AppUrl.signIn,
       {"email": email.trim(), "password": password, "deviceType": deviceType, "deviceToken": deviceToken},
       headers: {"Authorization": "yNaHwJpGFSquIkXP"},
+      // Fail fast on login — no multi-minute retry loops for auth errors.
+      timeoutSeconds: 15,
+      maxRetries: 0,
     );
     return response;
   }

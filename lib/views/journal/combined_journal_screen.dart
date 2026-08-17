@@ -91,6 +91,14 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
     );
   }
 
+  void _openHomeDrawer() {
+    if (Get.isRegistered<HomeNavigationController>()) {
+      Get.find<HomeNavigationController>().openDrawer();
+      return;
+    }
+    Scaffold.maybeOf(context)?.openDrawer();
+  }
+
   @override
   void dispose() {
     _isDisposed = true;
@@ -136,10 +144,31 @@ class _CombinedJournalScreenState extends State<CombinedJournalScreen> with Sing
               clipBehavior: Clip.none,
               children: [
                 IconButton(
-                  icon: Image.asset('assets/images/humburger.png', width: 25.w),
-                  onPressed: () => Scaffold.of(context).openDrawer(),
+                  icon: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 22.w,
+                        height: 2.5,
+                        margin: EdgeInsets.only(bottom: 4.h),
+                        decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(2)),
+                      ),
+                      Container(
+                        width: 18.w,
+                        height: 2.5,
+                        margin: EdgeInsets.only(bottom: 4.h),
+                        decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(2)),
+                      ),
+                      Container(
+                        width: 14.w,
+                        height: 2.5,
+                        decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(2)),
+                      ),
+                    ],
+                  ),
+                  onPressed: _openHomeDrawer,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                 ).paddingOnly(left: 10),
                 if (unreadCount > 0)
                   Positioned(

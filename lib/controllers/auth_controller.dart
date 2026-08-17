@@ -17,6 +17,7 @@ import 'package:get_right/models/food_log_detail.dart';
 import 'package:get_right/models/nutrition_custom_foods_page.dart';
 import 'package:get_right/models/nutrition_meal_type_option.dart';
 import 'package:get_right/constants/app_constants.dart';
+import 'package:get_right/constants/walkthrough_auth.dart';
 import 'package:get_right/controllers/chat_controller.dart';
 import 'package:get_right/controllers/notification_controller.dart';
 import 'package:get_right/repo/auth_repo.dart';
@@ -57,6 +58,17 @@ bool _isAccountBlockedMessage(String? message) {
   final m = message?.trim().toLowerCase() ?? '';
   if (m.isEmpty) return false;
   return m.contains('blocked') || m.contains('administrator');
+}
+
+bool _isWalkthroughPayload(Map<String, dynamic>? data) {
+  if (data == null) return false;
+  bool flag(dynamic v) => v == true || v == 1 || v?.toString().toLowerCase() == 'true';
+  if (flag(data['isWalkthrough']) || flag(data['is_walkthrough'])) return true;
+  final user = data['user'];
+  if (user is Map<String, dynamic>) {
+    return flag(user['isWalkthrough']) || flag(user['is_walkthrough']);
+  }
+  return false;
 }
 
 /// Auth controller: signup, OTP, and login flows (signup uses live API).
@@ -130,6 +142,9 @@ class AuthController extends GetxController {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  /// Seeded demo account — OTP/profile skipped; not a real customer.
+  bool get isWalkthrough => _storageService.isWalkthrough();
+
   List<UserPreferenceOption> _preferences = [];
   List<UserPreferenceOption> get preferences => List.unmodifiable(_preferences);
 
@@ -186,6 +201,8 @@ class AuthController extends GetxController {
 
   String? _tempEmail;
   String? _pendingSignupUserId;
+  /// When true, walkthrough OTP continues to profile setup (signup). Login goes home after OTP.
+  bool _walkthroughFromSignup = false;
 
   /// Set after successful forgot-password API; used when navigating to OTP / reset.
   String? _forgotPasswordUserId;
@@ -267,6 +284,7 @@ class AuthController extends GetxController {
 
   /// Opens the chat socket once a JWT is available (login, OTP, auto-login, create profile).
   Future<void> _connectChatSocketAfterAuth() async {
+    if (_storageService.isWalkthrough()) return;
     try {
       await ChatSocketService.instance.connectAfterAuth();
       if (Get.isRegistered<NotificationController>()) {
@@ -336,12 +354,39 @@ class AuthController extends GetxController {
     return _storageService.isLoggedIn();
   }
 
+  bool _loadWalkthroughOnboardingCatalogs() {
+    if (!_storageService.isWalkthrough()) return false;
+    _preferences = const [
+      UserPreferenceOption(id: 'wt-pref-1', name: 'General Fitness', value: 'general_fitness', description: 'Walkthrough option'),
+      UserPreferenceOption(id: 'wt-pref-2', name: 'Strength Training', value: 'strength_training', description: 'Walkthrough option'),
+    ];
+    _goals = const [
+      UserGoalOption(id: 'wt-goal-1', name: 'Stay Healthy', value: 'stay_healthy'),
+      UserGoalOption(id: 'wt-goal-2', name: 'Build Muscle', value: 'build_muscle'),
+    ];
+    _fitnessLevels = const [
+      FitnessLevelOption(value: 'Beginner', title: 'Beginner', description: 'Walkthrough option'),
+      FitnessLevelOption(value: 'Intermediate', title: 'Intermediate', description: 'Walkthrough option'),
+    ];
+    _exercisePlans = const [
+      ExercisePlanOption(value: 'ThreeTimesaWeek', title: '3x / week', description: 'Walkthrough option'),
+      ExercisePlanOption(value: 'Daily', title: 'Daily', description: 'Walkthrough option'),
+    ];
+    _preferencesError = null;
+    _goalsError = null;
+    _fitnessLevelsError = null;
+    _exercisePlansError = null;
+    return true;
+  }
+
   /// Loads `GET /user/preferences` → `data.preferences` for onboarding preference step.
   Future<void> fetchPreferences() async {
     try {
       _preferencesLoading = true;
       _preferencesError = null;
       update();
+
+      if (_loadWalkthroughOnboardingCatalogs()) return;
 
       _syncNetworkBearerFromStorage();
       final response = await _authRepo.getPreferencesRepo();
@@ -415,6 +460,8 @@ class AuthController extends GetxController {
       _goalsError = null;
       update();
 
+      if (_loadWalkthroughOnboardingCatalogs()) return;
+
       _syncNetworkBearerFromStorage();
       final response = await _authRepo.getGoalsRepo();
 
@@ -487,6 +534,8 @@ class AuthController extends GetxController {
       _fitnessLevelsError = null;
       update();
 
+      if (_loadWalkthroughOnboardingCatalogs()) return;
+
       _syncNetworkBearerFromStorage();
       final response = await _authRepo.getFitnessLevelsRepo();
 
@@ -558,6 +607,8 @@ class AuthController extends GetxController {
       _exercisePlansLoading = true;
       _exercisePlansError = null;
       update();
+
+      if (_loadWalkthroughOnboardingCatalogs()) return;
 
       _syncNetworkBearerFromStorage();
       final response = await _authRepo.getExercisePlansRepo();
@@ -715,6 +766,19 @@ class AuthController extends GetxController {
   /// Loads `GET /customer/profile` and parses into [customerProfile]; syncs key fields to [StorageService].
   Future<void> fetchCustomerProfile() async {
     if (!isLoggedIn() || _accountBlockLogoutInProgress) return;
+    if (_storageService.isWalkthrough()) {
+      _customerProfile = CustomerProfileDto(
+        userId: WalkthroughAuth.userId,
+        email: WalkthroughAuth.email,
+        isVerified: true,
+        isProfileCompleted: true,
+        fullName: _storageService.getName() ?? WalkthroughAuth.name,
+      );
+      _customerProfileLoading = false;
+      _customerProfileError = null;
+      update();
+      return;
+    }
     try {
       _customerProfileLoading = true;
       _customerProfileError = null;
@@ -1585,12 +1649,74 @@ class AuthController extends GetxController {
     };
   }
 
+  bool _isWalkthroughSession({String? email, String? userId}) {
+    return _storageService.isWalkthrough() ||
+        WalkthroughAuth.matchesEmail(email) ||
+        WalkthroughAuth.matchesEmail(_tempEmail) ||
+        WalkthroughAuth.matchesUserId(userId);
+  }
+
+  void _showWalkthroughOtpHint() {
+    Get.snackbar(
+      'Walkthrough',
+      'Demo code is ${WalkthroughAuth.otp} — no email is sent.',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
+  Future<void> _prepareWalkthroughOtp({required bool fromSignup, required String email}) async {
+    _walkthroughFromSignup = fromSignup;
+    _tempEmail = WalkthroughAuth.email;
+    _pendingSignupUserId = WalkthroughAuth.userId;
+    await _storageService.saveWalkthrough(true);
+    await _storageService.saveEmail(WalkthroughAuth.email);
+    await _storageService.saveUserId(WalkthroughAuth.userId);
+    await _storageService.saveName(WalkthroughAuth.name);
+    if (Get.isRegistered<LocalStorage>()) {
+      Get.find<LocalStorage>().saveuserid(WalkthroughAuth.userId);
+    } else {
+      Get.put(LocalStorage()).saveuserid(WalkthroughAuth.userId);
+    }
+  }
+
+  Future<void> _finishWalkthroughSession() async {
+    await _storageService.saveWalkthrough(true);
+    await _storageService.saveEmail(WalkthroughAuth.email);
+    await _storageService.saveUserId(WalkthroughAuth.userId);
+    await _storageService.saveName(WalkthroughAuth.name);
+    await _persistAccessToken(WalkthroughAuth.token);
+    _customerProfile = CustomerProfileDto(
+      userId: WalkthroughAuth.userId,
+      email: WalkthroughAuth.email,
+      isVerified: true,
+      isProfileCompleted: true,
+      fullName: WalkthroughAuth.name,
+    );
+    update();
+  }
+
   /// Login via `POST /user/auth/login` with email, password, deviceType, deviceToken.
   /// When [rememberMe] is true, email and password are stored in [LocalStorage] for the next visit.
   Future<LoginStatus> login({required String email, required String password, bool rememberMe = false}) async {
     try {
       _isLoading = true;
       update();
+
+      if (WalkthroughAuth.matchesEmail(email)) {
+        if (!WalkthroughAuth.matchesPassword(password)) {
+          _snackError('Login', 'Incorrect password');
+          return LoginStatus.failed;
+        }
+        await _prepareWalkthroughOtp(fromSignup: false, email: email);
+        _persistRememberMeCredentials(rememberMe, WalkthroughAuth.email, password);
+        _showWalkthroughOtpHint();
+        Get.offAllNamed(AppRoutes.otp, arguments: {
+          'email': WalkthroughAuth.email,
+          'userId': WalkthroughAuth.userId,
+          'fromSignup': false,
+        });
+        return LoginStatus.success;
+      }
 
       final deviceToken = await _ensureDeviceToken();
       final response = await _authRepo.loginRepo(email: email, password: password, deviceType: _deviceTypeLabel(), deviceToken: deviceToken);
@@ -1621,6 +1747,7 @@ class AuthController extends GetxController {
       var needsProfileSetup = false;
       if (data is Map<String, dynamic>) {
         await _applyLoginSessionFromData(data);
+        await _storageService.saveWalkthrough(_isWalkthroughPayload(data));
 
         needsEmailVerification = _isExplicitlyFalse(data['isVerified']) || _isExplicitlyFalse(data['is_verified']);
         if (!needsEmailVerification) {
@@ -1644,6 +1771,11 @@ class AuthController extends GetxController {
               needsProfileSetup = needsProfileSetup || _isExplicitlyFalse(profile['isProfileCompleted']) || _isExplicitlyFalse(profile['is_profile_completed']);
             }
           }
+        }
+
+        if (_isWalkthroughPayload(data)) {
+          needsEmailVerification = false;
+          needsProfileSetup = false;
         }
       }
       final resolvedEmail = emailToStore?.trim();
@@ -1675,7 +1807,9 @@ class AuthController extends GetxController {
       _persistRememberMeCredentials(rememberMe, (resolvedEmail != null && resolvedEmail.isNotEmpty) ? resolvedEmail : email.trim(), password);
 
       final message = response['message']?.toString();
-      if (message != null && message.isNotEmpty) {
+      if (_isWalkthroughPayload(data is Map<String, dynamic> ? data : null)) {
+        Get.snackbar('Walkthrough', 'You are in demo mode — this is not a real user account.', snackPosition: SnackPosition.BOTTOM);
+      } else if (message != null && message.isNotEmpty) {
         Get.snackbar('Welcome', message, snackPosition: SnackPosition.BOTTOM);
       }
 
@@ -1712,8 +1846,8 @@ class AuthController extends GetxController {
         'Check your connection, or confirm the Get Right API is reachable.',
       );
       return LoginStatus.failed;
-    } on RequestTimeoutException catch (e) {
-      _snackError('Login', e.message);
+    } on RequestTimeoutException {
+      _snackError('Login', 'The server is taking too long to respond. Please try again.');
       return LoginStatus.failed;
     } on ServerException catch (e) {
       _snackError('Login', e.message);
@@ -1774,6 +1908,7 @@ class AuthController extends GetxController {
       }
 
       await _applyLoginSessionFromData(data);
+      await _storageService.saveWalkthrough(_isWalkthroughPayload(data));
 
       needsEmailVerification = _isExplicitlyFalse(data['isVerified']) || _isExplicitlyFalse(data['is_verified']);
       if (!needsEmailVerification) {
@@ -1797,6 +1932,11 @@ class AuthController extends GetxController {
             needsProfileSetup = needsProfileSetup || _isExplicitlyFalse(profile['isProfileCompleted']) || _isExplicitlyFalse(profile['is_profile_completed']);
           }
         }
+      }
+
+      if (_isWalkthroughPayload(data)) {
+        needsEmailVerification = false;
+        needsProfileSetup = false;
       }
     }
     final resolvedEmail = emailToStore?.trim();
@@ -1836,6 +1976,10 @@ class AuthController extends GetxController {
   Future<String?> tryAutoLoginAndRouteFromSplash() async {
     _autoLoginOtpArgs = null;
     await _ensurePersistedJwtSyncedForBearer();
+    if (_storageService.isWalkthrough() && _hasStoredJwtForAutoLogin()) {
+      await _finishWalkthroughSession();
+      return AppRoutes.home;
+    }
     if (!_hasStoredJwtForAutoLogin()) return null;
 
     try {
@@ -1887,6 +2031,17 @@ class AuthController extends GetxController {
     try {
       _isLoading = true;
       update();
+
+      if (WalkthroughAuth.matchesEmail(email)) {
+        if (!WalkthroughAuth.matchesPassword(password)) {
+          _snackError('Sign up', 'Use the walkthrough password: ${WalkthroughAuth.password}');
+          return false;
+        }
+        await _clearLocalAuthSession();
+        await _prepareWalkthroughOtp(fromSignup: true, email: email);
+        _showWalkthroughOtpHint();
+        return true;
+      }
 
       final deviceToken = await _ensureDeviceToken();
       final response = await _authRepo.signUp(email: email, password: password, deviceType: _deviceTypeLabel(), deviceToken: deviceToken, role: role);
@@ -2049,6 +2204,32 @@ class AuthController extends GetxController {
       _isLoading = true;
       update();
 
+      if (_isWalkthroughSession(userId: userId)) {
+        if (!WalkthroughAuth.matchesOtp(otp)) {
+          _snackError('Verification', 'Demo code is ${WalkthroughAuth.otp}');
+          return false;
+        }
+        if (forgotPasswordFlow) {
+          await _persistAccessToken(WalkthroughAuth.token);
+          _tempEmail = null;
+          _forgotPasswordUserId = null;
+          Get.snackbar('Verified', 'Walkthrough reset — no email was sent.', snackPosition: SnackPosition.BOTTOM);
+          _scheduleGetNavigation(() => Get.offNamed(AppRoutes.resetPassword));
+          return true;
+        }
+        await _finishWalkthroughSession();
+        _tempEmail = null;
+        _pendingSignupUserId = null;
+        Get.snackbar('Verified', 'Walkthrough code accepted.', snackPosition: SnackPosition.BOTTOM);
+        if (_walkthroughFromSignup) {
+          _walkthroughFromSignup = false;
+          _scheduleGetNavigation(() => Get.offNamed(AppRoutes.profileSetup));
+        } else {
+          _scheduleGetNavigation(() => Get.offAllNamed(AppRoutes.home));
+        }
+        return true;
+      }
+
       final response = await _authRepo.verifyOTPRepo(userId: userId, otp: otp);
 
       if (response is! Map<String, dynamic>) {
@@ -2169,6 +2350,11 @@ class AuthController extends GetxController {
         return;
       }
 
+      if (_isWalkthroughSession(email: resolved)) {
+        _showWalkthroughOtpHint();
+        return;
+      }
+
       final response = forgotPasswordFlow ? await _authRepo.forgotPasswordRepo(email: resolved) : await _authRepo.sendOtpRepo(email: resolved);
       if (response is! Map<String, dynamic>) {
         _snackError('Resend OTP', 'Unexpected response from server');
@@ -2218,6 +2404,22 @@ class AuthController extends GetxController {
 
       final trimmedBio = bio?.trim();
       await _storageService.remove('user_bio');
+
+      if (_storageService.isWalkthrough() || WalkthroughAuth.matchesEmail(_storageService.getEmail())) {
+        await _storageService.saveWalkthrough(true);
+        await _storageService.saveName(fullName.trim());
+        await _storageService.saveString('user_date_of_birth', dateofbirth);
+        await _storageService.saveString('user_gender', gender);
+        await _storageService.saveString('user_phone', phoneNumber.trim());
+        await _storageService.saveString('user_weight', weight.toString());
+        if (trimmedBio != null && trimmedBio.isNotEmpty) {
+          await _storageService.saveString('user_bio', trimmedBio);
+        }
+        await _finishWalkthroughSession();
+        Get.snackbar('Walkthrough', 'Profile saved locally — no API call.', snackPosition: SnackPosition.BOTTOM);
+        Get.offNamed(AppRoutes.preferenceSelection);
+        return true;
+      }
 
       final response = await _authRepo.createProfileRepo(
         fullName: fullName,
@@ -2392,6 +2594,24 @@ class AuthController extends GetxController {
       final freqRaw = exerciseFrequency?.trim();
       final freq = (freqRaw != null && freqRaw.isNotEmpty) ? freqRaw : null;
 
+      if (_storageService.isWalkthrough()) {
+        final prefName = args['preference']?.toString();
+        if (prefName != null && prefName.trim().isNotEmpty) {
+          await _storageService.saveUserPreference(prefName.trim());
+        }
+        final goalNames = args['goals'];
+        if (goalNames is List && goalNames.isNotEmpty) {
+          await _storageService.saveUserGoals(goalNames.map((e) => e.toString()).where((e) => e.trim().isNotEmpty).toList());
+        }
+        if (fitnessLevel != null) {
+          await _storageService.saveFitnessLevel(fitnessLevel);
+        }
+        if (freq != null) {
+          await _storageService.saveExerciseFrequency(freq);
+        }
+        return true;
+      }
+
       final response = await _authRepo.updateProfileRepo(
         fullName: _storageService.getName(),
         dateofbirth: _storageService.getString('user_date_of_birth'),
@@ -2478,6 +2698,10 @@ class AuthController extends GetxController {
     try {
       _isLoading = true;
       update();
+      if (_storageService.isWalkthrough()) {
+        await _storageService.saveName(fullName.trim());
+        return true;
+      }
       _syncNetworkBearerFromStorage();
 
       final response = await _authRepo.updateProfileRepo(
@@ -2588,6 +2812,13 @@ class AuthController extends GetxController {
       _isLoading = true;
       update();
 
+      if (WalkthroughAuth.matchesEmail(trimmed)) {
+        await _prepareWalkthroughOtp(fromSignup: false, email: trimmed);
+        _forgotPasswordUserId = WalkthroughAuth.userId;
+        _showWalkthroughOtpHint();
+        return true;
+      }
+
       final response = await _authRepo.forgotPasswordRepo(email: trimmed);
 
       if (response is! Map<String, dynamic>) {
@@ -2663,6 +2894,17 @@ class AuthController extends GetxController {
     try {
       _isLoading = true;
       update();
+
+      if (_storageService.isWalkthrough() || WalkthroughAuth.matchesEmail(_storageService.getEmail())) {
+        Get.snackbar(
+          'Walkthrough',
+          'Password reset locally — sign in again with ${WalkthroughAuth.password}.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        await _purgeLocalSession();
+        _scheduleGetNavigation(() => Get.offAllNamed(AppRoutes.login));
+        return true;
+      }
 
       _syncNetworkBearerFromStorage();
       final response = await _authRepo.resetPasswordRepo(password: trimmed);

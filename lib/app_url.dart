@@ -335,6 +335,12 @@ class AppUrl {
   /// `PUT /customer/workout/:workoutId` — body: `name`, `exercise[]`.
   static String customerWorkoutById(String workoutId) => '$baseUrl/customer/workout/${workoutId.trim()}';
 
+  /// `DELETE /customer/workout/:workoutId`.
+  static String customerWorkoutDelete(String workoutId) => '$baseUrl/customer/workout/${workoutId.trim()}';
+
+  /// `DELETE /customer/workout-journal/:journalId`.
+  static String customerWorkoutJournalDelete(String journalId) => '$baseUrl/customer/workout-journal/${journalId.trim()}';
+
   /// `POST /customer/running-logs` — body: `runningType`, `distance`, `duration`, `startTime`, `endTime`, `route`, `elevationGain`, `routePoints`, `caloriesBurned`.
   static String get customerRunningLogs => '$baseUrl/customer/running-logs';
 

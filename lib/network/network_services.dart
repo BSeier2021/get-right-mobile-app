@@ -196,10 +196,15 @@ class NetworkApiService extends GetxService {
   }
 
   /// Centralized method to send requests with retry logic and timeout handling.
-  Future<dynamic> _sendRequest(Future<http.Response> Function() requestFunc, {int retryCount = 0}) async {
+  Future<dynamic> _sendRequest(
+    Future<http.Response> Function() requestFunc, {
+    int retryCount = 0,
+    int timeoutSeconds = _defaultTimeoutSeconds,
+    int maxRetries = _maxRetries,
+  }) async {
     try {
       Utils.logInfo("Sending network request (Attempt ${retryCount + 1})", name: "NetworkApiService");
-      final response = await requestFunc().timeout(Duration(seconds: _defaultTimeoutSeconds));
+      final response = await requestFunc().timeout(Duration(seconds: timeoutSeconds));
       _logResponse(response);
       return _processResponse(response);
     } on SocketException {
@@ -207,10 +212,15 @@ class NetworkApiService extends GetxService {
       throw NoInternetException("No Internet Connection");
     } on TimeoutException {
       Utils.logError("TimeoutException: Request timed out", name: "NetworkApiService");
-      if (retryCount < _maxRetries) {
-        Utils.logInfo("Retrying request (${retryCount + 1}/$_maxRetries)", name: "NetworkApiService");
+      if (retryCount < maxRetries) {
+        Utils.logInfo("Retrying request (${retryCount + 1}/$maxRetries)", name: "NetworkApiService");
         await Future.delayed(Duration(seconds: 2 * (retryCount + 1)));
-        return _sendRequest(requestFunc, retryCount: retryCount + 1);
+        return _sendRequest(
+          requestFunc,
+          retryCount: retryCount + 1,
+          timeoutSeconds: timeoutSeconds,
+          maxRetries: maxRetries,
+        );
       }
       throw RequestTimeoutException("Request timed out");
     } catch (e) {
@@ -230,7 +240,14 @@ class NetworkApiService extends GetxService {
     return _sendRequest(() => http.get(uri, headers: _defaultHeaders(customHeaders: headers)));
   }
 
-  Future<dynamic> post(String url, dynamic data, {Map<String, String>? headers, Map<String, dynamic>? params}) async {
+  Future<dynamic> post(
+    String url,
+    dynamic data, {
+    Map<String, String>? headers,
+    Map<String, dynamic>? params,
+    int? timeoutSeconds,
+    int? maxRetries,
+  }) async {
     Utils.logInfo("Preparing POST request to: $url", name: "NetworkApiService");
     Utils.logInfo("Request payload: $data", name: "NetworkApiService");
 
@@ -241,6 +258,8 @@ class NetworkApiService extends GetxService {
         headers: _defaultHeaders(customHeaders: headers),
         body: jsonEncode(data),
       ),
+      timeoutSeconds: timeoutSeconds ?? _defaultTimeoutSeconds,
+      maxRetries: maxRetries ?? _maxRetries,
     );
   }
 

@@ -165,6 +165,14 @@ class StorageService {
     return await saveBool(AppConstants.keyOnboardingComplete, true);
   }
 
+  Future<bool> saveWalkthrough(bool value) async {
+    return await saveBool(AppConstants.keyIsWalkthrough, value);
+  }
+
+  bool isWalkthrough() {
+    return getBool(AppConstants.keyIsWalkthrough) ?? false;
+  }
+
   /// Logout - clear all auth data
   Future<bool> logout() async {
     await remove(AppConstants.keyUserToken);
@@ -173,6 +181,7 @@ class StorageService {
     await remove(AppConstants.keyUserName);
     await remove(AppConstants.keyUserPhotoUrl);
     await remove('user_bio');
+    await saveBool(AppConstants.keyIsWalkthrough, false);
     return await saveBool(AppConstants.keyIsLoggedIn, false);
   }
 

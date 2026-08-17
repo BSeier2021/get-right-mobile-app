@@ -23,6 +23,8 @@ class AppConstants {
   static const String keyUserName = 'user_name';
   static const String keyUserPhotoUrl = 'user_photo_url';
   static const String keyOnboardingComplete = 'onboarding_complete';
+  /// Seeded demo account — skip treating this session as a real customer.
+  static const String keyIsWalkthrough = 'is_walkthrough';
   static const String keyUserPreference = 'user_preference';
   static const String keyUserGoals = 'user_goals';
   static const String keyFitnessLevel = 'fitness_level';
