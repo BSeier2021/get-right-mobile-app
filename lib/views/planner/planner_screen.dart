@@ -15,7 +15,6 @@ import 'package:get_right/theme/color_constants.dart';
 import 'package:get_right/theme/text_styles.dart';
 import 'package:get_right/views/planner/add_date_screen.dart';
 import 'package:get_right/views/planner/calendar_type_dialog.dart';
-import 'package:get_right/views/home/dashboard_screen.dart';
 import 'package:get_right/widgets/safe_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -35,7 +34,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
   DateTime _selectedDate = DateTime.now();
   DateTime _focusedMonth = DateTime.now();
   bool _isCalendarCollapsed = false;
-  bool _showFullDayDetail = false;
   final ImagePicker _imagePicker = ImagePicker();
   final CalendarRepository _calendarRepo = CalendarRepository();
 
@@ -260,7 +258,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   Future<void> _onRefresh() async {
     await _loadCalendarMonth(isRefresh: true);
-    await _loadSelectedDayDetail(isRefresh: true);
+    if (_isCalendarCollapsed) {
+      await _loadSelectedDayDetail(isRefresh: true);
+    }
   }
 
   Future<void> _loadCalendarMonth({bool isRefresh = false}) async {
@@ -292,7 +292,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         _isLoadingCalendar = false;
       });
       await _applyStoredRunCaloriesToDayData();
-      if (_pendingDayDetailLoad || CalendarRepository.entryIdForDate(_dayData, _selectedDate) != null) {
+      if (_pendingDayDetailLoad || _isCalendarCollapsed) {
         await _loadSelectedDayDetail();
       }
     } catch (e) {
@@ -313,70 +313,17 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _selectDate(DateTime date) {
-    final normalized = DateTime(date.year, date.month, date.day);
-    final monthChanged = _focusedMonth.year != normalized.year || _focusedMonth.month != normalized.month;
     setState(() {
-      _selectedDate = normalized;
-      _isCalendarCollapsed = false;
-      _showFullDayDetail = false;
+      _selectedDate = date;
+      _isCalendarCollapsed = true;
       _dayDetailError = null;
       _progressPhotoPageIndex = 0;
       _pendingDayDetailLoad = true;
-      if (monthChanged) {
-        _focusedMonth = DateTime(normalized.year, normalized.month, 1);
-      }
     });
     if (_progressPhotoPageController.hasClients) {
       _progressPhotoPageController.jumpToPage(0);
     }
-    if (monthChanged) {
-      _loadCalendarMonth();
-    } else {
-      _loadSelectedDayDetail();
-    }
-  }
-
-  String? _journalIdForSelectedDate() {
-    final data = _getDataForDate(_selectedDate);
-    final workout = data?['workout'];
-    if (workout is Map) {
-      final id = workout['journalId']?.toString().trim();
-      if (WorkoutRepository.isValidMongoId(id)) return id;
-    }
-    final journalId = data?['workoutJournalId']?.toString().trim() ?? data?['journalId']?.toString().trim();
-    if (WorkoutRepository.isValidMongoId(journalId)) return journalId;
-    return null;
-  }
-
-  /// Opens the Workout Journal for the selected calendar day (past log or future plan).
-  void _openSelectedDateJournal() {
-    final journalId = _journalIdForSelectedDate();
-    final contextArgs = {
-      'date': _selectedDate.toIso8601String(),
-      if (journalId != null) 'journalId': journalId,
-      'startFresh': false,
-    };
-
-    if (Get.isRegistered<HomeNavigationController>()) {
-      if (Get.currentRoute != AppRoutes.home) {
-        Get.until((route) => route.settings.name == AppRoutes.home || route.isFirst);
-      }
-      if (Get.currentRoute == AppRoutes.home) {
-        final nav = Get.find<HomeNavigationController>();
-        nav.changeTab(2, journalTab: 0);
-        nav.setJournalPlannerContext(date: _selectedDate, journalId: journalId);
-        return;
-      }
-    }
-
-    Get.offNamed(
-      AppRoutes.home,
-      arguments: {
-        'navigateToTab': 2,
-        'journalTabIndex': 0,
-        'journalPlannerContext': contextArgs,
-      },
-    );
+    _loadSelectedDayDetail();
   }
 
   Future<void> _loadSelectedDayDetail({bool isRefresh = false}) async {
@@ -541,150 +488,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
     if (status == 'rest') return const Color(0xFF4A90E2);
 
     return Colors.transparent;
-  }
-
-  bool _dayHasActivity(DateTime date) {
-    final data = _getDataForDate(date);
-    if (data == null) return false;
-    return _dayHasVisibleContent(data) || _hasCalendarEntry(data);
-  }
-
-  String _formatDurationHms(int seconds) {
-    if (seconds <= 0) return '--:--';
-    final hours = seconds ~/ 3600;
-    final minutes = (seconds % 3600) ~/ 60;
-    final secs = seconds % 60;
-    if (hours > 0) {
-      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
-    }
-    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
-  }
-
-  ({String? label, Color color}) _selectedDayStatusInfo(Map<String, dynamic>? data) {
-    if (data == null) return (label: null, color: AppColors.primaryGray);
-    if (_isCalendarDayMarkedRest(data)) {
-      return (label: 'Rest Day', color: const Color(0xFF4A90E2));
-    }
-    final program = data['program'];
-    if (program is Map && _hasCalendarEntry(data)) {
-      final programMap = Map<String, dynamic>.from(program);
-      return switch (programMap['status']?.toString().toLowerCase()) {
-        'completed' => (label: 'Completed', color: AppColors.completed),
-        'incomplete' => (label: 'Incomplete', color: const Color(0xFFE74C3C)),
-        'rest' => (label: 'Rest Day', color: const Color(0xFF4A90E2)),
-        _ => (label: _programScheduleStatusLabel(programMap).isNotEmpty ? _programScheduleStatusLabel(programMap) : 'Scheduled', color: AppColors.accent),
-      };
-    }
-    return switch (data['workoutStatus']?.toString()) {
-      'completed' => (label: 'Completed', color: AppColors.completed),
-      'incomplete' => (label: 'Incomplete', color: const Color(0xFFE74C3C)),
-      'inprogress' => (label: 'In Progress', color: AppColors.accent),
-      'rest' => (label: 'Rest Day', color: const Color(0xFF4A90E2)),
-      _ => (label: null, color: AppColors.primaryGray),
-    };
-  }
-
-  String? _selectedDayWorkoutTitle(Map<String, dynamic>? data) {
-    if (data == null) return null;
-    final program = data['program'];
-    if (program is Map) {
-      final title = program['title']?.toString().trim();
-      if (title != null && title.isNotEmpty) return title;
-    }
-    final workout = data['workout'];
-    if (workout is Map) {
-      final journalType = workout['journalType']?.toString().trim();
-      if (journalType != null && journalType.isNotEmpty) return journalType;
-      final workouts = workout['workouts'];
-      if (workouts is List && workouts.isNotEmpty) {
-        final first = workouts.first;
-        if (first is Map) {
-          final name = first['name']?.toString().trim();
-          if (name != null && name.isNotEmpty) return name;
-        }
-      }
-    }
-    return null;
-  }
-
-  List<({String name, int setCount})> _exercisesForSelectedDay(Map<String, dynamic>? data) {
-    if (data == null) return const [];
-    final results = <({String name, int setCount})>[];
-
-    final workout = data['workout'];
-    if (workout is Map) {
-      final workouts = workout['workouts'];
-      if (workouts is List) {
-        for (final entry in workouts) {
-          if (entry is! Map) continue;
-          final name = entry['name']?.toString().trim();
-          final sets = entry['sets'];
-          final setCount = sets is List ? sets.length : 0;
-          results.add((name: name != null && name.isNotEmpty ? name : 'Exercise', setCount: setCount));
-        }
-      }
-    }
-
-    if (results.isNotEmpty) return results;
-
-    final program = data['program'];
-    if (program is Map) {
-      final programMap = Map<String, dynamic>.from(program);
-      final workoutDays = _programWorkoutDaysList(programMap);
-      if (workoutDays.isNotEmpty) {
-        for (final day in workoutDays) {
-          for (final ex in _exercisesForProgramWorkoutDay(day)) {
-            final name = ex['name']?.toString().trim();
-            final sets = ex['numberOfSets'] ?? ex['sets'];
-            final setCount = sets is num ? sets.toInt() : int.tryParse(sets?.toString() ?? '') ?? 0;
-            results.add((name: name != null && name.isNotEmpty ? name : 'Exercise', setCount: setCount));
-          }
-        }
-        return results;
-      }
-      final exercises = programMap['exercises'];
-      if (exercises is List) {
-        for (final ex in exercises) {
-          if (ex is! Map) continue;
-          final name = ex['name']?.toString().trim();
-          final sets = ex['numberOfSets'] ?? ex['sets'];
-          final setCount = sets is num ? sets.toInt() : int.tryParse(sets?.toString() ?? '') ?? 0;
-          results.add((name: name != null && name.isNotEmpty ? name : 'Exercise', setCount: setCount));
-        }
-      }
-    }
-
-    return results;
-  }
-
-  int _selectedDayDurationSeconds(Map<String, dynamic>? data) {
-    if (data == null) return 0;
-    final workout = data['workout'];
-    if (workout is Map) {
-      final fromField = workout['durationSeconds'];
-      if (fromField is num && fromField > 0) return fromField.toInt();
-      final parsed = workout['duration']?.toString();
-      if (parsed != null && parsed.contains(':')) {
-        final parts = parsed.split(':').map(int.tryParse).toList();
-        if (parts.length == 3 && parts.every((p) => p != null)) {
-          return parts[0]! * 3600 + parts[1]! * 60 + parts[2]!;
-        }
-        if (parts.length == 2 && parts.every((p) => p != null)) {
-          return parts[0]! * 60 + parts[1]!;
-        }
-      }
-    }
-    return CalendarRepository.durationSecondsForDayComplete(data);
-  }
-
-  int _selectedDayCalories(Map<String, dynamic>? data) {
-    if (data == null) return 0;
-    final workout = data['workout'];
-    if (workout is Map) {
-      final calories = workout['calories'];
-      if (calories is num && calories > 0) return calories.toInt();
-    }
-    return 0;
   }
 
   bool _hasProgressPhoto(DateTime date) {
@@ -2648,7 +2451,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
-        elevation: 0,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
@@ -2657,20 +2459,17 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ),
           onPressed: () => Get.back(),
         ),
-        title: Text(
-          'CALENDAR',
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.accent,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.1,
-          ),
-        ),
+        title: Text('Calendar', style: AppTextStyles.titleLarge.copyWith(color: AppColors.black)),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.close, color: AppColors.onSurface),
-            onPressed: () => Get.back(),
-          ),
+          if (_isCalendarCollapsed && _hasDeletableEntry)
+            IconButton(
+              tooltip: 'Delete entry',
+              onPressed: _isDeletingEntry ? null : _confirmDeleteCalendarEntry,
+              icon: _isDeletingEntry
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.error))
+                  : const Icon(Icons.delete_outline, color: AppColors.error),
+            ),
         ],
       ),
       body: RefreshIndicator(
@@ -2679,183 +2478,282 @@ class _PlannerScreenState extends State<PlannerScreen> {
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              _buildMonthSelector(),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  children: ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
-                      .map(
-                        (day) => Expanded(
-                          child: Center(
-                            child: Text(
-                              day,
-                              style: AppTextStyles.labelSmall.copyWith(
-                                color: AppColors.primaryGray,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.4,
-                                fontSize: 10.sp,
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (!_isCalendarCollapsed)
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _buildLegendItem(const Color(0xFFE74C3C), 'Incomplete'),
+                          const SizedBox(width: 8),
+                          _buildLegendItem(const Color(0xFF6FCF97), 'Completed'),
+                          const SizedBox(width: 8),
+                          _buildLegendItem(const Color(0xFF4A90E2), 'Rest Day'),
+                        ],
+                      ),
+                    )
+               
+                  else
+                    const Spacer(),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                        icon: const Icon(Icons.chevron_left, color: AppColors.onSurface),
+                        onPressed: () => _changeFocusedMonth(DateTime(_focusedMonth.year - 1, _focusedMonth.month)),
+                      ),
+                      Text('${_focusedMonth.year}', style: AppTextStyles.titleMedium.copyWith(color: AppColors.onSurface,fontSize: 15.sp)),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                        icon: const Icon(Icons.chevron_right, color: AppColors.onSurface),
+                        onPressed: () => _changeFocusedMonth(DateTime(_focusedMonth.year + 1, _focusedMonth.month)),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              if (_calendarLoadError != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text(
-                    _calendarLoadError!,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+            ),
+
+            // Calendar
+            Column(
+              children: [
+                // Month label (tap to expand/collapse)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isCalendarCollapsed = !_isCalendarCollapsed;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Row(
+                      children: [
+                        Text(
+                          _getMonthName(_focusedMonth.month),
+                          style: AppTextStyles.titleSmall.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(_isCalendarCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, color: AppColors.primaryGray, size: 20),
+                      ],
+                    ),
                   ),
                 ),
-              if (_isLoadingCalendar)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
-                )
-              else
-                _buildCalendarGrid(),
-              const SizedBox(height: 20),
-              _buildDayDetailView(),
-              const SizedBox(height: 80),
-            ],
-          ),
+
+                // Weekday headers
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+                        .map(
+                          (day) => SizedBox(
+                            width: 40,
+                            child: Center(
+                              child: Text(day, style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGray)),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                if (_calendarLoadError != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Text(
+                      _calendarLoadError!,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                    ),
+                  ),
+                if (_isLoadingCalendar)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                  )
+                else
+                  _buildCalendarGrid(),
+                const SizedBox(height: 16),
+
+                // Pagination dots below calendar (hidden when collapsed)
+                if (!_isCalendarCollapsed)
+                  Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.3), shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 4),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 4),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(color: AppColors.primaryGray.withValues(alpha: 0.3), shape: BoxShape.circle),
+                        ),
+                      ],
+                    ),
+                  ).paddingOnly(bottom: 16),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Day detail view (only shown when calendar is collapsed / date selected)
+            if (_isCalendarCollapsed) ...[_buildDayDetailView(), const SizedBox(height: 80)],
+          ],
+        ),
         ),
       ),
     );
   }
 
-  Widget _buildMonthSelector() {
-    final label = DateFormat('MMMM yyyy').format(_focusedMonth);
+  Widget _buildLegendItem(Color color, String label) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        IconButton(
-          visualDensity: VisualDensity.compact,
-          icon: const Icon(Icons.chevron_left, color: AppColors.accent),
-          onPressed: () => _changeFocusedMonth(DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        Text(
-          label,
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.onSurface,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        IconButton(
-          visualDensity: VisualDensity.compact,
-          icon: const Icon(Icons.chevron_right, color: AppColors.accent),
-          onPressed: () => _changeFocusedMonth(DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
-        ),
+        const SizedBox(width: 5),
+        Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray,fontSize: 11.sp)),
       ],
     );
   }
 
   Widget _buildCalendarGrid() {
-    final year = _focusedMonth.year;
-    final month = _focusedMonth.month;
-    final firstDayOfMonth = DateTime(year, month, 1);
-    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+    final lastDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
     final firstWeekday = firstDayOfMonth.weekday % 7;
-    final totalCells = ((firstWeekday + daysInMonth + 6) ~/ 7) * 7;
+    final daysInMonth = lastDayOfMonth.day;
+    final totalItems = firstWeekday + daysInMonth;
+
+    // Determine if we should show collapsed (single week) view
+    final bool isCollapsed = _isCalendarCollapsed && _selectedDate.month == _focusedMonth.month && _selectedDate.year == _focusedMonth.year;
+
+    // Calculate the row that contains the selected date
+    int collapsedRowStart = 0;
+    if (isCollapsed) {
+      final selectedGridIndex = firstWeekday + _selectedDate.day - 1;
+      final selectedRow = selectedGridIndex ~/ 7;
+      collapsedRowStart = selectedRow * 7;
+    }
+
+    final int displayItemCount = isCollapsed ? 7 : totalItems;
 
     return GestureDetector(
       onHorizontalDragEnd: (details) {
-        if (details.primaryVelocity == null) return;
-        if (details.primaryVelocity! < 0) {
-          _changeFocusedMonth(DateTime(_focusedMonth.year, _focusedMonth.month + 1));
-        } else if (details.primaryVelocity! > 0) {
-          _changeFocusedMonth(DateTime(_focusedMonth.year, _focusedMonth.month - 1));
+        if (details.primaryVelocity != null) {
+          if (details.primaryVelocity! < 0) {
+            // Swipe left â†’ next month
+            _changeFocusedMonth(DateTime(_focusedMonth.year, _focusedMonth.month + 1));
+          } else if (details.primaryVelocity! > 0) {
+            // Swipe right â†’ previous month
+            _changeFocusedMonth(DateTime(_focusedMonth.year, _focusedMonth.month - 1));
+          }
         }
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 7,
-            childAspectRatio: 1.05,
-          ),
-          itemCount: totalCells,
-          itemBuilder: (context, index) {
-            final dayNumber = index - firstWeekday + 1;
-            late final DateTime date;
-            late final bool isOutsideMonth;
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: isCollapsed ? 1.0 : 0.75),
+            itemCount: displayItemCount,
+            itemBuilder: (context, index) {
+              // Map builder index to actual grid index
+              final actualIndex = isCollapsed ? (collapsedRowStart + index) : index;
 
-            if (dayNumber < 1) {
-              final prevMonth = DateTime(year, month, 0);
-              date = DateTime(prevMonth.year, prevMonth.month, prevMonth.day + dayNumber);
-              isOutsideMonth = true;
-            } else if (dayNumber > daysInMonth) {
-              date = DateTime(year, month + 1, dayNumber - daysInMonth);
-              isOutsideMonth = true;
-            } else {
-              date = DateTime(year, month, dayNumber);
-              isOutsideMonth = false;
-            }
+              // Empty cell for leading blanks or trailing overflow
+              if (actualIndex < firstWeekday || actualIndex >= totalItems) {
+                return const SizedBox();
+              }
 
-            final isSelected = CalendarRepository.isSameCalendarDay(date, _selectedDate);
-            final isToday = CalendarRepository.isSameCalendarDay(date, DateTime.now());
-            final hasActivity = _dayHasActivity(date);
+              final day = actualIndex - firstWeekday + 1;
+              final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+              final isSelected = _selectedDate.year == date.year && _selectedDate.month == date.month && _selectedDate.day == date.day;
+              final isToday = DateTime.now().year == date.year && DateTime.now().month == date.month && DateTime.now().day == date.day;
+              final dateColor = _getDateColor(date);
 
-            return GestureDetector(
-              onTap: () => _selectDate(date),
-              onLongPress: () {
-                _selectDate(date);
-                _showAddWorkoutDialog();
-              },
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.accent
-                          : isToday
-                              ? AppColors.accent.withValues(alpha: 0.12)
-                              : Colors.transparent,
-                      shape: BoxShape.circle,
-                      border: isToday && !isSelected
-                          ? Border.all(color: AppColors.accent.withValues(alpha: 0.35), width: 1.5)
-                          : null,
-                    ),
-                    child: Text(
-                      '${date.day}',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: isSelected
-                            ? AppColors.onAccent
-                            : isOutsideMonth
-                                ? AppColors.primaryGray.withValues(alpha: 0.45)
-                                : AppColors.onSurface,
-                        fontWeight: isSelected || isToday ? FontWeight.w700 : FontWeight.w500,
+              return GestureDetector(
+                onTap: () => _selectDate(date),
+                onLongPress: () {
+                  _selectDate(date);
+                  _showAddWorkoutDialog();
+                },
+                child: Builder(
+                  builder: (context) {
+                    final int position = actualIndex - firstWeekday;
+                    final int rowIndex = position >= 0 ? (position / 7).floor() : 0;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      decoration: BoxDecoration(
+                        border: !isCollapsed && rowIndex > 0 ? Border(top: BorderSide(color: AppColors.primaryGray.withValues(alpha: 0.3), width: 1)) : null,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: hasActivity && !isSelected ? AppColors.onSurface : Colors.transparent,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: isToday && !isSelected ? Border.all(color: AppColors.accent, width: 1.6) : null,
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            if (isSelected)
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: const BoxDecoration(color: Color(0xFFE74C3C), shape: BoxShape.circle),
+                              ),
+                            Text(
+                              '$day',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: isSelected ? Colors.white : (isToday ? AppColors.onBackground : AppColors.onSurface),
+                                fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                            if (dateColor != Colors.transparent)
+                              Positioned(
+                                bottom: 6,
+                                child: Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(color: dateColor, shape: BoxShape.circle),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -2889,355 +2787,136 @@ class _PlannerScreenState extends State<PlannerScreen> {
     }
 
     final data = _getDataForDate(_selectedDate);
-    final hasContent = data != null && _dayHasVisibleContent(data);
-    final exercises = _exercisesForSelectedDay(data);
-    final statusInfo = _selectedDayStatusInfo(data);
-    final workoutTitle = _selectedDayWorkoutTitle(data);
-    final durationSeconds = _selectedDayDurationSeconds(data);
-    final calories = _selectedDayCalories(data);
+
+    if (data == null || !_dayHasVisibleContent(data)) {
+      return Padding(
+        padding: const EdgeInsets.all(40),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.calendar_month_outlined, size: 60, color: AppColors.green),
+              const SizedBox(height: 16),
+              Text('No data for this day', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.green)),
+              const SizedBox(height: 8),
+              if (_canAddWorkoutToSelectedDay)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Data'),
+                    onPressed: _showAddWorkoutDialog,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      textStyle: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              if (_canAddWorkoutToSelectedDay) const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: const Text('Add Progress Photo'),
+                  onPressed: _addProgressPhoto,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.accent,
+                    side: BorderSide(color: AppColors.accent.withValues(alpha: 0.8)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              _buildDayStatusActions(),
+            ],
+          ),
+        ),
+      );
+    }
+
     final isRestDay = _isCalendarDayMarkedRest(data);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
-                      style: AppTextStyles.titleSmall.copyWith(
-                        color: AppColors.onSurface,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    if (workoutTitle != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        workoutTitle,
-                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
-                      ),
-                    ] else if (isRestDay) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Rest Day',
-                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
-                      ),
-                    ] else if (!hasContent) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        _isSelectedDateInFuture
-                            ? 'No workout planned — open this date to plan ahead'
-                            : CalendarRepository.isSameCalendarDay(_selectedDate, DateTime.now())
-                                ? 'No workout logged yet — open this date to start'
-                                : 'No workout logged — open this date to view or add',
-                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryGray),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (statusInfo.label != null) _buildDayStatusBadge(statusInfo.label!, statusInfo.color),
-            ],
-          ),
-          if (hasContent && !isRestDay && (durationSeconds > 0 || calories > 0)) ...[
-            const SizedBox(height: 16),
-            _buildDayMetricsCard(durationSeconds: durationSeconds, calories: calories),
-          ],
-          if (exercises.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _buildCompactExercisesSection(exercises),
-          ],
           if (isRestDay) ...[
-            const SizedBox(height: 16),
             _buildRestDayBanner(),
-          ],
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _openSelectedDateJournal,
-              icon: const Icon(Icons.open_in_new_rounded, size: 20),
-              label: const Text('Open Date'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: AppColors.onAccent,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-              ),
-            ),
-          ),
-          if (hasContent) ...[
-            const SizedBox(height: 8),
-            Center(
-              child: TextButton(
-                onPressed: () => setState(() => _showFullDayDetail = !_showFullDayDetail),
-                child: Text(_showFullDayDetail ? 'Hide day details' : 'Show day details'),
-              ),
-            ),
-          ],
-          if (_showFullDayDetail && hasContent) ...[
-            const SizedBox(height: 20),
-            if (!_isSelectedDateInFuture) ...[_buildProgressPhotosSection(), const SizedBox(height: 12)],
-            if (data['program'] != null) _buildProgramWorkoutSection(data['program'], dayData: data, isRestDay: isRestDay),
-            if (data['workout'] != null) _buildWorkoutSummarySection(data['workout']),
-            if (CalendarRepository.runsFromDayData(data).isNotEmpty)
-              _buildRunsSection(CalendarRepository.runsFromDayData(data)),
-            if (data['nutrition'] != null) _buildNutritionSummarySection(data['nutrition']),
-            if (CalendarRepository.hasUserNotes(data['notes']?.toString()))
-              _buildNotesSection(CalendarRepository.displayNotesFrom(data['notes']?.toString())),
-            const SizedBox(height: 16),
-            if (_canAddWorkoutToSelectedDay)
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _showAddWorkoutDialog,
-                      icon: const Icon(Icons.add_rounded, size: 20),
-                      label: const Text('Add'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.accent,
-                        side: BorderSide(color: AppColors.accent.withValues(alpha: 0.8)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _shareSelectedDayToChat,
-                      icon: const Icon(Icons.share_rounded, size: 20),
-                      label: const Text('Share'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: AppColors.onAccent,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            else
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _shareSelectedDayToChat,
-                  icon: const Icon(Icons.share_rounded, size: 20),
-                  label: const Text('Share'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.onAccent,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                  ),
-                ),
-              ),
-            if (_hasDeletableEntry) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _isDeletingEntry ? null : _confirmDeleteCalendarEntry,
-                  icon: _isDeletingEntry
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.delete_outline, size: 20),
-                  label: Text(_isDeletingEntry ? 'Deleting...' : 'Delete Entry'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: BorderSide(color: AppColors.error.withValues(alpha: 0.6)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                  ),
-                ),
-              ),
-            ],
-            _buildDayStatusActions(),
-          ] else if (!hasContent) ...[
             const SizedBox(height: 12),
+          ],
+          if (!_isSelectedDateInFuture) ...[_buildProgressPhotosSection(), const SizedBox(height: 12)],
+
+          // Program Workout (mapped from enrolled program)
+          if (data['program'] != null) _buildProgramWorkoutSection(data['program'], dayData: data, isRestDay: isRestDay),
+
+          // Workout Summary
+          if (data['workout'] != null) _buildWorkoutSummarySection(data['workout']),
+
+          // Run summaries (supports multiple running logs per day)
+          if (CalendarRepository.runsFromDayData(data).isNotEmpty)
+            _buildRunsSection(CalendarRepository.runsFromDayData(data)),
+
+          // Nutrition Summary
+          if (data['nutrition'] != null) _buildNutritionSummarySection(data['nutrition']),
+
+          // Notes Section
+          if (CalendarRepository.hasUserNotes(data['notes']?.toString())) _buildNotesSection(CalendarRepository.displayNotesFrom(data['notes']?.toString())),
+
+          const SizedBox(height: 16),
+
+          // Action Buttons
+          if (_canAddWorkoutToSelectedDay)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _showAddWorkoutDialog,
+                    icon: const Icon(Icons.add_rounded, size: 20),
+                    label: const Text('Add'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.accent,
+                      side: BorderSide(color: AppColors.accent.withValues(alpha: 0.8)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _shareSelectedDayToChat,
+                    icon: const Icon(Icons.share_rounded, size: 20),
+                    label: const Text('Share'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.camera_alt_outlined),
-                label: const Text('Add Progress Photo'),
-                onPressed: _addProgressPhoto,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.accent,
-                  side: BorderSide(color: AppColors.accent.withValues(alpha: 0.8)),
+              child: ElevatedButton.icon(
+                onPressed: _shareSelectedDayToChat,
+                icon: const Icon(Icons.share_rounded, size: 20),
+                label: const Text('Share'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: AppColors.onAccent,
+                  elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                 ),
               ),
             ),
-            _buildDayStatusActions(),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDayStatusBadge(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.check_circle, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: AppTextStyles.labelSmall.copyWith(color: color, fontWeight: FontWeight.w700),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDayMetricsCard({required int durationSeconds, required int calories}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryGray.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildDayMetricItem(
-              icon: Icons.timer_outlined,
-              value: _formatDurationHms(durationSeconds),
-              label: 'Total Time',
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 48,
-            color: AppColors.primaryGray.withValues(alpha: 0.2),
-          ),
-          Expanded(
-            child: _buildDayMetricItem(
-              icon: Icons.local_fire_department_outlined,
-              value: calories > 0 ? '$calories' : '—',
-              label: 'Calories',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDayMetricItem({
-    required IconData icon,
-    required String value,
-    required String label,
-  }) {
-    return Column(
-      children: [
-        Icon(icon, color: AppColors.accent, size: 22),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: AppTextStyles.titleSmall.copyWith(
-            color: AppColors.onSurface,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGray),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCompactExercisesSection(List<({String name, int setCount})> exercises) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Exercises',
-              style: AppTextStyles.titleSmall.copyWith(
-                color: AppColors.onSurface,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            Text(
-              '${exercises.length} exercises',
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ...exercises.asMap().entries.map(
-          (entry) => _buildCompactExerciseRow(
-            index: entry.key + 1,
-            name: entry.value.name,
-            setCount: entry.value.setCount,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCompactExerciseRow({
-    required int index,
-    required String name,
-    required int setCount,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.primaryGrayLight.withValues(alpha: 0.8),
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              '$index',
-              style: AppTextStyles.labelSmall.copyWith(
-                color: AppColors.primaryGray,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              name,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.onSurface,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Text(
-            setCount > 0 ? '$setCount sets' : '—',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryGray),
-          ),
-          const SizedBox(width: 8),
-          Icon(Icons.check_circle, color: AppColors.completed, size: 20),
+          _buildDayStatusActions(),
         ],
       ),
     );

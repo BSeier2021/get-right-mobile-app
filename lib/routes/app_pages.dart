@@ -30,9 +30,8 @@ import 'package:get_right/views/journal/program_workout_screen.dart';
 import 'package:get_right/views/journal/workout_journal_screen.dart';
 import 'package:get_right/views/journal/workout_timer_screen.dart';
 import 'package:get_right/views/journal/add_workout_screen.dart';
+import 'package:get_right/views/journal/add_exercise_screen.dart';
 import 'package:get_right/views/journal/new_workout_screen.dart';
-import 'package:get_right/views/journal/journal_exercise_library_screen.dart';
-import 'package:get_right/views/journal/add_to_workout_screen.dart';
 import 'package:get_right/views/journal/exercise_selection_screen.dart';
 import 'package:get_right/views/journal/exercise_configuration_screen.dart';
 import 'package:get_right/views/journal/add_notes_screen.dart';
@@ -41,12 +40,10 @@ import 'package:get_right/views/journal/reorder_exercises_screen.dart';
 import 'package:get_right/views/journal/log_run_screen.dart';
 import 'package:get_right/views/journal/log_meal_screen.dart';
 import 'package:get_right/views/journal/write_note_screen.dart';
-import 'package:get_right/views/journal/share_workout_screen.dart';
 import 'package:get_right/views/tracker/active_run_screen.dart';
 import 'package:get_right/views/tracker/tracker_screen.dart';
 import 'package:get_right/views/tracker/run_tracker_screen.dart';
 import 'package:get_right/views/tracker/activity_type_selection_screen.dart';
-import 'package:get_right/views/tracker/cardio_library_screen.dart';
 import 'package:get_right/views/tracker/route_planning_screen.dart';
 import 'package:get_right/views/tracker/run_summary_screen.dart';
 import 'package:get_right/views/tracker/run_history_screen.dart';
@@ -142,9 +139,8 @@ class AppPages {
     GetPage(name: AppRoutes.completedWorkouts, page: () => const CompletedWorkoutsScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.workoutTimer, page: () => const WorkoutTimerScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.addWorkout, page: () => const AddWorkoutScreen(), transition: Transition.downToUp),
+    GetPage(name: AppRoutes.addExercise, page: () => const AddExerciseScreen(), transition: Transition.downToUp),
     GetPage(name: AppRoutes.newWorkout, page: () => const NewWorkoutScreen(), transition: Transition.rightToLeft),
-    GetPage(name: AppRoutes.journalExerciseLibrary, page: () => const JournalExerciseLibraryScreen(), transition: Transition.rightToLeft),
-    GetPage(name: AppRoutes.addToWorkout, page: () => const AddToWorkoutScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.exerciseSelection, page: () => const ExerciseSelectionScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.exerciseConfiguration, page: () => const ExerciseConfigurationScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.addNotes, page: () => const AddNotesScreen(), transition: Transition.rightToLeft),
@@ -153,7 +149,6 @@ class AppPages {
     GetPage(name: AppRoutes.logRun, page: () => const LogRunScreen(), transition: Transition.downToUp),
     GetPage(name: AppRoutes.logMeal, page: () => const LogMealScreen(), transition: Transition.downToUp),
     GetPage(name: AppRoutes.writeNote, page: () => const WriteNoteScreen(), transition: Transition.downToUp),
-    GetPage(name: AppRoutes.shareWorkout, page: () => const ShareWorkoutScreen(), transition: Transition.rightToLeft),
 
     // Tracker Pages
     GetPage(name: AppRoutes.tracker, page: () => const TrackerScreen(), transition: Transition.fade),
@@ -164,7 +159,6 @@ class AppPages {
     GetPage(name: AppRoutes.progress, page: () => const ProgressScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.routePlanning, page: () => const RoutePlanningScreen(), transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.activityTypeSelection, page: () => const ActivityTypeSelectionScreen(), transition: Transition.rightToLeft),
-    GetPage(name: AppRoutes.cardioLibrary, page: () => const CardioLibraryScreen(), transition: Transition.rightToLeft),
 
     // Planner Pages
     GetPage(name: AppRoutes.planner, page: () {
@@ -180,19 +174,6 @@ class AppPages {
       }
       return PlannerScreen(initialDate: initialDate);
     }, transition: Transition.fade),
-    GetPage(name: AppRoutes.calendar, page: () {
-      final args = Get.arguments;
-      DateTime? initialDate;
-      if (args is Map) {
-        final raw = args['selectedDate'];
-        if (raw is DateTime) {
-          initialDate = raw;
-        } else if (raw is String) {
-          initialDate = DateTime.tryParse(raw);
-        }
-      }
-      return PlannerScreen(initialDate: initialDate);
-    }, transition: Transition.rightToLeft),
     GetPage(name: AppRoutes.createPlan, page: () => const CreatePlanScreen(), transition: Transition.downToUp),
 
     // Marketplace Pages
